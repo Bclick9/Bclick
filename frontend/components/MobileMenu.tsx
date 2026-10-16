@@ -4,11 +4,9 @@ import { MessageSquare } from 'lucide-react'
 import { SIDEBAR_ITEMS, LanguageFlag } from './Sidebar'
 import { cn } from '../lib/shadcn/utils'
 
-/* Mobile menu OPEN state — recreated from the supplied reference screenshot:
-   a full-screen sheet above the page content (the persistent bottom nav stays
-   visible on top, with its Menu control turned into a Close control), a small
-   drag-handle bar at the very top, rounded item cards, the active route
-   highlighted, and British English / Support buttons pinned at the bottom. */
+/* Mobile menu sheet: persistent bottom navigation remains on top, the Menu
+   control becomes Close, active routes are highlighted, and language / Support
+   controls stay pinned above the bottom navigation. */
 
 interface MobileMenuProps {
   open: boolean
