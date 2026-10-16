@@ -6,7 +6,7 @@ const byId = (id: string) => GAMES.find((g) => g.id === id)!
 const TRENDING = [
   'zeus-vs-hades', 'lucky-ladys-charm', 'wild-clusters', 'raptor-doublemax',
   'wealth-bells-40', 'le-bandit', 'big-bass-trophy-catch', 'silver-coins',
-  'eggs-of-fortune', 'blazing-coins',
+  'eggs-of-fortune', 'blazing-coins', 'gates-of-olympus',
 ].map(byId)
 
 const SLOTS = [
@@ -31,7 +31,7 @@ export default function Home() {
           ))}
         </SectionRow>
 
-        <SectionRow title="Live Matches" more="/sports">
+        <SectionRow>
           {SPORTS_EVENTS.slice(0, 4).map((e) => (
             <MatchCard key={e.id} event={e} />
           ))}
