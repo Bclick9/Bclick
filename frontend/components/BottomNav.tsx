@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { X, Coins, Volleyball, Gift, Search as SearchIcon } from 'lucide-react'
 import { MobileMenu } from './MobileMenu'
@@ -18,6 +18,7 @@ const NAV_ITEMS = [
 export function BottomNav() {
   const { pathname } = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const closeMenu = useCallback(() => setMenuOpen(false), [])
 
   return (
     <>
@@ -58,9 +59,7 @@ export function BottomNav() {
         </div>
       </nav>
 
-      <div id="mobile-menu-panel">
-        <MobileMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
-      </div>
+      <MobileMenu open={menuOpen} onClose={closeMenu} />
     </>
   )
 }
