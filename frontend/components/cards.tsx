@@ -41,7 +41,7 @@ export function SectionRow({
         <div className="flex items-center justify-between mb-3">
           <Link
             to={more ?? '#'}
-            className="flex items-center gap-2 font-bold text-foreground text-lg md:text-xl hover:text-primary transition-colors"
+            className="flex items-center gap-2 font-bold text-foreground text-lg hover:text-primary transition-colors"
           >
             {title}
             <ChevronRight className="w-4 h-4 text-primary" />
@@ -79,7 +79,7 @@ export function GameCard({ game, className }: { game: Game; className?: string }
     <Link
       to="/casino"
       className={cn(
-        'group relative shrink-0 w-[124px] md:w-[132px] rounded-xl overflow-hidden border border-border bg-card hover:border-primary/60 transition-colors',
+        'group relative shrink-0 w-[124px] md:w-[130px] rounded-xl overflow-hidden border border-border bg-card hover:border-primary/60 transition-colors',
         className,
       )}
     >
