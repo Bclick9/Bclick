@@ -18,7 +18,7 @@ const LIVE_GAMES = GAMES.filter((g) => g.live)
 
 export default function Home() {
   return (
-    <div className="ml-[clamp(40px,8vw,150px)] w-[calc(100%-clamp(40px,8vw,150px))] max-w-[1400px] px-0 py-6">
+    <div className="mx-auto px-3 py-6 md:mx-0 md:ml-[clamp(40px,8vw,150px)] md:w-[calc(100%-clamp(40px,8vw,150px))] md:max-w-[1400px] md:px-0">
         <SectionRow title="Promotions" more="/promotions">
           {PROMOTIONS.slice(0, 3).map((p) => (
             <PromoCard key={p.slug} promo={p} />
