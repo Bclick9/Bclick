@@ -32,14 +32,14 @@ export function HeaderDesktop() {
           </Link>
           <Link
             to="/wallet/deposit"
-            className="flex items-center gap-2 h-10 px-4 rounded-lg border border-border bg-secondary/70 hover:bg-accent transition-colors"
+            className="flex items-center gap-2 h-10 px-4 rounded-lg border border-[var(--cb-yellow)] bg-transparent hover:bg-accent transition-colors"
           >
             <User2 className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm font-bold text-foreground">€0.00</span>
           </Link>
           <Link
             to="/wallet/deposit"
-            className="h-10 px-6 rounded-lg cb-yellow text-primary-foreground font-bold text-sm flex items-center hover:brightness-110 transition-all"
+            className="h-10 px-4 rounded-lg cb-yellow text-primary-foreground font-bold text-sm flex items-center hover:brightness-110 transition-all"
           >
             Deposit
           </Link>
