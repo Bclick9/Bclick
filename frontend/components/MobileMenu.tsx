@@ -86,10 +86,10 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
         <div className="grid grid-cols-2 gap-2.5">
           <button
             className="flex items-center justify-center gap-2.5 h-[52px] rounded-xl bg-[var(--cb-card)] text-white hover:bg-[var(--cb-hover)] transition-colors"
-            aria-label="Language: American English"
+            aria-label="Language: English (UK)"
           >
             <LanguageFlag />
-            <span className="text-sm font-semibold">American English</span>
+            <span className="text-sm font-semibold">English (UK)</span>
           </button>
           <Link
             to="/info/contact"
