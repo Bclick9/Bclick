@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { cn } from '../lib/shadcn/utils'
 
-export const SIDEBAR_WIDTH = { collapsed: 74, expanded: 235 }
+export const SIDEBAR_WIDTH = { collapsed: 70, expanded: 235 }
 
 export const SIDEBAR_ITEMS = [
   { to: '/', icon: Home, label: 'Home' },
@@ -41,7 +41,7 @@ export function Sidebar({ expanded, onToggle }: SidebarProps) {
       aria-label="Main navigation"
     >
       {/* collapse/expand control — toggles the sidebar presentation */}
-      <div className="p-3.5 shrink-0">
+      <div className="p-2.5 shrink-0">
         <button
           aria-label={expanded ? 'Collapse sidebar menu' : 'Expand sidebar menu'}
           aria-expanded={expanded}
