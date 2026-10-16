@@ -46,6 +46,7 @@ export default function App() {
         <Route path="jackpots" element={<Jackpots />} />
         <Route path="tournaments" element={<Tournaments />} />
         <Route path="vip" element={<Vip />} />
+        <Route path="rewards" element={<Vip />} />
         <Route path="search" element={<Search />} />
         <Route path="support" element={<Support />} />
         <Route path="login" element={<Login />} />
