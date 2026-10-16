@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import {
   Home, Coins, Disc3, Volleyball, Gift, Trophy, Crown, MessageSquare,
-  PanelLeft,
+  PanelLeft, Target,
 } from 'lucide-react'
 import { cn } from '../lib/shadcn/utils'
 
@@ -16,6 +16,7 @@ export const SIDEBAR_ITEMS = [
   { to: '/jackpots', icon: Trophy, label: 'Jackpots' },
   { to: '/tournaments', icon: Trophy, label: 'Tournaments' },
   { to: '/vip', icon: Crown, label: 'VIP' },
+  { to: '/rewards', icon: Target, label: 'Rewards' },
 ]
 
 /* Match the live site's English (UK) language selector. */
