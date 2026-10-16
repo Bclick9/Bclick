@@ -87,6 +87,12 @@ function GameGrid({ ids }: { ids: string[] }) {
 function HalloweenBanner({ games }: { games: string[] }) {
   return (
     <div className="rounded-2xl bg-card border border-border overflow-hidden mb-8">
+      <img
+        src="https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/Halloween-2026.webp"
+        alt="CampeonBet Halloween Games"
+        loading="lazy"
+        className="block w-full aspect-[5.2/1] object-cover"
+      />
       <div className="relative p-4 md:p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg md:text-xl font-extrabold text-foreground">Halloween Games</h2>
@@ -174,16 +180,30 @@ export function Providers() {
         <h1 className="text-xl md:text-2xl font-extrabold text-foreground">Providers</h1>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {[...new Set(GAMES.map((g) => g.provider))].map((p) => (
-          <Link
-            key={p}
-            to={`/casino/providers/${encodeURIComponent(p.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}`}
-            className="rounded-xl bg-card border border-border hover:border-primary/60 transition-colors overflow-hidden"
-          >
-            <Wireframe className="aspect-[2/1] w-full rounded-none border-0" label={p} />
-            <p className="text-xs font-bold text-foreground text-center px-2 py-3 truncate">{p}</p>
-          </Link>
-        ))}
+        {[...new Set(GAMES.map((g) => g.provider))].map((p) => {
+          const providerArt: Record<string, string> = {
+            'Playson': 'https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/Playson.webp',
+            'Endorphina': 'https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/Endorphina.webp',
+            'Pateplay': 'https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/Pateplay.webp',
+            'Betsoft': 'https://campeonbet.io/assets/cms/87100fe1-7d84-4a62-a632-819515c15127/Betsoft.webp',
+            'Rubyplay': 'https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/Rubyplay.webp',
+            'Novomatic': 'https://campeonbet.io/assets/cms/87100fe1-7d84-4a62-a632-819515c15127/Novomatic.webp',
+          }
+          return (
+            <Link
+              key={p}
+              to={`/casino/providers/${encodeURIComponent(p.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}`}
+              className="rounded-xl bg-card border border-border hover:border-primary/60 transition-colors overflow-hidden"
+            >
+              {providerArt[p] ? (
+                <img src={providerArt[p]} alt={p} loading="lazy" className="aspect-[2/1] w-full object-cover" />
+              ) : (
+                <Wireframe className="aspect-[2/1] w-full rounded-none border-0" label={p} />
+              )}
+              <p className="text-xs font-bold text-foreground text-center px-2 py-3 truncate">{p}</p>
+            </Link>
+          )
+        })}
       </div>
     </div>
   )
