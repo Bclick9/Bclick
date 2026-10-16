@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { Image as ImageIcon, ChevronRight, Radio } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { Game, Promotion, SportsEvent } from '../data/catalog'
@@ -33,6 +33,8 @@ export function SectionRow({
   more?: string
   compact?: boolean
 }) {
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+
   return (
     <section className={compact ? '' : 'mb-8'}>
       {title ? (
@@ -47,12 +49,14 @@ export function SectionRow({
           <div className="hidden md:flex items-center gap-2">
             <button
               aria-label="Scroll left"
+              onClick={() => scrollRef.current?.scrollBy({ left: -520, behavior: "smooth" })}
               className="w-9 h-9 rounded-lg bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
             >
               &lsaquo;
             </button>
             <button
               aria-label="Scroll right"
+              onClick={() => scrollRef.current?.scrollBy({ left: 520, behavior: "smooth" })}
               className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold"
             >
               &rsaquo;
@@ -60,7 +64,7 @@ export function SectionRow({
           </div>
         </div>
       ) : null}
-      <div className="flex gap-3 md:gap-4 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 md:mx-0 md:px-0">
+      <div ref={scrollRef} className="flex gap-2 md:gap-2 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 md:mx-0 md:px-0">
         {children}
       </div>
     </section>
@@ -73,11 +77,21 @@ export function GameCard({ game, className }: { game: Game; className?: string }
     <Link
       to="/casino"
       className={cn(
-        'group relative shrink-0 w-[124px] md:w-[152px] rounded-xl overflow-hidden border border-border bg-card hover:border-primary/60 transition-colors',
+        'group relative shrink-0 w-[124px] md:w-[132px] rounded-xl overflow-hidden border border-border bg-card hover:border-primary/60 transition-colors',
         className,
       )}
     >
-      <Wireframe className="aspect-[3/4] w-full" label="game" />
+      {game.image ? (
+        <img
+          src={game.image}
+          alt={game.title}
+          loading="lazy"
+          decoding="async"
+          className="aspect-[3/4] w-full object-cover"
+        />
+      ) : (
+        <Wireframe className="aspect-[3/4] w-full" label={game.title} />
+      )}
       <div className="absolute inset-x-0 bottom-0 px-2 pt-6 pb-2 bg-gradient-to-t from-black/90 via-black/60 to-transparent">
         <p className="text-[11px] md:text-xs font-bold uppercase leading-tight text-white text-center line-clamp-2">
           {game.title}
@@ -101,7 +115,7 @@ export function PromoCard({ promo, className }: { promo: Promotion; className?: 
     <Link
       to={`/promotions/${promo.slug}`}
       className={cn(
-        'group shrink-0 w-[260px] md:w-[420px] rounded-xl overflow-hidden bg-card border border-border hover:border-primary/60 transition-colors',
+        'group shrink-0 w-[260px] md:w-[460px] rounded-xl overflow-hidden bg-card border border-border hover:border-primary/60 transition-colors',
         className,
       )}
     >
