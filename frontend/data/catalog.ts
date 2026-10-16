@@ -86,6 +86,7 @@ export const CASINO_CATEGORIES = [
 
 export interface Promotion {
   slug: string
+  image: string
   tag: string
   title: string
   scope: 'casino' | 'sports'
@@ -96,6 +97,7 @@ export interface Promotion {
 export const PROMOTIONS: Promotion[] = [
   {
     slug: 'welcome-casino-package',
+    image: 'https://campeonbet.io/assets/cms/d7306129-2d7b-4787-898a-f25e88b47dd5/welcome-casino-bonus.webp',
     tag: 'Welcome Casino Package',
     title: 'Start with 350% up to €2000 & 1000 FS',
     scope: 'casino',
@@ -110,6 +112,7 @@ export const PROMOTIONS: Promotion[] = [
   },
   {
     slug: 'welcome-sports-bonus',
+    image: 'https://campeonbet.io/assets/cms/1c0a040c-6beb-420f-9d39-5dddb0cccf3b/welcome-sports-bonus.jpg',
     tag: 'Welcome Sports Bonus',
     title: 'Boost your bets with a 100% up to €100 Bonus!',
     scope: 'sports',
@@ -123,6 +126,7 @@ export const PROMOTIONS: Promotion[] = [
   },
   {
     slug: 'welcome-sports-freebet',
+    image: 'https://campeonbet.io/assets/cms/a5456fe7-a90b-4b43-a127-a9506dec060c/welcome-sports-freebet.jpg',
     tag: 'Welcome Sports Freebet',
     title: 'Kick off with a €25 Freebet!',
     scope: 'sports',
@@ -136,6 +140,7 @@ export const PROMOTIONS: Promotion[] = [
   },
   {
     slug: 'welcome-crypto-combo',
+    image: 'https://campeonbet.io/assets/cms/faab2744-96c6-4257-962e-4b0e597fee40/welcome-crypto-bonus.jpg',
     tag: 'Welcome Crypto COMBO',
     title: '150% Crypto Bonus up to 1 BTC & 150 FS!',
     scope: 'casino',
@@ -149,6 +154,7 @@ export const PROMOTIONS: Promotion[] = [
   },
   {
     slug: 'mondays-reload-bonus',
+    image: 'https://campeonbet.io/assets/cms/28f6909b-a11e-42b9-8448-b23fa8a9e782/monday-reload-bonus.jpg',
     tag: "Monday's Reload Bonus",
     title: '100% Casino Reload Bonus lined up for you!',
     scope: 'casino',
