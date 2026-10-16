@@ -11,7 +11,7 @@
   --card-foreground: 210 30% 98%;
   --popover: 201 50% 11%;
   --popover-foreground: 210 30% 98%;
-  --primary: 43 92% 53%;
+  --primary: 43 100% 50%;
   --primary-foreground: 212 60% 8%;
   --secondary: 203 42% 16%;
   --secondary-foreground: 210 30% 98%;
@@ -22,8 +22,8 @@
   --accent-foreground: 210 30% 98%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 98%;
-  --warning: 43 92% 53%;
-  --warning-foreground: 212 60% 8%;
+  --warning: 43 100% 50%;
+  --warning-foreground: 202 100% 5%;
   --success: 152 60% 40%;
   --success-foreground: 0 0% 98%;
   --border: 202 42% 16%;
