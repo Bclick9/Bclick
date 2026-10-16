@@ -16,7 +16,7 @@ function Logo({ compact }: { compact?: boolean }) {
 
 export function HeaderDesktop() {
   return (
-    <header className="cb-nav hidden md:flex sticky top-0 z-30 h-[58px] items-center px-3">
+    <header className="cb-nav hidden md:flex sticky top-0 z-30 h-[58px] items-center px-0">
       <div
         className="ml-[clamp(40px,8vw,150px)] flex max-w-[1400px] items-center gap-4"
         style={{ width: 'min(1400px, calc(100% - clamp(40px, 8vw, 150px)))' }}
