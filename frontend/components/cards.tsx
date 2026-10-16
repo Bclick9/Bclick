@@ -106,7 +106,12 @@ export function PromoCard({ promo, className }: { promo: Promotion; className?: 
       )}
     >
       <div className="relative">
-        <Wireframe className="aspect-[16/9] w-full rounded-none border-0" label="promo" />
+        <img
+          src={promo.image}
+          alt={promo.tag}
+          loading="lazy"
+          className="aspect-[16/9] w-full object-cover"
+        />
         <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] md:text-xs font-bold px-2 py-1 rounded">
           {promo.tag}
         </span>
