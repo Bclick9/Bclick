@@ -1,0 +1,79 @@
+/* CampeonBet recreation — brand palette sampled from the reference screenshots.
+   Site chrome (sidebar / header / mobile nav / menu panel): dark navy #0A1523.
+   Content (casino-style pages): #0D1E30. Cards/items: #142A3E. Accent: #F7B617.
+   Account/wallet pages use a light content surface (#F0EFEE) scoped via .cb-light. */
+
+:root:root,
+:root.dark {
+  --background: 212 57% 12%;
+  --foreground: 210 30% 98%;
+  --card: 211 50% 16%;
+  --card-foreground: 210 30% 98%;
+  --popover: 211 50% 18%;
+  --popover-foreground: 210 30% 98%;
+  --primary: 43 92% 53%;
+  --primary-foreground: 212 60% 8%;
+  --secondary: 211 48% 19%;
+  --secondary-foreground: 210 30% 98%;
+  --muted: 211 45% 17%;
+  --muted-foreground: 210 22% 69%;
+  --body-foreground: 210 20% 85%;
+  --accent: 211 45% 21%;
+  --accent-foreground: 210 30% 98%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 98%;
+  --warning: 43 92% 53%;
+  --warning-foreground: 212 60% 8%;
+  --success: 152 60% 40%;
+  --success-foreground: 0 0% 98%;
+  --border: 211 46% 21%;
+  --input: 211 46% 21%;
+  --ring: 43 92% 53%;
+  --radius: 0.75rem;
+}
+
+/* Chrome surfaces sampled from the reference */
+:root {
+  --cb-nav: #0a1523;          /* sidebar, header, bottom nav, menu panel */
+  --cb-content: #0d1e30;      /* dark page content */
+  --cb-card: #142a3e;         /* cards and menu item rows */
+  --cb-item-active: #24384e;  /* active/selected nav row */
+  --cb-hover: #1a3049;        /* hover surface */
+  --cb-line: #1c3450;         /* separators / borders */
+  --cb-yellow: #f7b617;
+  --cb-yellow-dark: #d99e0e;
+  --cb-green: #2fbf71;
+  --cb-red: #e5484d;
+
+  --cb-light-page: #f0efee;
+  --cb-light-card: #ffffff;
+  --cb-light-border: #dcdcdc;
+  --cb-light-text: #1b2733;
+  --cb-light-muted: #5b6b7a;
+  --cb-light-selected: #e4e6e8;
+}
+
+.cb-nav { background: var(--cb-nav); }
+.cb-content { background: var(--cb-content); }
+.cb-yellow { background: var(--cb-yellow); }
+.cb-text-yellow { color: var(--cb-yellow); }
+
+/* Light content surface for account / wallet pages (scoped, not global) */
+.cb-light { background: var(--cb-light-page); color: var(--cb-light-text); }
+
+/* Menu panel slide-down animation (mobile menu sheet) */
+@keyframes cb-menu-in {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+.cb-menu-panel { animation: cb-menu-in 240ms ease-out; }
+
+@keyframes cb-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.cb-fade-in { animation: cb-fade-in 200ms ease-out; }
+
+/* Safe-area helpers for the mobile chrome */
+.cb-safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.cb-safe-top { padding-top: env(safe-area-inset-top, 0px); }
