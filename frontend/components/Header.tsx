@@ -5,8 +5,8 @@ import { WireframeFlag } from './Sidebar'
 function Logo({ compact }: { compact?: boolean }) {
   return (
     <Link to="/" aria-label="CampeonBet home" className="flex min-w-0 items-center">
-      <span className={compact ? "text-[21px] leading-none font-black tracking-[-0.075em] text-white" : "text-[24px] leading-none font-black tracking-[-0.075em] text-white"}>
-        campeón<span className="text-[var(--cb-yellow)]">bet</span>
+      <span className={compact ? "text-[21px] leading-none font-black tracking-[-0.075em] text-white" : "text-[24px] leading-none font-black tracking-[-0.075em] text-[#c3ced9] uppercase italic"}>
+        CAMPEON<span className="text-[var(--cb-yellow)] not-italic">BET</span>
       </span>
     </Link>
   )
