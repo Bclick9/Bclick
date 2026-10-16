@@ -44,8 +44,13 @@ export function HomeHero() {
             </Link>
           </div>
         </div>
-        <div className="w-full md:w-[420px] aspect-[16/9] rounded-xl bg-zinc-300 dark:bg-zinc-600/70 border border-zinc-400/60 flex items-center justify-center text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-          Hero banner placeholder
+        <div className="w-full md:w-[420px] shrink-0 overflow-hidden rounded-xl border border-border aspect-[16/9]">
+          <img
+            src="https://campeonbet.io/assets/cms/d7306129-2d7b-4787-898a-f25e88b47dd5/welcome-casino-bonus.webp"
+            alt="CampeonBet Welcome Casino Package"
+            fetchPriority="high"
+            className="h-full w-full object-cover"
+          />
         </div>
       </div>
     </div>
