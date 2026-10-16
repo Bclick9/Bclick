@@ -3,17 +3,11 @@ import { Search, User2 } from 'lucide-react'
 import { WireframeFlag } from './Sidebar'
 
 function Logo({ compact }: { compact?: boolean }) {
-  /* Logo is an image asset in the reference — rendered as a grey wireframe block */
-  if (compact) {
-    return (
-      <Link to="/" aria-label="CampeonBet home" className="flex items-center">
-        <span className="block w-9 h-9 rounded-md bg-zinc-300 dark:bg-zinc-500/70 border border-zinc-400/60" aria-hidden />
-      </Link>
-    )
-  }
   return (
-    <Link to="/" aria-label="CampeonBet home" className="flex items-center">
-      <span className="block h-8 w-[168px] rounded-md bg-zinc-300 dark:bg-zinc-500/70 border border-zinc-400/60" aria-hidden />
+    <Link to="/" aria-label="CampeonBet home" className="flex min-w-0 items-center">
+      <span className={compact ? "text-[21px] leading-none font-black tracking-[-0.075em] text-white" : "text-[24px] leading-none font-black tracking-[-0.075em] text-white"}>
+        campeón<span className="text-[var(--cb-yellow)]">bet</span>
+      </span>
     </Link>
   )
 }
