@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
 import { ChevronLeft, CalendarClock, Percent } from 'lucide-react'
-import { PromoCard, PageTitle, Wireframe } from '../components/cards'
+import { PromoCard, PageTitle } from '../components/cards'
 import { PROMOTIONS } from '../data/catalog'
 
 export default function Promotions() {
@@ -51,7 +51,11 @@ export function PromotionDetail() {
 
       <div className="rounded-2xl bg-card border border-border overflow-hidden">
         <div className="relative">
-          <Wireframe className="aspect-[16/8] w-full rounded-none border-0" label="promotion banner" />
+          <img
+            src={promo.image}
+            alt={promo.tag}
+            className="aspect-[16/8] w-full object-cover"
+          />
           <span className="absolute top-3 left-3 bg-primary text-primary-foreground text-xs font-bold px-2.5 py-1.5 rounded">
             {promo.tag}
           </span>
