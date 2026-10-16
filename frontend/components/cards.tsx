@@ -129,14 +129,14 @@ export function PromoCard({ promo, className }: { promo: Promotion; className?: 
           src={promo.image}
           alt={promo.tag}
           loading="lazy"
-          className="aspect-[16/9] w-full object-cover"
+          className="aspect-[2.2/1] w-full object-cover"
         />
         <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] md:text-xs font-bold px-2 py-1 rounded">
           {promo.tag}
         </span>
       </div>
       <div className="flex items-center justify-between gap-3 p-3 md:p-4">
-        <p className="text-sm md:text-base font-bold text-foreground">{promo.title}</p>
+        <p className="text-sm font-bold text-foreground">{promo.title}</p>
         <span className="shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center group-hover:translate-x-0.5 transition-transform">
           <ChevronRight className="w-4 h-4" />
         </span>
