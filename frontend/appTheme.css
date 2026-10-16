@@ -5,20 +5,20 @@
 
 :root:root,
 :root.dark {
-  --background: 212 57% 12%;
+  --background: 198 100% 5.5%;
   --foreground: 210 30% 98%;
-  --card: 211 50% 16%;
+  --card: 201 53% 10%;
   --card-foreground: 210 30% 98%;
-  --popover: 211 50% 18%;
+  --popover: 201 50% 11%;
   --popover-foreground: 210 30% 98%;
   --primary: 43 92% 53%;
   --primary-foreground: 212 60% 8%;
-  --secondary: 211 48% 19%;
+  --secondary: 203 42% 16%;
   --secondary-foreground: 210 30% 98%;
-  --muted: 211 45% 17%;
+  --muted: 201 42% 12%;
   --muted-foreground: 210 22% 69%;
   --body-foreground: 210 20% 85%;
-  --accent: 211 45% 21%;
+  --accent: 203 45% 20%;
   --accent-foreground: 210 30% 98%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 98%;
@@ -26,22 +26,22 @@
   --warning-foreground: 212 60% 8%;
   --success: 152 60% 40%;
   --success-foreground: 0 0% 98%;
-  --border: 211 46% 21%;
-  --input: 211 46% 21%;
-  --ring: 43 92% 53%;
+  --border: 202 42% 16%;
+  --input: 202 42% 16%;
+  --ring: 43 100% 50%;
   --radius: 0.75rem;
 }
 
 /* Chrome surfaces sampled from the reference */
 :root {
-  --cb-nav: #0a1523;          /* sidebar, header, bottom nav, menu panel */
-  --cb-content: #0d1e30;      /* dark page content */
-  --cb-card: #142a3e;         /* cards and menu item rows */
-  --cb-item-active: #24384e;  /* active/selected nav row */
-  --cb-hover: #1a3049;        /* hover surface */
-  --cb-line: #1c3450;         /* separators / borders */
-  --cb-yellow: #f7b617;
-  --cb-yellow-dark: #d99e0e;
+  --cb-nav: #071823;          /* sidebar, header, bottom nav, menu panel */
+  --cb-content: #00151e;      /* dark page content */
+  --cb-card: #0b202a;         /* cards and menu item rows */
+  --cb-item-active: #233d4b;  /* active/selected nav row */
+  --cb-hover: #17313e;        /* hover surface */
+  --cb-line: #193442;         /* separators / borders */
+  --cb-yellow: #ffbd00;
+  --cb-yellow-dark: #dca300;
   --cb-green: #2fbf71;
   --cb-red: #e5484d;
 
