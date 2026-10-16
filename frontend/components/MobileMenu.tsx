@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { MessageSquare } from 'lucide-react'
 import { SIDEBAR_ITEMS, LanguageFlag } from './Sidebar'
@@ -17,12 +17,13 @@ interface MobileMenuProps {
 
 export function MobileMenu({ open, onClose }: MobileMenuProps) {
   const { pathname } = useLocation()
+  const previousPathname = useRef(pathname)
 
-  /* Close whenever the user navigates to a different page */
+  /* Close only when the route changes, not immediately when the menu opens. */
   useEffect(() => {
-    if (open) onClose()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname])
+    if (previousPathname.current !== pathname && open) onClose()
+    previousPathname.current = pathname
+  }, [pathname, open, onClose])
 
   /* Scroll lock + Escape while open */
   useEffect(() => {
@@ -43,6 +44,7 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
 
   return (
     <div
+      id="mobile-menu-panel"
       className="md:hidden fixed inset-x-0 top-0 bottom-0 z-40 cb-nav cb-menu-panel flex flex-col cb-safe-top"
       role="dialog"
       aria-modal="true"
@@ -86,10 +88,10 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
         <div className="grid grid-cols-2 gap-2.5">
           <button
             className="flex items-center justify-center gap-2.5 h-[52px] rounded-xl bg-[var(--cb-card)] text-white hover:bg-[var(--cb-hover)] transition-colors"
-            aria-label="Language: British English"
+            aria-label="Language: American English"
           >
             <LanguageFlag />
-            <span className="text-sm font-semibold">British English</span>
+            <span className="text-sm font-semibold">American English</span>
           </button>
           <Link
             to="/info/contact"
