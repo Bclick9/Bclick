@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Image as ImageIcon, ChevronRight, Radio } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { Game, Promotion, SportsEvent } from '../data/catalog'
@@ -71,8 +71,10 @@ export function SectionRow({
   )
 }
 
-/* ---------- Game card (wireframe thumbnail, real text overlay) ---------- */
+/* ---------- Game card with a graceful image fallback ---------- */
 export function GameCard({ game, className }: { game: Game; className?: string }) {
+  const [imageFailed, setImageFailed] = useState(false)
+
   return (
     <Link
       to="/casino"
@@ -81,25 +83,28 @@ export function GameCard({ game, className }: { game: Game; className?: string }
         className,
       )}
     >
-      {game.image ? (
+      {game.image && !imageFailed ? (
         <img
           src={game.image}
           alt={game.title}
           loading="lazy"
           decoding="async"
+          onError={() => setImageFailed(true)}
           className="aspect-[3/4] w-full object-cover"
         />
       ) : (
         <Wireframe className="aspect-[3/4] w-full" label={game.title} />
       )}
-      <div className="absolute inset-x-0 bottom-0 px-2 pt-6 pb-2 bg-gradient-to-t from-black/90 via-black/60 to-transparent">
-        <p className="text-[11px] md:text-xs font-bold uppercase leading-tight text-white text-center line-clamp-2">
-          {game.title}
-        </p>
-        <p className="text-[9px] md:text-[10px] text-zinc-300 text-center uppercase tracking-wider mt-0.5">
-          {game.provider}
-        </p>
-      </div>
+      {!game.image || imageFailed ? (
+        <div className="absolute inset-x-0 bottom-0 px-2 pt-6 pb-2 bg-gradient-to-t from-black/90 via-black/60 to-transparent">
+          <p className="text-[11px] md:text-xs font-bold uppercase leading-tight text-white text-center line-clamp-2">
+            {game.title}
+          </p>
+          <p className="text-[9px] md:text-[10px] text-zinc-300 text-center uppercase tracking-wider mt-0.5">
+            {game.provider}
+          </p>
+        </div>
+      ) : null}
       {game.live ? (
         <span className="absolute top-2 left-2 flex items-center gap-1 bg-[var(--cb-red)] text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
           <Radio className="w-2.5 h-2.5" /> LIVE
