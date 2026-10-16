@@ -8,7 +8,7 @@ import { Footer } from './Footer'
 /* Shared page shell: expandable desktop sidebar + header, mobile header,
    bottom nav + menu sheet, footer. */
 export function Layout() {
-  const [sidebarExpanded, setSidebarExpanded] = useState(true)
+  const [sidebarExpanded, setSidebarExpanded] = useState(false)
 
   return (
     <div className="cb-content min-h-screen text-foreground">
