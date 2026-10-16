@@ -18,9 +18,9 @@ export const SIDEBAR_ITEMS = [
   { to: '/vip', icon: Crown, label: 'VIP' },
 ]
 
-/* Language flag as image-free wireframe placeholder */
+/* Match the live site's American English language selector. */
 export function WireframeFlag() {
-  return <span className="block w-6 h-4 rounded-sm bg-zinc-300 dark:bg-zinc-500/70 border border-zinc-400/60" aria-hidden />
+  return <span className="inline-flex w-6 h-4 items-center justify-center text-base leading-none" aria-hidden>🇺🇸</span>
 }
 export { WireframeFlag as LanguageFlag }
 
@@ -81,10 +81,10 @@ export function Sidebar({ expanded, onToggle }: SidebarProps) {
             'flex items-center gap-3 h-12 w-full rounded-xl bg-[var(--cb-card)] text-white hover:bg-[var(--cb-hover)] transition-colors',
             expanded ? 'justify-start px-3' : 'justify-center',
           )}
-          aria-label="Language: British English"
+          aria-label="Language: American English"
         >
           <WireframeFlag />
-          {expanded ? <span className="text-sm font-semibold">British English</span> : null}
+          {expanded ? <span className="text-sm font-semibold">American English</span> : null}
         </button>
         <Link
           to="/info/contact"
