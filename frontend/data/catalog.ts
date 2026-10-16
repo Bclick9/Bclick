@@ -6,6 +6,7 @@ export interface Game {
   title: string
   provider: string
   image?: string
+  imageShowsTitle?: boolean
   categories: string[]
   live?: boolean
 }
@@ -18,7 +19,7 @@ export const GAMES: Game[] = [
   { id: 'wealth-bells-40', title: 'Wealth Bells 40', provider: 'EvoPlay', image: 'https://evoplay.games/wp-content/uploads/2026/07/580x580-2-270x270.webp', categories: ['slot-games'] },
   { id: 'le-bandit', title: 'Le Bandit', provider: 'Hacksaw', image: 'https://media.leovegas.com/images/games/le-bandit/le-bandit-tile.jpg?tr=w-1920', categories: ['slot-games', 'top-picks', 'bonus-buy'] },
   { id: 'big-bass-trophy-catch', title: 'Big Bass Trophy Catch', provider: 'Pragmatic Play', image: 'https://www.slottomat.com/storage/slot-images/big-bass-trophy-catch-42122.webp', categories: ['slot-games', 'new-games'] },
-  { id: 'silver-coins', title: 'Silver Coins', provider: 'BF Games', image: 'https://bfgames.com/wp-content/uploads/2026/05/silver_coins_screens_web_1.jpg', categories: ['slot-games'] },
+  { id: 'silver-coins', title: 'Silver Coins', provider: 'BF Games', image: 'https://bfgames.com/wp-content/uploads/2026/05/silver_coins_screens_web_1.jpg', imageShowsTitle: false, categories: ['slot-games'] },
   { id: 'eggs-of-fortune', title: 'Eggs of Fortune', provider: 'Popiplay', image: 'https://static-wazdan.com/vault/assets/107/6b426c9566e75ddf775ce129e168ca8934ffa8b3bdb4093b040ae5f3182496b2.png?save_as=EggsOfFortune_logo_vertical.png', categories: ['slot-games', 'new-games'] },
   { id: 'blazing-coins', title: 'Blazing Coins: Hold and Win', provider: 'Popiplay', image: 'https://shuffle.com/api/v1/images/og-image?gameID=3c4f6168-b2e0-4795-b333-f09f2a838a9b', categories: ['slot-games', 'jackpots'] },
   { id: 'death-dominion', title: 'Death Dominion', provider: 'Pragmatic Play', categories: ['halloween-games', 'slot-games'] },
