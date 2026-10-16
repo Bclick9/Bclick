@@ -95,7 +95,7 @@ export function GameCard({ game, className }: { game: Game; className?: string }
       ) : (
         <Wireframe className="aspect-[3/4] w-full" label={game.title} />
       )}
-      {!game.image || imageFailed ? (
+      {!game.image || imageFailed || game.imageShowsTitle === false ? (
         <div className="absolute inset-x-0 bottom-0 px-2 pt-6 pb-2 bg-gradient-to-t from-black/90 via-black/60 to-transparent">
           <p className="text-[11px] md:text-xs font-bold uppercase leading-tight text-white text-center line-clamp-2">
             {game.title}
