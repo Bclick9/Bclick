@@ -7,6 +7,7 @@ import {
 import { AuthModal } from './Auth'
 import { GAMES } from '../data/catalog'
 import { cn } from '../lib/shadcn/utils'
+import { SearchDialog } from '../components/SearchDialog'
 
 const PLAY_NAV = [
   { to: '/', label: 'Home', icon: Home },
@@ -28,6 +29,7 @@ export default function CasinoPlay() {
   const stageRef = useRef<HTMLDivElement>(null)
   const [fullscreen, setFullscreen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const [poster, setPoster] = useState(game?.image || game?.imageFallback || '')
   const isReal = mode === 'real'
 
@@ -143,9 +145,9 @@ export default function CasinoPlay() {
               <Link to="/account/wallet/deposit" aria-label="Deposit" title="Deposit" className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--cb-yellow)] bg-[var(--cb-yellow)] text-[#071722] transition hover:brightness-105 md:h-10 md:w-10">
                 <WalletCards className="h-5 w-5" />
               </Link>
-              <Link to={`/search?q=${encodeURIComponent(game.title)}`} aria-label="Search games" title="Search games" className="hidden h-9 w-9 items-center justify-center rounded-lg border border-[var(--cb-line)] text-[#aebfca] transition hover:bg-[var(--cb-hover)] hover:text-white sm:flex">
+              <button type="button" onClick={() => setSearchOpen(true)} aria-label="Search games" title="Search games" className="hidden h-9 w-9 items-center justify-center rounded-lg border border-[var(--cb-line)] text-[#aebfca] transition hover:bg-[var(--cb-hover)] hover:text-white sm:flex">
                 <Search className="h-5 w-5" />
-              </Link>
+              </button>
               <button type="button" onClick={toggleFullscreen} aria-label={fullscreen ? 'Exit fullscreen' : 'Fullscreen'} title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'} className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--cb-line)] text-[#aebfca] transition hover:bg-[var(--cb-hover)] hover:text-white">
                 {fullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
               </button>
@@ -199,6 +201,7 @@ export default function CasinoPlay() {
         </div>
       </div>
 
+      <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
       <AuthModal open={authOpen} initialMode="login" onClose={() => setAuthOpen(false)} />
     </div>
   )
