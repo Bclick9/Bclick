@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   X, Coins, Volleyball, Gift, Search as SearchIcon,
@@ -72,8 +72,32 @@ export function BottomNav() {
     if (!viewport) return
 
     let largestHeight = Math.max(window.innerHeight, viewport.height)
+    let lastWidth = window.innerWidth
+    let lastCompactMode = window.matchMedia('(max-width: 767px)').matches
+    let orientationAngle = window.screen.orientation?.angle
+
+    const resetViewportBaseline = () => {
+      lastWidth = window.innerWidth
+      lastCompactMode = window.matchMedia('(max-width: 767px)').matches
+      orientationAngle = window.screen.orientation?.angle
+      largestHeight = Math.max(window.innerHeight, viewport.height)
+      setKeyboardOpen(false)
+    }
 
     const updateKeyboardState = () => {
+      const nextCompactMode = window.matchMedia('(max-width: 767px)').matches
+      const nextOrientationAngle = window.screen.orientation?.angle
+      const widthChanged = Math.abs(window.innerWidth - lastWidth) > 80
+      const breakpointChanged = nextCompactMode !== lastCompactMode
+      const orientationChanged = nextOrientationAngle !== orientationAngle
+
+      // Switching desktop/mobile layouts or rotating the device establishes
+      // a new viewport baseline. Never treat the old desktop height as a keyboard.
+      if (widthChanged || breakpointChanged || orientationChanged) {
+        resetViewportBaseline()
+        return
+      }
+
       largestHeight = Math.max(largestHeight, viewport.height)
       const heightReduction = largestHeight - viewport.height
 
@@ -84,13 +108,20 @@ export function BottomNav() {
       })
     }
 
+    const resetAndUpdate = () => {
+      resetViewportBaseline()
+      updateKeyboardState()
+    }
+
     viewport.addEventListener('resize', updateKeyboardState)
     window.addEventListener('resize', updateKeyboardState)
+    window.addEventListener('orientationchange', resetAndUpdate)
     updateKeyboardState()
 
     return () => {
       viewport.removeEventListener('resize', updateKeyboardState)
       window.removeEventListener('resize', updateKeyboardState)
+      window.removeEventListener('orientationchange', resetAndUpdate)
     }
   }, [])
 
