@@ -211,17 +211,10 @@ export function PopularProvidersSection() {
           key={provider.title}
           to="/casino/rng/brands"
           title={provider.title}
-          className="cb-provider-card group relative block h-[103px] w-[176px] shrink-0 overflow-hidden rounded-lg bg-[var(--cb-card)] transition-colors hover:ring-1 hover:ring-[var(--cb-yellow)]"
+          className="cb-provider-card group flex h-[103px] w-[176px] shrink-0 flex-col items-center justify-center gap-2 rounded-lg bg-[var(--cb-card)] px-3 transition-colors hover:bg-[var(--cb-hover)] hover:ring-1 hover:ring-[var(--cb-yellow)]"
         >
-          <img
-            src="/assets/home/popular-providers.webp"
-            alt={provider.title}
-            loading="lazy"
-            decoding="async"
-            draggable={false}
-            className="absolute top-0 h-full max-w-none object-fill transition-transform duration-200 group-hover:scale-[1.02]"
-            style={{ width: '800%', height: '100%', left: `${-index * 100}%`, top: 0 }}
-          />
+          <span className={`cb-provider-wordmark cb-provider-${index} text-center`} aria-hidden="true">{provider.symbol}</span>
+          <span className="text-center text-[10px] font-bold text-slate-300">{provider.short}</span>
         </Link>
       ))}
     </SectionRow>
