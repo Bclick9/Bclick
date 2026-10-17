@@ -362,7 +362,7 @@ function HomeBanner({
   const useSprite = Boolean(spriteSheet) && typeof spriteIndex === 'number' && !spriteFailed
 
   return (
-    <Link to={href} className="cb-feature-banner group relative flex h-[240px] min-w-0 flex-1 shrink-0 overflow-hidden rounded-xl bg-[#06121c]">
+    <Link to={href} className="cb-feature-banner group relative flex h-[220px] w-[min(84vw,340px)] min-w-[260px] shrink-0 overflow-hidden rounded-xl bg-[#06121c] md:h-[240px] md:w-auto md:flex-1 md:shrink">
       {useSprite ? (
         <img
           src={spriteSheet}
