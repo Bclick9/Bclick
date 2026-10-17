@@ -29,7 +29,11 @@ export function SearchDialog({ open, onClose }: SearchDialogProps) {
     const previousOverflow = document.body.style.overflow
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
     document.body.style.overflow = 'hidden'
-    const frame = window.requestAnimationFrame(() => inputRef.current?.focus())
+    // Auto-focus only on desktop: mobile autofocus raises the virtual keyboard
+    // and changes the available viewport height, which disrupts filter scrolling.
+    const frame = window.requestAnimationFrame(() => {
+      if (window.matchMedia('(min-width: 768px)').matches) inputRef.current?.focus()
+    })
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose()
@@ -154,7 +158,10 @@ export function SearchDialog({ open, onClose }: SearchDialogProps) {
         </div>
 
         <div className="relative flex min-h-0 flex-1 overflow-hidden px-2 pb-3 md:px-5">
-          <div className="no-scrollbar min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-0 md:pr-1">
+          <div className={cn(
+            'no-scrollbar min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-0 md:pr-1',
+            filtersOpen && 'hidden md:block',
+          )}>
             <div className="space-y-2 pb-2">
               <div className="font-semibold text-sm md:text-base">
                 {searchTerm || filterCount > 0 ? 'Results' : 'Recommended'}
@@ -162,14 +169,23 @@ export function SearchDialog({ open, onClose }: SearchDialogProps) {
 
               {visibleGames.length > 0 ? (
                 <div
-                  className="grid w-full grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5"
+                  className={cn(
+                    'grid w-full min-w-0 gap-2',
+                    filtersOpen
+                      ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-3'
+                      : 'grid-cols-3 sm:grid-cols-4 md:grid-cols-5',
+                  )}
                   onClick={(event) => {
                     const target = event.target
                     if (target instanceof Element && target.closest('a')) onClose()
                   }}
                 >
                   {visibleGames.map((game) => (
-                    <GameCard key={game.id} game={game} className="w-full" />
+                    <GameCard
+                      key={game.id}
+                      game={game}
+                      className={cn('w-full min-w-0', filtersOpen && '!w-full !min-w-0')}
+                    />
                   ))}
                 </div>
               ) : null}
@@ -200,7 +216,7 @@ export function SearchDialog({ open, onClose }: SearchDialogProps) {
           </div>
 
           {filtersOpen ? (
-            <aside className="absolute inset-0 z-20 flex flex-col overflow-hidden border-t border-[var(--cb-line)] bg-[#091b26] px-3 pb-3 md:static md:ml-3 md:w-[330px] md:shrink-0 md:border-l md:border-t-0 md:border-[var(--cb-line)] md:pl-4">
+            <aside className="absolute inset-0 z-20 flex h-full min-h-0 flex-col overflow-hidden border-t border-[var(--cb-line)] bg-[#091b26] px-3 pb-3 md:static md:h-auto md:ml-3 md:w-[330px] md:shrink-0 md:border-l md:border-t-0 md:border-[var(--cb-line)] md:pl-4">
               <div className="flex shrink-0 items-center justify-between border-b border-[var(--cb-line)] py-3">
                 <div>
                   <h2 className="font-bold text-white">Filters</h2>
@@ -231,7 +247,10 @@ export function SearchDialog({ open, onClose }: SearchDialogProps) {
                 </div>
               </div>
 
-              <div className="no-scrollbar min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto overscroll-contain py-4">
+              <div
+                className="no-scrollbar min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto overscroll-contain py-4 [-webkit-overflow-scrolling:touch]"
+                style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorY: 'contain', touchAction: 'pan-y' }}
+              >
                 <section>
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#b6c5ce]">Providers</h3>
