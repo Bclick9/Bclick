@@ -1,8 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
-  BadgeCheck, Bell, CheckCircle2, ChevronLeft, FileText, Gift, History,
-  Inbox, LockKeyhole, ShieldAlert, UserRound, WalletCards,
+  BadgeCheck, ChevronLeft, FileText, Gift, History, Inbox, ShieldAlert, UserRound,
 } from 'lucide-react'
 import { AccountLayout } from '../components/AccountPanel'
 
