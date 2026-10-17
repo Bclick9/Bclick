@@ -174,6 +174,34 @@ function GameGrid({ ids }: { ids: string[] }) {
 }
 
 function HalloweenBanner({ games }: { games: string[] }) {
+  const gamesRailRef = useRef<HTMLDivElement | null>(null)
+  const [canScrollGamesLeft, setCanScrollGamesLeft] = useState(false)
+  const [canScrollGamesRight, setCanScrollGamesRight] = useState(false)
+
+  useEffect(() => {
+    const rail = gamesRailRef.current
+    if (!rail) return
+
+    const updateScrollEdges = () => {
+      const maxScroll = rail.scrollWidth - rail.clientWidth
+      setCanScrollGamesLeft(rail.scrollLeft > 2)
+      setCanScrollGamesRight(maxScroll > 2 && rail.scrollLeft < maxScroll - 2)
+    }
+
+    updateScrollEdges()
+    rail.addEventListener('scroll', updateScrollEdges, { passive: true })
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(updateScrollEdges)
+      : null
+    resizeObserver?.observe(rail)
+    Array.from(rail.children).forEach((child) => resizeObserver?.observe(child))
+
+    return () => {
+      rail.removeEventListener('scroll', updateScrollEdges)
+      resizeObserver?.disconnect()
+    }
+  }, [])
+
   return (
     <div className="rounded-2xl bg-card border border-border overflow-hidden mb-8">
       <img
@@ -190,11 +218,19 @@ function HalloweenBanner({ games }: { games: string[] }) {
             <button aria-label="Scroll banner right" className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold">&rsaquo;</button>
           </div>
         </div>
-        <div className="flex gap-3 overflow-x-auto no-scrollbar">
-          {games.map((id) => {
-            const g = GAMES.find((x) => x.id === id)!
-            return <GameCard key={id} game={g} />
-          })}
+        <div className="relative isolate">
+          <div ref={gamesRailRef} className="flex gap-3 overflow-x-auto no-scrollbar">
+            {games.map((id) => {
+              const g = GAMES.find((x) => x.id === id)!
+              return <GameCard key={id} game={g} />
+            })}
+          </div>
+          {canScrollGamesLeft ? (
+            <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-black/90 via-black/55 to-transparent md:w-10" />
+          ) : null}
+          {canScrollGamesRight ? (
+            <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-black/90 via-black/55 to-transparent md:w-10" />
+          ) : null}
         </div>
       </div>
     </div>
