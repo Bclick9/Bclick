@@ -112,17 +112,20 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
               type="button"
               onClick={handleBetslipClick}
               className="mt-2.5 flex h-[58px] w-full items-center gap-3 rounded-xl border border-[var(--cb-line)] bg-[var(--cb-card)] px-3.5 text-left transition-colors hover:border-[var(--cb-yellow)] hover:bg-[var(--cb-hover)]"
-              aria-label="Open Betslip, preview badge shows 3 selections"
+              aria-label="Open Betslip; sample selection badge 9"
             >
-              <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#17313E] text-[var(--cb-yellow)]">
-                <Ticket className="h-5 w-5" />
+              <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#17313E] text-white">
+                <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M4 8a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 000 4v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2a2 2 0 000-4z" />
+                  <path d="M14 6v12" />
+                </svg>
                 <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-[var(--cb-nav)] bg-[var(--cb-yellow)] px-1 text-[10px] font-black leading-none text-[#00151e]">
-                  3
+                  9
                 </span>
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-bold text-white">Betslip</span>
-                <span className="block text-[11px] text-[#91A6B5]">3 selections · preview</span>
+                <span className="block text-[11px] text-[#91A6B5]">Bet selections</span>
               </span>
               <span className="rounded-full bg-[#17313E] px-2.5 py-1 text-[10px] font-bold text-[#FFBF00]">OPEN</span>
             </button>
