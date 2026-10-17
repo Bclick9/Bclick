@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   X, Coins, Volleyball, Gift, Search as SearchIcon,
@@ -70,27 +70,33 @@ export function BottomNav() {
       ? SPORTS_LANDING_ITEMS
       : SPORTS_LIVE_ITEMS
 
+  const [selectionCount, setSelectionCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    const syncSelectionCount = () => {
+      const value = window.WinHouseEmbed?.selectionCount
+      setSelectionCount(typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null)
+    }
+    syncSelectionCount()
+    const poll = window.setInterval(syncSelectionCount, 1000)
+    return () => window.clearInterval(poll)
+  }, [])
+
   const openBetslip = useCallback(() => {
+    // Never open the site Menu as a side effect of tapping Betslip.
+    closeMenu()
+
     const api = window.WinHouseEmbed
     if (typeof api?.openBetslip === 'function') {
       api.openBetslip()
-      closeMenu()
       return
     }
 
-    // The published WinHouse API does not currently expose openBetslip().
-    // Focus the embedded book so its own native betslip remains available.
+    // WinHouse's documented public API currently has no openBetslip command.
+    // Focus its embed, but do not scroll to another view or display a fake slip.
     const frame = api?.frame ?? document.getElementById('winhouse-book-frame')
-    if (frame instanceof HTMLIFrameElement) {
-      closeMenu()
-      frame.focus()
-      frame.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
+    if (frame instanceof HTMLIFrameElement) frame.focus()
   }, [closeMenu])
-
-  // Do not read provider globals during React render: WinHouse runs in a
-  // cross-origin iframe and the parent cannot safely derive live selections.
-  const selectionBadge = '—'
 
   return (
     <>
@@ -120,15 +126,21 @@ export function BottomNav() {
                   key="betslip"
                   type="button"
                   onClick={openBetslip}
-                  aria-label="Betslip; selection count is not available from the current WinHouse embed API"
-                  title="Live selection count is not available from the current WinHouse embed API"
+                  aria-label={selectionCount === null
+                    ? 'Betslip'
+                    : `Betslip, ${selectionCount} selections`}
+                  title={selectionCount === null
+                    ? 'WinHouse has not exposed the live selection count'
+                    : `${selectionCount} selections`}
                   className="relative flex flex-col items-center justify-center gap-1 py-2.5 text-[10px] font-semibold text-[#c3ced9] transition-colors hover:text-white"
                 >
                   <span className="relative inline-flex">
                     <BetslipGlyph />
-                    <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--cb-nav)] bg-[var(--cb-yellow)] px-1 text-[8px] font-black leading-none text-[#00151e]">
-                      {selectionBadge}
-                    </span>
+                    {selectionCount !== null ? (
+                      <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--cb-nav)] bg-[var(--cb-yellow)] px-1 text-[8px] font-black leading-none text-[#00151e]">
+                        {selectionCount}
+                      </span>
+                    ) : null}
                   </span>
                   <span>Betslip</span>
                 </button>
