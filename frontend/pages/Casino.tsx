@@ -111,7 +111,7 @@ function CategoryStrip({ active }: { active: string }) {
         })}
       </div>
 
-      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center bg-gradient-to-l from-[var(--cb-content)] via-[var(--cb-content)]/90 to-transparent pl-8">
+      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center bg-gradient-to-l from-[var(--cb-content)] to-transparent pl-8">
         <div className="pointer-events-auto hidden items-center gap-1.5 md:flex">
           <ScrollArrow
             direction="left"
@@ -348,12 +348,8 @@ export function CasinoCategory() {
     setSelectedProvider('all')
   }, [category])
 
-  if (category === 'providers') return <Providers />
-
-  const known = CASINO_CATEGORIES.some((item) => item.slug === category) || category === 'drop-and-wins'
-  if (!known) return <Navigate to="/casino" replace />
-
   const cat = CASINO_CATEGORIES.find((item) => item.slug === category)
+  const known = CASINO_CATEGORIES.some((item) => item.slug === category) || category === 'drop-and-wins'
   const categoryGames = useMemo(
     () => GAMES.filter((game) => category === 'lobby' || game.categories.includes(category)),
     [category],
@@ -365,6 +361,9 @@ export function CasinoCategory() {
       (!query || game.title.toLocaleLowerCase().includes(query) || game.provider.toLocaleLowerCase().includes(query))
     ))
   }, [categoryGames, searchQuery, selectedProvider])
+
+  if (category === 'providers') return <Providers />
+  if (!known) return <Navigate to="/casino" replace />
 
   const isLobby = category === 'lobby'
   const hasActiveFilters = Boolean(searchQuery.trim()) || selectedProvider !== 'all'
