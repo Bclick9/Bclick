@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import { useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import {
-  BadgeCheck, FileText, Gift, History, Inbox, ShieldAlert, UserRound,
+  BadgeCheck, FileText, Gift, History, Inbox, ShieldAlert, UserRound, Wallet,
 } from 'lucide-react'
 import { AccountLayout } from '../components/AccountPanel'
 
@@ -42,8 +42,11 @@ function ReadOnlyField({ label, value, wide = false }: { label: string; value: s
 
 export default function AccountPage() {
   const { pathname } = useLocation()
-  const sectionKey = pathname.split('/').filter(Boolean)[1] || 'personal-info'
-  const section = SECTIONS[sectionKey] ?? SECTIONS['personal-info']!
+  const isAccountHome = pathname === '/account'
+  const sectionKey = isAccountHome ? 'overview' : (pathname.split('/').filter(Boolean)[1] || 'personal-info')
+  const section = sectionKey === 'overview'
+    ? { title: 'Account overview', subtitle: 'Manage your profile and account services from one place.' }
+    : (SECTIONS[sectionKey] ?? SECTIONS['personal-info']!)
   const [gender, setGender] = useState('')
   const [newsletter, setNewsletter] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -68,6 +71,57 @@ export default function AccountPage() {
             <p className="mt-1 hidden text-sm text-[var(--cb-light-muted)] sm:block">{section.subtitle}</p>
           </div>
         </div>
+
+        {sectionKey === 'overview' ? (
+          <div className="space-y-6">
+            <section className="grid gap-3 sm:grid-cols-3" aria-label="Account summary">
+              <div className="flex min-w-0 items-center gap-3 border border-[var(--cb-light-border)] bg-white p-4">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fff5d6] text-[#846300]">
+                  <BadgeCheck className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs text-[var(--cb-light-muted)]">Verification status</p>
+                  <p className="mt-1 truncate text-sm font-bold text-[var(--cb-light-text)]">KYC unverified</p>
+                </div>
+              </div>
+              <div className="border border-[var(--cb-light-border)] bg-white p-4">
+                <p className="text-xs text-[var(--cb-light-muted)]">Real balance</p>
+                <p className="mt-1 text-xl font-bold text-[var(--cb-light-text)]">€0.00</p>
+              </div>
+              <div className="border border-[var(--cb-light-border)] bg-white p-4">
+                <p className="text-xs text-[var(--cb-light-muted)]">Bonus balance</p>
+                <p className="mt-1 text-xl font-bold text-[var(--cb-light-text)]">€0.00</p>
+              </div>
+            </section>
+
+            <section>
+              <h2 className="mb-3 text-base font-bold text-[var(--cb-light-text)]">Quick actions</h2>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Link to="/account/personal-info" className="group flex min-w-0 items-center gap-3 border border-[var(--cb-light-border)] bg-white p-4 transition-colors hover:border-[var(--cb-yellow)]">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center bg-[#f5f7f8] text-[var(--cb-light-text)]"><UserRound className="h-5 w-5" /></span>
+                  <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-[var(--cb-light-text)]">Personal info</span><span className="mt-1 block text-xs text-[var(--cb-light-muted)]">Review your profile details</span></span>
+                  <span aria-hidden="true" className="text-lg text-[var(--cb-light-muted)] transition-transform group-hover:translate-x-0.5">›</span>
+                </Link>
+                <Link to="/account/documents" className="group flex min-w-0 items-center gap-3 border border-[var(--cb-light-border)] bg-white p-4 transition-colors hover:border-[var(--cb-yellow)]">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center bg-[#f5f7f8] text-[var(--cb-light-text)]"><FileText className="h-5 w-5" /></span>
+                  <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-[var(--cb-light-text)]">Documents</span><span className="mt-1 block text-xs text-[var(--cb-light-muted)]">Check verification status</span></span>
+                  <span aria-hidden="true" className="text-lg text-[var(--cb-light-muted)] transition-transform group-hover:translate-x-0.5">›</span>
+                </Link>
+                <Link to="/account/wallet/deposit" className="group flex min-w-0 items-center gap-3 border border-[var(--cb-light-border)] bg-white p-4 transition-colors hover:border-[var(--cb-yellow)]">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center bg-[#f5f7f8] text-[var(--cb-light-text)]"><Wallet className="h-5 w-5" /></span>
+                  <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-[var(--cb-light-text)]">Deposit</span><span className="mt-1 block text-xs text-[var(--cb-light-muted)]">Go to your wallet</span></span>
+                  <span aria-hidden="true" className="text-lg text-[var(--cb-light-muted)] transition-transform group-hover:translate-x-0.5">›</span>
+                </Link>
+                <Link to="/account/messages" className="group flex min-w-0 items-center gap-3 border border-[var(--cb-light-border)] bg-white p-4 transition-colors hover:border-[var(--cb-yellow)]">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center bg-[#f5f7f8] text-[var(--cb-light-text)]"><Inbox className="h-5 w-5" /></span>
+                  <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-[var(--cb-light-text)]">Messages</span><span className="mt-1 block text-xs text-[var(--cb-light-muted)]">View account notifications</span></span>
+                  <span aria-hidden="true" className="text-lg text-[var(--cb-light-muted)] transition-transform group-hover:translate-x-0.5">›</span>
+                </Link>
+              </div>
+            </section>
+            <p className="text-xs text-[var(--cb-light-muted)]">Demonstration account — balances and verification status are not connected to a live account.</p>
+          </div>
+        ) : null}
 
         {sectionKey === 'documents' ? (
           <div className="max-w-2xl border border-[var(--cb-light-border)] bg-white p-5 md:p-6">
@@ -177,7 +231,7 @@ export default function AccountPage() {
           <EmptyState icon={History} title="No account activity" detail="Account history is not connected to a live account." />
         ) : null}
 
-        {!SECTIONS[sectionKey] && sectionKey !== 'profile' ? (
+        {!SECTIONS[sectionKey] && sectionKey !== 'profile' && sectionKey !== 'overview' ? (
           <EmptyState icon={UserRound} title="Account overview" detail="Choose a section from the account menu to view its details." />
         ) : null}
       </div>
