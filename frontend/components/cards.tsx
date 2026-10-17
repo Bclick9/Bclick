@@ -232,9 +232,39 @@ export function GameCard({ game, className }: { game: Game; className?: string }
       image={game.image}
       fallbackImage={game.imageFallback}
       spriteIndex={game.spriteIndex}
+      spriteSheet={typeof game.spriteIndex === 'number' ? '/assets/home/trending.webp' : undefined}
+      spriteCount={10}
       imageShowsTitle={game.imageShowsTitle !== false}
       className={className}
     />
+  )
+}
+
+/* ---------- Screenshot-matched promotion atlas card ---------- */
+export function PromoAtlasCard({
+  promo,
+  index,
+}: {
+  promo: Promotion
+  index: number
+}) {
+  return (
+    <Link
+      to={`/promotions/${promo.slug}`}
+      aria-label={promo.title}
+      className="cb-promo-atlas group relative isolate block min-w-0 shrink-0 overflow-hidden rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--cb-yellow)]"
+    >
+      <img
+        src="/assets/home/promotions.webp"
+        alt={promo.title}
+        loading={index === 0 ? 'eager' : 'lazy'}
+        decoding="async"
+        draggable={false}
+        className="absolute top-0 h-full max-w-none object-fill transition-transform duration-300 group-hover:scale-[1.015]"
+        style={{ width: '300%', left: `${-index * 100}%` }}
+      />
+      <span className="pointer-events-none absolute inset-0 rounded-xl border border-white/5 transition-colors group-hover:border-[var(--cb-yellow)]" />
+    </Link>
   )
 }
 
