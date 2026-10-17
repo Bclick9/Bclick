@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   X, Coins, Volleyball, Gift, Search as SearchIcon,
-  Radio, Monitor, Clock3, Star, Ticket,
+  Radio, Monitor, Clock3, Star,
   type LucideIcon,
 } from 'lucide-react'
 import { MobileMenu } from './MobileMenu'
@@ -131,7 +131,7 @@ export function BottomNav() {
                   className="relative flex flex-col items-center justify-center gap-1 py-2.5 text-[10px] font-semibold text-[#c3ced9] transition-colors hover:text-white"
                 >
                   <span className="relative inline-flex">
-                    <Ticket className="w-5 h-5" />
+                    <BetslipGlyph />
                     <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--cb-nav)] bg-[var(--cb-yellow)] px-1 text-[8px] font-black leading-none text-[#00151e]">
                       {selectionBadge}
                     </span>
@@ -178,5 +178,24 @@ function MenuGlyph() {
       <span className="block w-5 h-[2px] bg-current rounded-full" />
       <span className="block w-5 h-[2px] bg-current rounded-full" />
     </span>
+  )
+}
+
+
+function BetslipGlyph() {
+  return (
+    <svg
+      className="h-5 w-5"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 8a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 000 4v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2a2 2 0 000-4z" />
+      <path d="M14 6v12" />
+    </svg>
   )
 }
