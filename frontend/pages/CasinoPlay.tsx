@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   Home, Coins, CircleDot, Volleyball, Gift, Trophy, Crown, Target, Headset,
-  PanelLeftClose, Search, Maximize2, Minimize2, X, WalletCards, Play, Gamepad2,
+  PanelLeftClose, Search, Maximize2, Minimize2, X, WalletCards, Play, Gamepad2, LockKeyhole,
 } from 'lucide-react'
 import { AuthModal } from './Auth'
 import { GameCard } from '../components/cards'
@@ -24,12 +24,17 @@ const PLAY_NAV = [
 export default function CasinoPlay() {
   const { mode = 'demo', gameId = '' } = useParams()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const game = GAMES.find((item) => item.id === gameId)
   const stageRef = useRef<HTMLDivElement>(null)
   const [fullscreen, setFullscreen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [poster, setPoster] = useState(game?.image || game?.imageFallback || '')
   const isReal = mode === 'real'
+
+  useEffect(() => {
+    setPoster(game?.image || game?.imageFallback || '')
+  }, [gameId, game?.image, game?.imageFallback])
 
   useEffect(() => {
     const onFullscreenChange = () => setFullscreen(document.fullscreenElement === stageRef.current)
@@ -70,7 +75,7 @@ export default function CasinoPlay() {
           </div>
           <nav aria-label="Main navigation" className="scrollbar flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden">
             {PLAY_NAV.map(({ to, label, icon: Icon }) => {
-              const active = label === 'Casino' ? true : to === '/' ? false : false
+              const active = label === 'Casino' ? pathname.startsWith('/casino') : pathname === to || (to !== '/' && pathname.startsWith(`${to}/`))
               return (
                 <Link
                   key={to}
