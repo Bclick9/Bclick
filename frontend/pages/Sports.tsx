@@ -12,51 +12,54 @@ const ICONS: Record<string, LucideIcon> = {
   Trophy, CircleDot, Dribbble, Snowflake, Volleyball, Gamepad2, Swords,
 }
 
-/* Frontend-only WinHouse embed. No backend integration is performed. */
+/* Frontend-only WinHouse sportsbook preview. This page intentionally mounts one raw iframe. */
 const WINHOUSE_EMBED_KEY = 'ifr_42b9d5489dd29796a83719065721a1de8faa1b54'
+const WINHOUSE_BOOK_URL =
+  `https://iframe.winhouse.bet/book?key=${WINHOUSE_EMBED_KEY}&embed=1&lang=en`
 
-/*
- * Use WinHouse's documented loader instead of a hand-built iframe:
- * - data-embed=1 hides the provider's top bar and left rail.
- * - data-bottom-gap accounts for our fixed mobile bottom navigation.
- * - the loader refits the book to the visible phone height.
- */
 export default function Sports() {
-  const targetRef = useRef<HTMLDivElement | null>(null)
+  const iframeRef = useRef<HTMLIFrameElement | null>(null)
 
   useEffect(() => {
-    const target = targetRef.current
-    if (!target) return
+    const keep = iframeRef.current
 
-    target.replaceChildren()
-
-    const script = document.createElement('script')
-    script.src = 'https://iframe.winhouse.bet/embed.js'
-    script.async = true
-    script.setAttribute('data-key', WINHOUSE_EMBED_KEY)
-    script.setAttribute('data-target', '#winhouse-book')
-    script.setAttribute('data-width', '100%')
-    script.setAttribute('data-height', '900px')
-    script.setAttribute('data-bottom-gap', '56')
-    script.setAttribute('data-embed', '1')
-    script.setAttribute('data-lang', 'en')
-    script.setAttribute('data-theme', 'dark')
-    document.body.appendChild(script)
+    // A previous embed.js initialization during Vite Fast Refresh can leave a
+    // detached/second frame in the document. Keep exactly the iframe rendered
+    // by React and remove stale loader tags and foreign copies.
+    document
+      .querySelectorAll<HTMLIFrameElement>('iframe[src*="iframe.winhouse.bet/book"]')
+      .forEach((frame) => {
+        if (frame !== keep) frame.remove()
+      })
+    document
+      .querySelectorAll<HTMLScriptElement>('script[src*="iframe.winhouse.bet/embed.js"]')
+      .forEach((script) => script.remove())
 
     return () => {
-      script.remove()
-      target.replaceChildren()
+      document
+        .querySelectorAll<HTMLIFrameElement>('iframe[src*="iframe.winhouse.bet/book"]')
+        .forEach((frame) => {
+          if (frame !== keep) frame.remove()
+        })
+      document
+        .querySelectorAll<HTMLScriptElement>('script[src*="iframe.winhouse.bet/embed.js"]')
+        .forEach((script) => script.remove())
     }
   }, [])
 
   return (
     <section className="w-full min-w-0 overflow-hidden bg-[#06141e]">
-      <div
-        id="winhouse-book"
-        ref={targetRef}
-        className="w-full min-w-0"
-        style={{ minHeight: '900px' }}
-        aria-label="WinHouse sportsbook preview"
+      <iframe
+        ref={iframeRef}
+        id="winhouse-book-frame"
+        src={WINHOUSE_BOOK_URL}
+        title="WinHouse sportsbook preview"
+        loading="eager"
+        referrerPolicy="strict-origin-when-cross-origin"
+        allow="autoplay; fullscreen"
+        allowFullScreen
+        className="block h-[calc(100dvh-54px)] w-full border-0"
+        style={{ height: 'calc(100dvh - 54px)', minHeight: 0, width: '100%', border: 0 }}
       />
     </section>
   )
