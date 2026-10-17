@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, SlidersHorizontal, X } from 'lucide-react'
+import {
+  Check, Cherry, CircleDollarSign, Crown, Dices, Flame, Gamepad2, Gift,
+  Ghost, Rocket, Search, SlidersHorizontal, Sparkles, Trophy, X, Zap,
+  type LucideIcon,
+} from 'lucide-react'
 import { GameCard } from './cards'
 import { GAMES, PROMOTIONS, PROVIDERS, CASINO_CATEGORIES } from '../data/catalog'
 
@@ -149,7 +153,7 @@ export function SearchDialog({ open, onClose }: SearchDialogProps) {
         </div>
 
         <div className="relative flex min-h-0 flex-1 overflow-hidden px-2 pb-3 md:px-5">
-          <div className="min-w-0 flex-1 overflow-y-auto overscroll-contain pr-0 md:pr-1">
+          <div className="no-scrollbar min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-0 md:pr-1">
             <div className="space-y-2 pb-2">
               <div className="font-semibold text-sm md:text-base">
                 {searchTerm || filterCount > 0 ? 'Results' : 'Recommended'}
@@ -195,9 +199,14 @@ export function SearchDialog({ open, onClose }: SearchDialogProps) {
           </div>
 
           {filtersOpen ? (
-            <aside className="absolute inset-0 z-20 flex flex-col overflow-hidden bg-[#071923] px-3 pb-3 md:static md:ml-3 md:w-[280px] md:shrink-0 md:border-l md:border-[var(--cb-line)] md:pl-4">
-              <div className="flex shrink-0 items-center justify-between border-b border-[var(--cb-line)] py-2">
-                <h2 className="font-bold text-white">Filters</h2>
+            <aside className="absolute inset-0 z-20 flex flex-col overflow-hidden border-t border-[var(--cb-line)] bg-[#091b26] px-3 pb-3 md:static md:ml-3 md:w-[330px] md:shrink-0 md:border-l md:border-t-0 md:border-[var(--cb-line)] md:pl-4">
+              <div className="flex shrink-0 items-center justify-between border-b border-[var(--cb-line)] py-3">
+                <div>
+                  <h2 className="font-bold text-white">Filters</h2>
+                  <p className="mt-0.5 text-[11px] text-[#8fa3b8]">
+                    {filterCount ? filterCount + ' selected' : 'Choose providers or categories'}
+                  </p>
+                </div>
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
@@ -205,7 +214,8 @@ export function SearchDialog({ open, onClose }: SearchDialogProps) {
                       setSelectedProviders([])
                       setSelectedCategories([])
                     }}
-                    className="text-xs font-semibold text-[#aebfca] underline hover:text-white"
+                    disabled={filterCount === 0}
+                    className="text-xs font-semibold text-[#aebfca] underline decoration-[#47606c] underline-offset-4 transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Clear all
                   </button>
@@ -213,54 +223,114 @@ export function SearchDialog({ open, onClose }: SearchDialogProps) {
                     type="button"
                     onClick={() => setFiltersOpen(false)}
                     aria-label="Close filters"
-                    className="rounded-md p-1 text-[#aebfca] hover:bg-[var(--cb-hover)] hover:text-white md:hidden"
+                    className="rounded-md p-1 text-[#aebfca] transition-colors hover:bg-[var(--cb-hover)] hover:text-white md:hidden"
                   >
                     <X className="h-5 w-5" />
                   </button>
                 </div>
               </div>
 
-              <div className="min-h-0 flex-1 space-y-5 overflow-y-auto py-4">
+              <div className="no-scrollbar min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto overscroll-contain py-4">
                 <section>
-                  <h3 className="mb-3 text-sm font-semibold text-white">Providers</h3>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-1">
-                    {providersToShow.map((provider) => (
-                      <label key={provider} className="flex cursor-pointer items-center gap-2 text-sm text-[#aebfca] hover:text-white">
-                        <input
-                          type="checkbox"
-                          checked={selectedProviders.includes(provider)}
-                          onChange={() => toggleValue(provider, selectedProviders, setSelectedProviders)}
-                          className="h-4 w-4 accent-[var(--cb-yellow)]"
-                        />
-                        <span className="truncate">{provider}</span>
-                      </label>
-                    ))}
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#b6c5ce]">Providers</h3>
+                    <span className="rounded-full border border-[var(--cb-line)] bg-[#0b202b] px-2 py-0.5 text-[10px] font-bold text-[#8fa3b8]">
+                      {PROVIDERS.length}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {providersToShow.map((provider) => {
+                      const selected = selectedProviders.includes(provider)
+                      return (
+                        <label
+                          key={provider}
+                          className={cn(
+                            'group relative flex min-w-0 cursor-pointer items-center gap-2 rounded-xl border p-2 transition-colors focus-within:ring-2 focus-within:ring-[var(--cb-yellow)]/70',
+                            selected
+                              ? 'border-[var(--cb-yellow)] bg-[#17313e]'
+                              : 'border-[var(--cb-line)] bg-[#0b202b] hover:border-[#47606c] hover:bg-[#102733]',
+                          )}
+                        >
+                          <ProviderLogo provider={provider} />
+                          <span className={cn('min-w-0 flex-1 truncate text-[11px] font-semibold leading-tight', selected ? 'text-white' : 'text-[#c0cdd5')}>
+                            {provider}
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => toggleValue(provider, selectedProviders, setSelectedProviders)}
+                            className="sr-only"
+                          />
+                          <span className={cn(
+                            'absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-md border transition-colors',
+                            selected
+                              ? 'border-[var(--cb-yellow)] bg-[var(--cb-yellow)] text-[#00151e]'
+                              : 'border-[#47606c] bg-[#091b26]/80 text-transparent group-hover:border-[#718a99]',
+                          )}>
+                            {selected ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+                          </span>
+                        </label>
+                      )
+                    })}
                   </div>
                   {PROVIDERS.length > 12 ? (
                     <button
                       type="button"
                       onClick={() => setShowAllProviders((value) => !value)}
-                      className="mt-3 w-full text-center text-xs text-white underline"
+                      className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--cb-line)] bg-[#0b202b] py-2 text-xs font-semibold text-[#d3dde3] transition-colors hover:bg-[var(--cb-hover)]"
                     >
-                      {showAllProviders ? 'Show less' : 'Show more'}
+                      {showAllProviders ? 'Show less' : 'Show all ' + PROVIDERS.length + ' providers'}
                     </button>
                   ) : null}
                 </section>
 
                 <section>
-                  <h3 className="mb-3 text-sm font-semibold text-white">Categories</h3>
-                  <div className="flex flex-col gap-2">
-                    {categories.map((category) => (
-                      <label key={category.slug} className="flex cursor-pointer items-center gap-2 rounded-[10px] bg-[var(--cb-nav)] px-2.5 py-2 text-xs text-white hover:bg-[var(--cb-hover)]">
-                        <input
-                          type="checkbox"
-                          checked={selectedCategories.includes(category.slug)}
-                          onChange={() => toggleValue(category.slug, selectedCategories, setSelectedCategories)}
-                          className="h-4 w-4 accent-[var(--cb-yellow)]"
-                        />
-                        <span className="truncate">{category.label}</span>
-                      </label>
-                    ))}
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#b6c5ce]">Categories</h3>
+                    <span className="rounded-full border border-[var(--cb-line)] bg-[#0b202b] px-2 py-0.5 text-[10px] font-bold text-[#8fa3b8]">
+                      {categories.length}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {categories.map((category) => {
+                      const selected = selectedCategories.includes(category.slug)
+                      const Icon = CATEGORY_ICONS[category.slug] ?? Gamepad2
+                      return (
+                        <label
+                          key={category.slug}
+                          className={cn(
+                            'group relative flex min-w-0 cursor-pointer items-center gap-2 rounded-xl border px-2 py-2.5 transition-colors focus-within:ring-2 focus-within:ring-[var(--cb-yellow)]/70',
+                            selected
+                              ? 'border-[var(--cb-yellow)] bg-[#17313e]'
+                              : 'border-[var(--cb-line)] bg-[#0b202b] hover:border-[#47606c] hover:bg-[#102733]',
+                          )}
+                        >
+                          <span className={cn(
+                            'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                            selected ? 'bg-[var(--cb-yellow)]/15 text-[var(--cb-yellow)]' : 'bg-[#122c39] text-[#93a9b8]',
+                          )}>
+                            <Icon className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                          </span>
+                          <span className={cn('min-w-0 flex-1 truncate text-[11px] font-semibold leading-tight', selected ? 'text-white' : 'text-[#c0cdd5')}>
+                            {category.label}
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => toggleValue(category.slug, selectedCategories, setSelectedCategories)}
+                            className="sr-only"
+                          />
+                          <span className={cn(
+                            'absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-md border transition-colors',
+                            selected
+                              ? 'border-[var(--cb-yellow)] bg-[var(--cb-yellow)] text-[#00151e]'
+                              : 'border-[#47606c] bg-[#091b26]/80 text-transparent group-hover:border-[#718a99]',
+                          )}>
+                            {selected ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+                          </span>
+                        </label>
+                      )
+                    })}
                   </div>
                 </section>
               </div>
@@ -269,5 +339,75 @@ export function SearchDialog({ open, onClose }: SearchDialogProps) {
         </div>
       </div>
     </div>
+  )
+}
+
+
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
+  'slot-games': Cherry,
+  'halloween-games': Ghost,
+  'top-picks': Flame,
+  'new-games': Sparkles,
+  'vip-specials': Crown,
+  'bonus-buy': Zap,
+  'crash-games': Rocket,
+  jackpots: Trophy,
+  'table-games': Dices,
+  'drop-and-wins': Gift,
+  'live-casino': CircleDollarSign,
+}
+
+const PROVIDER_DOMAINS: Record<string, string> = {
+  'Pragmatic Play': 'pragmaticplay.com',
+  Netent: 'netent.com',
+  "Play'n GO": 'playngo.com',
+  BGaming: 'bgaming.com',
+  Hacksaw: 'hacksawgaming.com',
+  Yggdrasil: 'yggdrasilgaming.com',
+  EvoPlay: 'evoplay.com',
+  Novomatic: 'novomatic.com',
+  Betsoft: 'betsoft.com',
+  Playson: 'playson.com',
+  Pateplay: 'pateplay.com',
+  Popiplay: 'popiplay.com',
+  'Push Gaming': 'pushgaming.com',
+  'Nolimit City': 'nolimitcity.com',
+  'Relax Gaming': 'relax-gaming.com',
+  Evolution: 'evolution.com',
+  Playtech: 'playtech.com',
+  'Big Time Gaming': 'bigtimegaming.com',
+  Quickspin: 'quickspin.com',
+  'BF Games': 'bfgames.com',
+  Spribe: 'spribe.co',
+  SmartSoft: 'smartsoftgaming.com',
+}
+
+function ProviderLogo({ provider }: { provider: string }) {
+  const [failed, setFailed] = useState(false)
+  const domain = PROVIDER_DOMAINS[provider]
+  const initials = provider
+    .replace(/[^a-zA-Z0-9 ]/g, '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('')
+
+  return (
+    <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[var(--cb-line)] bg-[#102733]">
+      <span className="text-[10px] font-black tracking-tight text-[#aebfca]" aria-hidden="true">
+        {initials}
+      </span>
+      {!failed && domain ? (
+        <img
+          src={'https://www.google.com/s2/favicons?domain=' + domain + '&sz=64'}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailed(true)}
+          className="absolute inset-0 h-full w-full bg-[#f5f7f8] object-contain p-1"
+        />
+      ) : null}
+    </span>
   )
 }
