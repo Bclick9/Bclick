@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  ChevronRight, CircleDot, Club, Dices, Flame, Gamepad2, Spade, Tv,
+  CircleDot, Club, Dices, Flame, Spade, Tv,
 } from 'lucide-react'
 import { GameCard, SectionRow } from '../components/cards'
 import { GAMES } from '../data/catalog'
