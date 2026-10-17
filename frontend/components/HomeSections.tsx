@@ -139,7 +139,7 @@ const providers = [
 export function SlotGamesSection() {
   return (
     <SectionRow title="Slot Games" more="/casino/slot-games">
-      {slots.map((game) => <GameArtCard key={game.title} {...game} />)}
+      {slots.map((game, index) => <GameArtCard key={game.title} {...game} spriteSheet="/assets/home/slots.webp" spriteIndex={index} spriteCount={10} />)}
     </SectionRow>
   )
 }
@@ -147,7 +147,7 @@ export function SlotGamesSection() {
 export function SportsHubSection() {
   return (
     <SectionRow title="Sports & Markets Hub" more="/sports">
-      {homeBanners.map((banner) => <HomeBanner key={banner.title} {...banner} />)}
+      {homeBanners.map((banner, index) => <HomeBanner key={banner.title} {...banner} spriteSheet="/assets/home/sports-hub.webp" spriteIndex={index} spriteCount={3} />)}
     </SectionRow>
   )
 }
@@ -155,13 +155,13 @@ export function SportsHubSection() {
 export function TopPicksSection() {
   return (
     <SectionRow title="Top Picks" more="/casino/top-picks">
-      {topPicks.map((game) => <GameArtCard key={game.title} {...game} />)}
+      {topPicks.map((game, index) => <GameArtCard key={game.title} {...game} spriteSheet="/assets/home/top-picks.webp" spriteIndex={index} spriteCount={10} />)}
     </SectionRow>
   )
 }
 
 export function HalloweenSection() {
-  const [imageSource, setImageSource] = useState('/assets/home/halloween-2026.webp')
+  const [imageSource, setImageSource] = useState('/assets/home/halloween-background.webp')
   const [fallbackUsed, setFallbackUsed] = useState(false)
   return (
     <section className="mb-6 relative isolate min-h-[390px] overflow-hidden rounded-xl bg-[#190f32]">
@@ -177,10 +177,10 @@ export function HalloweenSection() {
         aria-hidden="true"
         className="absolute inset-0 -z-10 h-full w-full object-cover"
       />
-      <div className="px-4 pt-16 md:px-20 md:pt-[76px]">
-        <h2 className="mb-6 text-base font-black text-white md:text-xl">Halloween Games</h2>
+      <div className="px-4 pt-10 md:px-14 md:pt-10">
+        <h2 className="mb-4 text-base font-black text-white md:text-xl">Halloween Games</h2>
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-          {halloweenGames.map((game) => <GameArtCard key={game.title} {...game} className="w-[141px] md:w-[141px]" />)}
+          {halloweenGames.map((game, index) => <GameArtCard key={game.title} {...game} spriteSheet="/assets/home/halloween.webp" spriteIndex={index} spriteCount={10} className="w-[141px] md:w-[141px]" />)}
         </div>
       </div>
     </section>
@@ -190,7 +190,7 @@ export function HalloweenSection() {
 export function NewGamesSection() {
   return (
     <SectionRow title="New Games" more="/casino/new-games">
-      {newGames.map((game) => <GameArtCard key={game.title} {...game} />)}
+      {newGames.map((game, index) => <GameArtCard key={game.title} {...game} spriteSheet="/assets/home/new-games.webp" spriteIndex={index} spriteCount={10} />)}
     </SectionRow>
   )
 }
@@ -198,7 +198,7 @@ export function NewGamesSection() {
 export function HotRightNowSection() {
   return (
     <SectionRow title="🔥 Hot Right Now" more="/casino/providers">
-      {hotNow.map((banner) => <HomeBanner key={banner.title} {...banner} button="EXPLORE NOW" href="/casino/providers" />)}
+      {hotNow.map((banner, index) => <HomeBanner key={banner.title} {...banner} spriteSheet="/assets/home/hot-now.webp" spriteIndex={index} spriteCount={3} button="EXPLORE NOW" href="/casino/providers" />)}
     </SectionRow>
   )
 }
@@ -206,15 +206,22 @@ export function HotRightNowSection() {
 export function PopularProvidersSection() {
   return (
     <SectionRow title="Popular Providers" more="/casino/rng/brands">
-      {providers.map((provider, index) => (
+      {providers.slice(0, 8).map((provider, index) => (
         <Link
           key={provider.title}
-          to="/casino/providers"
+          to="/casino/rng/brands"
           title={provider.title}
-          className="cb-provider-card group flex h-[103px] shrink-0 flex-col items-center justify-center gap-2 rounded-lg bg-[var(--cb-card)] px-3 transition-colors hover:bg-[var(--cb-hover)]"
+          className="cb-provider-card group relative block h-[103px] w-[176px] shrink-0 overflow-hidden rounded-lg bg-[var(--cb-card)] transition-colors hover:ring-1 hover:ring-[var(--cb-yellow)]"
         >
-          <span className={`cb-provider-wordmark cb-provider-${index} text-center`} aria-hidden="true">{provider.symbol}</span>
-          <span className="text-center text-[10px] font-bold text-slate-300">{provider.short}</span>
+          <img
+            src="/assets/home/popular-providers.webp"
+            alt={provider.title}
+            loading="lazy"
+            decoding="async"
+            draggable={false}
+            className="absolute top-0 h-full max-w-none object-fill transition-transform duration-200 group-hover:scale-[1.02]"
+            style={{ width: '800%', left: `${-index * 100}%` }}
+          />
         </Link>
       ))}
     </SectionRow>
@@ -224,7 +231,7 @@ export function PopularProvidersSection() {
 export function VipSpecialsSection() {
   return (
     <SectionRow title="VIP Specials" more="/vip">
-      {vipGames.map((game) => <GameArtCard key={game.title} {...game} />)}
+      {vipGames.map((game, index) => <GameArtCard key={game.title} {...game} spriteSheet="/assets/home/vip-specials.webp" spriteIndex={index} spriteCount={10} />)}
     </SectionRow>
   )
 }
@@ -292,6 +299,9 @@ function HomeBanner({
   button,
   image,
   fallbackImage,
+  spriteSheet,
+  spriteIndex,
+  spriteCount = 3,
   href = '/sports',
 }: {
   title: string
@@ -299,26 +309,46 @@ function HomeBanner({
   button: string
   image: string
   fallbackImage: string
+  spriteSheet?: string
+  spriteIndex?: number
+  spriteCount?: number
   href?: string
 }) {
   const [imageSource, setImageSource] = useState(image)
   const [fallbackUsed, setFallbackUsed] = useState(false)
+  const [spriteFailed, setSpriteFailed] = useState(false)
+  const useSprite = Boolean(spriteSheet) && typeof spriteIndex === 'number' && !spriteFailed
 
   return (
     <Link to={href} className="cb-feature-banner group relative flex h-[240px] min-w-0 flex-1 shrink-0 overflow-hidden rounded-xl bg-[#06121c]">
-      <img
-        src={imageSource}
-        onError={() => {
-          if (!fallbackUsed) {
-            setFallbackUsed(true)
-            setImageSource(fallbackImage)
-          }
-        }}
-        alt=""
-        aria-hidden="true"
-        loading="lazy"
-        className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.025]"
-      />
+      {useSprite ? (
+        <img
+          src={spriteSheet}
+          alt=""
+          aria-hidden="true"
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onError={() => setSpriteFailed(true)}
+          className="absolute top-0 h-full max-w-none object-fill transition-transform duration-300 group-hover:scale-[1.025]"
+          style={{ width: `${spriteCount * 100}%`, left: `${-(spriteIndex ?? 0) * 100}%` }}
+        />
+      ) : (
+        <img
+          src={imageSource}
+          onError={() => {
+            if (!fallbackUsed) {
+              setFallbackUsed(true)
+              setImageSource(fallbackImage)
+            }
+          }}
+          alt=""
+          aria-hidden="true"
+          loading="lazy"
+          className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.025]"
+        />
+      )}
+      <span className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-r from-black/80 via-black/35 to-transparent" />
       <div className="relative z-10 flex w-full max-w-[58%] flex-col items-start justify-between p-5 md:p-6">
         <div>
           <h3 className="text-base font-black leading-snug text-white md:text-xl">{title}</h3>
@@ -328,7 +358,6 @@ function HomeBanner({
           {button}
         </span>
       </div>
-      <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/80 via-black/35 to-transparent" />
     </Link>
   )
 }
