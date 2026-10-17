@@ -46,6 +46,7 @@ const SPORTS_PATHS = [
 
 type WinHousePublicApi = {
   frame?: HTMLIFrameElement
+  refit?: () => void
   openBetslip?: () => void
   selectionCount?: number
   totalOdds?: number
