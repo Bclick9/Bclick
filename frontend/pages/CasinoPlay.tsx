@@ -5,7 +5,6 @@ import {
   PanelLeftClose, Search, Maximize2, Minimize2, X, WalletCards, Play, Gamepad2, LockKeyhole,
 } from 'lucide-react'
 import { AuthModal } from './Auth'
-import { GameCard } from '../components/cards'
 import { GAMES } from '../data/catalog'
 import { cn } from '../lib/shadcn/utils'
 
