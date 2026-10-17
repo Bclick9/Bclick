@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   BadgeHelp, Check, ChevronDown, Chrome, Circle, Eye, EyeOff, Gift,
@@ -75,7 +76,7 @@ function WelcomeBanner() {
   )
 }
 
-function AuthScreen({ initialMode = 'login' }: { initialMode?: AuthMode }) {
+function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initialMode?: AuthMode; modal?: boolean; onClose?: () => void }) {
   const location = useLocation()
   const navigate = useNavigate()
   const [mode, setMode] = useState<AuthMode>(initialMode)
@@ -88,13 +89,14 @@ function AuthScreen({ initialMode = 'login' }: { initialMode?: AuthMode }) {
   const [promoCode, setPromoCode] = useState('')
 
   useEffect(() => {
-    setMode(location.pathname === '/register' ? 'signup' : 'login')
+    if (!modal) setMode(location.pathname === '/register' ? 'signup' : 'login')
     setShowPassword(false)
-  }, [location.pathname])
+  }, [location.pathname, modal])
 
   const changeMode = (next: AuthMode) => {
     setMode(next)
-    navigate(next === 'login' ? '/account' : '/register', { replace: true })
+    setShowPassword(false)
+    if (!modal) navigate(next === 'login' ? '/account' : '/register', { replace: true })
   }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -103,15 +105,30 @@ function AuthScreen({ initialMode = 'login' }: { initialMode?: AuthMode }) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl items-center justify-center px-3 py-5 sm:px-5 md:min-h-[calc(100vh-64px)] md:py-8">
-      <section className="relative flex w-full max-w-[960px] flex-col overflow-hidden rounded-2xl border border-[var(--cb-line)] bg-[#0c1d28] shadow-2xl shadow-black/20 md:min-h-[610px] md:flex-row">
-        <Link
-          to="/"
-          aria-label="Close account form"
-          className="absolute right-3 top-3 z-30 flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-        >
-          <X className="h-5 w-5" />
-        </Link>
+    <div className={modal
+      ? 'mx-auto flex w-full max-w-5xl items-start justify-center px-0 py-0 md:items-center'
+      : 'mx-auto flex w-full max-w-5xl items-center justify-center px-3 py-5 sm:px-5 md:min-h-[calc(100vh-64px)] md:py-8'}>
+      <section className={modal
+        ? 'relative flex min-h-[100dvh] w-full max-w-[960px] flex-col overflow-hidden bg-[#0c1d28] md:min-h-[610px] md:flex-row md:rounded-2xl md:border md:border-[var(--cb-line)] md:shadow-2xl md:shadow-black/30'
+        : 'relative flex w-full max-w-[960px] flex-col overflow-hidden rounded-2xl border border-[var(--cb-line)] bg-[#0c1d28] shadow-2xl shadow-black/20 md:min-h-[610px] md:flex-row'}>
+        {modal ? (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close account form"
+            className="absolute right-3 top-3 z-30 flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        ) : (
+          <Link
+            to="/"
+            aria-label="Close account form"
+            className="absolute right-3 top-3 z-30 flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <X className="h-5 w-5" />
+          </Link>
+        )}
 
         <WelcomeBanner />
 
@@ -288,6 +305,49 @@ function AuthScreen({ initialMode = 'login' }: { initialMode?: AuthMode }) {
         </div>
       </section>
     </div>
+  )
+}
+
+
+export interface AuthModalProps {
+  open: boolean
+  initialMode: 'login' | 'signup'
+  onClose: () => void
+}
+
+export function AuthModal({ open, initialMode, onClose }: AuthModalProps) {
+  useEffect(() => {
+    if (!open) return
+
+    const previousOverflow = document.body.style.overflow
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    document.body.style.overflow = 'hidden'
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+      previousFocus?.focus()
+    }
+  }, [open, onClose])
+
+  if (!open) return null
+
+  return createPortal(
+    <div
+      className="no-scrollbar fixed inset-0 z-[300] h-[100dvh] w-full overflow-y-auto overscroll-contain bg-[#0b1c27] md:flex md:items-center md:justify-center md:bg-black/75 md:p-5"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
+      <AuthScreen initialMode={initialMode} modal onClose={onClose} />
+    </div>,
+    document.body,
   )
 }
 
