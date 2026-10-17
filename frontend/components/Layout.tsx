@@ -8,7 +8,7 @@ import { Footer } from './Footer'
 export function Layout() {
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
   const { pathname } = useLocation()
-  const isSportsBook = pathname === '/sports'
+  const isSportsBook = ['/sports', '/sports/live', '/sports/my-bets', '/sports/favorites', '/sports/search'].includes(pathname)
 
   return (
     <div className="cb-content min-h-screen text-foreground">
@@ -28,7 +28,7 @@ export function Layout() {
           </div>
         ) : null}
       </div>
-      {!isSportsBook ? <BottomNav /> : null}
+      <BottomNav />
     </div>
   )
 }
