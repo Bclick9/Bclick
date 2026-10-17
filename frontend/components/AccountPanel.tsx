@@ -183,7 +183,7 @@ export function AccountLayout({ children }: { children: ReactNode }) {
   const isAccountHome = pathname === '/account'
 
   return (
-    <div className="cb-light">
+    <div className="cb-light min-h-full w-full flex-1">
       <div className="mx-auto flex max-w-[1200px] flex-col gap-6 px-4 py-6 md:flex-row md:gap-6 md:px-8 lg:gap-10">
         <aside className="hidden shrink-0 md:block">
           <AccountPanel />
