@@ -4,6 +4,7 @@ import { Routes, Route, Navigate, Link, useParams } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import Home from './pages/Home'
 import { CasinoCategory, CasinoIndex, Providers, ProviderPage } from './pages/Casino'
+import CasinoPlay from './pages/CasinoPlay'
 import LiveCasino from './pages/LiveCasino'
 import Sports, { SportsCategory } from './pages/Sports'
 import Promotions, { PromotionDetail } from './pages/Promotions'
@@ -35,6 +36,9 @@ export default function App() {
       <Route element={<Layout />}>
         <Route index element={<Home />} />
         <Route path="casino" element={<CasinoIndex />} />
+        <Route path="casino/play" element={<Navigate to="/casino/lobby" replace />} />
+        <Route path="casino/play/:gameId" element={<CasinoPlay />} />
+        <Route path="casino/play/:mode/:gameId" element={<CasinoPlay />} />
         <Route path="casino/providers" element={<Providers />} />
         <Route path="casino/rng/brands" element={<Providers />} />
         <Route path="casino/providers/:provider" element={<ProviderPage />} />
