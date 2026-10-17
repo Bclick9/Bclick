@@ -88,11 +88,9 @@ export function BottomNav() {
     }
   }, [closeMenu])
 
-  const selectionCount = typeof window !== 'undefined'
-    && typeof window.WinHouseEmbed?.selectionCount === 'number'
-    ? window.WinHouseEmbed.selectionCount
-    : null
-  const selectionBadge = selectionCount === null ? '—' : String(selectionCount)
+  // Do not read provider globals during React render: WinHouse runs in a
+  // cross-origin iframe and the parent cannot safely derive live selections.
+  const selectionBadge = '—'
 
   return (
     <>
@@ -122,12 +120,8 @@ export function BottomNav() {
                   key="betslip"
                   type="button"
                   onClick={openBetslip}
-                  aria-label={selectionCount === null
-                    ? 'Betslip; live selection count is not exposed by the current WinHouse API'
-                    : `Open Betslip, ${selectionCount} selections`}
-                  title={selectionCount === null
-                    ? 'WinHouse does not currently expose the live selection count to the parent page'
-                    : `${selectionCount} selections`}
+                  aria-label="Betslip; selection count is not available from the current WinHouse embed API"
+                  title="Live selection count is not available from the current WinHouse embed API"
                   className="relative flex flex-col items-center justify-center gap-1 py-2.5 text-[10px] font-semibold text-[#c3ced9] transition-colors hover:text-white"
                 >
                   <span className="relative inline-flex">
