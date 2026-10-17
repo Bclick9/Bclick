@@ -1,8 +1,7 @@
 import type { ComponentType } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
-  Home, Coins, Disc3, Volleyball, Gift, Trophy, Crown, MessageSquare,
-  PanelLeft, Target, Radio,
+  Home, Coins, Disc3, Volleyball, Gift, Trophy, Crown, MessageSquare, Target,
 } from 'lucide-react'
 import { cn } from '../lib/shadcn/utils'
 
@@ -76,7 +75,7 @@ export function Sidebar({ expanded, onToggle }: SidebarProps) {
           const active = to === '/'
             ? pathname === '/'
             : to === '/sports'
-              ? pathname === '/sports'
+              ? pathname === '/sports' || (pathname.startsWith('/sports/') && pathname !== '/sports/live')
               : pathname === to || pathname.startsWith(to + '/')
 
           return (
