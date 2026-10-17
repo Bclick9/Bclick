@@ -13,13 +13,22 @@ const GROUPS = [
     key: 'profile',
     label: 'My profile',
     icon: User2,
-    links: [{ label: 'Personal details', path: '/account/profile' }],
+    links: [
+      { label: 'Personal info', path: '/account' },
+      { label: 'Documents', path: '/account/documents' },
+      { label: 'Change password', path: '/account/change-password' },
+      { label: 'Messages', path: '/account/messages' },
+    ],
   },
   {
     key: 'bonuses',
     label: 'Bonuses',
     icon: Gift,
-    links: [{ label: 'Active bonuses', path: '/account/bonuses' }],
+    links: [
+      { label: 'Available', path: '/account/bonuses-available' },
+      { label: 'Active', path: '/account/bonuses-active' },
+      { label: 'Closed', path: '/account/bonuses-closed' },
+    ],
   },
   {
     key: 'wallet',
@@ -35,19 +44,26 @@ const GROUPS = [
     key: 'responsible',
     label: 'Responsible gaming',
     icon: HeartPulse,
-    links: [{ label: 'Limits & self-exclusion', path: '/info/responsible-gaming' }],
+    links: [
+      { label: 'Self-exclusion', path: '/account/self-exclusion' },
+      { label: 'Deposit limits', path: '/account/deposit-limits' },
+      { label: 'Reality check', path: '/account/reality-check' },
+    ],
   },
   {
     key: 'history',
     label: 'History',
     icon: History,
-    links: [{ label: 'Transactions', path: '/account/history' }],
+    links: [
+      { label: 'Account statement', path: '/account/account-statement' },
+      { label: 'Profit & Loss', path: '/account/profit-and-loss' },
+    ],
   },
 ]
 
 export function AccountPanel() {
   const { pathname } = useLocation()
-  const [open, setOpen] = useState<string[]>(['wallet'])
+  const [open, setOpen] = useState<string[]>(['profile', 'wallet'])
 
   const toggle = (key: string) =>
     setOpen((o) => (o.includes(key) ? o.filter((k) => k !== key) : [...o, key]))
@@ -59,7 +75,7 @@ export function AccountPanel() {
           <User2 className="w-6 h-6 text-[var(--cb-light-text)]" />
         </span>
         <p className="text-[15px] font-bold text-[var(--cb-light-text)] truncate">
-          sorteonline@gmail.com sorte...
+          Player account
         </p>
       </div>
       <div className="flex items-center gap-2 bg-[#fdf5dc] rounded-md px-3 py-2 mb-4">
