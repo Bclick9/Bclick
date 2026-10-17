@@ -37,9 +37,15 @@ function useHorizontalScroll() {
     resizeObserver?.observe(element)
     Array.from(element.children).forEach((child) => resizeObserver?.observe(child))
 
+    const mutationObserver = typeof MutationObserver !== 'undefined'
+      ? new MutationObserver(updateButtons)
+      : null
+    mutationObserver?.observe(element, { childList: true, subtree: true })
+
     return () => {
       element.removeEventListener('scroll', updateButtons)
       resizeObserver?.disconnect()
+      mutationObserver?.disconnect()
     }
   }, [])
 
