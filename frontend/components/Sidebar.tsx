@@ -53,7 +53,7 @@ export function Sidebar({ expanded, onToggle }: SidebarProps) {
 
   return (
     <aside
-      className="cb-nav hidden md:flex fixed inset-y-0 left-0 z-40 flex-col overflow-hidden px-2.5 pb-2.5 transition-[width] duration-200 ease-out"
+      className="cb-nav hidden md:flex fixed inset-y-0 left-0 z-40 flex-col overflow-hidden border-r border-[var(--cb-line)] px-2.5 pb-2.5 transition-[width] duration-200 ease-out"
       style={{ width }}
       aria-label="Main navigation"
     >
