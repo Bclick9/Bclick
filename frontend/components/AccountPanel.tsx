@@ -26,9 +26,9 @@ const GROUPS = [
     label: 'Wallet',
     icon: Wallet,
     links: [
-      { label: 'Deposit', path: '/wallet/deposit' },
-      { label: 'Withdraw', path: '/wallet/withdraw' },
-      { label: 'Pending withdrawals', path: '/wallet/pending-withdrawals' },
+      { label: 'Deposit', path: '/account/wallet/deposit' },
+      { label: 'Withdraw', path: '/account/wallet/withdraw' },
+      { label: 'Pending withdrawals', path: '/account/wallet/pending-withdrawals' },
     ],
   },
   {
