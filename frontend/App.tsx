@@ -11,7 +11,6 @@ import Promotions, { PromotionDetail } from './pages/Promotions'
 import Jackpots from './pages/Jackpots'
 import Tournaments from './pages/Tournaments'
 import Vip from './pages/Vip'
-import Search from './pages/Search'
 import Support from './pages/Support'
 import AccountPage from './pages/Account'
 import { WalletRouter } from './pages/Wallet'
@@ -57,7 +56,8 @@ export default function App() {
         <Route path="tournaments" element={<Tournaments />} />
         <Route path="vip" element={<Vip />} />
         <Route path="rewards" element={<Vip />} />
-        <Route path="search" element={<Search />} />
+        {/* Legacy standalone search URL now redirects to the site; search is handled by SearchDialog. */}
+        <Route path="search" element={<Navigate to="/" replace />} />
         <Route path="support" element={<Support />} />
         {/* Legacy standalone auth pages are no longer used; auth opens from the header modal. */}
         <Route path="login" element={<Navigate to="/" replace />} />
