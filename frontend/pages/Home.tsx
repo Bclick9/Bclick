@@ -1,4 +1,4 @@
-import { SectionRow, GameCard, MatchCard, PromoCard } from '../components/cards'
+import { SectionRow, GameCard, MatchCard, PromoAtlasCard } from '../components/cards'
 import { GAMES, PROMOTIONS, SPORTS_EVENTS } from '../data/catalog'
 import {
   SlotGamesSection,
@@ -25,8 +25,8 @@ export default function Home() {
   return (
     <div className="mx-auto w-[calc(100%-28px)] max-w-[1800px] pt-4 pb-8">
       <SectionRow title="Promotions" more="/promotions">
-        {PROMOTIONS.map((promotion) => (
-          <PromoCard key={promotion.slug} promo={promotion} />
+        {PROMOTIONS.slice(0, 3).map((promotion, index) => (
+          <PromoAtlasCard key={promotion.slug} promo={promotion} index={index} />
         ))}
       </SectionRow>
 
