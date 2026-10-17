@@ -1,5 +1,4 @@
-import { useEffect, useRef } from 'react'
-import { Link, useParams, Navigate } from 'react-router-dom'
+import { useLocation, Link, useParams, Navigate } from 'react-router-dom'
 import {
   Trophy, CircleDot, Dribbble, Snowflake, Volleyball, Gamepad2, Swords,
   ChevronLeft, type LucideIcon,
@@ -12,47 +11,30 @@ const ICONS: Record<string, LucideIcon> = {
   Trophy, CircleDot, Dribbble, Snowflake, Volleyball, Gamepad2, Swords,
 }
 
-/* Frontend-only WinHouse sportsbook preview. This page intentionally mounts one raw iframe. */
+/* Frontend-only WinHouse sportsbook preview with internal routes exposed as site pages. */
 const WINHOUSE_EMBED_KEY = 'ifr_42b9d5489dd29796a83719065721a1de8faa1b54'
-const WINHOUSE_BOOK_URL =
+const WINHOUSE_BOOK_BASE =
   `https://iframe.winhouse.bet/book?key=${WINHOUSE_EMBED_KEY}&embed=1&lang=en`
 
+const WINHOUSE_VIEWS: Record<string, string> = {
+  '/sports': '/line',
+  '/sports/live': '/live/overview',
+  '/sports/my-bets': '/mybets',
+  '/sports/favorites': '/favorites',
+  '/sports/search': '/search/',
+}
+
 export default function Sports() {
-  const iframeRef = useRef<HTMLIFrameElement | null>(null)
-
-  useEffect(() => {
-    const keep = iframeRef.current
-
-    // A previous embed.js initialization during Vite Fast Refresh can leave a
-    // detached/second frame in the document. Keep exactly the iframe rendered
-    // by React and remove stale loader tags and foreign copies.
-    document
-      .querySelectorAll<HTMLIFrameElement>('iframe[src*="iframe.winhouse.bet/book"]')
-      .forEach((frame) => {
-        if (frame !== keep) frame.remove()
-      })
-    document
-      .querySelectorAll<HTMLScriptElement>('script[src*="iframe.winhouse.bet/embed.js"]')
-      .forEach((script) => script.remove())
-
-    return () => {
-      document
-        .querySelectorAll<HTMLIFrameElement>('iframe[src*="iframe.winhouse.bet/book"]')
-        .forEach((frame) => {
-          if (frame !== keep) frame.remove()
-        })
-      document
-        .querySelectorAll<HTMLScriptElement>('script[src*="iframe.winhouse.bet/embed.js"]')
-        .forEach((script) => script.remove())
-    }
-  }, [])
+  const { pathname } = useLocation()
+  const view = WINHOUSE_VIEWS[pathname] ?? '/line'
+  const src = `${WINHOUSE_BOOK_BASE}#${view}`
 
   return (
-    <section className="w-full min-w-0 overflow-hidden bg-[#06141e]">
+    <section className="relative w-full min-w-0 overflow-hidden bg-[#06141e]">
       <iframe
-        ref={iframeRef}
+        key={view}
         id="winhouse-book-frame"
-        src={WINHOUSE_BOOK_URL}
+        src={src}
         title="WinHouse sportsbook preview"
         loading="eager"
         referrerPolicy="strict-origin-when-cross-origin"
