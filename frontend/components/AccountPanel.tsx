@@ -69,7 +69,7 @@ export function AccountPanel() {
     setOpen((o) => (o.includes(key) ? o.filter((k) => k !== key) : [...o, key]))
 
   return (
-    <div className="w-full lg:w-[300px] shrink-0">
+    <div className="w-full shrink-0 md:w-[260px] lg:w-[300px]">
       <div className="flex items-center gap-3 mb-3">
         <span className="w-11 h-11 rounded-full bg-[var(--cb-yellow)] flex items-center justify-center">
           <User2 className="w-6 h-6 text-[var(--cb-light-text)]" />
