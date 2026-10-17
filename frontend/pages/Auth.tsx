@@ -351,18 +351,6 @@ export function AuthModal({ open, initialMode, onClose }: AuthModalProps) {
   )
 }
 
-export function Login() {
-  return <AuthScreen initialMode="login" />
-}
-
-export function Register() {
-  return <AuthScreen initialMode="signup" />
-}
-
-export function AccountAuth() {
-  return <AuthScreen initialMode="login" />
-}
-
 export function AccountPlaceholder({ title }: { title: string }) {
   return (
     <div className="mx-auto max-w-[600px] px-4 py-12 text-center">
