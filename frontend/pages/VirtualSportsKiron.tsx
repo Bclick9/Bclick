@@ -128,7 +128,7 @@ export default function VirtualSportsKiron() {
               </div>
               <button
                 type="button"
-                onClick={() => isReal ? setIsReal(false) : openRealMode()}
+                onClick={() => setIsReal(false)}
                 className="inline-flex h-8 items-center rounded-lg border border-[var(--cb-line)] px-2.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--cb-hover)] md:hidden"
               >{isReal ? 'DEMO' : 'DEMO MODE'}</button>
               <Link to="/account/wallet/deposit" aria-label="Deposit" title="Deposit" className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--cb-yellow)] bg-[var(--cb-yellow)] text-[#071722] transition hover:brightness-105 md:h-10 md:w-10">
