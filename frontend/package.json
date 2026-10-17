@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "vite build",
+    "dev": "node ./scripts/sync-assets.mjs && vite --host 0.0.0.0",
+    "build": "node ./scripts/sync-assets.mjs && vite build",
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
