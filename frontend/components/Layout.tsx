@@ -1,21 +1,26 @@
 import { useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar, SIDEBAR_WIDTH } from './Sidebar'
 import { HeaderDesktop, HeaderMobile } from './Header'
 import { BottomNav } from './BottomNav'
 import { Footer } from './Footer'
 
-/* Shared page shell: expandable desktop sidebar + header, mobile header,
-   bottom nav + menu sheet, footer. */
+/* Homepage uses the reference site's full-width top header, without a desktop rail. */
 export function Layout() {
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
+  const { pathname } = useLocation()
+  const isHome = pathname === '/'
 
   return (
     <div className="cb-content min-h-screen text-foreground">
-      <Sidebar expanded={sidebarExpanded} onToggle={() => setSidebarExpanded((e) => !e)} />
+      {!isHome ? (
+        <Sidebar expanded={sidebarExpanded} onToggle={() => setSidebarExpanded((e) => !e)} />
+      ) : null}
       <div
-        className="flex flex-col min-h-screen transition-[padding] duration-200 ease-out md:pl-[var(--sbw)]"
-        style={{ ['--sbw' as string]: `${sidebarExpanded ? SIDEBAR_WIDTH.expanded : SIDEBAR_WIDTH.collapsed}px` }}
+        className="flex min-h-screen flex-col transition-[padding] duration-200 ease-out md:pl-[var(--sbw)]"
+        style={{
+          ['--sbw' as string]: `${isHome ? 0 : sidebarExpanded ? SIDEBAR_WIDTH.expanded : SIDEBAR_WIDTH.collapsed}px`,
+        }}
       >
         <HeaderDesktop />
         <HeaderMobile />
