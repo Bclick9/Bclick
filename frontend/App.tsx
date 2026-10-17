@@ -12,7 +12,7 @@ import Tournaments from './pages/Tournaments'
 import Vip from './pages/Vip'
 import Search from './pages/Search'
 import Support from './pages/Support'
-import { Login, Register, AccountAuth, AccountPlaceholder } from './pages/Auth'
+import { AccountPlaceholder } from './pages/Auth'
 import { WalletRouter } from './pages/Wallet'
 import Info from './pages/Info'
 import './appTheme.css'
@@ -54,9 +54,11 @@ export default function App() {
         <Route path="rewards" element={<Vip />} />
         <Route path="search" element={<Search />} />
         <Route path="support" element={<Support />} />
-        <Route path="login" element={<Login />} />
-        <Route path="register" element={<Register />} />
-        <Route path="account" element={<AccountAuth />} />
+        {/* Legacy standalone auth pages are no longer used; auth opens from the header modal. */}
+        <Route path="login" element={<Navigate to="/" replace />} />
+        <Route path="register" element={<Navigate to="/" replace />} />
+        <Route path="signup" element={<Navigate to="/" replace />} />
+        <Route path="account" element={<AccountPlaceholder title="Account" />} />
         <Route path="account/wallet/:tab" element={<WalletRouter />} />
         <Route path="wallet" element={<Navigate to="/account/wallet/deposit" replace />} />
         <Route path="wallet/:tab" element={<LegacyWalletRedirect />} />
