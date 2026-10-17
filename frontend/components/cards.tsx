@@ -133,6 +133,8 @@ export function GameArtCard({
   spriteIndex,
   spriteSheet,
   spriteCount = 10,
+  spriteRow = 0,
+  spriteRows = 1,
   imageShowsTitle = true,
   href = '/casino',
   className,
@@ -144,6 +146,8 @@ export function GameArtCard({
   spriteIndex?: number
   spriteSheet?: string
   spriteCount?: number
+  spriteRow?: number
+  spriteRows?: number
   imageShowsTitle?: boolean
   href?: string
   className?: string
@@ -181,10 +185,12 @@ export function GameArtCard({
             decoding="async"
             onError={() => setSpriteFailed(true)}
             draggable={false}
-            className="absolute top-0 h-full max-w-none object-fill transition-transform duration-300 ease-out group-hover:scale-[1.035]"
+            className="absolute max-w-none object-fill"
             style={{
               width: `${spriteCount * 100}%`,
+              height: `${spriteRows * 100}%`,
               left: `${-(spriteIndex ?? 0) * 100}%`,
+              top: `${-spriteRow * 100}%`,
             }}
           />
         </div>
