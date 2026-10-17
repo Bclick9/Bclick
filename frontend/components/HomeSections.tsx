@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { SectionRow, GameArtCard } from './cards'
 
@@ -163,6 +163,34 @@ export function TopPicksSection() {
 export function HalloweenSection() {
   const [imageSource, setImageSource] = useState('/assets/home/halloween-background.webp')
   const [fallbackUsed, setFallbackUsed] = useState(false)
+  const gamesRailRef = useRef<HTMLDivElement | null>(null)
+  const [canScrollGamesLeft, setCanScrollGamesLeft] = useState(false)
+  const [canScrollGamesRight, setCanScrollGamesRight] = useState(false)
+
+  useEffect(() => {
+    const rail = gamesRailRef.current
+    if (!rail) return
+
+    const updateScrollEdges = () => {
+      const maxScroll = rail.scrollWidth - rail.clientWidth
+      setCanScrollGamesLeft(rail.scrollLeft > 2)
+      setCanScrollGamesRight(maxScroll > 2 && rail.scrollLeft < maxScroll - 2)
+    }
+
+    updateScrollEdges()
+    rail.addEventListener('scroll', updateScrollEdges, { passive: true })
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(updateScrollEdges)
+      : null
+    resizeObserver?.observe(rail)
+    Array.from(rail.children).forEach((child) => resizeObserver?.observe(child))
+
+    return () => {
+      rail.removeEventListener('scroll', updateScrollEdges)
+      resizeObserver?.disconnect()
+    }
+  }, [])
+
   return (
     <section className="mb-6 relative isolate min-h-[390px] overflow-hidden rounded-xl bg-[#190f32]">
       <img
@@ -179,8 +207,16 @@ export function HalloweenSection() {
       />
       <div className="px-4 pt-10 md:px-14 md:pt-10">
         <h2 className="mb-4 text-base font-black text-white md:text-xl">Halloween Games</h2>
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-          {halloweenGames.map((game) => <GameArtCard key={game.title} {...game} className="w-[141px] md:w-[141px]" />)}
+        <div className="relative isolate">
+          <div ref={gamesRailRef} className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+            {halloweenGames.map((game) => <GameArtCard key={game.title} {...game} className="w-[141px] md:w-[141px]" />)}
+          </div>
+          {canScrollGamesLeft ? (
+            <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-black/90 via-black/55 to-transparent md:w-10" />
+          ) : null}
+          {canScrollGamesRight ? (
+            <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-black/90 via-black/55 to-transparent md:w-10" />
+          ) : null}
         </div>
       </div>
     </section>
