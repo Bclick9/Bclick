@@ -12,7 +12,7 @@ import Tournaments from './pages/Tournaments'
 import Vip from './pages/Vip'
 import Search from './pages/Search'
 import Support from './pages/Support'
-import { Login, Register, AccountPlaceholder } from './pages/Auth'
+import { Login, Register, AccountAuth, AccountPlaceholder } from './pages/Auth'
 import { WalletRouter } from './pages/Wallet'
 import Info from './pages/Info'
 import './appTheme.css'
@@ -56,12 +56,11 @@ export default function App() {
         <Route path="support" element={<Support />} />
         <Route path="login" element={<Login />} />
         <Route path="register" element={<Register />} />
-        <Route path="wallet" element={<Navigate to="/wallet/deposit" replace />} />
-        <Route path="wallet/:tab" element={<WalletRouter />} />
-        <Route
-          path="account/:section"
-          element={<AccountSection />}
-        />
+        <Route path="account" element={<AccountAuth />} />
+        <Route path="account/wallet/:tab" element={<WalletRouter />} />
+        <Route path="wallet" element={<Navigate to="/account/wallet/deposit" replace />} />
+        <Route path="wallet/:tab" element={<LegacyWalletRedirect />} />
+        <Route path="account/:section" element={<AccountSection />} />
         <Route path="info/:slug" element={<Info />} />
         <Route path="*" element={<NotFound />} />
       </Route>
@@ -77,4 +76,10 @@ function AccountSection() {
     history: 'History',
   }
   return <AccountPlaceholder title={titles[section] ?? 'Account'} />
+}
+
+
+function LegacyWalletRedirect() {
+  const { tab = 'deposit' } = useParams()
+  return <Navigate to={`/account/wallet/${tab}`} replace />
 }
