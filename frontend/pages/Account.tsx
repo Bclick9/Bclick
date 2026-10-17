@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import {
   BadgeCheck, FileText, Gift, History, Inbox, ShieldAlert, UserRound,
 } from 'lucide-react'
@@ -44,7 +44,6 @@ export default function AccountPage() {
   const { pathname } = useLocation()
   const sectionKey = pathname.split('/').filter(Boolean)[1] || 'personal-info'
   const section = SECTIONS[sectionKey] ?? SECTIONS['personal-info']!
-  const isProfile = ['personal-info', 'profile', 'documents', 'change-password', 'messages'].includes(sectionKey)
   const [gender, setGender] = useState('')
   const [newsletter, setNewsletter] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -63,7 +62,7 @@ export default function AccountPage() {
         <div className="mb-4 flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-bold text-[var(--cb-light-text)] md:text-2xl">
-              <span className="md:hidden">{isProfile ? 'My profile' : section.title}</span>
+              <span className="md:hidden">{pathname === '/account' ? 'My profile' : section.title}</span>
               <span className="hidden md:inline">{section.title}</span>
             </h1>
             <p className="mt-1 hidden text-sm text-[var(--cb-light-muted)] sm:block">{section.subtitle}</p>
