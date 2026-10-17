@@ -16,7 +16,6 @@ interface MobileMenuProps {
 export function MobileMenu({ open, onClose }: MobileMenuProps) {
   const { pathname } = useLocation()
   const [betslipNoticeOpen, setBetslipNoticeOpen] = useState(false)
-  const [betslipCommandAvailable, setBetslipCommandAvailable] = useState(false)
   const previousPathname = useRef(pathname)
 
   const handleBetslipClick = () => {
@@ -30,13 +29,11 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
 
     if (typeof api?.openBetslip === 'function') {
       api.openBetslip()
-      setBetslipCommandAvailable(true)
       setBetslipNoticeOpen(false)
       onClose()
       return
     }
 
-    setBetslipCommandAvailable(false)
     setBetslipNoticeOpen(true)
   }
 
