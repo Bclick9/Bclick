@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { useLocation, Link, useParams, Navigate } from 'react-router-dom'
 import {
   Trophy, CircleDot, Dribbble, Snowflake, Volleyball, Gamepad2, Swords,
@@ -11,8 +12,10 @@ const ICONS: Record<string, LucideIcon> = {
   Trophy, CircleDot, Dribbble, Snowflake, Volleyball, Gamepad2, Swords,
 }
 
-/* Frontend-only WinHouse sportsbook preview with internal routes exposed as site pages. */
+/* WinHouse's supported embed.js loader manages the internal frame sizing.
+   WinHouse is cross-origin, so the provider still renders its book in an iframe. */
 const WINHOUSE_EMBED_KEY = 'ifr_42b9d5489dd29796a83719065721a1de8faa1b54'
+const WINHOUSE_EMBED_SCRIPT = 'https://iframe.winhouse.bet/embed.js'
 const WINHOUSE_BOOK_BASE =
   `https://iframe.winhouse.bet/book?key=${WINHOUSE_EMBED_KEY}&embed=1&lang=en`
 
@@ -27,22 +30,77 @@ const WINHOUSE_VIEWS: Record<string, string> = {
 export default function Sports() {
   const { pathname } = useLocation()
   const view = WINHOUSE_VIEWS[pathname] ?? '/line'
-  const src = `${WINHOUSE_BOOK_BASE}#${view}`
+  const targetRef = useRef<HTMLDivElement>(null)
+  const viewRef = useRef(view)
+  viewRef.current = view
+
+  useEffect(() => {
+    const target = targetRef.current
+    if (!target) return
+
+    let disposed = false
+    target.replaceChildren()
+
+    const configureFrame = () => {
+      if (disposed) return
+      const frame = target.querySelector('iframe') ?? window.WinHouseEmbed?.frame
+      if (!(frame instanceof HTMLIFrameElement)) return
+
+      frame.id = 'winhouse-book-frame'
+      frame.title = 'WinHouse sportsbook'
+      frame.referrerPolicy = 'strict-origin-when-cross-origin'
+      frame.allow = 'autoplay; fullscreen'
+      frame.allowFullscreen = true
+
+      const nextSrc = `${WINHOUSE_BOOK_BASE}#${viewRef.current}`
+      if (frame.src !== nextSrc) frame.src = nextSrc
+    }
+
+    const script = document.createElement('script')
+    script.src = WINHOUSE_EMBED_SCRIPT
+    script.async = true
+    script.dataset.key = WINHOUSE_EMBED_KEY
+    script.dataset.target = '#winhouse-book-embed'
+    script.dataset.embed = '1'
+    script.dataset.lang = 'en'
+    script.dataset.width = '100%'
+    script.dataset.height = 'calc(100dvh - 54px)'
+    // Intentionally omit data-bottom-gap: our fixed nav overlays the provider
+    // tab bar rather than stacking a second bottom navigation below it.
+
+    const observer = new MutationObserver(configureFrame)
+    observer.observe(target, { childList: true, subtree: true })
+    script.addEventListener('load', configureFrame)
+    target.appendChild(script)
+
+    return () => {
+      disposed = true
+      observer.disconnect()
+      script.removeEventListener('load', configureFrame)
+      script.remove()
+
+      const frame = target.querySelector('iframe')
+      if (frame) frame.remove()
+      if (window.WinHouseEmbed?.frame === frame) window.WinHouseEmbed = undefined
+      target.replaceChildren()
+    }
+  }, [])
+
+  useEffect(() => {
+    const frame = targetRef.current?.querySelector('iframe') ?? window.WinHouseEmbed?.frame
+    if (!(frame instanceof HTMLIFrameElement)) return
+
+    const nextSrc = `${WINHOUSE_BOOK_BASE}#${view}`
+    if (frame.src !== nextSrc) frame.src = nextSrc
+    window.WinHouseEmbed?.refit?.()
+  }, [view])
 
   return (
-    <section className="relative w-full min-w-0 overflow-hidden bg-[#06141e]">
-      <iframe
-        key={view}
-        id="winhouse-book-frame"
-        src={src}
-        title="WinHouse sportsbook preview"
-        loading="eager"
-        referrerPolicy="strict-origin-when-cross-origin"
-        allow="autoplay; fullscreen"
-        allowFullScreen
-        className="block h-[calc(100dvh-54px)] w-full border-0"
-        style={{ height: 'calc(100dvh - 54px)', minHeight: 0, width: '100%', border: 0 }}
-      />
+    <section
+      className="relative w-full min-w-0 overflow-hidden bg-[#06141e]"
+      style={{ height: 'calc(100dvh - 54px)', minHeight: 0 }}
+    >
+      <div id="winhouse-book-embed" ref={targetRef} className="h-full w-full" />
     </section>
   )
 }
