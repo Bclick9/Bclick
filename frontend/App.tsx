@@ -12,8 +12,7 @@ import Tournaments from './pages/Tournaments'
 import Vip from './pages/Vip'
 import Search from './pages/Search'
 import Support from './pages/Support'
-import AccountPage from './pages/Account'
-import { WalletRouter } from './pages/Wallet'
+import AccountEmbed from './pages/AccountEmbed'
 import Info from './pages/Info'
 import './appTheme.css'
 
@@ -58,11 +57,11 @@ export default function App() {
         <Route path="login" element={<Navigate to="/" replace />} />
         <Route path="register" element={<Navigate to="/" replace />} />
         <Route path="signup" element={<Navigate to="/" replace />} />
-        <Route path="account" element={<AccountPage />} />
-        <Route path="account/wallet/:tab" element={<WalletRouter />} />
+        <Route path="account" element={<AccountEmbed />} />
+        <Route path="account/wallet/:tab" element={<AccountEmbed />} />
         <Route path="wallet" element={<Navigate to="/account/wallet/deposit" replace />} />
         <Route path="wallet/:tab" element={<LegacyWalletRedirect />} />
-        <Route path="account/:section" element={<AccountPage />} />
+        <Route path="account/:section" element={<AccountEmbed />} />
         <Route path="info/:slug" element={<Info />} />
         <Route path="*" element={<NotFound />} />
       </Route>
