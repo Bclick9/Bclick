@@ -58,7 +58,16 @@
   --cb-arrow-bg: #0d202d;
   --cb-arrow-icon: #9fb2bf;
 }
-.cb-promo-card { flex: 0 0 calc((100% - 16px) / 3); width: auto; }
+.cb-promo-card { flex: 0 0 min(496px, calc((100% - 16px) / 3)); width: auto; }
+.cb-promo-atlas { flex: 0 0 min(496px, calc((100% - 16px) / 3)); aspect-ratio: 31 / 18; }
+.cb-provider-card { flex-basis: 176px; }
+.cb-feature-banner { flex-basis: calc((100% - 16px) / 3); }
+@media (max-width: 900px) {
+  .cb-promo-atlas { flex-basis: min(82vw, 460px); }
+}
+@media (max-width: 640px) {
+  .cb-promo-atlas { flex-basis: 86vw; }
+}
 .cb-game-tile { border: 0; }
 .cb-game-tile::after {
   content: "";
