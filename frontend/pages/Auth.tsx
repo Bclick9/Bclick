@@ -100,8 +100,13 @@ function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initial
   }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    // UI prototype only: deliberately no validation, account creation or authentication.
     event.preventDefault()
+
+    // The login UI is a prototype, so continue to the account page without real authentication.
+    if (mode === 'login') {
+      onClose?.()
+      navigate('/account')
+    }
   }
 
   return (
