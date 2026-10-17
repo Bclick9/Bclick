@@ -55,7 +55,7 @@ function AuthActions({ compact = false }: { compact?: boolean }) {
 
         <div className="flex gap-3">
           <Link
-            to="/login"
+            to="/account"
             className={compact
               ? 'inline-flex items-center justify-center rounded-[10px] border border-[var(--cb-line)] px-3 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[var(--cb-hover)] outline-none'
               : 'inline-flex items-center justify-center rounded-[10px] border border-[var(--cb-line)] px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[var(--cb-hover)] outline-none lg:text-sm'}
