@@ -28,7 +28,6 @@ const DESKTOP_ITEMS: { to: string; icon: SidebarGlyph; label: string }[] = [
   { to: '/casino', icon: CasinoGlyph, label: 'Casino' },
   { to: '/live-casino', icon: LiveCasinoGlyph, label: 'Live Casino' },
   { to: '/sports', icon: SportsGlyph, label: 'Sports' },
-  { to: '/sports/live', icon: LiveSportsGlyph, label: 'Live' },
   { to: '/promotions', icon: PromotionsGlyph, label: 'Promotions' },
   { to: '/jackpots', icon: JackpotsGlyph, label: 'Jackpots' },
   { to: '/tournaments', icon: TournamentGlyph, label: 'Tournaments' },
@@ -75,7 +74,7 @@ export function Sidebar({ expanded, onToggle }: SidebarProps) {
           const active = to === '/'
             ? pathname === '/'
             : to === '/sports'
-              ? pathname === '/sports' || (pathname.startsWith('/sports/') && pathname !== '/sports/live')
+              ? pathname === '/sports' || pathname.startsWith('/sports/')
               : pathname === to || pathname.startsWith(to + '/')
 
           return (
@@ -183,16 +182,6 @@ function SportsGlyph({ className }: SidebarIconProps) {
       <circle cx="12" cy="12" r="9" />
       <path d="m12 6.5 3.5 2.2-1.3 3.9h-4.4l-1.3-3.9L12 6.5Z" fill="currentColor" stroke="none" />
       <path d="m12 6.5 0-3M15.5 8.7l3-1.3M14.2 12.6l2.3 3M9.8 12.6l-2.3 3M8.5 8.7l-3-1.3M12 16.1v4.8" />
-    </svg>
-  )
-}
-
-function LiveSportsGlyph({ className }: SidebarIconProps) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" />
-      <path d="m12 7 3 2.2-1.1 3.5h-3.8L9 9.2 12 7Z" fill="currentColor" stroke="none" />
-      <path d="m12 7-1.5-3M15 9.2l3.8-.6M13.9 12.7l2.1 3.5M10.1 12.7 8 16.2M9 9.2 5.2 8.6M12 16.2V21" />
     </svg>
   )
 }
