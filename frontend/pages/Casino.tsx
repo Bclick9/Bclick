@@ -5,8 +5,8 @@ import {
   Trophy, Search as SearchIcon, LayoutGrid, ChevronLeft, ChevronRight, Info,
   type LucideIcon,
 } from 'lucide-react'
-import { GameCard, PromoCard, Wireframe } from '../components/cards'
-import { GAMES, CASINO_CATEGORIES, PROMOTIONS } from '../data/catalog'
+import { GameCard, Wireframe } from '../components/cards'
+import { GAMES, CASINO_CATEGORIES } from '../data/catalog'
 import { cn } from '../lib/shadcn/utils'
 
 const ICONS: Record<string, LucideIcon> = {
@@ -143,7 +143,7 @@ function CategoryStrip({ active }: { active: string }) {
 }
 
 function GameGrid({ ids }: { ids: string[] }) {
-  const [shown, setShown] = useState(12)
+  const [shown, setShown] = useState(100)
   const games = useMemo(
     () => ids.map((id) => GAMES.find((g) => g.id === id)!).filter(Boolean),
     [ids],
@@ -217,20 +217,7 @@ export function CasinoCategory() {
 
       {isLobby ? (
         <>
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg md:text-xl font-extrabold text-foreground">Promotions</h2>
-              <div className="hidden md:flex items-center gap-2">
-                <button aria-label="Scroll left" className="w-9 h-9 rounded-lg bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors">&lsaquo;</button>
-                <button aria-label="Scroll right" className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold">&rsaquo;</button>
-              </div>
-            </div>
-            <div className="flex gap-3 md:gap-4 overflow-x-auto no-scrollbar pb-1">
-              {PROMOTIONS.filter((p) => p.scope === 'casino').map((p) => (
-                <PromoCard key={p.slug} promo={p} />
-              ))}
-            </div>
-          </div>
+          <GameGrid ids={GAMES.map((g) => g.id)} />
 
           <HalloweenBanner games={['death-dominion', 'coins-of-halloween', 'wolf-power-megaways', 'spooky-kabuki', 'vamp-hunt', 'halloween-bonanza', 'haunted-coins', 'halloween-jack', 'devils-feast']} />
 
