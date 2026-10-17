@@ -61,7 +61,42 @@ declare global {
 export function BottomNav() {
   const { pathname } = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [keyboardOpen, setKeyboardOpen] = useState(false)
   const closeMenu = useCallback(() => setMenuOpen(false), [])
+
+  // A text field inside the cross-origin WinHouse embed will not send focus
+  // events to this page, but opening the mobile keyboard resizes visualViewport.
+  // Hide the site's fixed bottom navigation while that reduced viewport is active.
+  useEffect(() => {
+    const viewport = window.visualViewport
+    if (!viewport) return
+
+    let largestHeight = Math.max(window.innerHeight, viewport.height)
+
+    const updateKeyboardState = () => {
+      largestHeight = Math.max(largestHeight, viewport.height)
+      const heightReduction = largestHeight - viewport.height
+
+      setKeyboardOpen((wasOpen) => {
+        if (heightReduction > 130) return true
+        if (heightReduction < 80) return false
+        return wasOpen
+      })
+    }
+
+    viewport.addEventListener('resize', updateKeyboardState)
+    window.addEventListener('resize', updateKeyboardState)
+    updateKeyboardState()
+
+    return () => {
+      viewport.removeEventListener('resize', updateKeyboardState)
+      window.removeEventListener('resize', updateKeyboardState)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (keyboardOpen) closeMenu()
+  }, [keyboardOpen, closeMenu])
 
   const isSportsRoute = SPORTS_PATHS.includes(pathname)
   const isSportsLanding = pathname === '/sports'
@@ -102,7 +137,11 @@ export function BottomNav() {
   return (
     <>
       <nav
-        className="cb-nav md:hidden fixed bottom-0 inset-x-0 z-50 cb-safe-bottom"
+        className={cn(
+          'cb-nav md:hidden fixed bottom-0 inset-x-0 z-50 cb-safe-bottom',
+          keyboardOpen && 'hidden',
+        )}
+        aria-hidden={keyboardOpen || undefined}
         aria-label={isSportsRoute ? 'Sportsbook navigation' : 'Mobile navigation'}
       >
         <div className="grid grid-cols-5">
@@ -172,7 +211,7 @@ export function BottomNav() {
         </div>
       </nav>
 
-      <MobileMenu open={menuOpen} onClose={closeMenu} />
+      <MobileMenu open={menuOpen && !keyboardOpen} onClose={closeMenu} />
     </>
   )
 }
