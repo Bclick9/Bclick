@@ -238,7 +238,9 @@ export function GameCard({ game, className }: { game: Game; className?: string }
       image={game.image}
       fallbackImage={game.imageFallback}
       spriteIndex={game.spriteIndex}
-      spriteSheet={typeof game.spriteIndex === 'number' ? '/assets/home/trending.webp' : undefined}
+      spriteSheet={typeof game.spriteIndex === 'number' ? '/assets/home/casino-atlases.webp' : undefined}
+      spriteRow={0}
+      spriteRows={6}
       spriteCount={10}
       imageShowsTitle={game.imageShowsTitle !== false}
       className={className}
