@@ -146,7 +146,7 @@ export function AccountLayout({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
 
   const profileLinks = [
-    { label: 'Personal info', path: '/account' },
+    { label: 'Personal info', path: '/account/personal-info' },
     { label: 'Documents', path: '/account/documents' },
     { label: 'Change password', path: '/account/change-password' },
     { label: 'Messages', path: '/account/messages' },
