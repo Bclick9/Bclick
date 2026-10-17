@@ -6,20 +6,21 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { MobileMenu } from './MobileMenu'
+import { SearchDialog } from './SearchDialog'
 import { cn } from '../lib/shadcn/utils'
 
 type NavEntry = {
   to?: string
   icon: LucideIcon
   label: string
-  action?: 'betslip'
+  action?: 'betslip' | 'search'
 }
 
 const SITE_NAV_ITEMS: NavEntry[] = [
   { to: '/casino', icon: Coins, label: 'Casino' },
   { to: '/sports', icon: Volleyball, label: 'Sports' },
   { to: '/promotions', icon: Gift, label: 'Promotions' },
-  { to: '/search', icon: SearchIcon, label: 'Search' },
+  { action: 'search', icon: SearchIcon, label: 'Search' },
 ]
 
 const SPORTS_LANDING_ITEMS: NavEntry[] = [
@@ -61,8 +62,10 @@ declare global {
 export function BottomNav() {
   const { pathname } = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const [keyboardOpen, setKeyboardOpen] = useState(false)
   const closeMenu = useCallback(() => setMenuOpen(false), [])
+  const closeSearch = useCallback(() => setSearchOpen(false), [])
 
   // A text field inside the cross-origin WinHouse embed will not send focus
   // events to this page, but opening the mobile keyboard resizes visualViewport.
@@ -191,6 +194,24 @@ export function BottomNav() {
           </button>
 
           {activeItems.map((item) => {
+            if (item.action === 'search') {
+              return (
+                <button
+                  key="search"
+                  type="button"
+                  onClick={() => {
+                    closeMenu()
+                    setSearchOpen(true)
+                  }}
+                  aria-label="Open search"
+                  className="flex flex-col items-center justify-center gap-1 py-2.5 text-[10px] font-semibold text-[#c3ced9] transition-colors hover:text-white"
+                >
+                  <SearchIcon className="w-5 h-5" />
+                  <span>Search</span>
+                </button>
+              )
+            }
+
             if (item.action === 'betslip') {
               return (
                 <button
@@ -243,6 +264,7 @@ export function BottomNav() {
       </nav>
 
       <MobileMenu open={menuOpen && !keyboardOpen} onClose={closeMenu} />
+      <SearchDialog open={searchOpen} onClose={closeSearch} />
     </>
   )
 }
