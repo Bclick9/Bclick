@@ -63,7 +63,7 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
   return (
     <div
       id="mobile-menu-panel"
-      className="md:hidden fixed inset-x-0 top-0 bottom-0 z-40 cb-nav cb-menu-panel flex flex-col cb-safe-top"
+      className={`md:hidden fixed inset-x-0 top-0 bottom-0 ${betslipNoticeOpen ? "z-[70]" : "z-40"} cb-nav cb-menu-panel flex flex-col cb-safe-top`}
       role="dialog"
       aria-modal="true"
       aria-label="Main menu"
