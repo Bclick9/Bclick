@@ -7,6 +7,7 @@ export interface Game {
   provider: string
   image?: string
   imageShowsTitle?: boolean
+  imageFallback?: string
   spriteIndex?: number
   categories: string[]
   live?: boolean
