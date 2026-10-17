@@ -114,11 +114,25 @@ export function SectionRow({
         </div>
       ) : null}
 
-      <div
-        ref={scrollRef}
-        className="flex gap-2 overflow-x-auto no-scrollbar pb-1"
-      >
-        {children}
+      <div className="relative isolate">
+        <div
+          ref={scrollRef}
+          className="flex gap-2 overflow-x-auto no-scrollbar pb-1"
+        >
+          {children}
+        </div>
+        {canScrollLeft ? (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-black/90 via-black/55 to-transparent md:w-10"
+          />
+        ) : null}
+        {canScrollRight ? (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-black/90 via-black/55 to-transparent md:w-10"
+          />
+        ) : null}
       </div>
     </section>
   )
