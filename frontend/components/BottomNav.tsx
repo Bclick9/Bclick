@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   X, Coins, Volleyball, Gift, Search as SearchIcon,
-  Radio, Monitor, Clock3, Star,
+  Radio, Monitor, Clock3, Star, Ticket,
   type LucideIcon,
 } from 'lucide-react'
 import { MobileMenu } from './MobileMenu'
