@@ -6,6 +6,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { GameCard } from './cards'
+import { cn } from '../lib/shadcn/utils'
 import { GAMES, PROMOTIONS, PROVIDERS, CASINO_CATEGORIES } from '../data/catalog'
 
 interface SearchDialogProps {
