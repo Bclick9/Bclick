@@ -34,13 +34,13 @@
 
 /* Chrome surfaces sampled from the reference */
 :root {
-  --cb-nav: #071823;          /* sidebar, header, bottom nav, menu panel */
+  --cb-nav: #0a1b26;          /* sidebar, header, bottom nav, menu panel */
   --cb-content: #00151e;      /* dark page content */
-  --cb-card: #0b202a;         /* cards and menu item rows */
+  --cb-card: #0b202b;         /* cards and menu item rows */
   --cb-item-active: #233d4b;  /* active/selected nav row */
   --cb-hover: #17313e;        /* hover surface */
   --cb-line: #193442;         /* separators / borders */
-  --cb-yellow: #ffbd00;
+  --cb-yellow: #ffbf00;
   --cb-yellow-dark: #dca300;
   --cb-green: #2fbf71;
   --cb-red: #e5484d;
@@ -54,6 +54,32 @@
 }
 
 .cb-nav { background: var(--cb-nav); }
+:root {
+  --cb-arrow-bg: #0d202d;
+  --cb-arrow-icon: #9fb2bf;
+}
+.cb-promo-card { flex: 0 0 calc((100% - 16px) / 3); width: auto; }
+.cb-game-tile { border: 0; }
+.cb-game-tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255,255,255,.05);
+  border-radius: inherit;
+  pointer-events: none;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+.cb-game-tile:hover::after,
+.cb-game-tile:focus-visible::after {
+  border-color: var(--cb-yellow);
+  box-shadow: 0 0 0 1px rgba(255,191,0,.26), 0 8px 25px rgba(0,0,0,.26);
+}
+@media (max-width: 900px) {
+  .cb-promo-card { flex-basis: min(82vw, 460px); }
+}
+@media (max-width: 640px) {
+  .cb-promo-card { flex-basis: 86vw; }
+}
 .cb-content { background: var(--cb-content); }
 .cb-yellow { background: var(--cb-yellow); }
 .cb-text-yellow { color: var(--cb-yellow); }
@@ -63,10 +89,10 @@
 
 /* Menu panel slide-down animation (mobile menu sheet) */
 @keyframes cb-menu-in {
-  from { transform: translateY(-100%); }
+  from { transform: translateY(100%); }
   to { transform: translateY(0); }
 }
-.cb-menu-panel { animation: cb-menu-in 240ms ease-out; }
+.cb-menu-panel { animation: cb-menu-in 260ms cubic-bezier(.2,.8,.2,1); will-change: transform; }
 
 @keyframes cb-fade-in {
   from { opacity: 0; }
