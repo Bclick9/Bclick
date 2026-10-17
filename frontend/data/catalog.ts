@@ -189,45 +189,44 @@ export interface SportsEvent {
 
 export const SPORTS_EVENTS: SportsEvent[] = [
   {
-    id: 'allsvenskan-bromma-djurgarden',
-    league: 'Allsvenskan', country: 'Sweden', time: '18:00', date: '16/10',
-    sport: 'Football', live: true, home: 'IF Brommapojkarna', away: 'Djurgården',
+    id: 'atp-shanghai-zverev-davidovich',
+    league: 'ATP Shanghai, China Men Singles', country: 'China', time: '09:30', date: '17/10',
+    sport: 'Tennis', live: true, home: 'Alexander Zverev', away: 'Alejandro Davidovich Fokina',
     markets: [
-      { label: 'IF Bromma', odds: '5.33' },
-      { label: 'X', odds: '4.75' },
-      { label: 'Djurgården', odds: '1.50' },
+      { label: 'Alexander Zverev', odds: '1.28' },
+      { label: 'Alejandro Davidovich', odds: '3.66' },
+    ],
+    sportIcon: 'Tennis',
+  },
+  {
+    id: 'wta-wuhan-kartal-ostapenko',
+    league: 'WTA Wuhan, China Women Singles', country: 'China', time: '10:00', date: '17/10',
+    sport: 'Tennis', live: true, home: 'Sonay Kartal', away: 'Jelena Ostapenko',
+    markets: [
+      { label: 'Sonay Kartal', odds: '1.71' },
+      { label: 'Jelena Ostapenko', odds: '2.05' },
+    ],
+    sportIcon: 'Tennis',
+  },
+  {
+    id: 'laliga-espanyol-atletico',
+    league: 'LaLiga', country: 'Spain', time: '13:00', date: '17/10',
+    sport: 'Football', live: true, home: 'RCD Espanyol', away: 'Atletico Madrid',
+    markets: [
+      { label: 'RCD Espanyol', odds: '5.22' },
+      { label: 'X', odds: '4.31' },
+      { label: 'Atletico Madrid', odds: '1.73' },
     ],
     sportIcon: 'Football',
   },
   {
-    id: 'euroleague-besiktas-bayern',
-    league: 'Euroleague', country: 'Europe', time: '18:00', date: '16/10',
-    sport: 'Basketball', live: true, home: 'Besiktas', away: 'Bayern Munich',
+    id: 'serie-a-venezia-napoli',
+    league: 'Serie A', country: 'Italy', time: '14:00', date: '17/10',
+    sport: 'Football', live: true, home: 'Venezia', away: 'Napoli',
     markets: [
-      { label: 'Besiktas', odds: '1.55' },
-      { label: 'Bayern Munich', odds: '2.35' },
-    ],
-    sportIcon: 'Basketball',
-  },
-  {
-    id: 'bundesliga-rapid-hartberg',
-    league: 'Bundesliga', country: 'Austria', time: '18:30', date: '16/10',
-    sport: 'Football', live: true, home: 'Rapid Wien', away: 'Hartberg',
-    markets: [
-      { label: 'Rapid Wien', odds: '1.26' },
-      { label: 'X', odds: '6.33' },
-      { label: 'Hartberg', odds: '8.50' },
-    ],
-    sportIcon: 'Football',
-  },
-  {
-    id: 'eredivisie-heerenveen-excelsior',
-    league: 'Eredivisie', country: 'Netherlands', time: '19:00', date: '16/10',
-    sport: 'Football', live: true, home: 'Heerenveen', away: 'Excelsior',
-    markets: [
-      { label: 'Heerenveen', odds: '1.54' },
-      { label: 'X', odds: '4.50' },
-      { label: 'Excelsior', odds: '5.20' },
+      { label: 'Venezia', odds: '4.75' },
+      { label: 'X', odds: '3.80' },
+      { label: 'Napoli', odds: '1.85' },
     ],
     sportIcon: 'Football',
   },
