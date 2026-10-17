@@ -32,12 +32,12 @@ const assets = [
   ['home/halloween-background.webp', 'https://campeonbet.io/assets/cms/79df88dc-e0a4-444b-bc40-432e5b703410/Halloween-2026.webp'],
 
   // Trending games.
-  ['games/zeus-vs-hades.webp', 'https://casino-spa-api.toto.nl/assets/d00d2de6-b8b1-444d-b270-03c730cf4b10?c=52640948b55cf0ada088d923315b321e417a6b8befc03b66465a5d0ba78c4657&h=800&s=b&w=800&x=0&y=0'],
-  ['games/lucky-ladys-charm.webp', 'https://a.storyblok.com/f/272686/400x400/90f4482e99/lucky-ladys-charm-deluxe.webp/m/600x600'],
-  ['games/wild-clusters.webp', 'https://cdn.prod.website-files.com/63b3249466615535f76d4b4e/67c71620fc52bc38b5d542a6_Wild_Clusters_1020x618.webp'],
+  ['games/zeus-vs-hades.jpg', 'https://zeus-vs-hades.com/images/zeus-vs-hades-logo.jpg'],
+  ['games/lucky-ladys-charm.jpg', 'https://www.novomatic.com/sites/default/files/styles/gallery_game_image/public/2021-05/1Q2YJMqq9DmYdqC.jpg?itok=CfNhqkxI'],
+  ['games/wild-clusters.png', 'https://777.ua/uploads/games_items/Wild-Clusters-_500h560-min.png'],
   ['games/raptor-doublemax.jpg', 'https://media.leovegas.com/images/games/raptor-2/raptor-2-tile.jpg?tr=w-1536'],
   ['games/wealth-bells-40.webp', 'https://evoplay.games/wp-content/uploads/2026/07/580x580-2-270x270.webp'],
-  ['games/le-bandit.jpg', 'https://media.leovegas.com/images/games/le-bandit/le-bandit-tile.jpg?tr=w-1920'],
+  ['games/le-bandit.jpg', 'https://www.slotark.com/images/slots/le-bandit.jpg'],
   ['games/big-bass-trophy-catch.webp', 'https://www.slottomat.com/storage/slot-images/big-bass-trophy-catch-42122.webp'],
   ['games/silver-coins.jpg', 'https://bfgames.com/wp-content/uploads/2026/05/silver_coins_screens_web_1.jpg'],
   ['games/eggs-of-fortune.png', 'https://static-wazdan.com/vault/assets/107/6b426c9566e75ddf775ce129e168ca8934ffa8b3bdb4093b040ae5f3182496b2.png?save_as=EggsOfFortune_logo_vertical.png'],
