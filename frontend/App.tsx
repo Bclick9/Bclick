@@ -12,7 +12,7 @@ import Tournaments from './pages/Tournaments'
 import Vip from './pages/Vip'
 import Search from './pages/Search'
 import Support from './pages/Support'
-import { AccountPlaceholder } from './pages/Auth'
+import AccountPage from './pages/Account'
 import { WalletRouter } from './pages/Wallet'
 import Info from './pages/Info'
 import './appTheme.css'
@@ -58,26 +58,16 @@ export default function App() {
         <Route path="login" element={<Navigate to="/" replace />} />
         <Route path="register" element={<Navigate to="/" replace />} />
         <Route path="signup" element={<Navigate to="/" replace />} />
-        <Route path="account" element={<AccountPlaceholder title="Account" />} />
+        <Route path="account" element={<AccountPage />} />
         <Route path="account/wallet/:tab" element={<WalletRouter />} />
         <Route path="wallet" element={<Navigate to="/account/wallet/deposit" replace />} />
         <Route path="wallet/:tab" element={<LegacyWalletRedirect />} />
-        <Route path="account/:section" element={<AccountSection />} />
+        <Route path="account/:section" element={<AccountPage />} />
         <Route path="info/:slug" element={<Info />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
   )
-}
-
-function AccountSection() {
-  const { section = '' } = useParams()
-  const titles: Record<string, string> = {
-    profile: 'My profile',
-    bonuses: 'Bonuses',
-    history: 'History',
-  }
-  return <AccountPlaceholder title={titles[section] ?? 'Account'} />
 }
 
 
