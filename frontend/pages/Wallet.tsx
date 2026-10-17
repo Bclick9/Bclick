@@ -177,6 +177,6 @@ export function WalletRouter() {
     case 'deposit': return <Deposit />
     case 'withdraw': return <Withdraw />
     case 'pending-withdrawals': return <PendingWithdrawals />
-    default: return <Navigate to="/wallet/deposit" replace />
+    default: return <Navigate to="/account/wallet/deposit" replace />
   }
 }
