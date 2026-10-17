@@ -131,6 +131,8 @@ export function GameArtCard({
   image,
   fallbackImage,
   spriteIndex,
+  spriteSheet,
+  spriteCount = 10,
   imageShowsTitle = true,
   href = '/casino',
   className,
@@ -140,20 +142,26 @@ export function GameArtCard({
   image?: string
   fallbackImage?: string
   spriteIndex?: number
+  spriteSheet?: string
+  spriteCount?: number
   imageShowsTitle?: boolean
   href?: string
   className?: string
 }) {
   const [currentImage, setCurrentImage] = useState(image)
   const [imageFailed, setImageFailed] = useState(false)
+  const [spriteFailed, setSpriteFailed] = useState(false)
 
   const onImageError = () => {
     if (fallbackImage && currentImage !== fallbackImage) {
       setCurrentImage(fallbackImage)
+      setImageFailed(false)
     } else {
       setImageFailed(true)
     }
   }
+
+  const useSprite = typeof spriteIndex === 'number' && Boolean(spriteSheet) && !spriteFailed
 
   return (
     <Link
@@ -164,17 +172,22 @@ export function GameArtCard({
         className,
       )}
     >
-      {typeof spriteIndex === 'number' ? (
-        <div
-          role="img"
-          aria-label={title}
-          className="aspect-[3/4] w-full bg-no-repeat transition-transform duration-300 ease-out group-hover:scale-[1.045]"
-          style={{
-            backgroundImage: "url('/assets/casino-games.webp')",
-            backgroundSize: '1000% 100%',
-            backgroundPosition: `${(spriteIndex / 9) * 100}% center`,
-          }}
-        />
+      {useSprite ? (
+        <div className="relative aspect-[3/4] w-full overflow-hidden">
+          <img
+            src={spriteSheet}
+            alt={title}
+            loading="lazy"
+            decoding="async"
+            onError={() => setSpriteFailed(true)}
+            draggable={false}
+            className="absolute top-0 h-full max-w-none object-fill transition-transform duration-300 ease-out group-hover:scale-[1.035]"
+            style={{
+              width: `${spriteCount * 100}%`,
+              left: `${-(spriteIndex ?? 0) * 100}%`,
+            }}
+          />
+        </div>
       ) : currentImage && !imageFailed ? (
         <img
           src={currentImage}
@@ -192,14 +205,7 @@ export function GameArtCard({
         </div>
       )}
 
-      {!imageShowsTitle && !imageFailed && typeof spriteIndex !== 'number' ? (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent px-2 pb-2 pt-7">
-          <p className="text-center text-[10px] font-extrabold uppercase leading-tight text-white line-clamp-2">{title}</p>
-          <p className="mt-0.5 text-center text-[9px] uppercase tracking-wide text-slate-300">{provider}</p>
-        </div>
-      ) : null}
-
-      {typeof spriteIndex !== 'number' && (!image || imageFailed) ? (
+      {!useSprite && (!image || imageFailed || !imageShowsTitle) ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent px-2 pb-2 pt-7">
           <p className="text-center text-[10px] font-extrabold uppercase leading-tight text-white line-clamp-2">{title}</p>
           <p className="mt-0.5 text-center text-[9px] uppercase tracking-wide text-slate-300">{provider}</p>
@@ -214,8 +220,6 @@ export function GameArtCard({
           Play
         </span>
       </span>
-
-      {!imageShowsTitle && typeof spriteIndex === 'number' ? null : null}
     </Link>
   )
 }
