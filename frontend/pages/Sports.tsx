@@ -11,25 +11,27 @@ const ICONS: Record<string, LucideIcon> = {
   Trophy, CircleDot, Dribbble, Snowflake, Volleyball, Gamepad2, Swords,
 }
 
-/* Exact sportsbook iframe URL — every query parameter preserved */
-const SPORTSBOOK_URL =
-  'https://cmssport.cmswager.com/?language=en-US&token=guest&integration=2639142c806d9da449dd68a9c4150245&platform=desktop&defaultpage=sport'
+/* Frontend-only Winhouse sportsbook preview. No backend calls are used here. */
+const WINHOUSE_BOOK_URL =
+  'https://iframe.winhouse.bet/book?key=ifr_42b9d5489dd29796a83719065721a1de8faa1b54'
 
-/* /sports — the sportsbook itself, embedded in an iframe filling the content
-   area between the app header and (on mobile) the bottom navigation. */
+/* /sports — show the Winhouse sportsbook UI inside our existing page shell. */
 export default function Sports() {
   return (
-    <div className="flex flex-col">
-      <div className="h-[calc(100dvh-56px-64px)] md:h-[calc(100dvh-60px)] w-full">
+    <section className="w-full min-w-0 overflow-hidden bg-[#06141e]">
+      <div className="w-full min-w-0" style={{ height: '900px' }}>
         <iframe
-          src={SPORTSBOOK_URL}
-          title="CampeonBet sportsbook"
-          loading="lazy"
-          className="w-full h-full block border-0"
+          src={WINHOUSE_BOOK_URL}
+          title="Winhouse sportsbook preview"
+          loading="eager"
+          referrerPolicy="strict-origin-when-cross-origin"
           allow="autoplay; fullscreen"
+          allowFullScreen
+          className="block h-full w-full border-0"
+          style={{ height: '900px', width: '100%', border: 0 }}
         />
       </div>
-    </div>
+    </section>
   )
 }
 
