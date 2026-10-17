@@ -3,18 +3,15 @@ import { Link } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { WireframeFlag } from './Sidebar'
 
-const OFFICIAL_LOGO = 'https://campeonbet.io/assets/cms/2e5b6402-2fa4-4053-b7e2-b3466495cd16/18.svg'
-
 function Logo({ compact }: { compact?: boolean }) {
-  const [failed, setFailed] = useState(false)
   return (
-    <Link to="/" aria-label="CampeonBet home" className="flex min-w-0 shrink-0 items-center">
-      <img
-        src={failed ? OFFICIAL_LOGO : '/assets/home/campeonbet-logo.svg'}
-        onError={() => setFailed(true)}
-        alt="CampeonBet"
-        className={compact ? "h-6 w-[118px] object-contain object-left" : "h-[32px] w-[182px] object-contain object-left"}
-      />
+    <Link
+      to="/"
+      aria-label="CampeonBet home"
+      className={compact ? "flex shrink-0 items-center font-black leading-none tracking-[-0.075em]" : "flex shrink-0 items-center font-black leading-none tracking-[-0.075em]"}
+    >
+      <span className={compact ? "text-[25px] text-white" : "text-[30px] text-white"}>campeón</span>
+      <span className={compact ? "text-[25px] text-[var(--cb-yellow)]" : "text-[30px] text-[var(--cb-yellow)]"}>bet</span>
     </Link>
   )
 }
@@ -47,9 +44,14 @@ function AuthActions({ compact = false }: { compact?: boolean }) {
 
 export function HeaderDesktop() {
   return (
-    <header className="cb-nav sticky top-0 z-30 hidden h-[54px] w-full items-center border-b border-[var(--cb-line)] px-[14px] md:flex">
-      <Logo />
-      <AuthActions />
+    <header className="cb-nav sticky top-0 z-30 hidden h-[54px] w-full items-center border-b border-[var(--cb-line)] px-0 md:flex">
+      <div
+        className="ml-[clamp(40px,8vw,150px)] flex max-w-[1400px] items-center gap-4"
+        style={{ width: 'min(1400px, calc(100% - clamp(40px, 8vw, 150px)))' }}
+      >
+        <Logo />
+        <AuthActions />
+      </div>
     </header>
   )
 }
