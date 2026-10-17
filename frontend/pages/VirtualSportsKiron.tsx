@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   Home, Coins, CircleDot, Volleyball, Gift, Trophy, Crown, Target, Headset,
   PanelLeftClose, Search, Maximize2, Minimize2, X, WalletCards, Play, LockKeyhole,
-  Timer, Flag,
+  Timer, Flag, Goal, Dribbble, Snowflake, PawPrint, Footprints, Gamepad2,
 } from 'lucide-react'
 import { AuthModal } from './Auth'
 import { cn } from '../lib/shadcn/utils'
@@ -14,6 +14,7 @@ const KIRON_NAV = [
   { to: '/casino/lobby', label: 'Casino', icon: Coins },
   { to: '/live-casino', label: 'Live Casino', icon: CircleDot },
   { to: '/sports', label: 'Sports', icon: Volleyball },
+  { to: '/virtual-sports/kiron', label: 'Virtual Sports', icon: Gamepad2 },
   { to: '/promotions', label: 'Promotions', icon: Gift },
   { to: '/jackpots', label: 'Jackpots', icon: Trophy },
   { to: '/tournaments', label: 'Tournaments', icon: Trophy },
@@ -21,12 +22,26 @@ const KIRON_NAV = [
   { to: '/rewards', label: 'Rewards', icon: Target },
 ]
 
+const KIRON_SPORTS = [
+  { label: 'American Football', icon: Goal, description: 'Short-format American football simulations' },
+  { label: 'Archery', icon: Target, description: 'Precision-focused virtual archery events' },
+  { label: 'Basketball', icon: Dribbble, description: 'Fast-paced virtual basketball matches' },
+  { label: 'Cricket', icon: Trophy, description: 'Quick virtual cricket fixtures' },
+  { label: 'Ice Hockey', icon: Snowflake, description: 'Rapid ice hockey simulations' },
+  { label: 'Real Dogs', icon: PawPrint, description: 'Virtual dog racing events' },
+  { label: 'Horses', icon: Footprints, description: 'Virtual horse racing events' },
+  { label: 'Tennis', icon: CircleDot, description: 'Fast virtual tennis matches' },
+] as const
+
 export default function VirtualSportsKiron() {
   const stageRef = useRef<HTMLDivElement>(null)
   const [fullscreen, setFullscreen] = useState(false)
   const [isReal, setIsReal] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [selectedSport, setSelectedSport] = useState('American Football')
+  const activeSport = KIRON_SPORTS.find((sport) => sport.label === selectedSport) ?? KIRON_SPORTS[0]
+  const ActiveSportIcon = activeSport.icon
 
   useEffect(() => {
     const onFullscreenChange = () => setFullscreen(document.fullscreenElement === stageRef.current)
@@ -68,8 +83,10 @@ export default function VirtualSportsKiron() {
           <nav aria-label="Main navigation" className="scrollbar flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden">
             {KIRON_NAV.map(({ to, label, icon: Icon }) => {
               const active = label === 'Sports'
-                ? window.location.pathname.startsWith('/sports') || window.location.pathname.startsWith('/virtual-sports')
-                : label === 'Casino'
+                ? window.location.pathname.startsWith('/sports')
+                : label === 'Virtual Sports'
+                  ? window.location.pathname.startsWith('/virtual-sports')
+                  : label === 'Casino'
                   ? window.location.pathname.startsWith('/casino')
                   : window.location.pathname === to || (to !== '/' && window.location.pathname.startsWith(`${to}/`))
               return (
@@ -153,8 +170,37 @@ export default function VirtualSportsKiron() {
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[52%] opacity-70" style={{ background: 'radial-gradient(ellipse at 50% 100%, rgba(29,126,85,.3), transparent 68%), linear-gradient(180deg, transparent, rgba(3,18,17,.55))' }} />
           <div className="pointer-events-none absolute inset-x-[8%] bottom-[-18%] h-[55%] rounded-t-[50%] border border-emerald-300/15 bg-emerald-900/10" />
 
+          <div
+            role="tablist"
+            aria-label="Kiron virtual sports"
+            className="relative z-20 flex w-full shrink-0 items-stretch overflow-x-auto border-b border-[var(--cb-line)] bg-[#07141c]/90 backdrop-blur scrollbar"
+          >
+            {KIRON_SPORTS.map(({ label, icon: SportIcon }) => {
+              const selected = activeSport.label === label
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  aria-controls="kiron-sport-content"
+                  onClick={() => setSelectedSport(label)}
+                  className={cn(
+                    'relative flex min-h-12 shrink-0 items-center justify-center gap-2 border-b-2 px-4 text-xs font-bold transition-colors sm:px-5',
+                    selected
+                      ? 'border-[var(--cb-yellow)] bg-white/[0.04] text-white'
+                      : 'border-transparent text-[#91a6b5] hover:bg-white/[0.03] hover:text-white',
+                  )}
+                >
+                  <SportIcon className={cn('h-4 w-4 shrink-0', selected ? 'text-[var(--cb-yellow)]' : 'text-current')} />
+                  <span>{label}</span>
+                </button>
+              )
+            })}
+          </div>
+
           {isReal ? (
-            <div className="relative z-10 flex min-h-[calc(100dvh-3.5rem)] flex-1 items-center justify-center px-4 py-8 md:min-h-0">
+            <div className="relative z-10 flex min-h-0 flex-1 items-center justify-center px-4 py-8 md:min-h-0">
               <div className="mx-auto flex max-w-md flex-col items-center gap-4 text-center">
                 <LockKeyhole className="h-10 w-10 text-[var(--cb-yellow)]" />
                 <h1 className="text-xl font-bold">Login to continue</h1>
@@ -164,21 +210,21 @@ export default function VirtualSportsKiron() {
               </div>
             </div>
           ) : (
-            <div className="relative z-10 flex min-h-[calc(100dvh-3.5rem)] flex-1 items-center justify-center overflow-y-auto px-4 py-10 md:min-h-0">
+            <div id="kiron-sport-content" role="tabpanel" className="relative z-10 flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-4 py-10 md:min-h-0">
               <div className="w-full max-w-4xl">
                 <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
                   <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--cb-yellow)]/35 bg-[var(--cb-yellow)]/10 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-[var(--cb-yellow)]">
                     <span className="size-1.5 rounded-full bg-[var(--cb-yellow)]" /> Virtual sports
                   </span>
-                  <h1 className="text-3xl font-black tracking-tight sm:text-5xl">Kiron Virtual Sports</h1>
-                  <p className="mt-3 text-sm text-[#aebfca] sm:text-base">Fast-paced simulated sports by Kiron Interactive</p>
+                  <h1 className="text-3xl font-black tracking-tight sm:text-5xl">{activeSport.label}</h1>
+                  <p className="mt-3 text-sm text-[#aebfca] sm:text-base">{activeSport.description} by Kiron Interactive</p>
                 </div>
 
                 <div className="mx-auto mt-8 grid max-w-3xl grid-cols-1 gap-3 sm:grid-cols-3">
                   <div className="rounded-2xl border border-white/10 bg-[#0b1b24]/80 p-5 text-center shadow-xl backdrop-blur">
-                    <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-400/10 text-emerald-300"><Play className="ml-0.5 h-5 w-5 fill-current" /></div>
-                    <h2 className="mt-3 text-sm font-bold">Virtual Football</h2>
-                    <p className="mt-1 text-xs text-[#8fa3b8]">Short-format football simulations</p>
+                    <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-400/10 text-emerald-300"><ActiveSportIcon className="h-5 w-5" /></div>
+                    <h2 className="mt-3 text-sm font-bold">{activeSport.label}</h2>
+                    <p className="mt-1 text-xs text-[#8fa3b8]">{activeSport.description}</p>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-[#0b1b24]/80 p-5 text-center shadow-xl backdrop-blur">
                     <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-sky-400/10 text-sky-300"><Timer className="h-5 w-5" /></div>

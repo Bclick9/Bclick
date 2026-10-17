@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
-  Home, Coins, Disc3, Volleyball, Gift, Trophy, Crown, MessageSquare, Target,
+  Home, Coins, Disc3, Volleyball, Gift, Trophy, Crown, MessageSquare, Target, Gamepad2,
 } from 'lucide-react'
 import { cn } from '../lib/shadcn/utils'
 
@@ -13,6 +13,7 @@ export const SIDEBAR_ITEMS = [
   { to: '/casino', icon: Coins, label: 'Casino' },
   { to: '/live-casino', icon: Disc3, label: 'Live Casino' },
   { to: '/sports', icon: Volleyball, label: 'Sports' },
+  { to: '/virtual-sports/kiron', icon: Gamepad2, label: 'Virtual Sports' },
   { to: '/promotions', icon: Gift, label: 'Promotions' },
   { to: '/jackpots', icon: Trophy, label: 'Jackpots' },
   { to: '/tournaments', icon: Trophy, label: 'Tournaments' },
@@ -28,6 +29,7 @@ const DESKTOP_ITEMS: { to: string; icon: SidebarGlyph; label: string }[] = [
   { to: '/casino', icon: CasinoGlyph, label: 'Casino' },
   { to: '/live-casino', icon: LiveCasinoGlyph, label: 'Live Casino' },
   { to: '/sports', icon: SportsGlyph, label: 'Sports' },
+  { to: '/virtual-sports/kiron', icon: VirtualSportsGlyph, label: 'Virtual Sports' },
   { to: '/promotions', icon: PromotionsGlyph, label: 'Promotions' },
   { to: '/jackpots', icon: JackpotsGlyph, label: 'Jackpots' },
   { to: '/tournaments', icon: TournamentGlyph, label: 'Tournaments' },
@@ -182,6 +184,15 @@ function SportsGlyph({ className }: SidebarIconProps) {
       <circle cx="12" cy="12" r="9" />
       <path d="m12 6.5 3.5 2.2-1.3 3.9h-4.4l-1.3-3.9L12 6.5Z" fill="currentColor" stroke="none" />
       <path d="m12 6.5 0-3M15.5 8.7l3-1.3M14.2 12.6l2.3 3M9.8 12.6l-2.3 3M8.5 8.7l-3-1.3M12 16.1v4.8" />
+    </svg>
+  )
+}
+
+function VirtualSportsGlyph({ className }: SidebarIconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 8h12a3 3 0 0 1 2.7 1.7l1.1 2.2a2 2 0 0 1-1.8 2.9h-1.2l-2.2-2.1H7.4l-2.2 2.1H4a2 2 0 0 1-1.8-2.9l1.1-2.2A3 3 0 0 1 6 8Z" />
+      <path d="M8 10v3M6.5 11.5h3M16 10.5h.01M18 12.5h.01M8 8l1-3h6l1 3" />
     </svg>
   )
 }
