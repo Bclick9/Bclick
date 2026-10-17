@@ -36,6 +36,7 @@ export default function App() {
         <Route index element={<Home />} />
         <Route path="casino" element={<CasinoIndex />} />
         <Route path="casino/providers" element={<Providers />} />
+        <Route path="casino/rng/brands" element={<Providers />} />
         <Route path="casino/providers/:provider" element={<ProviderPage />} />
         <Route path="casino/:category" element={<CasinoCategory />} />
         <Route path="live-casino" element={<LiveCasino />} />
