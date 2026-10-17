@@ -1,75 +1,64 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, User2 } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { WireframeFlag } from './Sidebar'
 
+const OFFICIAL_LOGO = 'https://campeonbet.io/assets/cms/2e5b6402-2fa4-4053-b7e2-b3466495cd16/18.svg'
+
 function Logo({ compact }: { compact?: boolean }) {
+  const [failed, setFailed] = useState(false)
   return (
-    <Link to="/" aria-label="CampeonBet home" className="flex min-w-0 items-center">
+    <Link to="/" aria-label="CampeonBet home" className="flex min-w-0 shrink-0 items-center">
       <img
-        src="https://campeonbet.io/assets/cms/2e5b6402-2fa4-4053-b7e2-b3466495cd16/18.svg"
+        src={failed ? OFFICIAL_LOGO : '/assets/home/campeonbet-logo.svg'}
+        onError={() => setFailed(true)}
         alt="CampeonBet"
-        className={compact ? "h-6 w-[132px] object-contain object-left" : "h-7 w-[168px] object-contain object-left"}
+        className={compact ? "h-[28px] w-[176px] object-contain object-left" : "h-[32px] w-[182px] object-contain object-left"}
       />
     </Link>
   )
 }
 
+function AuthActions() {
+  return (
+    <div className="ml-auto flex shrink-0 items-center gap-2.5">
+      <Link
+        to="/search"
+        aria-label="Search"
+        className="flex h-[42px] w-[42px] items-center justify-center rounded-xl border border-[var(--cb-line)] bg-transparent text-white transition-colors hover:bg-[var(--cb-hover)]"
+      >
+        <Search className="h-[18px] w-[18px]" />
+      </Link>
+      <Link
+        to="/login"
+        className="inline-flex h-[42px] min-w-[72px] items-center justify-center rounded-xl border border-[var(--cb-yellow)] bg-transparent px-5 text-sm font-bold text-white transition-colors hover:bg-[var(--cb-yellow)] hover:text-[#00151e]"
+      >
+        Login
+      </Link>
+      <Link
+        to="/register"
+        className="inline-flex h-[42px] min-w-[90px] items-center justify-center rounded-xl bg-[var(--cb-yellow)] px-5 text-sm font-bold text-[#00151e] transition-all hover:brightness-105 active:translate-y-px"
+      >
+        Register
+      </Link>
+    </div>
+  )
+}
+
 export function HeaderDesktop() {
   return (
-    <header className="cb-nav hidden md:flex sticky top-0 z-30 h-[58px] items-center px-0">
-      <div
-        className="ml-[clamp(40px,8vw,150px)] flex max-w-[1400px] items-center gap-4"
-        style={{ width: 'min(1400px, calc(100% - clamp(40px, 8vw, 150px)))' }}
-      >
-        <Logo />
-        <div className="ml-auto flex items-center gap-3">
-          <Link
-            to="/search"
-            aria-label="Search"
-            className="w-10 h-10 rounded-lg bg-secondary/70 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Search className="w-5 h-5" />
-          </Link>
-          <Link
-            to="/wallet/deposit"
-            className="flex items-center gap-2 h-10 px-4 rounded-lg border border-[var(--cb-yellow)] bg-transparent hover:bg-accent transition-colors"
-          >
-            <User2 className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-bold text-foreground">€0.00</span>
-          </Link>
-          <Link
-            to="/wallet/deposit"
-            className="h-10 px-4 rounded-lg cb-yellow text-primary-foreground font-bold text-sm flex items-center hover:brightness-110 transition-all"
-          >
-            Deposit
-          </Link>
-        </div>
-      </div>
+    <header className="cb-nav sticky top-0 z-30 hidden h-[54px] w-full items-center border-b border-[var(--cb-line)] px-[14px] md:flex">
+      <Logo />
+      <AuthActions />
     </header>
   )
 }
 
 export function HeaderMobile() {
   return (
-    <header className="cb-nav md:hidden sticky top-0 z-40 cb-safe-top">
-      <div className="flex items-center gap-2 h-14 px-3">
-        <Logo compact />
-        <div className="ml-auto flex items-center gap-2">
-          <Link
-            to="/wallet/deposit"
-            className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-secondary border border-border"
-          >
-            <User2 className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-bold text-foreground">€0.00</span>
-          </Link>
-          <Link
-            to="/wallet/deposit"
-            className="h-9 px-4 rounded-lg cb-yellow text-primary-foreground font-bold text-sm flex items-center"
-          >
-            Deposit
-          </Link>
-        </div>
-      </div>
+    <header className="cb-nav sticky top-0 z-40 flex h-[54px] w-full items-center border-b border-[var(--cb-line)] px-3 md:hidden cb-safe-top">
+      <Logo compact />
+      <AuthActions />
     </header>
   )
 }
