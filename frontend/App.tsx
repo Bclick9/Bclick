@@ -41,6 +41,10 @@ export default function App() {
         <Route path="casino/:category" element={<CasinoCategory />} />
         <Route path="live-casino" element={<LiveCasino />} />
         <Route path="sports" element={<Sports />} />
+        <Route path="sports/live" element={<Sports />} />
+        <Route path="sports/my-bets" element={<Sports />} />
+        <Route path="sports/favorites" element={<Sports />} />
+        <Route path="sports/search" element={<Sports />} />
         <Route path="sports/:category" element={<SportsCategory />} />
         <Route path="promotions" element={<Promotions />} />
         <Route path="promotions/:slug" element={<PromotionDetail />} />
