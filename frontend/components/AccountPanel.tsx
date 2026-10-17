@@ -14,7 +14,7 @@ const GROUPS = [
     label: 'My profile',
     icon: User2,
     links: [
-      { label: 'Personal info', path: '/account' },
+      { label: 'Personal info', path: '/account/personal-info' },
       { label: 'Documents', path: '/account/documents' },
       { label: 'Change password', path: '/account/change-password' },
       { label: 'Messages', path: '/account/messages' },
@@ -189,35 +189,41 @@ export function AccountLayout({ children }: { children: ReactNode }) {
           <AccountPanel />
         </aside>
         <div className="min-w-0 flex-1">
-          {!isAccountHome ? (
-            <div className="mb-4 md:hidden">
-              <Link
-                to="/account"
-                className="inline-flex min-h-8 items-center gap-1.5 text-sm font-semibold text-[var(--cb-light-muted)] transition-colors hover:text-[var(--cb-light-text)]"
-              >
-                <span aria-hidden="true" className="text-lg leading-none">‹</span>
-                Back to account
-              </Link>
-            </div>
-          ) : null}
-          <nav aria-label="Account sections" className="mb-5 flex gap-2 overflow-x-auto pb-1 md:hidden">
-            {mobileLinks.map((link) => (
-              <Link
-                key={link.path}
-                to={link.path}
-                aria-current={pathname === link.path ? 'page' : undefined}
-                className={cn(
-                  'shrink-0 whitespace-nowrap rounded border px-3 py-2 text-sm transition-colors',
-                  pathname === link.path
-                    ? 'border-[var(--cb-light-border)] bg-[var(--cb-light-selected)] font-semibold text-[var(--cb-light-text)]'
-                    : 'border-transparent text-[var(--cb-light-muted)] hover:bg-black/5',
-                )}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-          {children}
+          {isAccountHome ? (
+            <div className="md:hidden"><AccountPanel /></div>
+          ) : (
+            <>
+              <div className="mb-4 md:hidden">
+                <Link
+                  to="/account"
+                  className="inline-flex min-h-8 items-center gap-1.5 text-sm font-semibold text-[var(--cb-light-muted)] transition-colors hover:text-[var(--cb-light-text)]"
+                >
+                  <span aria-hidden="true" className="text-lg leading-none">‹</span>
+                  Back to account
+                </Link>
+              </div>
+              <nav aria-label="Account sections" className="mb-5 flex gap-2 overflow-x-auto pb-1 md:hidden">
+                {mobileLinks.map((link) => (
+                  <Link
+                    key={link.path}
+                    to={link.path}
+                    aria-current={pathname === link.path ? 'page' : undefined}
+                    className={cn(
+                      'shrink-0 whitespace-nowrap rounded border px-3 py-2 text-sm transition-colors',
+                      pathname === link.path
+                        ? 'border-[var(--cb-light-border)] bg-[var(--cb-light-selected)] font-semibold text-[var(--cb-light-text)]'
+                        : 'border-transparent text-[var(--cb-light-muted)] hover:bg-black/5',
+                    )}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </nav>
+            </>
+          )}
+          <div className={cn('min-w-0 flex-1', isAccountHome ? 'hidden md:block' : '')}>
+            {children}
+          </div>
         </div>
       </div>
     </div>
