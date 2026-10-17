@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Link, useParams, Navigate } from 'react-router-dom'
 import {
   Trophy, CircleDot, Dribbble, Snowflake, Volleyball, Gamepad2, Swords,
@@ -11,26 +12,52 @@ const ICONS: Record<string, LucideIcon> = {
   Trophy, CircleDot, Dribbble, Snowflake, Volleyball, Gamepad2, Swords,
 }
 
-/* Frontend-only Winhouse sportsbook preview. No backend calls are used here. */
-const WINHOUSE_BOOK_URL =
-  'https://iframe.winhouse.bet/book?key=ifr_42b9d5489dd29796a83719065721a1de8faa1b54'
+/* Frontend-only WinHouse embed. No backend integration is performed. */
+const WINHOUSE_EMBED_KEY = 'ifr_42b9d5489dd29796a83719065721a1de8faa1b54'
 
-/* /sports — show the Winhouse sportsbook UI inside our existing page shell. */
+/*
+ * Use WinHouse's documented loader instead of a hand-built iframe:
+ * - data-embed=1 hides the provider's top bar and left rail.
+ * - data-bottom-gap accounts for our fixed mobile bottom navigation.
+ * - the loader refits the book to the visible phone height.
+ */
 export default function Sports() {
+  const targetRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const target = targetRef.current
+    if (!target) return
+
+    target.replaceChildren()
+
+    const script = document.createElement('script')
+    script.src = 'https://iframe.winhouse.bet/embed.js'
+    script.async = true
+    script.setAttribute('data-key', WINHOUSE_EMBED_KEY)
+    script.setAttribute('data-target', '#winhouse-book')
+    script.setAttribute('data-width', '100%')
+    script.setAttribute('data-height', '900px')
+    script.setAttribute('data-bottom-gap', '56')
+    script.setAttribute('data-embed', '1')
+    script.setAttribute('data-lang', 'en')
+    script.setAttribute('data-theme', 'dark')
+    document.body.appendChild(script)
+
+    return () => {
+      script.remove()
+      target.replaceChildren()
+    }
+  }, [])
+
   return (
     <section className="w-full min-w-0 overflow-hidden bg-[#06141e]">
-      <div className="w-full min-w-0" style={{ height: '900px' }}>
-        <iframe
-          src={WINHOUSE_BOOK_URL}
-          title="Winhouse sportsbook preview"
-          loading="eager"
-          referrerPolicy="strict-origin-when-cross-origin"
-          allow="autoplay; fullscreen"
-          allowFullScreen
-          className="block h-full w-full border-0"
-          style={{ height: '900px', width: '100%', border: 0 }}
-        />
-      </div>
+      <div
+        id="winhouse-book"
+        ref={targetRef}
+        className="w-full min-w-0"
+        style={{ minHeight: '900px' }}
+        aria-label="WinHouse sportsbook preview"
+      />
     </section>
   )
 }
