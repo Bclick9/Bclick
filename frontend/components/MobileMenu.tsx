@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { MessageSquare } from 'lucide-react'
+import { MessageSquare, Radio, Clock3, Star, Search as SearchIcon } from 'lucide-react'
 import { SIDEBAR_ITEMS, LanguageFlag } from './Sidebar'
 import { cn } from '../lib/shadcn/utils'
 
@@ -54,6 +54,41 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
         <div className="flex justify-center pt-2 pb-3">
           <span className="block w-[104px] h-1.5 rounded-full bg-white" aria-hidden />
         </div>
+
+        {pathname.startsWith('/sports') ? (
+          <div className="px-4 pt-1 pb-3">
+            <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#7F95A6]">
+              Sportsbook
+            </p>
+            <nav className="grid grid-cols-2 gap-2" aria-label="Sportsbook pages">
+              {[
+                { to: '/sports/live', label: 'Live', icon: Radio },
+                { to: '/sports/my-bets', label: 'My Bets', icon: Clock3 },
+                { to: '/sports/favorites', label: 'Favorites', icon: Star },
+                { to: '/sports/search', label: 'Search events', icon: SearchIcon },
+              ].map(({ to, label, icon: Icon }) => {
+                const active = pathname === to
+                return (
+                  <Link
+                    key={to}
+                    to={to}
+                    onClick={onClose}
+                    aria-current={active ? 'page' : undefined}
+                    className={cn(
+                      'flex h-12 items-center gap-2.5 rounded-xl px-3 text-sm transition-colors',
+                      active
+                        ? 'bg-[var(--cb-item-active)] font-bold text-white'
+                        : 'bg-[var(--cb-card)] font-semibold text-[#dbe4ec] hover:bg-[var(--cb-hover)]',
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0 text-[var(--cb-yellow)]" />
+                    <span>{label}</span>
+                  </Link>
+                )
+              })}
+            </nav>
+          </div>
+        ) : null}
 
         <nav className="px-4 pt-1 space-y-2.5">
           {SIDEBAR_ITEMS.map(({ to, icon: Icon, label }) => {
