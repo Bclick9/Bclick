@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output
+dist/
+frontend/dist/
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Local artwork downloaded by frontend/scripts/sync-assets.mjs
+frontend/public/assets/home/
+frontend/public/assets/games/
+
+# Logs and OS artifacts
+*.log
+.DS_Store
+Thumbs.db
