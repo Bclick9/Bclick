@@ -73,7 +73,7 @@ export function SectionRow({
   return (
     <section className={compact ? '' : 'mb-6'}>
       {title ? (
-        <div className="flex min-h-10 items-center justify-between gap-3 mb-3">
+        <div className="flex min-h-10 items-center justify-between gap-3 mb-4">
           <Link
             to={more ?? '#'}
             className="group inline-flex min-w-0 items-center font-black text-white text-base md:text-xl"
@@ -330,7 +330,7 @@ export function PromoCard({ promo, className }: { promo: Promotion; className?: 
 /* ---------- Live / upcoming match card ---------- */
 export function MatchCard({ event, className }: { event: SportsEvent; className?: string }) {
   return (
-    <div className={cn('shrink-0 w-[300px] md:w-[360px] rounded-xl bg-card border border-border p-3', className)}>
+    <div className={cn('shrink-0 w-[400px] rounded-xl bg-card border border-border p-2', className)}>
       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
         <span className="w-4 h-4 rounded-full bg-zinc-500/60 flex-shrink-0" aria-hidden />
         <span className="bg-primary text-primary-foreground text-[9px] font-bold px-1.5 py-0.5 rounded">BB</span>
