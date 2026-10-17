@@ -139,7 +139,7 @@ const providers = [
 export function SlotGamesSection() {
   return (
     <SectionRow title="Slot Games" more="/casino/slot-games">
-      {slots.map((game, index) => <GameArtCard key={game.title} {...game} spriteSheet="/assets/home/slots.webp" spriteIndex={index} spriteCount={10} />)}
+      {slots.map((game, index) => <GameArtCard key={game.title} {...game} spriteSheet="/assets/home/casino-atlases.webp" spriteIndex={index} spriteCount={10} spriteRow={1} spriteRows={6} />)}
     </SectionRow>
   )
 }
@@ -147,7 +147,7 @@ export function SlotGamesSection() {
 export function SportsHubSection() {
   return (
     <SectionRow title="Sports & Markets Hub" more="/sports">
-      {homeBanners.map((banner, index) => <HomeBanner key={banner.title} {...banner} spriteSheet="/assets/home/sports-hub.webp" spriteIndex={index} spriteCount={3} />)}
+      {homeBanners.map((banner, index) => <HomeBanner key={banner.title} {...banner} spriteSheet="/assets/home/banners-atlas.webp" spriteIndex={index} spriteCount={3} spriteRow={0} spriteRows={2} />)}
     </SectionRow>
   )
 }
@@ -155,7 +155,7 @@ export function SportsHubSection() {
 export function TopPicksSection() {
   return (
     <SectionRow title="Top Picks" more="/casino/top-picks">
-      {topPicks.map((game, index) => <GameArtCard key={game.title} {...game} spriteSheet="/assets/home/top-picks.webp" spriteIndex={index} spriteCount={10} />)}
+      {topPicks.map((game, index) => <GameArtCard key={game.title} {...game} spriteSheet="/assets/home/casino-atlases.webp" spriteIndex={index} spriteCount={10} spriteRow={2} spriteRows={6} />)}
     </SectionRow>
   )
 }
@@ -180,7 +180,7 @@ export function HalloweenSection() {
       <div className="px-4 pt-10 md:px-14 md:pt-10">
         <h2 className="mb-4 text-base font-black text-white md:text-xl">Halloween Games</h2>
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-          {halloweenGames.map((game, index) => <GameArtCard key={game.title} {...game} spriteSheet="/assets/home/halloween.webp" spriteIndex={index} spriteCount={10} className="w-[141px] md:w-[141px]" />)}
+          {halloweenGames.map((game, index) => <GameArtCard key={game.title} {...game} spriteSheet="/assets/home/casino-atlases.webp" spriteIndex={index} spriteCount={10} spriteRow={3} spriteRows={6} className="w-[141px] md:w-[141px]" />)}
         </div>
       </div>
     </section>
@@ -190,7 +190,7 @@ export function HalloweenSection() {
 export function NewGamesSection() {
   return (
     <SectionRow title="New Games" more="/casino/new-games">
-      {newGames.map((game, index) => <GameArtCard key={game.title} {...game} spriteSheet="/assets/home/new-games.webp" spriteIndex={index} spriteCount={10} />)}
+      {newGames.map((game, index) => <GameArtCard key={game.title} {...game} spriteSheet="/assets/home/casino-atlases.webp" spriteIndex={index} spriteCount={10} spriteRow={4} spriteRows={6} />)}
     </SectionRow>
   )
 }
@@ -198,7 +198,7 @@ export function NewGamesSection() {
 export function HotRightNowSection() {
   return (
     <SectionRow title="🔥 Hot Right Now" more="/casino/providers">
-      {hotNow.map((banner, index) => <HomeBanner key={banner.title} {...banner} spriteSheet="/assets/home/hot-now.webp" spriteIndex={index} spriteCount={3} button="EXPLORE NOW" href="/casino/providers" />)}
+      {hotNow.map((banner, index) => <HomeBanner key={banner.title} {...banner} spriteSheet="/assets/home/banners-atlas.webp" spriteIndex={index} spriteCount={3} spriteRow={1} spriteRows={2} button="EXPLORE NOW" href="/casino/providers" />)}
     </SectionRow>
   )
 }
@@ -220,7 +220,7 @@ export function PopularProvidersSection() {
             decoding="async"
             draggable={false}
             className="absolute top-0 h-full max-w-none object-fill transition-transform duration-200 group-hover:scale-[1.02]"
-            style={{ width: '800%', left: `${-index * 100}%` }}
+            style={{ width: '800%', height: '100%', left: `${-index * 100}%`, top: 0 }}
           />
         </Link>
       ))}
@@ -231,7 +231,7 @@ export function PopularProvidersSection() {
 export function VipSpecialsSection() {
   return (
     <SectionRow title="VIP Specials" more="/vip">
-      {vipGames.map((game, index) => <GameArtCard key={game.title} {...game} spriteSheet="/assets/home/vip-specials.webp" spriteIndex={index} spriteCount={10} />)}
+      {vipGames.map((game, index) => <GameArtCard key={game.title} {...game} spriteSheet="/assets/home/casino-atlases.webp" spriteIndex={index} spriteCount={10} spriteRow={5} spriteRows={6} />)}
     </SectionRow>
   )
 }
