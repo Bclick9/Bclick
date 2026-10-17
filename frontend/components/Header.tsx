@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { WireframeFlag } from './Sidebar'
 import { SearchDialog } from './SearchDialog'
+import { AuthModal } from '../pages/Auth'
 
 function Logo({ compact = false }: { compact?: boolean }) {
   const [logoFailed, setLogoFailed] = useState(false)
@@ -38,6 +39,8 @@ function Logo({ compact = false }: { compact?: boolean }) {
 
 function AuthActions({ compact = false }: { compact?: boolean }) {
   const [searchOpen, setSearchOpen] = useState(false)
+  const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null)
+  const closeAuth = useCallback(() => setAuthMode(null), [])
 
   return (
     <>
@@ -54,26 +57,35 @@ function AuthActions({ compact = false }: { compact?: boolean }) {
         </button>
 
         <div className="flex gap-3">
-          <Link
-            to="/account"
+          <button
+            type="button"
+            onClick={() => setAuthMode('login')}
+            aria-haspopup="dialog"
             className={compact
               ? 'inline-flex items-center justify-center rounded-[10px] border border-[var(--cb-line)] px-3 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[var(--cb-hover)] outline-none'
               : 'inline-flex items-center justify-center rounded-[10px] border border-[var(--cb-line)] px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[var(--cb-hover)] outline-none lg:text-sm'}
           >
             Login
-          </Link>
-          <Link
-            to="/register"
+          </button>
+          <button
+            type="button"
+            onClick={() => setAuthMode('signup')}
+            aria-haspopup="dialog"
             className={compact
               ? 'inline-flex items-center justify-center rounded-[10px] border border-[var(--cb-yellow)] bg-[var(--cb-yellow)] px-3 py-2.5 text-xs font-bold text-[#00151e] transition-colors hover:brightness-105 outline-none'
               : 'inline-flex items-center justify-center rounded-[10px] border border-[var(--cb-yellow)] bg-[var(--cb-yellow)] px-4 py-2.5 text-xs font-bold text-[#00151e] transition-colors hover:brightness-105 outline-none lg:text-sm'}
           >
             Register
-          </Link>
+          </button>
         </div>
       </div>
 
       <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <AuthModal
+        open={authMode !== null}
+        initialMode={authMode ?? 'login'}
+        onClose={closeAuth}
+      />
     </>
   )
 }
