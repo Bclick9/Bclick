@@ -31,4 +31,6 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build frontend
+        env:
+          SKIP_ASSET_SYNC: '1'
         run: pnpm --filter frontend build
