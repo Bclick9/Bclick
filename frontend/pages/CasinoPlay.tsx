@@ -103,7 +103,7 @@ export default function CasinoPlay() {
       </aside>
 
       <div className="flex min-h-[100dvh] min-w-0 flex-col">
-        <header className="relative z-10 shrink-0 border-b border-[var(--cb-line)] bg-[var(--cb-nav)]">
+        <header className="sticky top-0 z-[110] shrink-0 border-b border-[var(--cb-line)] bg-[var(--cb-nav)]">
           <div className="grid h-14 min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 sm:px-4 md:h-16 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-3">
             <div className="hidden min-w-0 items-center gap-2 xl:flex">
               <Link to="/" aria-label="CampeonBet home" className="shrink-0">
