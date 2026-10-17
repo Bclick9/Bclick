@@ -1,7 +1,7 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
-  BadgeCheck, ChevronLeft, FileText, Gift, History, Inbox, ShieldAlert, UserRound,
+  BadgeCheck, FileText, Gift, History, Inbox, ShieldAlert, UserRound,
 } from 'lucide-react'
 import { AccountLayout } from '../components/AccountPanel'
 
@@ -25,13 +25,6 @@ const SECTIONS: Record<string, Section> = {
   'account-statement': { title: 'Account statement', subtitle: 'Review an overview of account activity.' },
   'profit-and-loss': { title: 'Profit & Loss', subtitle: 'Review a summary of account results.' },
 }
-
-const PROFILE_TABS = [
-  { label: 'Personal info', path: '/account', key: 'personal-info' },
-  { label: 'Documents', path: '/account/documents', key: 'documents' },
-  { label: 'Change password', path: '/account/change-password', key: 'change-password' },
-  { label: 'Messages', path: '/account/messages', key: 'messages' },
-]
 
 function ReadOnlyField({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
   return (
@@ -59,11 +52,6 @@ export default function AccountPage() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
-  const activeProfileTab = useMemo(
-    () => PROFILE_TABS.find((tab) => tab.key === sectionKey || (sectionKey === 'profile' && tab.key === 'personal-info'))?.key ?? 'personal-info',
-    [sectionKey],
-  )
-
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setSaved(true)
@@ -73,13 +61,6 @@ export default function AccountPage() {
     <AccountLayout>
       <div className="min-w-0">
         <div className="mb-4 flex items-center gap-3">
-          <Link
-            to="/account"
-            aria-label="Back to account"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--cb-light-selected)] text-[var(--cb-light-text)] md:hidden"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Link>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-bold text-[var(--cb-light-text)] md:text-2xl">
               <span className="md:hidden">{isProfile ? 'My profile' : section.title}</span>
@@ -88,25 +69,6 @@ export default function AccountPage() {
             <p className="mt-1 hidden text-sm text-[var(--cb-light-muted)] sm:block">{section.subtitle}</p>
           </div>
         </div>
-
-        {isProfile ? (
-          <nav aria-label="Profile sections" className="mb-5 flex gap-2 overflow-x-auto pb-1 md:hidden">
-            {PROFILE_TABS.map((tab) => (
-              <Link
-                key={tab.key}
-                to={tab.path}
-                aria-current={activeProfileTab === tab.key ? 'page' : undefined}
-                className={
-                  activeProfileTab === tab.key
-                    ? 'whitespace-nowrap rounded border border-[var(--cb-light-border)] bg-[var(--cb-light-selected)] px-3 py-2 text-sm font-semibold text-[var(--cb-light-text)]'
-                    : 'whitespace-nowrap rounded border border-transparent px-3 py-2 text-sm text-[var(--cb-light-muted)] hover:bg-black/5'
-                }
-              >
-                {tab.label}
-              </Link>
-            ))}
-          </nav>
-        ) : null}
 
         {sectionKey === 'documents' ? (
           <div className="max-w-2xl border border-[var(--cb-light-border)] bg-white p-5 md:p-6">
