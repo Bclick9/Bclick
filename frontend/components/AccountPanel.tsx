@@ -143,11 +143,82 @@ export function AccountPanel() {
 }
 
 export function AccountLayout({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation()
+
+  const profileLinks = [
+    { label: 'Personal info', path: '/account' },
+    { label: 'Documents', path: '/account/documents' },
+    { label: 'Change password', path: '/account/change-password' },
+    { label: 'Messages', path: '/account/messages' },
+  ]
+  const walletLinks = [
+    { label: 'Deposit', path: '/account/wallet/deposit' },
+    { label: 'Withdraw', path: '/account/wallet/withdraw' },
+    { label: 'Pending withdrawals', path: '/account/wallet/pending-withdrawals' },
+  ]
+  const bonusLinks = [
+    { label: 'Available', path: '/account/bonuses-available' },
+    { label: 'Active', path: '/account/bonuses-active' },
+    { label: 'Closed', path: '/account/bonuses-closed' },
+  ]
+  const responsibleLinks = [
+    { label: 'Self-exclusion', path: '/account/self-exclusion' },
+    { label: 'Deposit limits', path: '/account/deposit-limits' },
+    { label: 'Reality check', path: '/account/reality-check' },
+  ]
+  const historyLinks = [
+    { label: 'Account statement', path: '/account/account-statement' },
+    { label: 'Profit & Loss', path: '/account/profit-and-loss' },
+  ]
+
+  const mobileLinks = pathname.startsWith('/account/wallet/')
+    ? walletLinks
+    : pathname.startsWith('/account/bonuses-')
+      ? bonusLinks
+      : ['/account/self-exclusion', '/account/deposit-limits', '/account/reality-check'].includes(pathname)
+        ? responsibleLinks
+        : ['/account/account-statement', '/account/profit-and-loss'].includes(pathname)
+          ? historyLinks
+          : profileLinks
+  const isAccountHome = pathname === '/account'
+
   return (
     <div className="cb-light">
-      <div className="max-w-[1200px] mx-auto px-4 md:px-8 py-6 flex flex-col lg:flex-row gap-6 lg:gap-10">
-        <AccountPanel />
-        <div className="flex-1 min-w-0">{children}</div>
+      <div className="mx-auto flex max-w-[1200px] flex-col gap-6 px-4 py-6 md:flex-row md:gap-6 md:px-8 lg:gap-10">
+        <aside className="hidden shrink-0 md:block">
+          <AccountPanel />
+        </aside>
+        <div className="min-w-0 flex-1">
+          {!isAccountHome ? (
+            <div className="mb-4 md:hidden">
+              <Link
+                to="/account"
+                className="inline-flex min-h-8 items-center gap-1.5 text-sm font-semibold text-[var(--cb-light-muted)] transition-colors hover:text-[var(--cb-light-text)]"
+              >
+                <span aria-hidden="true" className="text-lg leading-none">‹</span>
+                Back to account
+              </Link>
+            </div>
+          ) : null}
+          <nav aria-label="Account sections" className="mb-5 flex gap-2 overflow-x-auto pb-1 md:hidden">
+            {mobileLinks.map((link) => (
+              <Link
+                key={link.path}
+                to={link.path}
+                aria-current={pathname === link.path ? 'page' : undefined}
+                className={cn(
+                  'shrink-0 whitespace-nowrap rounded border px-3 py-2 text-sm transition-colors',
+                  pathname === link.path
+                    ? 'border-[var(--cb-light-border)] bg-[var(--cb-light-selected)] font-semibold text-[var(--cb-light-text)]'
+                    : 'border-transparent text-[var(--cb-light-muted)] hover:bg-black/5',
+                )}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+          {children}
+        </div>
       </div>
     </div>
   )
