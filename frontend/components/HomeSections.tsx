@@ -302,6 +302,8 @@ function HomeBanner({
   spriteSheet,
   spriteIndex,
   spriteCount = 3,
+  spriteRow = 0,
+  spriteRows = 1,
   href = '/sports',
 }: {
   title: string
@@ -312,6 +314,8 @@ function HomeBanner({
   spriteSheet?: string
   spriteIndex?: number
   spriteCount?: number
+  spriteRow?: number
+  spriteRows?: number
   href?: string
 }) {
   const [imageSource, setImageSource] = useState(image)
@@ -330,8 +334,8 @@ function HomeBanner({
           decoding="async"
           draggable={false}
           onError={() => setSpriteFailed(true)}
-          className="absolute top-0 h-full max-w-none object-fill transition-transform duration-300 group-hover:scale-[1.025]"
-          style={{ width: `${spriteCount * 100}%`, left: `${-(spriteIndex ?? 0) * 100}%` }}
+          className="absolute max-w-none object-fill"
+          style={{ width: `${spriteCount * 100}%`, height: `${spriteRows * 100}%`, left: `${-(spriteIndex ?? 0) * 100}%`, top: `${-spriteRow * 100}%` }}
         />
       ) : (
         <img
