@@ -331,9 +331,11 @@ export function PromoCard({ promo, className }: { promo: Promotion; className?: 
 export function MatchCard({ event, className }: { event: SportsEvent; className?: string }) {
   return (
     <div className={cn('shrink-0 w-[400px] rounded-xl bg-card border border-border p-2', className)}>
-      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-        <span className="w-4 h-4 rounded-full bg-zinc-500/60 flex-shrink-0" aria-hidden />
-        <span className="bg-primary text-primary-foreground text-[9px] font-bold px-1.5 py-0.5 rounded">BB</span>
+      <div className="flex items-center gap-2 overflow-hidden text-xs text-muted-foreground mb-1">
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center text-[13px]" aria-hidden>
+          {event.sport === 'Tennis' ? '🎾' : event.sport === 'Basketball' ? '🏀' : event.sport === 'Football' ? '⚽' : '🏟️'}
+        </span>
+        {event.sport !== 'Tennis' ? <span className="rounded bg-primary px-1.5 py-0.5 text-[9px] font-black text-[#00151e]">BB</span> : null}
         <span className="font-semibold text-foreground">{event.time}</span>
         <span>{event.date}</span>
         <span className="text-primary">•</span>
@@ -351,9 +353,9 @@ export function MatchCard({ event, className }: { event: SportsEvent; className?
           </span>
         </span>
       </div>
-      <div className="flex justify-between gap-2 mb-2.5">
-        <p className="text-sm font-bold text-foreground leading-snug w-1/2">{event.home}</p>
-        <p className="text-sm font-bold text-foreground leading-snug w-1/2 text-right">{event.away}</p>
+      <div className="flex justify-between gap-2 mb-2">
+        <p className="w-1/2 text-[13px] font-bold leading-snug text-foreground">{event.home}</p>
+        <p className="w-1/2 text-right text-[13px] font-bold leading-snug text-foreground">{event.away}</p>
       </div>
       <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${event.markets.length}, minmax(0, 1fr))` }}>
         {event.markets.map((m) => (
