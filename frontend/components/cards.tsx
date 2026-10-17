@@ -238,6 +238,7 @@ export function GameCard({ game, className }: { game: Game; className?: string }
       image={game.image}
       fallbackImage={game.imageFallback}
       imageShowsTitle={game.imageShowsTitle !== false}
+      href={`/casino/play/demo/${encodeURIComponent(game.id)}`}
       className={className}
     />
   )
