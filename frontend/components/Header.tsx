@@ -95,7 +95,7 @@ export function HeaderDesktop() {
 
 export function HeaderMobile() {
   return (
-    <header className="cb-nav sticky top-0 left-0 z-[110] flex h-14 w-full items-center border-b border-[var(--cb-line)] px-4 md:hidden">
+    <header className="cb-nav sticky top-0 left-0 z-30 flex h-14 w-full items-center border-b border-[var(--cb-line)] px-4 md:hidden">
       <Logo compact />
       <AuthActions compact />
     </header>
