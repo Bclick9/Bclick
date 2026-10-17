@@ -1,5 +1,5 @@
-import { useRef, useState, type ReactNode } from 'react'
-import { Image as ImageIcon, ChevronRight, Radio } from 'lucide-react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Image as ImageIcon, ChevronRight, ChevronLeft, Radio, Play } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { Game, Promotion, SportsEvent } from '../data/catalog'
 import { cn } from '../lib/shadcn/utils'
@@ -21,7 +21,7 @@ export function Wireframe({ className, label }: { className?: string; label?: st
   )
 }
 
-/* ---------- Horizontal section row with arrows ---------- */
+/* ---------- Carousel controls matching the live reference ---------- */
 export function SectionRow({
   title,
   children,
@@ -34,123 +34,251 @@ export function SectionRow({
   compact?: boolean
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(true)
+
+  useEffect(() => {
+    const element = scrollRef.current
+    if (!element) return
+
+    const updateButtons = () => {
+      const maxScroll = element.scrollWidth - element.clientWidth
+      setCanScrollLeft(element.scrollLeft > 2)
+      setCanScrollRight(maxScroll > 2 && element.scrollLeft < maxScroll - 2)
+    }
+
+    updateButtons()
+    element.addEventListener('scroll', updateButtons, { passive: true })
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(updateButtons)
+      : null
+    resizeObserver?.observe(element)
+    Array.from(element.children).forEach((child) => resizeObserver?.observe(child))
+
+    return () => {
+      element.removeEventListener('scroll', updateButtons)
+      resizeObserver?.disconnect()
+    }
+  }, [children])
+
+  const scroll = (direction: -1 | 1) => {
+    const element = scrollRef.current
+    if (!element) return
+    element.scrollBy({
+      left: direction * Math.max(320, element.clientWidth * 0.82),
+      behavior: 'smooth',
+    })
+  }
 
   return (
-    <section className={compact ? '' : 'mb-8'}>
+    <section className={compact ? '' : 'mb-6'}>
       {title ? (
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex min-h-10 items-center justify-between gap-3 mb-3">
           <Link
             to={more ?? '#'}
-            className="flex items-center gap-2 font-bold text-foreground text-lg hover:text-primary transition-colors"
+            className="group inline-flex min-w-0 items-center font-black text-white text-base md:text-xl"
           >
-            {title}
-            <ChevronRight className="w-4 h-4 text-primary" />
+            <span className="truncate">{title}</span>
+            <span className="relative ml-2 inline-flex items-center overflow-hidden whitespace-nowrap pt-0.5">
+              <ChevronRight className="h-4 w-4 shrink-0 text-[var(--cb-yellow)] transition-transform duration-150 group-hover:translate-x-1" />
+              <span className="hidden md:inline ml-1 text-xs font-bold text-[var(--cb-yellow)] opacity-0 -translate-x-2 transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100">
+                Show more
+              </span>
+            </span>
           </Link>
-          <div className="hidden md:flex items-center gap-2">
+
+          <div className="hidden md:flex shrink-0 items-center gap-2">
             <button
-              aria-label="Scroll left"
-              onClick={() => scrollRef.current?.scrollBy({ left: -520, behavior: "smooth" })}
-              className="w-9 h-9 rounded-lg bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+              type="button"
+              aria-label="Previous"
+              onClick={() => scroll(-1)}
+              disabled={!canScrollLeft}
+              className="group rounded-[10px] bg-[var(--cb-arrow-bg)] p-1 transition-colors enabled:cursor-pointer enabled:hover:bg-[var(--cb-hover)] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              &lsaquo;
+              <span className="flex h-8 w-8 items-center justify-center rounded-[6px] transition-colors enabled:group-hover:bg-[var(--cb-hover)]">
+                <ChevronLeft className="h-5 w-5 text-[var(--cb-arrow-icon)] transition-transform group-enabled:active:scale-90" />
+              </span>
             </button>
             <button
-              aria-label="Scroll right"
-              onClick={() => scrollRef.current?.scrollBy({ left: 520, behavior: "smooth" })}
-              className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold"
+              type="button"
+              aria-label="Next"
+              onClick={() => scroll(1)}
+              disabled={!canScrollRight}
+              className="group rounded-[10px] bg-[var(--cb-arrow-bg)] p-1 transition-colors enabled:cursor-pointer enabled:hover:bg-[var(--cb-hover)] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              &rsaquo;
+              <span className="flex h-8 w-8 items-center justify-center rounded-[6px] transition-colors enabled:group-hover:bg-[var(--cb-hover)]">
+                <ChevronRight className="h-5 w-5 text-[var(--cb-arrow-icon)] transition-transform group-enabled:active:scale-90" />
+              </span>
             </button>
           </div>
         </div>
       ) : null}
-      <div ref={scrollRef} className="flex gap-2 md:gap-2 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 md:mx-0 md:px-0">
+
+      <div
+        ref={scrollRef}
+        className="flex gap-2 overflow-x-auto no-scrollbar pb-1"
+      >
         {children}
       </div>
     </section>
   )
 }
 
-/* ---------- Game card with a graceful image fallback ---------- */
-export function GameCard({ game, className }: { game: Game; className?: string }) {
+/* ---------- Image-first casino card with the reference Play hover ---------- */
+export function GameArtCard({
+  title,
+  provider,
+  image,
+  fallbackImage,
+  spriteIndex,
+  imageShowsTitle = true,
+  href = '/casino',
+  className,
+}: {
+  title: string
+  provider: string
+  image?: string
+  fallbackImage?: string
+  spriteIndex?: number
+  imageShowsTitle?: boolean
+  href?: string
+  className?: string
+}) {
+  const [currentImage, setCurrentImage] = useState(image)
   const [imageFailed, setImageFailed] = useState(false)
+
+  const onImageError = () => {
+    if (fallbackImage && currentImage !== fallbackImage) {
+      setCurrentImage(fallbackImage)
+    } else {
+      setImageFailed(true)
+    }
+  }
 
   return (
     <Link
-      to="/casino"
+      to={href}
+      aria-label={`Play ${title}`}
       className={cn(
-        'group relative shrink-0 w-[124px] md:w-[130px] rounded-xl overflow-hidden border border-border bg-card hover:border-primary/60 transition-colors',
+        'cb-game-tile group relative isolate block shrink-0 w-[112px] sm:w-[124px] md:w-[141px] overflow-hidden rounded-[10px] bg-[var(--cb-card)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--cb-yellow)]',
         className,
       )}
     >
-      {typeof game.spriteIndex === 'number' ? (
+      {typeof spriteIndex === 'number' ? (
         <div
           role="img"
-          aria-label={game.title}
-          className="aspect-[3/4] w-full bg-no-repeat"
+          aria-label={title}
+          className="aspect-[3/4] w-full bg-no-repeat transition-transform duration-300 ease-out group-hover:scale-[1.045]"
           style={{
             backgroundImage: "url('/assets/casino-games.webp')",
             backgroundSize: '1000% 100%',
-            backgroundPosition: `${(game.spriteIndex / 9) * 100}% center`,
+            backgroundPosition: `${(spriteIndex / 9) * 100}% center`,
           }}
         />
-      ) : game.image && !imageFailed ? (
+      ) : currentImage && !imageFailed ? (
         <img
-          src={game.image}
-          alt={game.title}
+          src={currentImage}
+          alt={title}
           loading="lazy"
           decoding="async"
-          onError={() => setImageFailed(true)}
-          className="aspect-[3/4] w-full object-cover"
+          onError={onImageError}
+          className="aspect-[3/4] w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.045]"
         />
       ) : (
-        <Wireframe className="aspect-[3/4] w-full" label={game.title} />
+        <div className="flex aspect-[3/4] w-full flex-col items-center justify-center gap-2 bg-[var(--cb-card)] px-2 text-center">
+          <ImageIcon className="h-5 w-5 text-slate-500" />
+          <span className="text-xs font-bold text-white">{title}</span>
+          <span className="text-[10px] text-slate-400">{provider}</span>
+        </div>
       )}
-      {typeof game.spriteIndex !== 'number' &&
-        (!game.image || imageFailed || game.imageShowsTitle === false) ? (
-        <div className="absolute inset-x-0 bottom-0 px-2 pt-6 pb-2 bg-gradient-to-t from-black/90 via-black/60 to-transparent">
-          <p className="text-[11px] md:text-xs font-bold uppercase leading-tight text-white text-center line-clamp-2">
-            {game.title}
-          </p>
-          <p className="text-[9px] md:text-[10px] text-zinc-300 text-center uppercase tracking-wider mt-0.5">
-            {game.provider}
-          </p>
+
+      {!imageShowsTitle && !imageFailed && typeof spriteIndex !== 'number' ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent px-2 pb-2 pt-7">
+          <p className="text-center text-[10px] font-extrabold uppercase leading-tight text-white line-clamp-2">{title}</p>
+          <p className="mt-0.5 text-center text-[9px] uppercase tracking-wide text-slate-300">{provider}</p>
         </div>
       ) : null}
-      {game.live ? (
-        <span className="absolute top-2 left-2 flex items-center gap-1 bg-[var(--cb-red)] text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
-          <Radio className="w-2.5 h-2.5" /> LIVE
-        </span>
+
+      {typeof spriteIndex !== 'number' && (!image || imageFailed) ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent px-2 pb-2 pt-7">
+          <p className="text-center text-[10px] font-extrabold uppercase leading-tight text-white line-clamp-2">{title}</p>
+          <p className="mt-0.5 text-center text-[9px] uppercase tracking-wide text-slate-300">{provider}</p>
+        </div>
       ) : null}
+
+      <span className="cb-game-overlay pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-black/50 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
+        <span className="flex h-12 w-12 scale-75 items-center justify-center rounded-full bg-[var(--cb-yellow)] text-[#00151e] shadow-xl transition-transform duration-200 group-hover:scale-100 group-focus-visible:scale-100">
+          <Play className="ml-0.5 h-5 w-5 fill-current" />
+        </span>
+        <span className="translate-y-1 text-xs font-black uppercase tracking-wide text-white opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100">
+          Play
+        </span>
+      </span>
+
+      {!imageShowsTitle && typeof spriteIndex === 'number' ? null : null}
     </Link>
   )
 }
 
+export function GameCard({ game, className }: { game: Game; className?: string }) {
+  return (
+    <GameArtCard
+      title={game.title}
+      provider={game.provider}
+      image={game.image}
+      fallbackImage={game.imageFallback}
+      spriteIndex={game.spriteIndex}
+      imageShowsTitle={game.imageShowsTitle !== false}
+      className={className}
+    />
+  )
+}
+
 /* ---------- Promotion card ---------- */
+const LOCAL_PROMOTION_IMAGES: Record<string, string> = {
+  'welcome-casino-package': '/assets/home/welcome-casino-bonus.webp',
+  'welcome-sports-bonus': '/assets/home/welcome-sports-bonus.jpg',
+  'welcome-sports-freebet': '/assets/home/welcome-sports-freebet.jpg',
+  'welcome-crypto-combo': '/assets/home/welcome-crypto-bonus.jpg',
+  'mondays-reload-bonus': '/assets/home/monday-reload-bonus.jpg',
+}
+
 export function PromoCard({ promo, className }: { promo: Promotion; className?: string }) {
+  const [imageSource, setImageSource] = useState(LOCAL_PROMOTION_IMAGES[promo.slug] ?? promo.image)
+  const [imageFailed, setImageFailed] = useState(false)
+
   return (
     <Link
       to={`/promotions/${promo.slug}`}
       className={cn(
-        'group shrink-0 w-[260px] md:w-[460px] rounded-xl overflow-hidden bg-card border border-border hover:border-primary/60 transition-colors',
+        'cb-promo-card group shrink-0 min-w-[260px] overflow-hidden rounded-xl border border-[var(--cb-line)] bg-[var(--cb-card)] transition-colors hover:border-[var(--cb-yellow)]',
         className,
       )}
     >
       <div className="relative">
-        <img
-          src={promo.image}
-          alt={promo.tag}
-          loading="lazy"
-          className="aspect-[2.2/1] w-full object-cover"
-        />
-        <span className="absolute top-0.5 left-0.5 bg-primary text-primary-foreground text-[10px] md:text-xs font-bold px-2 py-1 rounded">
+        {!imageFailed ? (
+          <img
+            src={imageSource}
+            alt={promo.tag}
+            loading="lazy"
+            decoding="async"
+            onError={() => {
+              if (imageSource !== promo.image) setImageSource(promo.image)
+              else setImageFailed(true)
+            }}
+            className="aspect-[2.2/1] w-full object-cover"
+          />
+        ) : (
+          <div className="aspect-[2.2/1] w-full bg-[var(--cb-card)]" />
+        )}
+        <span className="absolute left-0.5 top-0.5 rounded bg-[var(--cb-yellow)] px-2 py-1 text-[10px] font-bold text-[#00151e] md:text-xs">
           {promo.tag}
         </span>
       </div>
-      <div className="flex items-center justify-between gap-3 p-3">
-        <p className="text-sm font-bold text-foreground">{promo.title}</p>
-        <span className="shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center group-hover:translate-x-0.5 transition-transform">
-          <ChevronRight className="w-4 h-4" />
+      <div className="flex min-h-[62px] items-center justify-between gap-3 px-4 py-2">
+        <p className="text-sm font-bold leading-snug text-white">{promo.title}</p>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--cb-yellow)] text-[#00151e] transition-transform duration-150 group-hover:translate-x-0.5">
+          <ChevronRight className="h-4 w-4" />
         </span>
       </div>
     </Link>
