@@ -33,12 +33,13 @@ function NotFound() {
 export default function App() {
   return (
     <Routes>
+      {/* Game play uses its own full-screen shell, independent from the regular site layout. */}
+      <Route path="casino/play" element={<Navigate to="/casino/lobby" replace />} />
+      <Route path="casino/play/:gameId" element={<CasinoPlay />} />
+      <Route path="casino/play/:mode/:gameId" element={<CasinoPlay />} />
       <Route element={<Layout />}>
         <Route index element={<Home />} />
         <Route path="casino" element={<CasinoIndex />} />
-        <Route path="casino/play" element={<Navigate to="/casino/lobby" replace />} />
-        <Route path="casino/play/:gameId" element={<CasinoPlay />} />
-        <Route path="casino/play/:mode/:gameId" element={<CasinoPlay />} />
         <Route path="casino/providers" element={<Providers />} />
         <Route path="casino/rng/brands" element={<Providers />} />
         <Route path="casino/providers/:provider" element={<ProviderPage />} />
