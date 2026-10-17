@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { WireframeFlag } from './Sidebar'
@@ -41,6 +41,12 @@ function AuthActions({ compact = false }: { compact?: boolean }) {
   const [searchOpen, setSearchOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null)
   const closeAuth = useCallback(() => setAuthMode(null), [])
+
+  useEffect(() => {
+    const openSearchDialog = () => setSearchOpen(true)
+    window.addEventListener('cb:open-search', openSearchDialog)
+    return () => window.removeEventListener('cb:open-search', openSearchDialog)
+  }, [])
 
   return (
     <>
