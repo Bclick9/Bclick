@@ -237,11 +237,6 @@ export function GameCard({ game, className }: { game: Game; className?: string }
       provider={game.provider}
       image={game.image}
       fallbackImage={game.imageFallback}
-      spriteSheet={typeof game.spriteIndex === 'number' ? '/assets/home/trending-games.webp' : undefined}
-      spriteIndex={game.spriteIndex}
-      spriteCount={10}
-      spriteRow={0}
-      spriteRows={1}
       imageShowsTitle={game.imageShowsTitle !== false}
       className={className}
     />
