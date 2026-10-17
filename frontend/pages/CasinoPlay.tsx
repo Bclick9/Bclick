@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   Home, Coins, CircleDot, Volleyball, Gift, Trophy, Crown, Target, Headset,
   PanelLeftClose, Search, Maximize2, Minimize2, X, WalletCards, Play, Gamepad2, LockKeyhole,
