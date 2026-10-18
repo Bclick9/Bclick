@@ -114,10 +114,3 @@
 .cb-safe-top { padding-top: env(safe-area-inset-top, 0px); }
 
 
-/* Hide only the extra WinHouse navigation row inside its cross-origin frame.
-   The negative offset and matching extra height keep the rest of the book in place. */
-.winhouse-cropped-topbar {
-  display: block;
-  height: calc(100% + 82px) !important;
-  transform: translateY(-82px);
-}
