@@ -54,7 +54,7 @@ function CategoryStrip({
       rail.removeEventListener('scroll', updateScrollButtons)
       resizeObserver?.disconnect()
     }
-  }, [])
+  }, [searchOpen])
 
   const scrollCategories = (direction: -1 | 1) => {
     const rail = railRef.current
