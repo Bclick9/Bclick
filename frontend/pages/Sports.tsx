@@ -12,9 +12,8 @@ const ICONS: Record<string, LucideIcon> = {
   Trophy, CircleDot, Dribbble, Snowflake, Volleyball, Gamepad2, Swords,
 }
 
-/* Use WinHouse's supported loader for responsive sizing. embed=1 suppresses
-   WinHouse's own header and left rail so the site's Header and Sidebar remain
-   the only navigation chrome. */
+/* WinHouse's supported embed.js loader manages the internal frame sizing.
+   WinHouse is cross-origin, so the provider still renders its book in an iframe. */
 const WINHOUSE_EMBED_KEY = 'ifr_42b9d5489dd29796a83719065721a1de8faa1b54'
 const WINHOUSE_EMBED_SCRIPT = 'https://iframe.winhouse.bet/embed.js'
 const WINHOUSE_BOOK_BASE =
@@ -48,6 +47,7 @@ export default function Sports() {
       if (!(frame instanceof HTMLIFrameElement)) return
 
       frame.id = 'winhouse-book-frame'
+      frame.classList.add('winhouse-cropped-topbar')
       frame.title = 'WinHouse sportsbook'
       frame.referrerPolicy = 'strict-origin-when-cross-origin'
       frame.allow = 'autoplay; fullscreen'
@@ -65,44 +65,11 @@ export default function Sports() {
     script.dataset.embed = '1'
     script.dataset.lang = 'en'
     script.dataset.width = '100%'
-    script.dataset.height = 'calc(100dvh - 64px)'
-
-    // The site has a fixed mobile bottom nav. WinHouse's loader subtracts this
-    // gap on phones so its own bottom tabs and betslip remain tappable above it.
-    const bottomNavSelector = 'nav[aria-label="Sportsbook navigation"]'
-    const getBottomGap = () => {
-      if (!window.matchMedia('(max-width: 767px)').matches) return 0
-      const bottomNav = document.querySelector<HTMLElement>(bottomNavSelector)
-      if (!bottomNav || window.getComputedStyle(bottomNav).display === 'none') return 0
-      return Math.max(0, Math.ceil(bottomNav.getBoundingClientRect().height))
-    }
-
-    const updateBottomGap = () => {
-      const nextGap = String(getBottomGap())
-      if (script.dataset.bottomGap === nextGap) return
-      script.dataset.bottomGap = nextGap
-      window.WinHouseEmbed?.refit?.()
-    }
-
-    script.dataset.bottomGap = String(getBottomGap())
+    script.dataset.height = 'calc(100dvh - 54px)'
+    // Intentionally omit data-bottom-gap: our fixed nav overlays the provider
+    // tab bar rather than stacking a second bottom navigation below it.
 
     const observer = new MutationObserver(configureFrame)
-    const bottomNav = document.querySelector<HTMLElement>(bottomNavSelector)
-    const bottomNavResizeObserver = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(updateBottomGap)
-      : null
-    const bottomNavMutationObserver = bottomNav
-      ? new MutationObserver(updateBottomGap)
-      : null
-    if (bottomNav) {
-      bottomNavResizeObserver?.observe(bottomNav)
-      bottomNavMutationObserver?.observe(bottomNav, { attributes: true, attributeFilter: ['class', 'style'] })
-    }
-
-    const refreshBottomGap = () => updateBottomGap()
-    window.addEventListener('resize', refreshBottomGap, { passive: true })
-    window.addEventListener('orientationchange', refreshBottomGap)
-    window.visualViewport?.addEventListener('resize', refreshBottomGap, { passive: true })
     observer.observe(target, { childList: true, subtree: true })
     script.addEventListener('load', configureFrame)
     target.appendChild(script)
@@ -110,11 +77,6 @@ export default function Sports() {
     return () => {
       disposed = true
       observer.disconnect()
-      bottomNavResizeObserver?.disconnect()
-      bottomNavMutationObserver?.disconnect()
-      window.removeEventListener('resize', refreshBottomGap)
-      window.removeEventListener('orientationchange', refreshBottomGap)
-      window.visualViewport?.removeEventListener('resize', refreshBottomGap)
       script.removeEventListener('load', configureFrame)
       script.remove()
 
@@ -136,7 +98,8 @@ export default function Sports() {
 
   return (
     <section
-      className="relative h-[calc(100dvh-3.5rem)] w-full min-w-0 overflow-hidden bg-[#06141e] md:h-[calc(100dvh-4rem)]"
+      className="relative w-full min-w-0 overflow-hidden bg-[#06141e]"
+      style={{ height: 'calc(100dvh - 54px)', minHeight: 0 }}
     >
       <div id="winhouse-book-embed" ref={targetRef} className="h-full w-full" />
     </section>
