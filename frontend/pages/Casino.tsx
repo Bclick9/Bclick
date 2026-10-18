@@ -201,7 +201,7 @@ function GameGrid({ ids, emptyMessage = 'No games in this category yet.' }: { id
   const visible = games.slice(0, shown)
   return (
     <>
-      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-9 gap-3">
         {visible.map((g) => (
           <GameCard key={g.id} game={g} className="w-full" />
         ))}
@@ -310,21 +310,25 @@ export function CasinoCategory() {
         onSearchQueryChange={setSearchQuery}
       />
 
-      {searchOpen ? (
+      {searchOpen && searchTerm ? (
         <div>
           <p className="mb-4 text-sm text-muted-foreground" aria-live="polite">
-            {searchTerm ? `${searchResults.length} games found` : 'Enter a game title or provider to start searching.'}
+            {searchResults.length} games found
           </p>
-          {searchTerm ? <GameGrid ids={searchResults} emptyMessage="No matching games found." /> : null}
+          <GameGrid ids={searchResults} emptyMessage="No matching games found." />
         </div>
       ) : isLobby ? (
         <>
           <GameGrid ids={GAMES.map((g) => g.id)} />
 
-          <HalloweenBanner games={['death-dominion', 'coins-of-halloween', 'wolf-power-megaways', 'spooky-kabuki', 'vamp-hunt', 'halloween-bonanza', 'haunted-coins', 'halloween-jack', 'devils-feast']} />
+          {!searchOpen ? (
+            <>
+              <HalloweenBanner games={['death-dominion', 'coins-of-halloween', 'wolf-power-megaways', 'spooky-kabuki', 'vamp-hunt', 'halloween-bonanza', 'haunted-coins', 'halloween-jack', 'devils-feast']} />
 
-          <h2 className="text-lg md:text-xl font-extrabold text-foreground mb-4">Top Picks</h2>
-          <GameGrid ids={GAMES.filter((g) => g.categories.includes('top-picks')).map((g) => g.id)} />
+              <h2 className="text-lg md:text-xl font-extrabold text-foreground mb-4">Top Picks</h2>
+              <GameGrid ids={GAMES.filter((g) => g.categories.includes('top-picks')).map((g) => g.id)} />
+            </>
+          ) : null}
         </>
       ) : (
         <>
@@ -334,7 +338,7 @@ export function CasinoCategory() {
               <Info className="w-3.5 h-3.5" /> {games.length} games
             </span>
           </div>
-          <GameGrid ids={games} />
+          <GameGrid ids={searchOpen && searchTerm ? searchResults : games} emptyMessage={searchOpen && searchTerm ? "No matching games found." : "No games in this category yet."} />
         </>
       )}
     </div>
@@ -379,26 +383,22 @@ export function Providers() {
         <h1 className="text-xl md:text-2xl font-extrabold text-foreground">Providers</h1>
         {searchOpen && searchTerm ? <span className="text-xs text-muted-foreground">{filteredProviders.length} providers found</span> : null}
       </div>
-      {searchOpen && !searchTerm ? (
-        <p className="text-sm text-muted-foreground py-6">Enter a provider name to filter the list.</p>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {filteredProviders.map((p) => (
-            <Link
-              key={p}
-              to={`/casino/providers/${encodeURIComponent(p.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}`}
-              className="rounded-xl bg-card border border-border hover:border-primary/60 transition-colors overflow-hidden"
-            >
-              {providerArt[p] ? (
-                <img src={providerArt[p]} alt={p} loading="lazy" className="aspect-[2/1] w-full object-cover" />
-              ) : (
-                <Wireframe className="aspect-[2/1] w-full rounded-none border-0" label={p} />
-              )}
-              <p className="text-xs font-bold text-foreground text-center px-2 py-3 truncate">{p}</p>
-            </Link>
-          ))}
-        </div>
-      )}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {filteredProviders.map((p) => (
+          <Link
+            key={p}
+            to={`/casino/providers/${encodeURIComponent(p.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}`}
+            className="rounded-xl bg-card border border-border hover:border-primary/60 transition-colors overflow-hidden"
+          >
+            {providerArt[p] ? (
+              <img src={providerArt[p]} alt={p} loading="lazy" className="aspect-[2/1] w-full object-cover" />
+            ) : (
+              <Wireframe className="aspect-[2/1] w-full rounded-none border-0" label={p} />
+            )}
+            <p className="text-xs font-bold text-foreground text-center px-2 py-3 truncate">{p}</p>
+          </Link>
+        ))}
+      </div>
     </div>
   )
 }
