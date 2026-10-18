@@ -16,14 +16,8 @@ const ICONS: Record<string, LucideIcon> = {
    WinHouse is cross-origin, so the provider still renders its book in an iframe. */
 const WINHOUSE_EMBED_KEY = 'ifr_42b9d5489dd29796a83719065721a1de8faa1b54'
 const WINHOUSE_EMBED_SCRIPT = 'https://iframe.winhouse.bet/embed.js'
-function setWinHouseView(frame: HTMLIFrameElement, view: string) {
-  // Keep the URL prepared by the official embed.js loader intact, including
-  // its documented embed=1 setting and any loader parameters. Only change view.
-  if (!frame.src.startsWith('https://iframe.winhouse.bet/')) return
-  const nextUrl = new URL(frame.src)
-  nextUrl.hash = view
-  if (frame.src !== nextUrl.toString()) frame.src = nextUrl.toString()
-}
+const WINHOUSE_BOOK_BASE =
+  `https://iframe.winhouse.bet/book?key=${WINHOUSE_EMBED_KEY}&embed=1&lang=en`
 
 const WINHOUSE_VIEWS: Record<string, string> = {
   '/sports': '/line',
@@ -58,7 +52,8 @@ export default function Sports() {
       frame.allow = 'autoplay; fullscreen'
       frame.allowFullscreen = true
 
-      setWinHouseView(frame, viewRef.current)
+      const nextSrc = `${WINHOUSE_BOOK_BASE}#${viewRef.current}`
+      if (frame.src !== nextSrc) frame.src = nextSrc
     }
 
     const script = document.createElement('script')
@@ -95,7 +90,8 @@ export default function Sports() {
     const frame = targetRef.current?.querySelector('iframe') ?? window.WinHouseEmbed?.frame
     if (!(frame instanceof HTMLIFrameElement)) return
 
-    setWinHouseView(frame, view)
+    const nextSrc = `${WINHOUSE_BOOK_BASE}#${view}`
+    if (frame.src !== nextSrc) frame.src = nextSrc
     window.WinHouseEmbed?.refit?.()
   }, [view])
 
