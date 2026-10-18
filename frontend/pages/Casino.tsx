@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, Navigate } from 'react-router-dom'
 import {
   Home, Cherry, Ghost, Flame, Sparkles, Crown, ShoppingBag, Rocket, Gem, Spade,
-  Trophy, Search as SearchIcon, LayoutGrid, ChevronLeft, ChevronRight, Info,
+  Trophy, Search as SearchIcon, LayoutGrid, ChevronLeft, ChevronRight, Info, X,
   type LucideIcon,
 } from 'lucide-react'
 import { GameCard, Wireframe } from '../components/cards'
@@ -13,7 +13,21 @@ const ICONS: Record<string, LucideIcon> = {
   Home, Cherry, Ghost, Flame, Sparkles, Crown, ShoppingBag, Rocket, Gem, Spade, Trophy,
 }
 
-function CategoryStrip({ active }: { active: string }) {
+type CategoryStripProps = {
+  active: string
+  searchOpen: boolean
+  searchQuery: string
+  onSearchOpenChange: (open: boolean) => void
+  onSearchQueryChange: (query: string) => void
+}
+
+function CategoryStrip({
+  active,
+  searchOpen,
+  searchQuery,
+  onSearchOpenChange,
+  onSearchQueryChange,
+}: CategoryStripProps) {
   const railRef = useRef<HTMLUListElement | null>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
@@ -40,7 +54,7 @@ function CategoryStrip({ active }: { active: string }) {
       rail.removeEventListener('scroll', updateScrollButtons)
       resizeObserver?.disconnect()
     }
-  }, [])
+  }, [searchOpen])
 
   const scrollCategories = (direction: -1 | 1) => {
     const rail = railRef.current
@@ -51,11 +65,43 @@ function CategoryStrip({ active }: { active: string }) {
     })
   }
 
+  const openSearch = () => {
+    onSearchQueryChange('')
+    onSearchOpenChange(true)
+  }
+
+  const closeSearch = () => {
+    onSearchQueryChange('')
+    onSearchOpenChange(false)
+  }
+
   return (
-    <section className="mb-6 has-[>div:empty]:mb-0">
-      <div className="space-y-2 sm:space-y-4">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center justify-between overflow-hidden text-sm">
-          <div className="overflow-x-hidden">
+    <section className="mb-6">
+      <div className="flex min-w-0 items-center gap-2 text-sm">
+        {searchOpen ? (
+          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-[var(--cb-line)] bg-[var(--cb-card)] px-3 py-2 transition-colors focus-within:border-[var(--cb-yellow)]">
+            <SearchIcon className="h-5 w-5 shrink-0 text-[#aebfca]" aria-hidden="true" />
+            <input
+              type="search"
+              autoFocus
+              aria-label="Search games or providers"
+              placeholder="Search games or providers..."
+              value={searchQuery}
+              onChange={(event) => onSearchQueryChange(event.target.value)}
+              className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-[#7f929f]"
+            />
+            <button
+              type="button"
+              onClick={closeSearch}
+              aria-label="Close casino search"
+              title="Close search"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[#aebfca] transition-colors hover:bg-[var(--cb-hover)] hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <div className="min-w-0 flex-1 overflow-x-hidden">
             <ul
               ref={railRef}
               aria-label="Casino categories"
@@ -72,9 +118,7 @@ function CategoryStrip({ active }: { active: string }) {
                       data-status={isActive ? 'active' : undefined}
                       className={cn(
                         'block rounded-lg px-3 py-2 text-sm font-semibold text-slate-300 transition-colors hover:bg-[var(--cb-hover)]',
-                        isActive
-                          ? 'bg-[var(--cb-item-active)] text-white'
-                          : 'bg-[var(--cb-card)]',
+                        isActive ? 'bg-[var(--cb-item-active)] text-white' : 'bg-[var(--cb-card)]',
                       )}
                     >
                       <div className="flex items-center gap-x-1">
@@ -87,69 +131,72 @@ function CategoryStrip({ active }: { active: string }) {
               })}
             </ul>
           </div>
+        )}
 
-          <div>
-            <div className="flex items-center space-x-2 pl-4">
-              <div className="hidden items-center space-x-2 md:flex">
-                <button
-                  type="button"
-                  aria-label="Previous"
-                  onClick={() => scrollCategories(-1)}
-                  disabled={!canScrollLeft}
-                  className="group rounded-[10px] bg-[var(--cb-card)] p-1 transition-colors enabled:cursor-pointer enabled:hover:bg-[var(--cb-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <div className="rounded-[6px] p-1.5 transition-colors group-enabled:group-hover:bg-[var(--cb-hover)]">
-                    <ChevronLeft className="mx-auto h-5 w-5 text-slate-300 transition-transform group-enabled:group-active:scale-90" />
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  aria-label="Next"
-                  onClick={() => scrollCategories(1)}
-                  disabled={!canScrollRight}
-                  className="group rounded-[10px] bg-[var(--cb-card)] p-1 transition-colors enabled:cursor-pointer enabled:hover:bg-[var(--cb-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <div className="rounded-[6px] p-1.5 transition-colors group-enabled:group-hover:bg-[var(--cb-hover)]">
-                    <ChevronRight className="mx-auto h-5 w-5 text-slate-300 transition-transform group-enabled:group-active:scale-90" />
-                  </div>
-                </button>
+        {!searchOpen ? (
+          <div className="hidden shrink-0 items-center gap-2 md:flex">
+            <button
+              type="button"
+              aria-label="Previous casino categories"
+              onClick={() => scrollCategories(-1)}
+              disabled={!canScrollLeft}
+              className="group rounded-[10px] bg-[var(--cb-card)] p-1 transition-colors enabled:cursor-pointer enabled:hover:bg-[var(--cb-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <div className="rounded-[6px] p-1.5 transition-colors group-enabled:group-hover:bg-[var(--cb-hover)]">
+                <ChevronLeft className="mx-auto h-5 w-5 text-slate-300 transition-transform group-enabled:group-active:scale-90" />
               </div>
-
-              <button
-                type="button"
-                onClick={() => window.dispatchEvent(new Event('cb:open-search'))}
-                aria-label="Open search"
-                className="relative hidden items-center gap-2 rounded-lg bg-[var(--cb-card)] px-3 py-2 font-semibold text-white transition-colors hover:bg-[var(--cb-hover)] lg:flex"
-              >
-                <SearchIcon className="h-6 w-6" />
-                <span className="text-sm">Search</span>
-              </button>
-
-              <Link
-                to="/casino/rng/brands"
-                className="block rounded-lg bg-[var(--cb-card)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--cb-hover)]"
-              >
-                <span className="flex items-center gap-x-2">
-                  <LayoutGrid className="h-6 w-6 shrink-0" />
-                  <span className="hidden lg:inline">Providers</span>
-                </span>
-              </Link>
-            </div>
+            </button>
+            <button
+              type="button"
+              aria-label="Next casino categories"
+              onClick={() => scrollCategories(1)}
+              disabled={!canScrollRight}
+              className="group rounded-[10px] bg-[var(--cb-card)] p-1 transition-colors enabled:cursor-pointer enabled:hover:bg-[var(--cb-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <div className="rounded-[6px] p-1.5 transition-colors group-enabled:group-hover:bg-[var(--cb-hover)]">
+                <ChevronRight className="mx-auto h-5 w-5 text-slate-300 transition-transform group-enabled:group-active:scale-90" />
+              </div>
+            </button>
           </div>
-        </div>
+        ) : null}
+
+        {!searchOpen ? (
+          <button
+            type="button"
+            onClick={openSearch}
+            aria-label="Search casino games"
+            title="Search casino games"
+            className="flex shrink-0 items-center gap-2 rounded-lg bg-[var(--cb-card)] px-2.5 py-2 font-semibold text-white transition-colors hover:bg-[var(--cb-hover)] sm:px-3"
+          >
+            <SearchIcon className="h-5 w-5 sm:h-6 sm:w-6" />
+            <span className="hidden text-sm sm:inline">Search</span>
+          </button>
+        ) : null}
+
+        <Link
+          to="/casino/rng/brands"
+          aria-label="Providers"
+          title="Providers"
+          className="block shrink-0 rounded-lg bg-[var(--cb-card)] px-2.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--cb-hover)] sm:px-3"
+        >
+          <span className="flex items-center gap-x-2">
+            <LayoutGrid className="h-5 w-5 sm:h-6 sm:w-6 shrink-0" />
+            <span className="hidden lg:inline">Providers</span>
+          </span>
+        </Link>
       </div>
     </section>
   )
 }
 
-function GameGrid({ ids }: { ids: string[] }) {
+function GameGrid({ ids, emptyMessage = 'No games in this category yet.' }: { ids: string[]; emptyMessage?: string }) {
   const [shown, setShown] = useState(100)
   const games = useMemo(
     () => ids.map((id) => GAMES.find((g) => g.id === id)!).filter(Boolean),
     [ids],
   )
   if (games.length === 0) {
-    return <p className="text-muted-foreground text-sm py-10 text-center">No games in this category yet.</p>
+    return <p className="text-muted-foreground text-sm py-10 text-center">{emptyMessage}</p>
   }
   const visible = games.slice(0, shown)
   return (
@@ -239,6 +286,8 @@ function HalloweenBanner({ games }: { games: string[] }) {
 
 export function CasinoCategory() {
   const { category = 'lobby' } = useParams()
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   if (category === 'providers') return <Providers />
   const known = CASINO_CATEGORIES.some((c) => c.slug === category) || category === 'drop-and-wins'
   if (!known) return <Navigate to="/casino" replace />
@@ -246,12 +295,29 @@ export function CasinoCategory() {
   const cat = CASINO_CATEGORIES.find((c) => c.slug === category)
   const games = GAMES.filter((g) => g.categories.includes(category)).map((g) => g.id)
   const isLobby = category === 'lobby'
+  const searchTerm = searchQuery.trim().toLocaleLowerCase()
+  const searchResults = searchTerm
+    ? GAMES.filter((g) => `${g.title} ${g.provider}`.toLocaleLowerCase().includes(searchTerm)).map((g) => g.id)
+    : []
 
   return (
-    <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-6">
-      <CategoryStrip active={category} />
+    <div className="mx-auto w-full max-w-screen-2xl px-4 py-6">
+      <CategoryStrip
+        active={category}
+        searchOpen={searchOpen}
+        searchQuery={searchQuery}
+        onSearchOpenChange={setSearchOpen}
+        onSearchQueryChange={setSearchQuery}
+      />
 
-      {isLobby ? (
+      {searchOpen ? (
+        <div>
+          <p className="mb-4 text-sm text-muted-foreground" aria-live="polite">
+            {searchTerm ? `${searchResults.length} games found` : 'Enter a game title or provider to start searching.'}
+          </p>
+          {searchTerm ? <GameGrid ids={searchResults} emptyMessage="No matching games found." /> : null}
+        </div>
+      ) : isLobby ? (
         <>
           <GameGrid ids={GAMES.map((g) => g.id)} />
 
@@ -285,23 +351,39 @@ export function CasinoIndex() {
 }
 
 export function Providers() {
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const providerNames = [...new Set(GAMES.map((g) => g.provider))]
+  const searchTerm = searchQuery.trim().toLocaleLowerCase()
+  const filteredProviders = providerNames.filter((provider) => !searchTerm || provider.toLocaleLowerCase().includes(searchTerm))
+
+  const providerArt: Record<string, string> = {
+    'Playson': 'https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/Playson.webp',
+    'Endorphina': 'https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/Endorphina.webp',
+    'Pateplay': 'https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/Pateplay.webp',
+    'Betsoft': 'https://campeonbet.io/assets/cms/87100fe1-7d84-4a62-a632-819515c15127/Betsoft.webp',
+    'Rubyplay': 'https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/RubyPlay.webp',
+    'Novomatic': 'https://campeonbet.io/assets/cms/87100fe1-7d84-4a62-a632-819515c15127/Novomatic.webp',
+  }
+
   return (
-    <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-6">
-      <CategoryStrip active="" />
+    <div className="mx-auto w-full max-w-screen-2xl px-4 py-6">
+      <CategoryStrip
+        active=""
+        searchOpen={searchOpen}
+        searchQuery={searchQuery}
+        onSearchOpenChange={setSearchOpen}
+        onSearchQueryChange={setSearchQuery}
+      />
       <div className="flex items-center gap-3 mb-6">
         <h1 className="text-xl md:text-2xl font-extrabold text-foreground">Providers</h1>
+        {searchOpen && searchTerm ? <span className="text-xs text-muted-foreground">{filteredProviders.length} providers found</span> : null}
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {[...new Set(GAMES.map((g) => g.provider))].map((p) => {
-          const providerArt: Record<string, string> = {
-            'Playson': 'https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/Playson.webp',
-            'Endorphina': 'https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/Endorphina.webp',
-            'Pateplay': 'https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/Pateplay.webp',
-            'Betsoft': 'https://campeonbet.io/assets/cms/87100fe1-7d84-4a62-a632-819515c15127/Betsoft.webp',
-            'Rubyplay': 'https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/RubyPlay.webp',
-            'Novomatic': 'https://campeonbet.io/assets/cms/87100fe1-7d84-4a62-a632-819515c15127/Novomatic.webp',
-          }
-          return (
+      {searchOpen && !searchTerm ? (
+        <p className="text-sm text-muted-foreground py-6">Enter a provider name to filter the list.</p>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {filteredProviders.map((p) => (
             <Link
               key={p}
               to={`/casino/providers/${encodeURIComponent(p.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}`}
@@ -314,9 +396,9 @@ export function Providers() {
               )}
               <p className="text-xs font-bold text-foreground text-center px-2 py-3 truncate">{p}</p>
             </Link>
-          )
-        })}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -328,7 +410,7 @@ export function ProviderPage() {
     (g) => g.provider.toLowerCase().replace(/[^a-z0-9]+/g, '-') === provider,
   )
   return (
-    <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-6">
+    <div className="mx-auto w-full max-w-screen-2xl px-4 py-6">
       <Link to="/casino/providers" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
         <ChevronLeft className="w-4 h-4" /> Providers
       </Link>
