@@ -624,7 +624,7 @@ function PlayersPage({ users, query, onQueryChange, onAdd, onSelect, onToggleSta
       {columnSettingsOpen ? <Card className="shadow-none">
         <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border px-4 py-3">
           <div><CardTitle>Visible columns</CardTitle><CardDescription>Choose which player fields appear in the table.</CardDescription></div>
-          <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => setVisibleColumns(DEFAULT_PLAYER_COLUMNS)}>Default</Button><Button size="icon" size="icon" variant="ghost" aria-label="Close column settings" onClick={() => setColumnSettingsOpen(false)}><X className="h-4 w-4" /></Button></div>
+          <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => setVisibleColumns(DEFAULT_PLAYER_COLUMNS)}>Default</Button><Button size="icon" variant="ghost" aria-label="Close column settings" onClick={() => setColumnSettingsOpen(false)}><X className="h-4 w-4" /></Button></div>
         </CardHeader>
         <CardContent className="grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
           {PLAYER_COLUMNS.map((column) => <label key={column.key} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-xs text-slate-600 transition hover:bg-muted/60">
