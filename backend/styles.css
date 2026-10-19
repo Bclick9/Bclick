@@ -12,8 +12,8 @@
     --card-foreground: 222 38% 13%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 38% 13%;
-    --primary: 45 91% 57%;
-    --primary-foreground: 222 38% 13%;
+    --primary: 222 38% 13%;
+    --primary-foreground: 0 0% 100%;
     --secondary: 210 25% 96%;
     --secondary-foreground: 222 32% 23%;
     --muted: 210 25% 96%;
@@ -24,15 +24,15 @@
     --destructive-foreground: 0 0% 100%;
     --border: 214 23% 91%;
     --input: 214 23% 87%;
-    --ring: 45 91% 47%;
+    --ring: 222 30% 38%;
     --radius: 0.7rem;
   }
 
   * { @apply border-border; }
-  html { min-width: 320px; background: #f7f9fc; }
+  html { min-width: 320px; background: #f8fafc; }
   body { @apply bg-background text-foreground antialiased; margin: 0; font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif; }
   button, input, select, textarea { font: inherit; }
-  ::selection { background: rgba(245, 197, 66, .3); }
+  ::selection { background: rgba(148, 163, 184, .28); }
 }
 
 h1, h2, h3, .font-display { font-family: 'Manrope', 'DM Sans', ui-sans-serif, system-ui, sans-serif; }
