@@ -74,7 +74,18 @@ const FEATURED_PROMOTIONS: Promotion[] = [
 
 const ALL_PROMOTIONS: Promotion[] = [...PROMOTIONS, ...FEATURED_PROMOTIONS]
 
+const PROMOTION_IMAGE_OVERRIDES: Record<string, string> = {
+  'welcome-casino-package': '/assets/home/welcome-casino-bonus.webp',
+  'welcome-sports-bonus': '/assets/home/welcome-sports-bonus.jpg',
+  'welcome-sports-freebet': '/assets/home/welcome-sports-freebet.jpg',
+  'welcome-crypto-combo': '/assets/home/welcome-crypto-bonus.jpg',
+  'mondays-reload-bonus': '/assets/home/monday-reload-bonus.jpg',
+}
+
 function PromotionTile({ promo }: { promo: Promotion }) {
+  const [imageSource, setImageSource] = useState(PROMOTION_IMAGE_OVERRIDES[promo.slug] ?? promo.image)
+  const [imageFailed, setImageFailed] = useState(false)
+
   return (
     <Link
       to={`/promotions/${promo.slug}`}
@@ -82,13 +93,21 @@ function PromotionTile({ promo }: { promo: Promotion }) {
       className="group block min-w-0 overflow-hidden rounded-lg border border-transparent bg-[var(--cb-card)] transition-colors hover:border-[var(--cb-yellow)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--cb-yellow)]"
     >
       <div className="aspect-[16/9] w-full overflow-hidden bg-[#07141c]">
-        <img
-          src={promo.image}
-          alt={promo.tag}
-          loading="lazy"
-          decoding="async"
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.015]"
-        />
+        {!imageFailed ? (
+          <img
+            src={imageSource}
+            alt={promo.tag}
+            loading="lazy"
+            decoding="async"
+            onError={() => {
+              if (imageSource !== promo.image) setImageSource(promo.image)
+              else setImageFailed(true)
+            }}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.015]"
+          />
+        ) : (
+          <div className="h-full w-full bg-[var(--cb-card)]" />
+        )}
       </div>
       <div className="min-h-[148px] px-6 py-6">
         <h2 className="line-clamp-2 text-sm font-extrabold leading-5 text-white">{promo.tag}</h2>
