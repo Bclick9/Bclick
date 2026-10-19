@@ -6,12 +6,14 @@ import {
   Menu, MoreHorizontal, Plus, Search, Settings, ShieldCheck,
   Sparkles, TrendingUp, Users, Wallet, X, Zap, UserPlus, CircleDollarSign,
   Shield, Check, Pause, Play, Pencil, Trophy, RotateCcw,
+  ArrowDown, ArrowUp, Image, Layers, LayoutGrid, Monitor, Paintbrush, Palette,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Modal } from './components/ui'
 import { cn } from './lib/utils'
 
-type PageKey = 'overview' | 'users' | 'promotions' | 'bonuses' | 'games' | 'transactions' | 'reports' | 'settings'
+type WorkspaceMode = 'backoffice' | 'cms'
+type PageKey = 'overview' | 'users' | 'promotions' | 'bonuses' | 'games' | 'transactions' | 'reports' | 'settings' | 'cms-overview' | 'cms-lobby' | 'cms-categories' | 'cms-banners' | 'cms-design' | 'cms-settings'
 type Status = 'Active' | 'Paused' | 'Scheduled' | 'Suspended' | 'Completed' | 'Pending' | 'Failed'
 type UserRow = { id: string; name: string; email: string; country: string; joined: string; balance: string; status: 'Active' | 'Suspended'; tier: 'VIP' | 'Gold' | 'Standard' }
 type Offer = { id: string; name: string; description: string; channel: 'Casino' | 'Sports' | 'Both'; reward: string; claims: string; ends: string; status: 'Active' | 'Paused' | 'Scheduled' }
@@ -34,6 +36,21 @@ const NAV_GROUPS: { title: string; items: { page: PageKey; label: string; icon: 
   ] },
 ]
 
+const CMS_NAV_GROUPS: { title: string; items: { page: PageKey; label: string; icon: LucideIcon; count?: string }[] }[] = [
+  { title: 'CONTENT MANAGEMENT', items: [
+    { page: 'cms-overview', label: 'CMS overview', icon: LayoutDashboard },
+    { page: 'cms-lobby', label: 'Casino lobby', icon: LayoutGrid },
+    { page: 'cms-categories', label: 'Categories & order', icon: Layers },
+  ] },
+  { title: 'CREATIVE', items: [
+    { page: 'cms-banners', label: 'Banners & imagery', icon: Image },
+    { page: 'cms-design', label: 'Themes & design', icon: Paintbrush },
+  ] },
+  { title: 'CONFIGURATION', items: [
+    { page: 'cms-settings', label: 'CMS settings', icon: Settings },
+  ] },
+]
+
 const PAGE_INFO: Record<PageKey, { title: string; description: string }> = {
   overview: { title: 'Overview', description: 'Here’s what’s happening across your platform today.' },
   users: { title: 'Players', description: 'Manage player records, account status, verification, and profile activity.' },
@@ -43,6 +60,12 @@ const PAGE_INFO: Record<PageKey, { title: string; description: string }> = {
   transactions: { title: 'Transactions', description: 'Browse demo deposits, withdrawals, and wallet activity.' },
   reports: { title: 'Reports & analytics', description: 'Explore platform performance and engagement trends.' },
   settings: { title: 'Settings', description: 'Preview workspace preferences and admin controls.' },
+  'cms-overview': { title: 'CMS overview', description: 'Manage the visual experience of the casino lobby and its content.' },
+  'cms-lobby': { title: 'Casino lobby', description: 'Arrange lobby sections and control which content appears to players.' },
+  'cms-categories': { title: 'Categories & order', description: 'Organize casino categories and set their display order.' },
+  'cms-banners': { title: 'Banners & imagery', description: 'Manage hero banners, promotional artwork, and content images.' },
+  'cms-design': { title: 'Themes & design', description: 'Customize the visual theme, accent colors, and presentation.' },
+  'cms-settings': { title: 'CMS settings', description: 'Preview publishing preferences and content display options.' },
 }
 
 const INITIAL_USERS: UserRow[] = [
@@ -1168,7 +1191,262 @@ function UserFormModal({ open, onOpenChange, onSubmit }: { open: boolean; onOpen
   </Modal>
 }
 
+
+type CmsCategory = { id: string; name: string; items: number; visible: boolean; description: string }
+type CmsBanner = { id: string; title: string; placement: string; status: 'Published' | 'Draft'; updated: string; tone: string }
+type CmsLobbySection = { id: string; title: string; subtitle: string; visible: boolean; itemCount: number }
+
+const INITIAL_CMS_CATEGORIES: CmsCategory[] = [
+  { id: 'cat-featured', name: 'Featured', items: 8, visible: true, description: 'Hand-picked games and highlights' },
+  { id: 'cat-popular', name: 'Popular Games', items: 24, visible: true, description: 'Top games by engagement' },
+  { id: 'cat-new', name: 'New Releases', items: 12, visible: true, description: 'Recently added casino titles' },
+  { id: 'cat-slots', name: 'Slots', items: 186, visible: true, description: 'Video slots and classic reels' },
+  { id: 'cat-live', name: 'Live Casino', items: 42, visible: true, description: 'Live dealer tables and shows' },
+  { id: 'cat-jackpot', name: 'Jackpot', items: 16, visible: false, description: 'Progressive jackpot games' },
+  { id: 'cat-crash', name: 'Crash Games', items: 9, visible: true, description: 'Fast-play and multiplier games' },
+]
+
+const INITIAL_CMS_BANNERS: CmsBanner[] = [
+  { id: 'BNR-001', title: 'Welcome to Bclick', placement: 'Casino hero', status: 'Published', updated: '18 Oct 2026', tone: 'from-slate-950 via-slate-800 to-amber-700' },
+  { id: 'BNR-002', title: 'Weekend Tournament', placement: 'Promotions strip', status: 'Published', updated: '17 Oct 2026', tone: 'from-violet-950 via-purple-800 to-pink-600' },
+  { id: 'BNR-003', title: 'Live Casino Spotlight', placement: 'Live casino category', status: 'Draft', updated: '15 Oct 2026', tone: 'from-blue-950 via-blue-800 to-cyan-600' },
+]
+
+const INITIAL_CMS_LOBBY_SECTIONS: CmsLobbySection[] = [
+  { id: 'hero', title: 'Hero banner', subtitle: 'Main spotlight campaign', visible: true, itemCount: 1 },
+  { id: 'featured', title: 'Featured games', subtitle: 'Hand-picked titles shown first', visible: true, itemCount: 8 },
+  { id: 'popular', title: 'Popular this week', subtitle: 'Trending games in the lobby', visible: true, itemCount: 12 },
+  { id: 'new', title: 'New releases', subtitle: 'Recently published games', visible: true, itemCount: 12 },
+  { id: 'live', title: 'Live casino', subtitle: 'Live dealer and table games', visible: true, itemCount: 10 },
+  { id: 'jackpot', title: 'Jackpot games', subtitle: 'Progressive jackpot selection', visible: false, itemCount: 6 },
+]
+
+function CmsOverviewPage({ onNavigate }: { onNavigate: (page: PageKey) => void }) {
+  const summary = [
+    { label: 'Lobby sections', value: String(INITIAL_CMS_LOBBY_SECTIONS.length), note: 'Arrange the player-facing lobby', icon: LayoutGrid, page: 'cms-lobby' as PageKey },
+    { label: 'Casino categories', value: String(INITIAL_CMS_CATEGORIES.length), note: 'Visibility and display order', icon: Layers, page: 'cms-categories' as PageKey },
+    { label: 'Banners & creatives', value: String(INITIAL_CMS_BANNERS.length), note: 'Campaign imagery and placements', icon: Image, page: 'cms-banners' as PageKey },
+    { label: 'Design themes', value: '3', note: 'Appearance presets to preview', icon: Palette, page: 'cms-design' as PageKey },
+  ]
+  return <div className="page-enter space-y-6">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className="grid gap-0 lg:grid-cols-[1.1fr_.9fr]">
+        <div className="p-6 sm:p-8">
+          <div className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.14em] text-violet-700"><Paintbrush className="h-3.5 w-3.5" /> Content Studio</div>
+          <h2 className="mt-5 max-w-xl font-display text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Shape the casino experience.</h2>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-500">Manage what players see first — from category order and game collections to campaign banners, images, and visual themes.</p>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Button onClick={() => onNavigate('cms-lobby')}><LayoutGrid className="h-4 w-4" /> Customize lobby</Button>
+            <Button variant="outline" onClick={() => onNavigate('cms-banners')}><Image className="h-4 w-4" /> Manage banners</Button>
+          </div>
+          <p className="mt-4 text-[11px] text-slate-400">Preview mode · Changes are local and are not published to a live casino.</p>
+        </div>
+        <div className="relative min-h-[230px] overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-violet-950 p-5 sm:p-7">
+          <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-violet-500/20 blur-3xl" />
+          <div className="absolute -bottom-24 left-10 h-52 w-52 rounded-full bg-amber-500/20 blur-3xl" />
+          <div className="relative flex h-full min-h-[200px] flex-col justify-between rounded-xl border border-white/15 bg-white/[.06] p-4 backdrop-blur-sm">
+            <div className="flex items-center justify-between"><span className="text-xs font-extrabold tracking-widest text-white">BCLICK<span className="text-amber-300">.</span></span><span className="rounded-full border border-white/15 px-2 py-1 text-[9px] text-white/70">LOBBY PREVIEW</span></div>
+            <div><p className="text-[10px] font-semibold uppercase tracking-[.22em] text-amber-300">Featured collection</p><h3 className="mt-2 text-2xl font-extrabold text-white">Play your way</h3><p className="mt-1 text-xs text-white/65">Slots · Live Casino · New Releases</p><div className="mt-4 flex gap-2">{['Slots', 'Live', 'Featured'].map((tag) => <span key={tag} className="rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-medium text-white">{tag}</span>)}</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {summary.map((item) => { const Icon = item.icon; return <button type="button" key={item.label} onClick={() => onNavigate(item.page)} className="rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm"><div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">{item.label}</span><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600"><Icon className="h-4 w-4" /></span></div><p className="mt-4 font-display text-2xl font-extrabold text-slate-900">{item.value}</p><p className="mt-1 text-[11px] text-slate-400">{item.note}</p></button> })}
+    </div>
+    <section>
+      <SectionHeading title="Quick actions" description="Go straight to the part of the casino experience you want to update." />
+      <div className="grid gap-3 md:grid-cols-3">
+        {[
+          { title: 'Reorder categories', description: 'Move Slots, Live Casino, and Featured into the right positions.', icon: Layers, page: 'cms-categories' as PageKey },
+          { title: 'Update campaign artwork', description: 'Review lobby hero artwork and promotion banner placements.', icon: Image, page: 'cms-banners' as PageKey },
+          { title: 'Tune the visual theme', description: 'Preview theme presets and accent colors before publishing.', icon: Paintbrush, page: 'cms-design' as PageKey },
+        ].map((action) => { const Icon = action.icon; return <button key={action.title} type="button" onClick={() => onNavigate(action.page)} className="flex gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-slate-300 hover:bg-slate-50"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700"><Icon className="h-4 w-4" /></span><span><span className="block text-sm font-semibold text-slate-800">{action.title}</span><span className="mt-1.5 block text-xs leading-5 text-slate-500">{action.description}</span></span></button> })}
+      </div>
+    </section>
+  </div>
+}
+
+function CmsLobbyPage({ onNotify }: { onNotify: (message: string) => void }) {
+  const [sections, setSections] = useState<CmsLobbySection[]>(INITIAL_CMS_LOBBY_SECTIONS)
+  const [device, setDevice] = useState<'Desktop' | 'Mobile'>('Desktop')
+  const move = (index: number, direction: -1 | 1) => {
+    setSections((current) => {
+      const next = [...current]
+      const target = index + direction
+      if (target < 0 || target >= next.length) return current
+      ;[next[index], next[target]] = [next[target], next[index]]
+      return next
+    })
+  }
+  const toggle = (id: string) => setSections((current) => current.map((section) => section.id === id ? { ...section, visible: !section.visible } : section))
+  return <div className="page-enter space-y-5">
+    <SectionHeading title="Casino lobby" description="Arrange the order and visibility of the content sections players see." actions={<Button variant="outline" onClick={() => onNotify('Lobby layout preview is ready. Publishing is not connected.')}><Eye className="h-4 w-4" /> Preview lobby</Button>} />
+    <div className="grid gap-5 xl:grid-cols-[1fr_1.1fr]">
+      <Card>
+        <CardHeader><CardTitle>Lobby sections</CardTitle><CardDescription>Use the arrows to adjust display order. Switch off any section to hide it in the preview.</CardDescription></CardHeader>
+        <div className="divide-y divide-slate-100 px-4 pb-3">
+          {sections.map((section, index) => <div key={section.id} className="flex items-center gap-3 py-3">
+            <div className="flex flex-col gap-1"><button type="button" disabled={index === 0} aria-label={'Move ' + section.title + ' up'} onClick={() => move(index, -1)} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-25"><ArrowUp className="h-3.5 w-3.5" /></button><button type="button" disabled={index === sections.length - 1} aria-label={'Move ' + section.title + ' down'} onClick={() => move(index, 1)} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-25"><ArrowDown className="h-3.5 w-3.5" /></button></div>
+            <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', section.visible ? 'bg-slate-100 text-slate-700' : 'bg-slate-50 text-slate-300')}><LayoutGrid className="h-4 w-4" /></div>
+            <div className="min-w-0 flex-1"><p className="text-xs font-semibold text-slate-800">{section.title}</p><p className="mt-1 truncate text-[10px] text-slate-400">{section.subtitle} · {section.itemCount} items</p></div>
+            <button type="button" role="switch" aria-checked={section.visible} aria-label={'Toggle ' + section.title} onClick={() => toggle(section.id)} className={cn('relative h-5 w-9 shrink-0 rounded-full transition', section.visible ? 'bg-slate-900' : 'bg-slate-200')}><span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-all', section.visible ? 'left-[18px]' : 'left-0.5')} /></button>
+          </div>)}
+        </div>
+      </Card>
+      <Card>
+        <CardHeader><div className="flex items-center justify-between gap-3"><div><CardTitle>Live lobby preview</CardTitle><CardDescription>Visual approximation of the player-facing arrangement.</CardDescription></div><div className="flex rounded-lg border border-slate-200 p-1">{(['Desktop', 'Mobile'] as const).map((option) => <button key={option} type="button" onClick={() => setDevice(option)} className={cn('rounded-md px-2.5 py-1.5 text-[10px] font-semibold', device === option ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50')}>{option}</button>)}</div></div></CardHeader>
+        <div className={cn('mx-auto mb-5 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3 transition-all', device === 'Mobile' ? 'max-w-[290px]' : 'max-w-full')}>
+          <div className="flex items-center justify-between rounded-lg bg-slate-950 px-3 py-2.5"><span className="text-[10px] font-extrabold tracking-widest text-white">BCLICK<span className="text-amber-300">.</span></span><span className="text-[9px] text-white/60">CASINO</span></div>
+          {sections.filter((section) => section.visible).map((section, index) => <div key={section.id} className="rounded-lg border border-slate-200 bg-white p-3"><div className="flex items-center justify-between"><p className="text-[11px] font-bold text-slate-800">{section.title}</p><span className="text-[9px] text-slate-400">See all</span></div>{section.id === 'hero' ? <div className="mt-2 rounded-lg bg-gradient-to-r from-violet-950 via-slate-900 to-amber-700 p-4 text-white"><p className="text-[9px] uppercase tracking-widest text-amber-300">Featured</p><p className="mt-1 text-sm font-extrabold">Discover your next game</p></div> : <div className="mt-2 grid grid-cols-4 gap-1.5">{Array.from({length: Math.min(section.itemCount, device === 'Mobile' ? 4 : 8)}, (_, i) => <div key={i} className={cn('aspect-[4/5] rounded-md', ['bg-amber-100','bg-slate-200','bg-violet-100','bg-blue-100'][i % 4])} />)}</div>}</div>)}
+          {sections.filter((section) => section.visible).length === 0 ? <div className="rounded-lg border border-dashed border-slate-300 p-7 text-center text-xs text-slate-400">All lobby sections are hidden.</div> : null}
+        </div>
+        <div className="px-5 pb-5 text-[10px] text-slate-400">Changes are reflected in this local preview only.</div>
+      </Card>
+    </div>
+  </div>
+}
+
+function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) => void }) {
+  const [categories, setCategories] = useState<CmsCategory[]>(INITIAL_CMS_CATEGORIES)
+  const [draftName, setDraftName] = useState('')
+  const [search, setSearch] = useState('')
+  const move = (index: number, direction: -1 | 1) => setCategories((current) => {
+    const next = [...current]
+    const target = index + direction
+    if (target < 0 || target >= next.length) return current
+    ;[next[index], next[target]] = [next[target], next[index]]
+    return next
+  })
+  const toggle = (id: string) => setCategories((current) => current.map((category) => category.id === id ? { ...category, visible: !category.visible } : category))
+  const addCategory = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const name = draftName.trim()
+    if (!name) return
+    setCategories((current) => [...current, { id: 'cat-custom-' + (current.length + 1), name, items: 0, visible: true, description: 'New custom casino collection' }])
+    setDraftName('')
+    onNotify('Category added to the local CMS preview.')
+  }
+  const filtered = categories.filter((category) => (category.name + ' ' + category.description).toLowerCase().includes(search.toLowerCase()))
+  return <div className="page-enter space-y-5">
+    <SectionHeading title="Categories & order" description="Control the category navigation and collection order inside the casino lobby." />
+    <div className="grid gap-3 sm:grid-cols-3">
+      {[{label:'Total categories',value:categories.length},{label:'Visible in lobby',value:categories.filter((item)=>item.visible).length},{label:'Games assigned',value:categories.reduce((total,item)=>total+item.items,0)}].map((metric) => <Card key={metric.label}><CardContent className="p-4"><p className="text-xs text-slate-500">{metric.label}</p><p className="mt-1 font-display text-2xl font-extrabold text-slate-900">{metric.value}</p></CardContent></Card>)}
+    </div>
+    <Card>
+      <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div><CardTitle>Casino categories</CardTitle><CardDescription className="mt-1">The top row is displayed first. Ordering and visibility are preview-only.</CardDescription></div>
+        <div className="relative w-full sm:max-w-[230px]"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event)=>setSearch(event.target.value)} placeholder="Search categories…" className="pl-9" /></div>
+      </div>
+      <div className="p-4">
+        <form onSubmit={addCategory} className="mb-4 flex flex-col gap-2 sm:flex-row"><Input value={draftName} onChange={(event)=>setDraftName(event.target.value)} placeholder="New category name…" aria-label="New category name" /><Button type="submit" disabled={!draftName.trim()}><Plus className="h-4 w-4" /> Add category</Button></form>
+        <div className="space-y-2">
+          {filtered.map((category) => {
+            const index = categories.findIndex((item) => item.id === category.id)
+            return <div key={category.id} className={cn('flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center', category.visible ? 'border-slate-200 bg-white' : 'border-dashed border-slate-200 bg-slate-50/70')}>
+              <div className="flex items-center gap-2 sm:flex-col"><button type="button" aria-label={'Move ' + category.name + ' up'} disabled={index === 0} onClick={()=>move(index,-1)} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 disabled:opacity-25"><ArrowUp className="h-3.5 w-3.5" /></button><button type="button" aria-label={'Move ' + category.name + ' down'} disabled={index === categories.length - 1} onClick={()=>move(index,1)} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 disabled:opacity-25"><ArrowDown className="h-3.5 w-3.5" /></button></div>
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-800 to-slate-500 text-white"><Layers className="h-4 w-4" /></div>
+              <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-semibold text-slate-900">{category.name}</p><Badge variant={category.visible ? 'success' : 'outline'}>{category.visible ? 'Visible' : 'Hidden'}</Badge></div><p className="mt-1 text-[11px] text-slate-500">{category.description}</p></div>
+              <div className="text-left sm:min-w-20 sm:text-right"><p className="text-sm font-bold text-slate-800">{category.items}</p><p className="text-[10px] text-slate-400">games</p></div>
+              <Button size="sm" variant="outline" onClick={()=>toggle(category.id)}>{category.visible ? 'Hide category' : 'Show category'}</Button>
+            </div>
+          })}
+          {filtered.length === 0 ? <div className="rounded-lg border border-dashed border-slate-200 py-9 text-center text-xs text-slate-400">No categories match that search.</div> : null}
+        </div>
+      </div>
+      <div className="border-t border-border px-4 py-3 text-[10px] text-slate-400">Category changes are local. No casino configuration has been published.</div>
+    </Card>
+  </div>
+}
+
+function CmsBannersPage({ onNotify }: { onNotify: (message: string) => void }) {
+  const [banners, setBanners] = useState<CmsBanner[]>(INITIAL_CMS_BANNERS)
+  const [filter, setFilter] = useState<'All' | 'Published' | 'Draft'>('All')
+  const [search, setSearch] = useState('')
+  const addBanner = () => {
+    setBanners((current) => [{ id: 'BNR-' + String(current.length + 1).padStart(3, '0'), title: 'New casino campaign', placement: 'Casino hero', status: 'Draft', updated: '19 Oct 2026', tone: 'from-emerald-950 via-teal-800 to-lime-600' }, ...current])
+    onNotify('A draft banner was added to the local CMS preview.')
+  }
+  const shown = banners.filter((banner) => (filter === 'All' || banner.status === filter) && (banner.title + ' ' + banner.placement).toLowerCase().includes(search.toLowerCase()))
+  const toggleStatus = (id: string) => setBanners((current) => current.map((banner) => banner.id === id ? { ...banner, status: banner.status === 'Published' ? 'Draft' : 'Published' } : banner))
+  return <div className="page-enter space-y-5">
+    <SectionHeading title="Banners & imagery" description="Manage the visual assets used in the casino hero and promotional areas." actions={<Button onClick={addBanner}><Plus className="h-4 w-4" /> Create banner</Button>} />
+    <div className="grid gap-3 sm:grid-cols-3">
+      {[{label:'Total creatives',value:banners.length},{label:'Published',value:banners.filter((banner)=>banner.status==='Published').length},{label:'Drafts',value:banners.filter((banner)=>banner.status==='Draft').length}].map((metric)=> <Card key={metric.label}><CardContent className="p-4"><p className="text-xs text-slate-500">{metric.label}</p><p className="mt-1 font-display text-2xl font-extrabold text-slate-900">{metric.value}</p></CardContent></Card>)}
+    </div>
+    <div className="grid gap-4 lg:grid-cols-2">
+      {shown.map((banner) => <Card key={banner.id} className="overflow-hidden">
+        <div className={cn('relative flex min-h-[170px] items-end overflow-hidden bg-gradient-to-br p-5', banner.tone)}>
+          <div className="absolute -right-8 -top-8 h-36 w-36 rounded-full border border-white/20" /><div className="absolute right-10 top-8 h-20 w-20 rounded-full bg-white/10 blur-xl" />
+          <div className="relative"><p className="text-[9px] font-bold uppercase tracking-[.2em] text-white/70">{banner.placement}</p><h3 className="mt-2 text-xl font-extrabold text-white">{banner.title}</h3><p className="mt-1 text-xs text-white/65">Promotional artwork preview</p></div>
+          <span className="absolute right-4 top-4 rounded-md bg-black/20 px-2 py-1 text-[9px] font-semibold text-white">{banner.id}</span>
+        </div>
+        <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex items-center gap-2"><p className="text-xs font-semibold text-slate-900">{banner.title}</p><Badge variant={banner.status==='Published'?'success':'warning'}>{banner.status}</Badge></div><p className="mt-1 text-[10px] text-slate-400">Placement: {banner.placement} · Updated {banner.updated}</p></div><div className="flex gap-2"><Button variant="outline" size="sm" onClick={()=>onNotify('Banner image editing is a UI preview; an asset uploader is not connected.')}><Pencil className="h-3.5 w-3.5" /> Edit creative</Button><Button variant={banner.status==='Published'?'secondary':'default'} size="sm" onClick={()=>toggleStatus(banner.id)}>{banner.status==='Published'?'Move to draft':'Publish demo'}</Button></div></div>
+      </Card>)}
+    </div>
+    <Card><CardContent className="p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-semibold text-slate-800">Find a creative</p><p className="mt-1 text-[10px] text-slate-400">Filter banners by title or placement.</p></div><div className="flex flex-col gap-2 sm:flex-row"><Input value={search} onChange={(event)=>setSearch(event.target.value)} placeholder="Search banners…" className="sm:w-56" /><select value={filter} onChange={(event)=>setFilter(event.target.value as typeof filter)} className="h-10 rounded-md border border-input bg-white px-3 text-xs text-slate-700"><option>All</option><option>Published</option><option>Draft</option></select></div></div></CardContent></Card>
+    <p className="text-[10px] text-slate-400">Actual image upload, media storage, and publishing are not connected in this prototype.</p>
+  </div>
+}
+
+function CmsDesignPage({ onNotify }: { onNotify: (message: string) => void }) {
+  const [theme, setTheme] = useState('Midnight')
+  const [accent, setAccent] = useState('#E9B15B')
+  const themes = [
+    { name: 'Midnight', description: 'Dark casino, warm gold accents', base: 'from-slate-950 to-amber-800' },
+    { name: 'Royal', description: 'Deep violet with premium highlights', base: 'from-violet-950 to-fuchsia-700' },
+    { name: 'Ocean', description: 'Cool blue, clean and modern', base: 'from-blue-950 to-cyan-600' },
+  ]
+  const accents = [{name:'Gold',color:'#E9B15B'},{name:'Violet',color:'#8B5CF6'},{name:'Cyan',color:'#06B6D4'},{name:'Emerald',color:'#10B981'},{name:'Rose',color:'#F43F5E'}]
+  const activeTheme = themes.find((item)=>item.name===theme) ?? themes[0]
+  return <div className="page-enter space-y-5">
+    <SectionHeading title="Themes & design" description="Preview a visual theme and brand accent for the casino experience." actions={<Button onClick={()=>onNotify('Theme preferences saved in this local preview only.')}><Check className="h-4 w-4" /> Save preview</Button>} />
+    <div className="grid gap-5 xl:grid-cols-[1fr_1.1fr]">
+      <Card>
+        <CardHeader><CardTitle>Theme presets</CardTitle><CardDescription>Pick a preset to preview its direction.</CardDescription></CardHeader>
+        <div className="space-y-3 px-5 pb-5">
+          {themes.map((item)=> <button key={item.name} type="button" onClick={()=>setTheme(item.name)} className={cn('flex w-full items-center gap-3 rounded-xl border p-3 text-left transition',theme===item.name?'border-slate-900 ring-1 ring-slate-900':'border-slate-200 hover:border-slate-300')}><div className={cn('h-12 w-16 shrink-0 rounded-lg bg-gradient-to-br',item.base)} /><span className="min-w-0 flex-1"><span className="block text-xs font-semibold text-slate-900">{item.name}</span><span className="mt-1 block text-[10px] text-slate-500">{item.description}</span></span>{theme===item.name?<CheckCircle2 className="h-4 w-4 text-emerald-600"/>:null}</button>)}
+          <div className="border-t border-slate-100 pt-4"><p className="text-xs font-semibold text-slate-800">Brand accent</p><p className="mt-1 text-[10px] text-slate-400">Select an accent color for calls to action and highlights.</p><div className="mt-3 flex flex-wrap gap-2">{accents.map((item)=> <button key={item.color} type="button" title={item.name} aria-label={'Use '+item.name+' accent'} onClick={()=>setAccent(item.color)} className={cn('flex h-9 w-9 items-center justify-center rounded-full border-2',accent===item.color?'border-slate-900':'border-white ring-1 ring-slate-200')} style={{backgroundColor:item.color}}>{accent===item.color?<Check className="h-4 w-4 text-white"/>:null}</button>)}</div><p className="mt-2 text-[10px] text-slate-500">Selected: {accents.find((item)=>item.color===accent)?.name ?? 'Custom accent'}</p></div>
+        </div>
+      </Card>
+      <Card>
+        <CardHeader><CardTitle>Casino preview</CardTitle><CardDescription>Preview card styling with your current theme and accent.</CardDescription></CardHeader>
+        <div className="px-5 pb-5">
+          <div className={cn('overflow-hidden rounded-xl bg-gradient-to-br p-4 sm:p-6',activeTheme.base)}>
+            <div className="flex items-center justify-between"><span className="text-xs font-extrabold tracking-widest text-white">BCLICK<span style={{color:accent}}>.</span></span><span className="rounded-full bg-white/10 px-2 py-1 text-[9px] text-white/80">{theme.toUpperCase()} THEME</span></div>
+            <div className="mt-8"><p className="text-[9px] font-bold uppercase tracking-[.2em]" style={{color:accent}}>CASINO · FEATURED</p><h3 className="mt-2 text-2xl font-extrabold text-white">A better way to play</h3><p className="mt-1 text-xs text-white/65">Visual theme preview</p><button type="button" onClick={()=>onNotify('Preview call-to-action clicked. No navigation is connected.')} className="mt-4 rounded-lg px-4 py-2 text-[11px] font-bold text-slate-950" style={{backgroundColor:accent}}>Explore games</button></div>
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-2">{['Featured','Popular','New'].map((item,index)=> <div key={item} className="rounded-lg border border-slate-200 p-2"><div className={cn('aspect-[4/3] rounded-md bg-gradient-to-br',index===0?activeTheme.base:'from-slate-200 to-slate-100')}/><p className="mt-2 text-[10px] font-semibold text-slate-700">{item}</p></div>)}</div>
+        </div>
+      </Card>
+    </div>
+    <p className="text-[10px] text-slate-400">Theme, branding, and styling controls are previews. They do not alter the live storefront.</p>
+  </div>
+}
+
+function CmsSettingsPage({ onNotify }: { onNotify: (message: string) => void }) {
+  const [settings, setSettings] = useState({ desktop: true, mobile: true, showProvider: false, autoPublish: false, maintenance: false })
+  const [language, setLanguage] = useState('English')
+  const [region, setRegion] = useState('All regions')
+  const toggle = (key: keyof typeof settings) => setSettings((current) => ({ ...current, [key]: !current[key] }))
+  const switches: { key: keyof typeof settings; title: string; description: string }[] = [
+    { key: 'desktop', title: 'Desktop lobby', description: 'Show CMS-managed lobby content on desktop web.' },
+    { key: 'mobile', title: 'Mobile lobby', description: 'Show CMS-managed lobby content on mobile layouts.' },
+    { key: 'showProvider', title: 'Show game provider labels', description: 'Display provider names below game artwork.' },
+    { key: 'autoPublish', title: 'Auto-publish content changes', description: 'Preview only; no live publishing is connected.' },
+    { key: 'maintenance', title: 'Maintenance banner', description: 'Display a maintenance notice in the preview.' },
+  ]
+  return <div className="page-enter space-y-5">
+    <SectionHeading title="CMS settings" description="Configure content presentation defaults in this demo workspace." actions={<Button onClick={()=>onNotify('CMS preferences saved in the local preview only.')}><Check className="h-4 w-4" /> Save settings</Button>} />
+    <Card><CardHeader><CardTitle>Content display</CardTitle><CardDescription>Control the surfaces and labels used in the casino experience.</CardDescription></CardHeader><div className="divide-y divide-slate-100 px-5 pb-2">{switches.map((item)=> <div key={item.key} className="flex items-center gap-4 py-4"><div className="min-w-0 flex-1"><p className="text-xs font-semibold text-slate-800">{item.title}</p><p className="mt-1 text-[11px] leading-5 text-slate-500">{item.description}</p></div><button type="button" role="switch" aria-checked={settings[item.key]} aria-label={item.title} onClick={()=>toggle(item.key)} className={cn('relative h-5 w-9 shrink-0 rounded-full transition',settings[item.key]?'bg-slate-900':'bg-slate-200')}><span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-all',settings[item.key]?'left-[18px]':'left-0.5')}/></button></div>)}</div></Card>
+    <Card><CardHeader><CardTitle>Default content locale</CardTitle><CardDescription>Locale options shown here are demonstration controls.</CardDescription></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><label className="space-y-1.5"><span className="block text-xs font-semibold text-slate-600">Language</span><select value={language} onChange={(event)=>setLanguage(event.target.value)} className="h-10 w-full rounded-md border border-input bg-white px-3 text-xs"><option>English</option><option>French</option><option>Arabic</option></select></label><label className="space-y-1.5"><span className="block text-xs font-semibold text-slate-600">Region</span><select value={region} onChange={(event)=>setRegion(event.target.value)} className="h-10 w-full rounded-md border border-input bg-white px-3 text-xs"><option>All regions</option><option>Tunisia</option><option>Europe</option><option>Middle East</option></select></label></CardContent></Card>
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-xs font-semibold text-amber-950">Preview-only settings</p><p className="mt-1 text-xs leading-5 text-amber-900/80">These controls demonstrate the CMS workflow. Publishing, localization services, and production content storage have not been implemented.</p></div>
+  </div>
+}
+
 export default function App() {
+  const [workspace, setWorkspace] = useState<WorkspaceMode>('backoffice')
+  const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false)
   const [activePage, setActivePage] = useState<PageKey>('overview')
   const [users, setUsers] = useState<UserRow[]>(INITIAL_USERS)
   const [promotions, setPromotions] = useState<Offer[]>(INITIAL_PROMOTIONS)
@@ -1187,6 +1465,15 @@ export default function App() {
   function navigate(next: PageKey) {
     setActivePage(next)
     setMobileNavOpen(false)
+    setSearchQuery('')
+  }
+
+  function switchWorkspace(next: WorkspaceMode) {
+    setWorkspace(next)
+    setActivePage(next === 'backoffice' ? 'overview' : 'cms-overview')
+    setSelectedUser(null)
+    setMobileNavOpen(false)
+    setWorkspaceSwitcherOpen(false)
     setSearchQuery('')
   }
 
@@ -1259,6 +1546,7 @@ export default function App() {
   }
 
   const createHeaderAction = () => {
+    if (workspace === 'cms') return null
     if (activePage === 'promotions') return <Button onClick={() => setPromotionOpen(true)}><Plus className="h-4 w-4" /> Create promotion</Button>
     if (activePage === 'bonuses') return <Button onClick={() => setBonusOpen(true)}><Plus className="h-4 w-4" /> Create bonus</Button>
     if (activePage === 'users') return <Button onClick={() => setUserOpen(true)}><Plus className="h-4 w-4" /> New player</Button>
@@ -1272,25 +1560,31 @@ export default function App() {
       {mobileNavOpen ? <button type="button" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} className="fixed inset-0 z-30 bg-slate-950/40 lg:hidden" /> : null}
       <aside className={cn('fixed inset-y-0 left-0 z-40 flex w-[252px] flex-col border-r border-slate-200 bg-white text-slate-900 transition-transform duration-200 lg:translate-x-0', mobileNavOpen ? 'translate-x-0' : '-translate-x-full')}>
         <div className="flex h-[76px] items-center justify-between border-b border-slate-200 px-5">
-          <button type="button" onClick={() => navigate('overview')} className="flex items-center gap-3 text-left">
+          <button type="button" onClick={() => navigate(workspace === 'backoffice' ? 'overview' : 'cms-overview')} className="flex items-center gap-3 text-left">
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-white"><Zap className="h-5 w-5 fill-current" /></span>
             <span><span className="block font-display text-[17px] font-extrabold tracking-tight">bclick<span className="text-slate-400">.</span></span><span className="mt-0.5 block text-[9px] font-bold uppercase tracking-[.19em] text-slate-400">Admin workspace</span></span>
           </button>
           <button type="button" className="text-slate-500 hover:text-white lg:hidden" aria-label="Close menu" onClick={() => setMobileNavOpen(false)}><X className="h-4 w-4" /></button>
         </div>
-        <div className="px-3 pt-5">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-500 ring-4 ring-emerald-500/10" /><span className="text-[11px] font-semibold text-slate-700">Workspace</span><ChevronDown className="ml-auto h-3.5 w-3.5 text-slate-500" /></div><p className="mt-1 pl-4 text-[10px] text-slate-500">Bclick Tunisia · Demo</p></div>
+        <div className="relative px-3 pt-5">
+          <button type="button" aria-haspopup="menu" aria-expanded={workspaceSwitcherOpen} onClick={() => setWorkspaceSwitcherOpen((open) => !open)} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-left transition hover:border-slate-300 hover:bg-slate-100">
+            <div className="flex items-center gap-2"><span className={cn('flex h-7 w-7 items-center justify-center rounded-md text-white', workspace === 'backoffice' ? 'bg-slate-900' : 'bg-violet-700')}>{workspace === 'backoffice' ? <Shield className="h-3.5 w-3.5" /> : <Paintbrush className="h-3.5 w-3.5" />}</span><span className="min-w-0 flex-1"><span className="block text-[11px] font-bold text-slate-800">{workspace === 'backoffice' ? 'Backoffice' : 'CMS'}</span><span className="mt-0.5 block text-[10px] text-slate-500">{workspace === 'backoffice' ? 'Operations & analytics' : 'Casino content studio'}</span></span><ChevronDown className={cn('h-3.5 w-3.5 text-slate-500 transition-transform', workspaceSwitcherOpen && 'rotate-180')} /></div>
+          </button>
+          {workspaceSwitcherOpen ? <div role="menu" aria-label="Switch workspace" className="absolute left-3 right-3 top-[calc(100%+6px)] z-50 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+            <button type="button" role="menuitem" onClick={() => switchWorkspace('backoffice')} className={cn('flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition', workspace === 'backoffice' ? 'bg-slate-100' : 'hover:bg-slate-50')}><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-white"><Shield className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block text-xs font-semibold text-slate-800">Backoffice</span><span className="mt-0.5 block text-[10px] leading-4 text-slate-500">Players, transactions, reports & account operations</span></span>{workspace === 'backoffice' ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : null}</button>
+            <button type="button" role="menuitem" onClick={() => switchWorkspace('cms')} className={cn('mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition', workspace === 'cms' ? 'bg-violet-50' : 'hover:bg-slate-50')}><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-700 text-white"><Paintbrush className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block text-xs font-semibold text-slate-800">CMS</span><span className="mt-0.5 block text-[10px] leading-4 text-slate-500">Casino banners, categories, games & design</span></span>{workspace === 'cms' ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : null}</button>
+          </div> : null}
         </div>
         <nav className="admin-scrollbar flex-1 overflow-y-auto px-3 py-5">
-          {NAV_GROUPS.map((group) => <div key={group.title} className="mb-6">
+          {(workspace === 'backoffice' ? NAV_GROUPS : CMS_NAV_GROUPS).map((group) => <div key={group.title} className="mb-6">
             <p className="mb-2 px-3 text-[10px] font-semibold tracking-wide text-slate-400">{group.title}</p>
             <div className="space-y-1">{group.items.map((item) => { const Icon = item.icon; const active = activePage === item.page; return <button type="button" key={item.page} onClick={() => navigate(item.page)} className={cn('group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs font-semibold transition', active ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950')}><Icon className={cn('h-[17px] w-[17px]', active ? 'text-white' : 'text-slate-400 group-hover:text-slate-700')} /><span className="flex-1">{item.label}</span>{item.count ? <span className={cn('rounded px-1.5 py-0.5 text-[9px]', active ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-500')}>{item.count}</span> : null}{active ? <span className="h-1.5 w-1.5 rounded-full bg-white" /> : null}</button> })}</div>
           </div>)}
         </nav>
         <div className="px-3 pb-3">
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3.5">
-            <div className="flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 text-slate-700"><LifeBuoy className="h-4 w-4" /></span><div><p className="text-[11px] font-semibold text-slate-800">Need a hand?</p><p className="mt-0.5 text-[9px] text-slate-500">Admin docs & help</p></div></div>
-            <button type="button" onClick={() => notify('Help centre is not connected in this prototype.')} className="mt-3 flex w-full items-center justify-between rounded-md bg-white/[.06] px-3 py-2 text-[10px] font-semibold text-slate-700 transition hover:bg-slate-200">Open help centre <ArrowRight className="h-3 w-3" /></button>
+            <div className="flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 text-slate-700"><LifeBuoy className="h-4 w-4" /></span><div><p className="text-[11px] font-semibold text-slate-800">{workspace === 'backoffice' ? 'Backoffice help' : 'CMS help'}</p><p className="mt-0.5 text-[9px] text-slate-500">{workspace === 'backoffice' ? 'Operations & account tools' : 'Content & design tools'}</p></div></div>
+            <button type="button" onClick={() => notify(workspace === 'backoffice' ? 'Backoffice help is not connected in this prototype.' : 'CMS help is not connected in this prototype.')} className="mt-3 flex w-full items-center justify-between rounded-md bg-white/[.06] px-3 py-2 text-[10px] font-semibold text-slate-700 transition hover:bg-slate-200">Open help centre <ArrowRight className="h-3 w-3" /></button>
           </div>
         </div>
         <div className="border-t border-slate-200 p-3">
@@ -1324,6 +1618,13 @@ export default function App() {
                       {activePage === 'transactions' ? <TransactionsPage /> : null}
                       {activePage === 'reports' ? <ReportsPage /> : null}
                       {activePage === 'settings' ? <SettingsPage /> : null}
+
+            <div className={workspace === 'cms' && activePage === 'cms-overview' ? 'block' : 'hidden'}><CmsOverviewPage onNavigate={navigate} /></div>
+            <div className={workspace === 'cms' && activePage === 'cms-lobby' ? 'block' : 'hidden'}><CmsLobbyPage onNotify={notify} /></div>
+            <div className={workspace === 'cms' && activePage === 'cms-categories' ? 'block' : 'hidden'}><CmsCategoriesPage onNotify={notify} /></div>
+            <div className={workspace === 'cms' && activePage === 'cms-banners' ? 'block' : 'hidden'}><CmsBannersPage onNotify={notify} /></div>
+            <div className={workspace === 'cms' && activePage === 'cms-design' ? 'block' : 'hidden'}><CmsDesignPage onNotify={notify} /></div>
+            <div className={workspace === 'cms' && activePage === 'cms-settings' ? 'block' : 'hidden'}><CmsSettingsPage onNotify={notify} /></div>
 
           </>}
           <footer className="mt-10 flex flex-col items-center justify-between gap-2 border-t border-slate-200/80 pt-5 text-[10px] text-slate-400 sm:flex-row"><span>© 2026 Bclick Admin · UI prototype</span><span className="flex items-center gap-3"><button type="button" className="hover:text-slate-600" onClick={() => notify('Admin documentation has not been added yet.')}>Documentation</button><button type="button" className="hover:text-slate-600" onClick={() => notify('Support is not connected in this prototype.')}>Contact support</button><span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-amber-400" /> Demo data</span></span></footer>
