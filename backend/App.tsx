@@ -6,7 +6,7 @@ import {
   Menu, MoreHorizontal, Plus, Search, Settings, ShieldCheck,
   Sparkles, TrendingUp, Users, Wallet, X, Zap, UserPlus, CircleDollarSign,
   Shield, Check, Pause, Play, Pencil, Trophy, RotateCcw,
-  ArrowDown, ArrowUp, Image, Layers, LayoutGrid, Monitor, Paintbrush, Palette,
+  ArrowDown, ArrowUp, Image, Layers, LayoutGrid, Paintbrush, Palette,
   GripVertical, SlidersHorizontal,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -14,7 +14,7 @@ import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitl
 import { cn } from './lib/utils'
 
 type WorkspaceMode = 'backoffice' | 'cms'
-type PageKey = 'overview' | 'users' | 'promotions' | 'bonuses' | 'transactions' | 'reports' | 'settings' | 'cms-banners' | 'cms-promotions' | 'cms-pages' | 'cms-skin-games' | 'cms-categories' | 'cms-providers' | 'cms-customization'
+type PageKey = 'overview' | 'users' | 'promotions' | 'bonuses' | 'transactions' | 'reports' | 'settings' | 'cms-banners' | 'cms-promotions' | 'cms-pages' | 'cms-skin-games' | 'cms-categories' | 'cms-providers'
 type Status = 'Active' | 'Paused' | 'Scheduled' | 'Suspended' | 'Completed' | 'Pending' | 'Failed'
 type UserRow = { id: string; name: string; email: string; country: string; joined: string; balance: string; status: 'Active' | 'Suspended'; tier: 'VIP' | 'Gold' | 'Standard' }
 type BonusWizardForm = {
@@ -70,7 +70,6 @@ const CMS_NAV_GROUPS: { title: string; items: { page: PageKey; label: string; ic
     { page: 'cms-skin-games', label: 'Skin Games', icon: Gamepad2 },
     { page: 'cms-categories', label: 'Categories', icon: Layers },
     { page: 'cms-providers', label: 'Providers', icon: Users },
-    { page: 'cms-customization', label: 'Customization', icon: Paintbrush },
   ] },
 ]
 
@@ -88,7 +87,6 @@ const PAGE_INFO: Record<PageKey, { title: string; description: string }> = {
   'cms-skin-games': { title: 'Skin Games', description: 'Manage the game tile skins and visual presentation shown in the casino.' },
   'cms-categories': { title: 'Categories', description: 'Organize casino categories, visibility, and display order.' },
   'cms-providers': { title: 'Providers', description: 'Manage provider visibility and how providers appear in the casino.' },
-  'cms-customization': { title: 'Customization', description: 'Customize the casino look, theme, and brand accents.' },
 }
 
 
@@ -106,7 +104,6 @@ const PAGE_PATHS: Record<PageKey, string> = {
   'cms-skin-games': '/cms/skin-games',
   'cms-categories': '/cms/categories',
   'cms-providers': '/cms/providers',
-  'cms-customization': '/cms/customization',
 }
 function pageFromPath(pathname: string): PageKey {
   const normalized = pathname.replace(/\/+$/, '') || '/'
@@ -3602,40 +3599,9 @@ function CmsProvidersPage({ onNotify }: { onNotify: (message: string) => void })
   </div>
 }
 
-function CmsCustomizationPage({ onNotify }: { onNotify: (message: string) => void }) {
-  const [theme, setTheme] = useState('Midnight')
-  const [accent, setAccent] = useState('#E9B15B')
-  const [cornerStyle, setCornerStyle] = useState('Rounded')
-  const [fontStyle, setFontStyle] = useState('Modern Sans')
-  const [compactCards, setCompactCards] = useState(false)
-  const [showProviderNames, setShowProviderNames] = useState(true)
-  const themes = [{ name: 'Midnight', description: 'Dark casino, warm gold accents', base: 'from-slate-950 to-amber-800' }, { name: 'Royal', description: 'Deep violet with premium highlights', base: 'from-violet-950 to-fuchsia-700' }, { name: 'Ocean', description: 'Cool blue, clean and modern', base: 'from-blue-950 to-cyan-600' }]
-  const accents = [{ name: 'Gold', color: '#E9B15B' }, { name: 'Violet', color: '#8B5CF6' }, { name: 'Cyan', color: '#06B6D4' }, { name: 'Emerald', color: '#10B981' }, { name: 'Rose', color: '#F43F5E' }]
-  const activeTheme = themes.find((item) => item.name === theme) ?? themes[0]
-  return <div className="page-enter space-y-5">
-    <SectionHeading title="Customization" description="Customize the casino brand presentation, themes, and lobby card appearance." actions={<Button onClick={() => onNotify('Customization saved in the local preview only.')}><Check className="h-4 w-4" /> Save preview</Button>} />
-    <div className="grid gap-5 xl:grid-cols-[1fr_1.1fr]">
-      <Card><CardHeader><CardTitle>Theme presets</CardTitle><CardDescription>Pick a visual direction for the player-facing casino.</CardDescription></CardHeader><div className="space-y-3 px-5 pb-5">{themes.map((item) => <button key={item.name} type="button" onClick={() => setTheme(item.name)} className={cn('flex w-full items-center gap-3 rounded-xl border p-3 text-left transition', theme === item.name ? 'border-slate-900 ring-1 ring-slate-900' : 'border-slate-200 hover:border-slate-300')}><div className={cn('h-12 w-16 shrink-0 rounded-lg bg-gradient-to-br', item.base)} /><span className="min-w-0 flex-1"><span className="block text-xs font-semibold text-slate-900">{item.name}</span><span className="mt-1 block text-[10px] text-slate-500">{item.description}</span></span>{theme === item.name ? <CheckCircle2 className="h-4 w-4 text-slate-900" /> : null}</button>)}</div></Card>
-      <div className="space-y-5">
-        <Card><CardHeader><CardTitle>Brand accent</CardTitle><CardDescription>Preview accent color usage throughout the casino UI.</CardDescription></CardHeader><CardContent><div className="flex flex-wrap gap-3">{accents.map((item) => <button key={item.name} type="button" onClick={() => setAccent(item.color)} className={cn('flex items-center gap-2 rounded-full border px-3 py-2 text-xs transition', accent === item.color ? 'border-slate-900 ring-1 ring-slate-900' : 'border-slate-200 hover:border-slate-300')}><span className="h-4 w-4 rounded-full border border-black/10" style={{ backgroundColor: item.color }} />{item.name}</button>)}</div><div className={cn('mt-5 rounded-xl bg-gradient-to-br p-5 text-white', activeTheme.base)}><p className="text-[10px] font-semibold uppercase tracking-[.2em] text-white/70">Live preview · {theme}</p><h3 className="mt-2 text-xl font-bold">Play your way</h3><p className="mt-1 text-xs text-white/70">Slots · Live Casino · New Releases</p><button type="button" className="mt-4 rounded-lg px-4 py-2 text-xs font-semibold text-slate-950" style={{ backgroundColor: accent }}>Explore games</button></div></CardContent></Card>
-        <Card><CardHeader><CardTitle>UI presentation</CardTitle><CardDescription>Additional display settings for casino content tiles.</CardDescription></CardHeader><CardContent className="space-y-4">
-          <div className="flex items-center justify-between gap-4"><div><p className="text-xs font-medium text-slate-800">Compact game cards</p><p className="mt-1 text-[10px] text-slate-500">Use tighter spacing in game shelves.</p></div><input type="checkbox" checked={compactCards} onChange={(event) => setCompactCards(event.target.checked)} className="h-4 w-4 accent-slate-900" /></div>
-          <div className="flex items-center justify-between gap-4"><div><p className="text-xs font-medium text-slate-800">Show provider names</p><p className="mt-1 text-[10px] text-slate-500">Display provider labels under game titles.</p></div><input type="checkbox" checked={showProviderNames} onChange={(event) => setShowProviderNames(event.target.checked)} className="h-4 w-4 accent-slate-900" /></div>
-          <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5"><span className="block text-xs font-medium text-slate-600">Card corners</span><select value={cornerStyle} onChange={(event) => setCornerStyle(event.target.value)} className="h-10 w-full rounded-md border border-input bg-white px-3 text-xs"><option>Square</option><option>Rounded</option><option>Soft</option></select></label><label className="space-y-1.5"><span className="block text-xs font-medium text-slate-600">Typography</span><select value={fontStyle} onChange={(event) => setFontStyle(event.target.value)} className="h-10 w-full rounded-md border border-input bg-white px-3 text-xs"><option>Modern Sans</option><option>Geometric</option><option>Editorial</option></select></label></div>
-          <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-[10px] text-slate-500">Current preview: {cornerStyle} cards · {fontStyle} · {compactCards ? 'compact spacing' : 'standard spacing'} · provider labels {showProviderNames ? 'visible' : 'hidden'}.</div>
-        </CardContent></Card>
-      </div>
-    </div>
-    <p className="text-[10px] text-slate-400">Appearance settings are local previews. They do not change the live storefront.</p>
-  </div>
-}
-
 export default function App() {
   const [workspace, setWorkspace] = useState<WorkspaceMode>(() => workspaceForPage(pageFromPath(window.location.pathname)))
   const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false)
-  const [topSearchOpen, setTopSearchOpen] = useState(false)
-  const [themeOpen, setThemeOpen] = useState(false)
-  const [themeName, setThemeName] = useState<'Default' | 'Violet' | 'Blue'>('Default')
   const [activePage, setActivePage] = useState<PageKey>(() => pageFromPath(window.location.pathname))
   const [users, setUsers] = useState<UserRow[]>(INITIAL_USERS)
   const [promotions, setPromotions] = useState<Offer[]>(INITIAL_PROMOTIONS)
@@ -3644,6 +3610,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [notificationOpen, setNotificationOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
   const [promotionOpen, setPromotionOpen] = useState(false)
   const [bonusOpen, setBonusOpen] = useState(false)
   const [bonusTypeChooserOpen, setBonusTypeChooserOpen] = useState(false)
@@ -3667,6 +3634,8 @@ export default function App() {
       setSelectedUser(null)
       setMobileNavOpen(false)
       setWorkspaceSwitcherOpen(false)
+      setProfileOpen(false)
+      setNotificationOpen(false)
       setSearchQuery('')
     }
     window.addEventListener('popstate', syncRoute)
@@ -3682,6 +3651,8 @@ export default function App() {
     setSelectedUser(null)
     setMobileNavOpen(false)
     setWorkspaceSwitcherOpen(false)
+    setProfileOpen(false)
+    setNotificationOpen(false)
     setSearchQuery('')
   }
 
@@ -3803,7 +3774,7 @@ export default function App() {
   }
 
   return (
-    <div className={cn('app-shell min-h-screen bg-white text-slate-900', themeName === 'Violet' && 'theme-violet', themeName === 'Blue' && 'theme-blue')}>
+    <div className="app-shell min-h-screen bg-white text-slate-900">
       {mobileNavOpen ? <button type="button" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} className="fixed inset-0 z-30 bg-slate-950/40 lg:hidden" /> : null}
       <aside className={cn('fixed inset-y-0 left-0 z-40 flex w-[232px] flex-col border-r border-slate-200 bg-white text-slate-900 transition-transform duration-200 lg:translate-x-0', mobileNavOpen ? 'translate-x-0' : '-translate-x-full')}>
         <div className="flex h-[52px] items-center justify-between border-b border-slate-200 px-3.5">
@@ -3828,27 +3799,31 @@ export default function App() {
             <div className="space-y-1">{group.items.map((item) => { const Icon = item.icon; const active = activePage === item.page; return <button type="button" key={item.page} onClick={() => navigate(item.page)} className={cn('group flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[12px] font-medium transition', active ? 'workspace-nav-active bg-slate-100 text-slate-950' : 'text-slate-700 hover:bg-slate-100/80 hover:text-slate-950')}><Icon className={cn('h-[17px] w-[17px]', active ? 'text-slate-900' : 'text-slate-500 group-hover:text-slate-900')} /><span className="flex-1">{item.label}</span>{item.count ? <span className={cn('rounded px-1.5 py-0.5 text-[9px]', active ? 'bg-white text-slate-700' : 'bg-slate-100 text-slate-500')}>{item.count}</span> : null}<ChevronRight className={cn('ml-auto h-3.5 w-3.5 text-slate-300 transition', active && 'text-slate-500')} /></button> })}</div>
           </div>)}
         </nav>
-        <div className="border-t border-slate-200 p-2.5">
-          <div className="flex items-center gap-3 rounded-lg px-2 py-2"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e4e9f0] text-xs font-extrabold text-slate-800">AD</div><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-slate-800">Admin Demo</p><p className="mt-0.5 truncate text-[10px] text-slate-500">Super administrator</p></div><button type="button" aria-label="Sign out (demo)" onClick={() => notify('Authentication is outside the scope of this UI prototype.')} className="text-slate-500 hover:text-white"><LogOut className="h-4 w-4" /></button></div>
-        </div>
       </aside>
 
       <div className="min-h-screen min-w-0 lg:pl-[232px]">
         <header className="sticky top-0 z-20 flex h-[50px] items-center gap-2.5 border-b border-slate-200 bg-white px-3 sm:px-4">
           <Button variant="ghost" size="icon" className="shrink-0 lg:hidden" onClick={() => setMobileNavOpen(true)} aria-label="Open navigation"><Menu className="h-5 w-5" /></Button>
-          <div className="hidden min-w-0 sm:block"><p className="truncate text-[13px] font-medium text-slate-900">{workspace === 'backoffice' ? 'Bclick Backoffice' : 'Bclick CMS'}</p></div>
           <div className="ml-auto flex items-center gap-2">
-            <div className={cn('relative w-[min(220px,42vw)]', topSearchOpen ? 'block' : 'hidden lg:block')}><Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" /><Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder={activePage === 'transactions' ? 'Search transactions…' : 'Search…'} className="h-8 rounded-md border-slate-200 bg-white pl-8 pr-2 text-[11px] shadow-none focus-visible:ring-1" /></div>
-            <Button variant="outline" size="icon" className="h-8 w-8 border-slate-200 shadow-none" onClick={() => setTopSearchOpen((open) => !open)} aria-label="Search" title="Search"><Search className="h-3.5 w-3.5 text-slate-600" /></Button>
-          </div>
-          <div className="relative">
-            <Button variant="outline" size="icon" className="relative h-8 w-8 shrink-0 border-slate-200 shadow-none" aria-label="Notifications" onClick={() => setNotificationOpen(!notificationOpen)}><Bell className="h-[18px] w-[18px] text-slate-600" /><span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[9px] font-bold text-white">2</span></Button>
-            {notificationOpen ? <div className="absolute right-0 top-12 z-40 w-[min(320px,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-3 shadow-xl"><div className="flex items-center justify-between px-2 py-1"><p className="text-sm font-bold text-slate-800">Notifications</p><Badge variant="warning">3 new</Badge></div>{[{ title: 'Withdrawal needs review', text: 'TX-1048250 · 250.00 EUR', icon: CreditCard }, { title: 'Promotion is nearly over', text: 'Super Sunday · ended Oct 12', icon: BadgePercent }, { title: 'New player registered', text: 'Youssef Mansour · 21 min ago', icon: UserPlus }].map((item) => { const Icon = item.icon; return <button key={item.title} type="button" onClick={() => { setNotificationOpen(false); notify('Notification preview opened.') }} className="mt-1 flex w-full items-start gap-3 rounded-lg p-2.5 text-left hover:bg-slate-50"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600"><Icon className="h-4 w-4" /></span><span><span className="block text-xs font-semibold text-slate-800">{item.title}</span><span className="mt-1 block text-[10px] text-slate-400">{item.text}</span></span></button> })}<button type="button" onClick={() => { setNotificationOpen(false); notify('All sample notifications marked as read.') }} className="mt-2 w-full border-t border-slate-100 pt-3 text-center text-xs font-semibold text-slate-500 hover:text-slate-900">Mark all as read</button></div> : null}
-          </div>
-          <Button variant="outline" size="icon" className="hidden h-8 w-8 border-slate-200 shadow-none sm:inline-flex" onClick={() => notify('Display preview is not connected to a device service.')} aria-label="Display options"><Monitor className="h-3.5 w-3.5 text-slate-600" /></Button>
-          <div className="relative">
-            <button type="button" aria-haspopup="menu" aria-expanded={themeOpen} onClick={() => setThemeOpen((open) => !open)} className="flex h-8 shrink-0 items-center gap-2 rounded-md border border-slate-200 bg-white px-2 text-left text-[11px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"><span className="flex gap-0.5"><span className={cn('h-3 w-3 rounded-full border border-slate-200', themeName === 'Violet' ? 'bg-violet-600' : themeName === 'Blue' ? 'bg-blue-600' : 'bg-slate-900')} /><span className="h-3 w-3 rounded-full border border-slate-200 bg-white" /><span className="h-3 w-3 rounded-full border border-slate-200 bg-slate-100" /><span className="h-3 w-3 rounded-full border border-slate-200 bg-slate-50" /></span><span className="hidden sm:inline">{themeName}</span><ChevronDown className={cn('h-3.5 w-3.5 text-slate-500 transition-transform', themeOpen && 'rotate-180')} /></button>
-            {themeOpen ? <div role="menu" aria-label="Choose theme" className="absolute right-0 top-10 z-50 w-40 rounded-lg border border-slate-200 bg-white p-1 shadow-xl">{(['Default','Violet','Blue'] as const).map((name) => <button key={name} type="button" role="menuitemradio" aria-checked={themeName === name} onClick={() => { setThemeName(name); setThemeOpen(false) }} className={cn('flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs transition', themeName === name ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50')}><span className={cn('h-3.5 w-3.5 rounded-full border', name === 'Violet' ? 'border-violet-700 bg-violet-600' : name === 'Blue' ? 'border-blue-700 bg-blue-600' : 'border-slate-700 bg-slate-900')} />{name}{themeName === name ? <Check className="ml-auto h-3.5 w-3.5" /> : null}</button>)}</div> : null}
+            <div className="relative">
+              <Button variant="outline" size="icon" className="relative h-8 w-8 shrink-0 border-slate-200 shadow-none" aria-label="Notifications" onClick={() => { setNotificationOpen((open) => !open); setProfileOpen(false) }}><Bell className="h-[18px] w-[18px] text-slate-600" /><span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[9px] font-bold text-white">2</span></Button>
+              {notificationOpen ? <div className="absolute right-0 top-10 z-40 w-[min(320px,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-3 shadow-xl"><div className="flex items-center justify-between px-2 py-1"><p className="text-sm font-bold text-slate-800">Notifications</p><Badge variant="warning">3 new</Badge></div>{[{ title: 'Withdrawal needs review', text: 'TX-1048250 · 250.00 EUR', icon: CreditCard }, { title: 'Promotion is nearly over', text: 'Super Sunday · ended Oct 12', icon: BadgePercent }, { title: 'New player registered', text: 'Youssef Mansour · 21 min ago', icon: UserPlus }].map((item) => { const Icon = item.icon; return <button key={item.title} type="button" onClick={() => { setNotificationOpen(false); notify('Notification preview opened.') }} className="mt-1 flex w-full items-start gap-3 rounded-lg p-2.5 text-left hover:bg-slate-50"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600"><Icon className="h-4 w-4" /></span><span><span className="block text-xs font-semibold text-slate-800">{item.title}</span><span className="mt-1 block text-[10px] text-slate-400">{item.text}</span></span></button> })}<button type="button" onClick={() => { setNotificationOpen(false); notify('All sample notifications marked as read.') }} className="mt-2 w-full border-t border-slate-100 pt-3 text-center text-xs font-semibold text-slate-500 hover:text-slate-900">Mark all as read</button></div> : null}
+            </div>
+            <div className="relative">
+              <button type="button" aria-haspopup="menu" aria-expanded={profileOpen} aria-label="Open profile menu" onClick={() => { setProfileOpen((open) => !open); setNotificationOpen(false) }} className="flex h-8 items-center gap-2 rounded-md border border-slate-200 bg-white px-2 text-left shadow-sm transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#e4e9f0] text-[10px] font-extrabold text-slate-800">AD</span>
+                <span className="hidden text-[11px] font-medium text-slate-700 sm:inline">Admin Demo</span>
+                <ChevronDown className={"h-3.5 w-3.5 text-slate-500 transition-transform " + (profileOpen ? "rotate-180" : "")} />
+              </button>
+              {profileOpen ? <div role="menu" aria-label="Profile menu" className="absolute right-0 top-10 z-50 w-[min(240px,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                <div className="flex items-center gap-3 rounded-lg px-2 py-2.5">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#e4e9f0] text-xs font-extrabold text-slate-800">AD</div>
+                  <div className="min-w-0"><p className="truncate text-xs font-semibold text-slate-900">Admin Demo</p><p className="mt-1 truncate text-[10px] text-slate-500">Super administrator</p></div>
+                </div>
+                <div className="my-1 border-t border-slate-100" />
+                <button type="button" role="menuitem" onClick={() => { setProfileOpen(false); notify('Authentication is outside the scope of this UI prototype.') }} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2.5 text-left text-xs font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"><LogOut className="h-4 w-4" /> Sign out</button>
+              </div> : null}
+            </div>
           </div>
         </header>
 
@@ -3872,7 +3847,6 @@ export default function App() {
              {workspace === 'cms' && activePage === 'cms-skin-games' ? <CmsSkinGamesPage games={games} onSaveGame={(updatedGame) => setGames((current) => current.map((game) => game.id === updatedGame.id ? updatedGame : game))} onMoveGame={(draggedId, targetId) => setGames((current) => { const from = current.findIndex((game) => game.id === draggedId); if (from < 0) return current; const next = [...current]; const [moved] = next.splice(from, 1); if (!moved) return current; const to = next.findIndex((game) => game.id === targetId); if (to < 0) return current; next.splice(to, 0, moved); return next })} onNotify={notify} /> : null}
             {workspace === 'cms' && activePage === 'cms-categories' ? <CmsCategoriesPage onNotify={notify} /> : null}
             {workspace === 'cms' && activePage === 'cms-providers' ? <CmsProvidersPage onNotify={notify} /> : null}
-            {workspace === 'cms' && activePage === 'cms-customization' ? <CmsCustomizationPage onNotify={notify} /> : null}
 
           </>}
           <footer className="mt-10 flex flex-col items-center justify-between gap-2 border-t border-slate-200/80 pt-5 text-[10px] text-slate-400 sm:flex-row"><span>© 2026 Bclick Admin · UI prototype</span><span className="flex items-center gap-3"><button type="button" className="hover:text-slate-600" onClick={() => notify('Admin documentation has not been added yet.')}>Documentation</button><button type="button" className="hover:text-slate-600" onClick={() => notify('Support is not connected in this prototype.')}>Contact support</button><span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-amber-400" /> Demo data</span></span></footer>
