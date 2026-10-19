@@ -46,7 +46,8 @@ const GROUPS = [
     label: 'History',
     icon: History,
     links: [
-      { label: 'Betslips', path: '/account/betslips' },
+      { label: 'Sports', path: '/account/betslips' },
+      { label: 'Casino', path: '/account/casino-history' },
     ],
   },
 ]
@@ -141,7 +142,7 @@ export function AccountPanel() {
                       to={l.path}
                       className={cn(
                         'block px-3 py-3 rounded-md text-sm transition-colors',
-                        (pathname === l.path || (l.path === '/account/betslips' && pathname.startsWith('/account/betslips/')))
+                        (pathname === l.path || (l.path === '/account/betslips' && pathname.startsWith('/account/betslips/')) || (l.path === '/account/casino-history' && pathname.startsWith('/account/casino-history')))
                           ? 'bg-[var(--cb-light-selected)] text-[var(--cb-light-text)]'
                           : 'text-[var(--cb-light-text)] hover:bg-black/5',
                       )}
@@ -180,14 +181,15 @@ export function AccountLayout({ children }: { children: ReactNode }) {
     { label: 'Activity History', path: '/account/bonuses/activity-history' },
   ]
   const historyLinks = [
-    { label: 'Betslips', path: '/account/betslips' },
+    { label: 'Sports', path: '/account/betslips' },
+    { label: 'Casino', path: '/account/casino-history' },
   ]
 
   const mobileLinks = pathname.startsWith('/account/wallet/')
     ? walletLinks
     : pathname.startsWith('/account/bonuses')
       ? bonusLinks
-      : pathname.startsWith('/account/betslips')
+      : (pathname.startsWith('/account/betslips') || pathname.startsWith('/account/casino-history'))
         ? historyLinks
         : profileLinks
   const isAccountHome = pathname === '/account'
@@ -220,7 +222,7 @@ export function AccountLayout({ children }: { children: ReactNode }) {
                     aria-current={pathname === link.path ? 'page' : undefined}
                     className={cn(
                       'shrink-0 whitespace-nowrap rounded border px-3 py-2 text-sm transition-colors',
-                      (pathname === link.path || (link.path === '/account/betslips' && pathname.startsWith('/account/betslips/')))
+                      (pathname === link.path || (link.path === '/account/betslips' && pathname.startsWith('/account/betslips/')) || (link.path === '/account/casino-history' && pathname.startsWith('/account/casino-history')))
                         ? 'border-[var(--cb-light-border)] bg-[var(--cb-light-selected)] font-semibold text-[var(--cb-light-text)]'
                         : 'border-transparent text-[var(--cb-light-muted)] hover:bg-black/5',
                     )}
