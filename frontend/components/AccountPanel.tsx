@@ -73,11 +73,11 @@ export function AccountPanel() {
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--cb-yellow)]">
           <User2 className="h-6 w-6 text-[var(--cb-light-text)]" />
         </span>
-        <div className="Account-nameAndIdStyles min-w-0 flex-1 leading-tight">
+        <div className="Account-nameAndIdStyles flex min-w-0 flex-1 flex-col justify-center gap-1">
           <div className="firstAndLastName">
-            <span className="large block truncate text-[14px] font-bold text-[var(--cb-light-text)]">mrbelhaj</span>
+            <span className="large block truncate text-base leading-5 font-bold text-[var(--cb-light-text)]">mrbelhaj</span>
           </div>
-          <div className="userId mt-0.5 flex min-w-0 items-center gap-1 text-[10px] text-[var(--cb-light-muted)]">
+          <div className="userId mt-0 flex min-w-0 items-center gap-1 text-xs text-[var(--cb-light-muted)]">
             <span className="shrink-0">ID:</span>
             <span className="Copy-Text-copyTextStyles inline-flex min-w-0 items-center gap-1">
               <span className="truncate font-semibold text-[var(--cb-light-text)]">436222976</span>
@@ -86,15 +86,11 @@ export function AccountPanel() {
                 onClick={copyUserId}
                 aria-label={copiedUserId ? 'User ID copied' : 'Copy user ID'}
                 title={copiedUserId ? 'Copied' : 'Copy ID'}
-                className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-[var(--cb-light-muted)] transition-colors hover:text-[var(--cb-light-text)]"
+                className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[var(--cb-light-muted)] transition-colors hover:text-[var(--cb-light-text)]"
               >
-                {copiedUserId ? <BadgeCheck className="h-3 w-3" aria-hidden="true" /> : <Copy className="h-3 w-3" aria-hidden="true" />}
+                {copiedUserId ? <BadgeCheck className="h-4 w-4" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}
               </button>
             </span>
-          </div>
-          <div className="verifiedBlock mt-0.5 flex items-center gap-1 text-[10px] font-semibold text-[var(--cb-yellow-dark)]">
-            <BadgeCheck className="h-3 w-3 shrink-0" aria-hidden="true" />
-            <span>Not verified</span>
           </div>
         </div>
       </div>
@@ -144,7 +140,7 @@ export function AccountPanel() {
                       to={l.path}
                       className={cn(
                         'block px-3 py-3 rounded-md text-sm transition-colors',
-                        pathname === l.path
+                        (pathname === l.path || (l.path === '/account/betslips' && pathname.startsWith('/account/betslips/')))
                           ? 'bg-[var(--cb-light-selected)] text-[var(--cb-light-text)]'
                           : 'text-[var(--cb-light-text)] hover:bg-black/5',
                       )}
@@ -189,7 +185,7 @@ export function AccountLayout({ children }: { children: ReactNode }) {
     ? walletLinks
     : pathname.startsWith('/account/bonuses-')
       ? bonusLinks
-      : pathname === '/account/betslips'
+      : pathname.startsWith('/account/betslips')
         ? historyLinks
         : profileLinks
   const isAccountHome = pathname === '/account'
@@ -222,7 +218,7 @@ export function AccountLayout({ children }: { children: ReactNode }) {
                     aria-current={pathname === link.path ? 'page' : undefined}
                     className={cn(
                       'shrink-0 whitespace-nowrap rounded border px-3 py-2 text-sm transition-colors',
-                      pathname === link.path
+                      (pathname === link.path || (link.path === '/account/betslips' && pathname.startsWith('/account/betslips/')))
                         ? 'border-[var(--cb-light-border)] bg-[var(--cb-light-selected)] font-semibold text-[var(--cb-light-text)]'
                         : 'border-transparent text-[var(--cb-light-muted)] hover:bg-black/5',
                     )}
