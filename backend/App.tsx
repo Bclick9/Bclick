@@ -1598,6 +1598,46 @@ const PAYMENTS_REPORT_COLUMNS = reportColumns([
   ['creditUsd', 'Credit (USD)', 140], ['closingBalance', 'Closing Balance', 165], ['closingBalanceUsd', 'Closing Balance (USD)', 190],
 ])
 
+const ACCOUNT_BALANCE_COLUMNS = reportColumns([
+  ['balanceTypeId', 'Balance Type Id', 150], ['balanceTypeName', 'Balance Type Name', 220],
+  ['currencyId', 'Currency Id', 150], ['openingBalance', 'Opening Balance', 165],
+  ['debit', 'Debit', 150], ['credit', 'Credit', 150], ['closingBalance', 'Closing Balance', 165],
+])
+const ACCOUNT_BALANCE_ROWS = makeReportRows(ACCOUNT_BALANCE_COLUMNS, [
+  { id: 'account-balance-client', values: { balanceTypeId: '5211', balanceTypeName: 'Client Balance', currencyId: 'TND', openingBalance: '0', debit: '50.56', credit: '96.31', closingBalance: '45.75' } },
+  { id: 'account-balance-corrections', values: { balanceTypeId: '7141', balanceTypeName: 'Expense From Corrections', currencyId: 'TND', openingBalance: '0', debit: '68', credit: '0', closingBalance: '68' } },
+])
+
+const BALANCE_REPORT_COLUMNS = reportColumns([
+  ['clientId', 'Client ID', 150], ['clientName', 'Client Name', 180], ['currencyId', 'Currency Id', 150],
+  ['promoCode', 'Promo Code', 150], ['loyaltyLevel', 'Loyalty Level', 150], ['startBalance', 'Start Balance', 150],
+  ['deposit', 'Deposit', 150], ['withdrawals', 'Withdrawals', 150], ['correctionUp', 'Correction +', 150],
+  ['correctionDown', 'Correction -', 150], ['bonusCorrectionUp', 'Bonus Correction +', 180],
+  ['bonusCorrectionDown', 'Bonus Correction -', 180], ['buddyDeposit', 'Buddy Deposit', 150],
+  ['buddyWithdrawal', 'Buddy Withdrawal', 175], ['sportBets', 'Sport Bets', 150],
+  ['sportsbookPaidBonus', 'SportsBook Paid Bonus', 190], ['sportsWin', 'Sports Win', 150],
+  ['sportReturn', 'Sport Return', 150], ['sportBonusBet', 'Sport Bonus Bet Amount', 190],
+  ['sportBonusWin', 'Sport Bonus Win', 170], ['casinoBonusBet', 'Casino Bonus Bet Amount', 190],
+  ['casinoBonusWin', 'Casino Bonus Win', 170], ['casinoBets', 'Casino Bets', 150],
+  ['casinoWinAmount', 'Casino Win Amount', 175], ['casinoPaidBonus', 'Casino Paid Bonus', 175],
+  ['exchangedMoney', 'Exchanged Money', 170], ['pointEarned', 'Point Earned', 150],
+  ['exchangedPoints', 'Exchanged Points', 170], ['pointBalance', 'Point Balance', 150],
+  ['endBalance', 'End Balance', 150], ['ggr', 'GGR', 150], ['status', 'Status', 130],
+  ['sportDecreaseWin', 'Sport Decrease Win Amount', 190],
+])
+const BALANCE_REPORT_ROWS = makeReportRows(BALANCE_REPORT_COLUMNS, [
+  { id: 'balance-report-demo-client', values: {
+    clientId: '500100101', clientName: 'Alex Morgan', currencyId: 'TND', promoCode: 'DEMO1', loyaltyLevel: '—',
+    startBalance: '0', deposit: '0', withdrawals: '0', correctionUp: '17', correctionDown: '0',
+    bonusCorrectionUp: '0', bonusCorrectionDown: '0', buddyDeposit: '0', buddyWithdrawal: '0',
+    sportBets: '5', sportsbookPaidBonus: '0', sportsWin: '0', sportReturn: '0',
+    sportBonusBet: '0', sportBonusWin: '0', casinoBonusBet: '0', casinoBonusWin: '0',
+    casinoBets: '0', casinoWinAmount: '0', casinoPaidBonus: '0', exchangedMoney: '0',
+    pointEarned: '0', exchangedPoints: '0', pointBalance: '0', endBalance: '12',
+    ggr: '5', status: 'Temporary', sportDecreaseWin: '0',
+  } },
+])
+
 function getReportTableConfig(title: string): ReportTableConfig | null {
   if (title === 'Bets Report') return {
     columns: BET_REPORT_COLUMNS, rows: BET_REPORT_ROWS,
@@ -1642,6 +1682,15 @@ function getReportTableConfig(title: string): ReportTableConfig | null {
   if (title === 'Payments Report') return {
     columns: PAYMENTS_REPORT_COLUMNS, rows: [],
     totals: {}, searchable: true, sportFilter: false, hideRowDetails: true, showTotals: false, emptyState: true,
+  }
+  if (title === 'Account Balance') return {
+    columns: ACCOUNT_BALANCE_COLUMNS, rows: ACCOUNT_BALANCE_ROWS,
+    totals: {}, searchable: true, sportFilter: false, showTotals: false, defaultSortKey: 'balanceTypeId', defaultSortDirection: 'asc',
+  }
+  if (title === 'Balance Report') return {
+    columns: BALANCE_REPORT_COLUMNS, rows: BALANCE_REPORT_ROWS,
+    totals: { clientId: 'Total', correctionUp: '17', sportBets: '5', endBalance: '12', ggr: '5' },
+    searchable: false, sportFilter: false, hideRowDetails: true, defaultSortKey: 'clientId', defaultSortDirection: 'desc',
   }
   return null
 }
@@ -1862,7 +1911,7 @@ function ReportsPage() {
 
   if (selectedReport) {
     const ReportIcon = selectedReport.report.icon
-    const supportsDataTable = ['Bets Report', 'Sports Report', 'Competitions Report', 'Market Types Report', 'Report By Game', 'Report By Partner', 'Report By Provider', 'Report By Player', 'Payments Report'].includes(selectedReport.report.title)
+    const supportsDataTable = ['Bets Report', 'Sports Report', 'Competitions Report', 'Market Types Report', 'Report By Game', 'Report By Partner', 'Report By Provider', 'Report By Player', 'Payments Report', 'Account Balance', 'Balance Report'].includes(selectedReport.report.title)
     return <div className="page-enter space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 sm:px-5">
         <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
