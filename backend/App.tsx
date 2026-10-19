@@ -1417,13 +1417,121 @@ function TransactionsPage({ query, onQueryChange, users, onNotify, onSelectPlaye
 
 
 function ReportsPage() {
+  const [selectedReport, setSelectedReport] = useState<{
+    group: string
+    report: { title: string; description: string; icon: LucideIcon }
+  } | null>(null)
+
+  const reportGroups: {
+    title: string
+    description: string
+    icon: LucideIcon
+    reports: { title: string; description: string; icon: LucideIcon }[]
+  }[] = [
+    {
+      title: 'Sportsbook Reports',
+      description: 'Betting activity, sports performance and market analysis.',
+      icon: Trophy,
+      reports: [
+        { title: 'Bets Report', description: 'Review bets, stakes, outcomes and settlement status.', icon: Activity },
+        { title: 'Sports Report', description: 'Explore sportsbook performance by sport and event.', icon: Globe },
+        { title: 'Competitions Report', description: 'Analyze betting activity across competitions.', icon: Trophy },
+        { title: 'Market Types Report', description: 'Compare activity and results by market type.', icon: LayoutGrid },
+      ],
+    },
+    {
+      title: 'Casino Reports',
+      description: 'Casino performance organized by game, partner, provider and player.',
+      icon: Gamepad2,
+      reports: [
+        { title: 'Report By Game', description: 'Review rounds, stakes and results for each game.', icon: Gamepad2 },
+        { title: 'Report By Partner', description: 'Compare casino performance across partners.', icon: Globe },
+        { title: 'Report By Provider', description: 'Review game activity and results by provider.', icon: Layers },
+        { title: 'Report By Player', description: 'Explore player-level casino activity.', icon: Users },
+      ],
+    },
+    {
+      title: 'Financial Reports',
+      description: 'Payments, account balances and balance movements.',
+      icon: CircleDollarSign,
+      reports: [
+        { title: 'Payments Report', description: 'Review payment activity and transaction outcomes.', icon: CreditCard },
+        { title: 'Account Balance', description: 'View account and wallet balance snapshots.', icon: Wallet },
+        { title: 'Balance Report', description: 'Review balance movements and reconciliation.', icon: CircleDollarSign },
+      ],
+    },
+  ]
+
+  if (selectedReport) {
+    const ReportIcon = selectedReport.report.icon
+    return <div className="page-enter space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 sm:px-5">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
+          <button type="button" onClick={() => setSelectedReport(null)} className="font-medium text-slate-500 transition hover:text-slate-900">Reports &amp; analytics</button>
+          <ChevronRight className="h-3.5 w-3.5 text-slate-300" />
+          <span className="text-slate-500">{selectedReport.group}</span>
+          <ChevronRight className="h-3.5 w-3.5 text-slate-300" />
+          <span className="truncate font-semibold text-slate-900">{selectedReport.report.title}</span>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={() => setSelectedReport(null)}><ArrowRight className="h-3.5 w-3.5 rotate-180" /> All reports</Button>
+      </div>
+
+      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none">
+        <div className="flex items-start gap-3 border-b border-slate-100 px-4 py-4 sm:px-5">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-600"><ReportIcon className="h-5 w-5" /></span>
+          <div className="min-w-0">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{selectedReport.group}</p>
+            <h1 className="mt-1 text-base font-semibold text-slate-900">{selectedReport.report.title}</h1>
+            <p className="mt-1 text-xs leading-5 text-slate-500">{selectedReport.report.description}</p>
+          </div>
+        </div>
+        <div className="flex min-h-[300px] flex-col items-center justify-center px-5 py-12 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-400"><FileText className="h-5 w-5" /></span>
+          <h2 className="mt-4 text-sm font-semibold text-slate-800">Report view</h2>
+          <p className="mt-1.5 max-w-md text-xs leading-5 text-slate-500">This report is listed in the reporting workspace. Its filters and report data will appear here when a reporting data source is connected.</p>
+          <p className="mt-3 text-[10px] text-slate-400">Navigation preview · No production data connected</p>
+          <Button type="button" variant="outline" size="sm" className="mt-5" onClick={() => setSelectedReport(null)}>Back to all reports</Button>
+        </div>
+      </section>
+    </div>
+  }
+
   return <div className="page-enter space-y-5">
-    <SectionHeading title="Reports & analytics" description="Performance snapshots for key platform metrics." actions={<><Button variant="outline"><CalendarDays className="h-4 w-4" /> 1–19 Oct 2026 <ChevronDown className="h-3.5 w-3.5" /></Button><Button onClick={() => window.print()}><Download className="h-4 w-4" /> Export report</Button></>} />
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><MetricCard title="Gross gaming revenue" value="€112,480" change="+6.4%" note="vs previous period" icon={CircleDollarSign} accent="amber" /><MetricCard title="Net gaming revenue" value="€86,240" change="+4.2%" note="vs previous period" icon={TrendingUp} accent="green" /><MetricCard title="Active players" value="8,642" change="+9.8%" note="vs previous period" icon={Users} accent="blue" /><MetricCard title="Avg. deposit" value="€46.20" change="−1.2%" note="vs previous period" icon={Wallet} accent="violet" /></div>
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(300px,.8fr)]"><Card><CardHeader><CardTitle>Revenue trend</CardTitle><CardDescription>Estimated GGR and deposits for the current reporting window.</CardDescription></CardHeader><CardContent><PerformanceChart /></CardContent></Card>
-      <Card><CardHeader><CardTitle>Revenue by channel</CardTitle><CardDescription>Sample contribution by product category.</CardDescription></CardHeader><CardContent className="space-y-5">{[{ label: 'Slots & instant games', value: '€48,260', percent: 58, color: 'bg-amber-400' }, { label: 'Live casino', value: '€23,140', percent: 27, color: 'bg-blue-500' }, { label: 'Sportsbook', value: '€14,840', percent: 17, color: 'bg-violet-500' }].map((item) => <div key={item.label}><div className="mb-2 flex items-center justify-between gap-3"><span className="text-xs text-slate-500">{item.label}</span><span className="text-xs font-bold text-slate-800">{item.value}</span></div><div className="h-2 rounded-full bg-slate-100"><div className={cn('h-2 rounded-full', item.color)} style={{ width: item.percent + '%' }} /></div></div>)}</CardContent></Card></div>
-    <Card><CardHeader><CardTitle>Report notes</CardTitle><CardDescription>Suggested areas to keep visible in the admin product.</CardDescription></CardHeader><CardContent className="grid gap-3 sm:grid-cols-3">{[{ title: 'Player activity', detail: 'Daily active users, new registrations, retention cohorts.', icon: Users }, { title: 'Campaign conversion', detail: 'Claims, qualified players, reward cost, campaign ROI.', icon: BadgePercent }, { title: 'Payments overview', detail: 'Deposit success rate, withdrawal time, payment methods.', icon: CreditCard }].map((item) => { const Icon = item.icon; return <div key={item.title} className="rounded-xl border border-slate-200 p-4"><Icon className="h-5 w-5 text-amber-600" /><p className="mt-3 text-sm font-bold text-slate-800">{item.title}</p><p className="mt-1.5 text-xs leading-5 text-slate-500">{item.detail}</p></div> })}</CardContent></Card>
-    <p className="text-center text-[10px] text-slate-400">All report values are sample metrics and are not sourced from production.</p>
+    <SectionHeading title="Reports & analytics" description="Browse reports by business area. Select a report to open it in this workspace." />
+    <div className="space-y-4">
+      {reportGroups.map((group) => {
+        const GroupIcon = group.icon
+        return <section key={group.title} className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none">
+          <div className="flex items-start gap-3 border-b border-slate-100 px-4 py-4 sm:px-5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-600"><GroupIcon className="h-4 w-4" /></span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-semibold text-slate-900">{group.title}</h2>
+              <p className="mt-1 text-xs text-slate-500">{group.description}</p>
+            </div>
+            <span className="rounded-md border border-slate-200 px-2 py-1 text-[10px] font-medium tabular-nums text-slate-500">{group.reports.length} reports</span>
+          </div>
+          <div className="grid gap-px bg-slate-100 sm:grid-cols-2 xl:grid-cols-4">
+            {group.reports.map((report) => {
+              const ReportIcon = report.icon
+              return <button
+                key={report.title}
+                type="button"
+                onClick={() => setSelectedReport({ group: group.title, report })}
+                className="group flex min-h-[100px] min-w-0 items-start gap-3 bg-white px-4 py-4 text-left transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-400"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition group-hover:border-slate-300 group-hover:text-slate-800"><ReportIcon className="h-4 w-4" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-semibold text-slate-800">{report.title}</span>
+                  <span className="mt-1.5 block text-[11px] leading-4 text-slate-500">{report.description}</span>
+                </span>
+                <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-600" />
+              </button>
+            })}
+          </div>
+        </section>
+      })}
+    </div>
+    <p className="text-[10px] text-slate-400">Report navigation is available in this preview. Live reporting data is not connected.</p>
   </div>
 }
 
