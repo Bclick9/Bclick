@@ -3126,7 +3126,7 @@ export default function App() {
                       {activePage === 'users' ? <PlayersPage users={users} query={searchQuery} onQueryChange={setSearchQuery} onAdd={() => setUserOpen(true)} onSelect={setSelectedUser} onToggleStatus={toggleUserStatus} /> : null}
                       {activePage === 'promotions' ? <OffersPage title="Promotions" description="Create campaigns and track engagement across channels." offers={promotions} kind="promotions" onCreate={() => setPromotionOpen(true)} onToggle={(id) => toggleOffer('promotions', id)} /> : null}
                       {activePage === 'bonuses' ? <BonusesPage offers={bonuses} onCreate={() => setBonusTypeChooserOpen(true)} onToggle={(id) => toggleOffer('bonuses', id)} onNotify={notify} /> : null}
-                      {activePage === 'games' ? <GamesPage games={games.map((game) => ({ id: game.id, title: game.title, provider: game.provider, category: game.category, rtp: game.rtp, players: game.players, status: game.active ? 'Active' : 'Paused' }))} onToggle={toggleGame} /> : null}
+                      {activePage === 'games' ? <GamesPage games={games.map((game) => ({ id: game.id, title: game.title, provider: game.provider, category: game.category, rtp: game.rtp, players: game.players, status: (game.active ? 'Active' : 'Paused') as GameRow['status'] }))} onToggle={toggleGame} /> : null}
                       {activePage === 'transactions' ? <TransactionsPage query={searchQuery} onQueryChange={setSearchQuery} users={users} onNotify={notify} onSelectPlayer={setSelectedUser} /> : null}
                       {activePage === 'reports' ? <ReportsPage /> : null}
                       {activePage === 'settings' ? <SettingsPage /> : null}
