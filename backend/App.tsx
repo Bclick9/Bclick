@@ -2580,25 +2580,109 @@ function CmsPagesPage({ onNotify }: { onNotify: (message: string) => void }) {
   </div>
 }
 
-type CmsSkinGame = { id: string; title: string; provider: string; skin: string; status: 'Active' | 'Draft' | 'Paused'; art: string; updated: string }
+type CmsSkinGame = { id: string; title: string; provider: string; category: string; skin: string; status: 'Active' | 'Draft' | 'Paused'; art: string; updated: string }
 const INITIAL_CMS_SKIN_GAMES: CmsSkinGame[] = [
-  { id: 'SKN-001', title: 'Zeus vs Hades', provider: 'Demo Studio', skin: 'Mythology Gold', status: 'Active', art: 'from-indigo-950 via-violet-800 to-amber-500', updated: '18 Oct 2026' },
-  { id: 'SKN-002', title: 'Wild Clusters', provider: 'Play’n GO', skin: 'Emerald Reels', status: 'Active', art: 'from-emerald-950 via-green-800 to-lime-500', updated: '17 Oct 2026' },
-  { id: 'SKN-003', title: 'Roulette Royale', provider: 'Evolution', skin: 'Royal Table', status: 'Draft', art: 'from-slate-950 via-red-950 to-amber-600', updated: '16 Oct 2026' },
-  { id: 'SKN-004', title: 'Rocket Rush', provider: 'Demo Studio', skin: 'Neon Rush', status: 'Paused', art: 'from-blue-950 via-cyan-800 to-fuchsia-500', updated: '14 Oct 2026' },
+  { id: 'SKN-001', title: 'Zeus vs Hades', provider: 'Demo Studio', category: 'Video Slots', skin: 'Mythology Gold', status: 'Active', art: 'from-indigo-950 via-violet-800 to-amber-500', updated: '18 Oct 2026' },
+  { id: 'SKN-002', title: 'Wild Clusters', provider: 'Play’n GO', category: 'Megaways', skin: 'Emerald Reels', status: 'Active', art: 'from-emerald-950 via-green-800 to-lime-500', updated: '17 Oct 2026' },
+  { id: 'SKN-003', title: 'Roulette Royale', provider: 'Evolution', category: 'Live Dealer', skin: 'Royal Table', status: 'Draft', art: 'from-slate-950 via-red-950 to-amber-600', updated: '16 Oct 2026' },
+  { id: 'SKN-004', title: 'Rocket Rush', provider: 'Demo Studio', category: 'Crash Games', skin: 'Neon Rush', status: 'Paused', art: 'from-blue-950 via-cyan-800 to-fuchsia-500', updated: '14 Oct 2026' },
+]
+const SKIN_GAME_CATEGORY_OPTIONS = [
+  'Achievements Slots', 'Age of the Gods', 'All', 'All Games', 'Arcade Games', 'Autumn Slots',
+  'Award Winners', 'Betting Games', 'BFTH Casino', 'BFTH Live Casino', 'BFTH Live Dealer', 'BFTH Slots',
+  'Buy Bonus', 'Choice', 'Crash Games', 'Drops & Wins Slots', 'EGT Black Friday', 'Exclusive', 'Finished',
+  'Fire Blaze Jackpots', 'Fishing & Hunting', 'From R$0,01', 'Halloween', 'Hidden', 'Highest Multiplier',
+  'Instant Game', 'Jackpot Mania', 'Jackpots', 'LAUNCH GAMES', 'Live Dealer', 'Lottery Games', 'Mega jackpot',
+  'Megaways', 'Mini Games', 'Must Drop Jackpots', 'New', 'Olimpiada Sloturilor', 'Ongoing', 'PG Soft',
+  'Popular Games', 'Prize and Drops', 'Scratch Games', 'Skill Games', 'SLOTS FOR BONUSES', 'Table Games',
+  'Tiki Ques', 'Tv Games', 'Upcoming', 'Video Bingo', 'Video Poker', 'Video Slots', 'Virtual Betting',
+]
+const SKIN_GAME_PROVIDER_OPTIONS = [
+  '7777 Gaming', '77GAMING', 'Aardvark', 'AGT', 'AMAtic', 'AVIATRIX', 'AbraCadabra', 'Arcadem',
+  'CT INTERACTIVE', 'Armadillo Studios', 'Advant Play', 'FBastard', 'Thunderspin', 'AGTsoftware',
+  'Air Dice', 'Amigo Gaming', 'MASCOT', 'Apollo Games', 'Apparat', 'Suprema Games', 'BETCONSTRUCT',
+  'Spinoro', 'Aspect Gaming', 'SYnot', 'Amatic', 'TomHorn', 'Atlas-V', 'Aura Gaming', 'AvatarUX',
+  'Aviator Studio', 'Aviatrix', 'Babylon', 'Banana Games', 'BETgames', 'Barbara Bang', 'BOOMing Games',
+  'Big Daddy', 'Endorphina', 'Betora', 'Netent', 'EVOlution', 'EZugi', 'BF GAMES', 'Big Time Gaming',
+  'Bragg', 'BGaming', '3 Oaks Gaming', 'GreenTube', 'BIG TIME GAMING', 'Bahatika', 'F*Bastards',
+  'KAGaming', 'National Lottery', 'Lagio Studio', 'Blueprint', 'Belatra', 'BOOMING Games', '3 Oaks GAMING',
+  'Play’n Go', 'PLAYTECH', 'PLAYTECH LIVE', 'Bitville Roulette', 'BetRadarLotto', 'RED TIGER', 'Kiron',
+  'Smartsoft', 'Betradar', 'Slot Builder', 'SPribe', 'BETSOFT', 'BetGames BetShop', 'SA Gaming',
+  'Superlotto', 'Splitthepot', 'TV BET', 'BETGAMES', 'ICONIC21', 'Betsolutions', 'Lucky Numbers',
+  'VIVO Gaming', 'Bally Wulff', 'Betxpro', 'Caleta', 'CandleBets', 'Comtrade Gaming', 'Champion',
+  'Kiss Live Casino', 'Celestar', 'Spinexis', 'Capecod', 'CP Games', 'COLOSSUS', 'CT Interactive',
+  'Clawbuster', 'CasinoWM', 'Cozmo Play', 'Dubibet', 'DLV', 'Dream Gaming', 'Dream Play',
+  'Darpha Studios', 'Player Bets', 'EURASIAN Gaming', 'Eclipse', 'EYECON', 'Merkur games',
+  'ENDORPHINA', 'EZUGI', 'EVOLUTION', 'The Better Platform', 'EGT Digital', 'E-Gaming', 'AMUSNET',
+  'ELA Games', 'Elbet', 'ELK Studios', 'Spearhead', 'EvoPersia', 'Esa Gaming', 'Demo Studio',
+  'Play’n GO', 'Evolution', 'Pragmatic Play', 'NetEnt',
 ]
 function CmsSkinGamesPage({ onNotify }: { onNotify: (message: string) => void }) {
   const [games, setGames] = useState<CmsSkinGame[]>(INITIAL_CMS_SKIN_GAMES)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'All' | CmsSkinGame['status']>('All')
-  const shown = games.filter((item) => (statusFilter === 'All' || item.status === statusFilter) && (item.title + ' ' + item.provider + ' ' + item.skin).toLowerCase().includes(search.toLowerCase()))
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [selectedProviders, setSelectedProviders] = useState<string[]>([])
+  const [openFilter, setOpenFilter] = useState<'categories' | 'providers' | null>(null)
+  const [categorySearch, setCategorySearch] = useState('')
+  const [providerSearch, setProviderSearch] = useState('')
+  const categoryOptions = SKIN_GAME_CATEGORY_OPTIONS.filter((item) => item.toLowerCase().includes(categorySearch.toLowerCase()))
+  const providerOptions = SKIN_GAME_PROVIDER_OPTIONS.filter((item, index, all) => all.indexOf(item) === index).filter((item) => item.toLowerCase().includes(providerSearch.toLowerCase()))
+  const shown = games.filter((item) =>
+    (statusFilter === 'All' || item.status === statusFilter)
+    && (selectedCategories.length === 0 || selectedCategories.includes(item.category))
+    && (selectedProviders.length === 0 || selectedProviders.includes(item.provider))
+    && (item.title + ' ' + item.provider + ' ' + item.category + ' ' + item.skin).toLowerCase().includes(search.toLowerCase())
+  )
   const updateSkin = (id: string, skin: string) => setGames((current) => current.map((item) => item.id === id ? { ...item, skin, status: 'Draft', updated: '19 Oct 2026' } : item))
   const toggle = (id: string) => setGames((current) => current.map((item) => item.id === id ? { ...item, status: item.status === 'Active' ? 'Paused' : 'Active' } : item))
+  const toggleCategory = (category: string) => setSelectedCategories((current) => current.includes(category) ? current.filter((item) => item !== category) : [...current, category])
+  const toggleProvider = (provider: string) => setSelectedProviders((current) => current.includes(provider) ? current.filter((item) => item !== provider) : [...current, provider])
+  const resetFilters = () => {
+    setSelectedCategories([])
+    setSelectedProviders([])
+    setCategorySearch('')
+    setProviderSearch('')
+    setSearch('')
+    setStatusFilter('All')
+    setOpenFilter(null)
+  }
+  const multiSelectButtonClass = 'flex h-10 w-full items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 text-left text-xs text-slate-700 shadow-sm transition hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200'
   return <div className="page-enter space-y-5">
-    <SectionHeading title="Skin Games" description="Preview the artwork skin and tile presentation applied to selected casino games." />
+    <SectionHeading title="Skin Games" description="Manage game skin assignments and preview the artwork shown in the casino." />
     <div className="grid gap-3 sm:grid-cols-3">{[{label:'Game skins',value:games.length},{label:'Active',value:games.filter((item)=>item.status==='Active').length},{label:'Drafts',value:games.filter((item)=>item.status==='Draft').length}].map((item)=><Card key={item.label}><CardContent className="p-4"><p className="text-xs text-slate-500">{item.label}</p><p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">{item.value}</p></CardContent></Card>)}</div>
-    <Card><CardContent className="p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="relative sm:w-72"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search games or skins…" className="pl-9" /></div><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)} className="h-10 rounded-md border border-input bg-white px-3 text-xs"><option>All</option><option>Active</option><option>Draft</option><option>Paused</option></select></div></CardContent></Card>
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{shown.map((game) => <Card key={game.id} className="overflow-hidden"><div className={cn('relative flex h-36 items-end overflow-hidden bg-gradient-to-br p-4',game.art)}><div className="absolute -right-6 -top-8 h-32 w-32 rounded-full border border-white/20" /><div className="absolute right-8 top-4 h-20 w-20 rounded-full border border-white/15" /><div className="relative"><p className="text-[9px] font-semibold uppercase tracking-[.18em] text-white/70">{game.provider}</p><p className="mt-1 text-xl font-bold text-white">{game.title}</p></div><span className="absolute right-3 top-3 rounded-md border border-white/20 bg-black/20 px-2 py-1 text-[9px] text-white">{game.status}</span></div><CardContent className="space-y-3 p-4"><div><p className="text-[10px] text-slate-400">Current skin</p><p className="mt-1 text-xs font-semibold text-slate-800">{game.skin}</p></div><label className="block space-y-1.5"><span className="text-[10px] font-medium text-slate-500">Skin preset</span><select value={game.skin} onChange={(event) => updateSkin(game.id, event.target.value)} className="h-9 w-full rounded-md border border-input bg-white px-3 text-xs">{[game.skin,'Midnight Gold','Emerald Reels','Royal Table','Neon Rush','Minimal Light'].filter((item,index,array)=>array.indexOf(item)===index).map((item)=><option key={item}>{item}</option>)}</select></label><div className="flex items-center justify-between border-t border-slate-100 pt-3"><span className="text-[10px] text-slate-400">Updated {game.updated}</span><Button size="sm" variant="outline" onClick={() => { toggle(game.id); onNotify('Skin game status updated in this local preview.') }}>{game.status === 'Active' ? 'Pause' : 'Activate'}</Button></div></CardContent></Card>)}</div>
+    <Card>
+      <CardHeader className="pb-3"><div className="flex items-center justify-between gap-3"><div><CardTitle>Filters</CardTitle><CardDescription className="mt-1">Filter the skin game catalogue by category and provider.</CardDescription></div><Button type="button" variant="outline" size="sm" onClick={resetFilters}><RotateCcw className="h-3.5 w-3.5" /> Reset</Button></div></CardHeader>
+      <CardContent className="grid gap-4 pt-0 md:grid-cols-2">
+        <div className="relative min-w-0">
+          <label className="mb-1.5 block text-xs font-medium text-slate-600">Categories</label>
+          <button type="button" aria-expanded={openFilter === 'categories'} onClick={() => setOpenFilter((current) => current === 'categories' ? null : 'categories')} className={multiSelectButtonClass}>
+            <span className="truncate">{selectedCategories.length === 0 ? '0 selected' : selectedCategories.length + ' selected'}</span><ChevronDown className={cn('h-4 w-4 shrink-0 text-slate-400 transition-transform', openFilter === 'categories' && 'rotate-180')} />
+          </button>
+          {openFilter === 'categories' ? <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
+            <div className="border-b border-slate-100 p-2.5"><div className="relative"><Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><input value={categorySearch} onChange={(event) => setCategorySearch(event.target.value)} placeholder="Search categories…" className="h-8 w-full rounded-md border border-slate-200 pl-8 pr-2 text-xs outline-none focus:border-slate-400" /></div>
+              <label className="mt-2 flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"><input type="checkbox" checked={selectedCategories.length === SKIN_GAME_CATEGORY_OPTIONS.length} onChange={() => setSelectedCategories((current) => current.length === SKIN_GAME_CATEGORY_OPTIONS.length ? [] : [...SKIN_GAME_CATEGORY_OPTIONS])} className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-800" /> Select All</label>
+            </div>
+            <ul className="max-h-56 overflow-y-auto p-1.5">{categoryOptions.map((category) => <li key={category}><label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-xs text-slate-600 hover:bg-slate-50"><input type="checkbox" checked={selectedCategories.includes(category)} onChange={() => toggleCategory(category)} className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-800" /><span>{category}</span></label></li>)}{categoryOptions.length === 0 ? <li className="px-2 py-5 text-center text-xs text-slate-400">No categories match your search.</li> : null}</ul>
+          </div> : null}
+        </div>
+        <div className="relative min-w-0">
+          <label className="mb-1.5 block text-xs font-medium text-slate-600">Providers</label>
+          <button type="button" aria-expanded={openFilter === 'providers'} onClick={() => setOpenFilter((current) => current === 'providers' ? null : 'providers')} className={multiSelectButtonClass}>
+            <span className="truncate">{selectedProviders.length === 0 ? '0 selected' : selectedProviders.length + ' selected'}</span><ChevronDown className={cn('h-4 w-4 shrink-0 text-slate-400 transition-transform', openFilter === 'providers' && 'rotate-180')} />
+          </button>
+          {openFilter === 'providers' ? <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
+            <div className="border-b border-slate-100 p-2.5"><div className="relative"><Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><input value={providerSearch} onChange={(event) => setProviderSearch(event.target.value)} placeholder="Search providers…" className="h-8 w-full rounded-md border border-slate-200 pl-8 pr-2 text-xs outline-none focus:border-slate-400" /></div>
+              <label className="mt-2 flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"><input type="checkbox" checked={selectedProviders.length === providerOptions.length && providerOptions.length > 0} onChange={() => setSelectedProviders((current) => current.length === providerOptions.length ? [] : [...new Set(SKIN_GAME_PROVIDER_OPTIONS)])} className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-800" /> Select All</label>
+            </div>
+            <ul className="max-h-56 overflow-y-auto p-1.5">{providerOptions.map((provider) => <li key={provider}><label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-xs text-slate-600 hover:bg-slate-50"><input type="checkbox" checked={selectedProviders.includes(provider)} onChange={() => toggleProvider(provider)} className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-800" /><span>{provider}</span></label></li>)}{providerOptions.length === 0 ? <li className="px-2 py-5 text-center text-xs text-slate-400">No providers match your search.</li> : null}</ul>
+          </div> : null}
+        </div>
+      </CardContent>
+    </Card>
+    <Card><CardContent className="p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="relative w-full sm:max-w-xs"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search games or skins…" className="pl-9" /></div><div className="flex items-center gap-2"><span className="text-xs text-slate-500">Status</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)} className="h-10 rounded-md border border-input bg-white px-3 text-xs"><option>All</option><option>Active</option><option>Draft</option><option>Paused</option></select></div></div><p className="mt-3 text-[11px] text-slate-400">Showing {shown.length} of {games.length} games</p></CardContent></Card>
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{shown.map((game) => <Card key={game.id} className="overflow-hidden"><div className={cn('relative flex h-36 items-end overflow-hidden bg-gradient-to-br p-4',game.art)}><div className="absolute -right-6 -top-8 h-32 w-32 rounded-full border border-white/20" /><div className="absolute right-8 top-4 h-20 w-20 rounded-full border border-white/15" /><div className="relative"><p className="text-[9px] font-semibold uppercase tracking-[.18em] text-white/70">{game.provider}</p><p className="mt-1 text-xl font-bold text-white">{game.title}</p></div><span className="absolute right-3 top-3 rounded-md border border-white/20 bg-black/20 px-2 py-1 text-[9px] text-white">{game.status}</span></div><CardContent className="space-y-3 p-4"><div><p className="text-[10px] text-slate-400">Current skin</p><p className="mt-1 text-xs font-semibold text-slate-800">{game.skin}</p><p className="mt-1 text-[10px] text-slate-400">{game.category}</p></div><label className="block space-y-1.5"><span className="text-[10px] font-medium text-slate-500">Skin preset</span><select value={game.skin} onChange={(event) => updateSkin(game.id, event.target.value)} className="h-9 w-full rounded-md border border-input bg-white px-3 text-xs">{[game.skin,'Midnight Gold','Emerald Reels','Royal Table','Neon Rush','Minimal Light'].filter((item,index,array)=>array.indexOf(item)===index).map((item)=><option key={item}>{item}</option>)}</select></label><div className="flex items-center justify-between border-t border-slate-100 pt-3"><span className="text-[10px] text-slate-400">Updated {game.updated}</span><Button size="sm" variant="outline" onClick={() => { toggle(game.id); onNotify('Skin game status updated in this local preview.') }}>{game.status === 'Active' ? 'Pause' : 'Activate'}</Button></div></CardContent></Card>)}</div>
+    {shown.length === 0 ? <Card><CardContent className="py-12 text-center"><Gamepad2 className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-3 text-sm font-medium text-slate-700">No skin games match these filters.</p><p className="mt-1 text-xs text-slate-400">Try another category, provider, or search term.</p><Button variant="outline" size="sm" className="mt-4" onClick={resetFilters}>Reset filters</Button></CardContent></Card> : null}
     <p className="text-[10px] text-slate-400">Skin assignments and previews are local; asset upload and game-provider publishing are not connected.</p>
   </div>
 }
