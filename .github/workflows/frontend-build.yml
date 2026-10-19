@@ -1,4 +1,4 @@
-name: Frontend build
+name: Application builds
 
 on:
   push:
@@ -30,7 +30,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build frontend
+      - name: Build storefront
         env:
           SKIP_ASSET_SYNC: '1'
         run: pnpm --filter frontend build
+
+      - name: Build admin dashboard UI
+        run: pnpm --filter backend build
