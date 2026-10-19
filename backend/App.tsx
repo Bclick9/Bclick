@@ -2541,6 +2541,14 @@ function CmsPromotionsPage({ onNotify }: { onNotify: (message: string) => void }
   </div>
 }
 
+type CmsContentPage = { id: string; title: string; slug: string; language: string; status: 'Published' | 'Draft'; updated: string; content: string }
+const INITIAL_CMS_PAGES: CmsContentPage[] = [
+  { id: 'PAGE-001', title: 'About Us', slug: '/about-us', language: 'English', status: 'Published', updated: '15 Oct 2026', content: 'Learn more about Bclick and the services provided to players.' },
+  { id: 'PAGE-002', title: 'Responsible Gaming', slug: '/responsible-gaming', language: 'English', status: 'Published', updated: '14 Oct 2026', content: 'Information about safe play, limits, and support resources.' },
+  { id: 'PAGE-003', title: 'Terms & Conditions', slug: '/terms-and-conditions', language: 'English', status: 'Published', updated: '10 Oct 2026', content: 'The terms that govern use of the platform.' },
+  { id: 'PAGE-004', title: 'Privacy Policy', slug: '/privacy-policy', language: 'English', status: 'Draft', updated: '09 Oct 2026', content: 'How player information is handled in this demo copy.' },
+  { id: 'PAGE-005', title: 'FAQ', slug: '/faq', language: 'English', status: 'Published', updated: '08 Oct 2026', content: 'Answers to common player questions.' },
+]
 function CmsPagesPage({ onNotify }: { onNotify: (message: string) => void }) {
   const [pages, setPages] = useState<CmsContentPage[]>(INITIAL_CMS_PAGES)
   const [search, setSearch] = useState('')
