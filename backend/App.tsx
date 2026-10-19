@@ -1952,7 +1952,6 @@ export default function App() {
     if (workspace === 'cms') return null
     if (activePage === 'bonuses') return null
     if (activePage === 'promotions') return <Button onClick={() => setPromotionOpen(true)}><Plus className="h-4 w-4" /> Create promotion</Button>
-    if (activePage === 'bonuses') return <Button onClick={() => setBonusOpen(true)}><Plus className="h-4 w-4" /> Create bonus</Button>
     if (activePage === 'users') return <Button onClick={() => setUserOpen(true)}><Plus className="h-4 w-4" /> New player</Button>
     if (activePage === 'reports' || activePage === 'transactions') return <Button variant="outline" onClick={() => window.print()}><Download className="h-4 w-4" /> Export</Button>
     if (activePage === 'games') return <Button onClick={() => notify('Game provider connection is not included in this UI prototype.')}><Plus className="h-4 w-4" /> Add game</Button>
