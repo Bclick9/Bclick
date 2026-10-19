@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
-  User2, ChevronDown, ChevronUp, BadgeCheck, Gift, Wallet, HeartPulse, History,
+  User2, ChevronDown, ChevronUp, BadgeCheck, Gift, Wallet, HeartPulse, History, Copy,
 } from 'lucide-react'
 import { cn } from '../lib/shadcn/utils'
 
@@ -64,19 +64,50 @@ const GROUPS = [
 export function AccountPanel() {
   const { pathname } = useLocation()
   const [open, setOpen] = useState<string[]>(['profile', 'wallet'])
+  const [copiedUserId, setCopiedUserId] = useState(false)
+
+  const copyUserId = async () => {
+    try {
+      await navigator.clipboard.writeText('436222976')
+      setCopiedUserId(true)
+    } catch {
+      setCopiedUserId(false)
+    }
+  }
 
   const toggle = (key: string) =>
     setOpen((o) => (o.includes(key) ? o.filter((k) => k !== key) : [...o, key]))
 
   return (
     <div className="w-full shrink-0 md:w-[260px] lg:w-[300px]">
-      <div className="flex items-center gap-3 mb-3">
-        <span className="w-11 h-11 rounded-full bg-[var(--cb-yellow)] flex items-center justify-center">
-          <User2 className="w-6 h-6 text-[var(--cb-light-text)]" />
+      <div className="mb-3 flex min-w-0 items-center gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--cb-yellow)]">
+          <User2 className="h-6 w-6 text-[var(--cb-light-text)]" />
         </span>
-        <p className="text-[15px] font-bold text-[var(--cb-light-text)] truncate">
-          Player account
-        </p>
+        <div className="Account-nameAndIdStyles min-w-0 flex-1 leading-tight">
+          <div className="firstAndLastName">
+            <span className="large block truncate text-[14px] font-bold text-[var(--cb-light-text)]">mrbelhaj</span>
+          </div>
+          <div className="userId mt-0.5 flex min-w-0 items-center gap-1 text-[10px] text-[var(--cb-light-muted)]">
+            <span className="shrink-0">ID:</span>
+            <span className="Copy-Text-copyTextStyles inline-flex min-w-0 items-center gap-1">
+              <span className="truncate font-semibold text-[var(--cb-light-text)]">436222976</span>
+              <button
+                type="button"
+                onClick={copyUserId}
+                aria-label={copiedUserId ? 'User ID copied' : 'Copy user ID'}
+                title={copiedUserId ? 'Copied' : 'Copy ID'}
+                className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-[var(--cb-light-muted)] transition-colors hover:text-[var(--cb-light-text)]"
+              >
+                {copiedUserId ? <BadgeCheck className="h-3 w-3" aria-hidden="true" /> : <Copy className="h-3 w-3" aria-hidden="true" />}
+              </button>
+            </span>
+          </div>
+          <div className="verifiedBlock mt-0.5 flex items-center gap-1 text-[10px] font-semibold text-[var(--cb-yellow-dark)]">
+            <BadgeCheck className="h-3 w-3 shrink-0" aria-hidden="true" />
+            <span>Not verified</span>
+          </div>
+        </div>
       </div>
       <div className="flex items-center gap-2 bg-[#fdf5dc] rounded-md px-3 py-2 mb-4">
         <BadgeCheck className="w-4 h-4 text-[var(--cb-yellow-dark)]" />
