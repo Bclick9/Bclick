@@ -1,70 +1,154 @@
 import { Link, useParams } from 'react-router-dom'
+import { useState } from 'react'
 import { ChevronLeft, CalendarClock, Percent } from 'lucide-react'
-import { PromoCard, PageTitle } from '../components/cards'
+import type { Promotion } from '../data/catalog'
 import { PROMOTIONS } from '../data/catalog'
 
-const FEATURED_PROMOTION_IMAGES = [
-  'https://i.imgur.com/LX0CyyU.jpeg',
-  'https://i.imgur.com/X75yedd.jpeg',
-  'https://i.imgur.com/v7bu7ga.jpeg',
-  'https://i.imgur.com/7dRXAXI.jpeg',
-  'https://i.imgur.com/CmuEAMk.jpeg',
-  'https://i.imgur.com/V9tDnF9.jpeg',
-  'https://i.imgur.com/InQuRtL.jpeg',
+type PromotionFilter = 'all' | 'casino' | 'sports'
+
+const FEATURED_PROMOTIONS: Promotion[] = [
+  {
+    slug: 'tuesday-on-the-reels',
+    image: 'https://i.imgur.com/LX0CyyU.jpeg',
+    tag: 'Tuesday on the reels',
+    title: '1000 FS to spin you around!',
+    scope: 'casino',
+    description: 'A featured Tuesday promotion for casino players.',
+    terms: ['Eligibility and reward conditions are subject to the published offer rules.', 'General Bonus Terms apply.'],
+  },
+  {
+    slug: 'wednesdays-double-fun',
+    image: 'https://i.imgur.com/X75yedd.jpeg',
+    tag: "Wednesday's double fun",
+    title: 'Get €5 Live Casino Bonus & 150 FS',
+    scope: 'casino',
+    description: 'A featured midweek promotion for casino and live casino play.',
+    terms: ['Eligibility and reward conditions are subject to the published offer rules.', 'General Bonus Terms apply.'],
+  },
+  {
+    slug: 'live-casino-thursday',
+    image: 'https://i.imgur.com/v7bu7ga.jpeg',
+    tag: 'Live Casino Thursday',
+    title: '25% Cashback to fuel more action!',
+    scope: 'casino',
+    description: 'A featured live casino promotion.',
+    terms: ['Eligibility and reward conditions are subject to the published offer rules.', 'General Bonus Terms apply.'],
+  },
+  {
+    slug: 'friday-featured-promotion',
+    image: 'https://i.imgur.com/7dRXAXI.jpeg',
+    tag: 'Friday Special',
+    title: 'A featured offer for the weekend ahead.',
+    scope: 'casino',
+    description: 'Explore this featured promotion.',
+    terms: ['Eligibility and reward conditions are subject to the published offer rules.', 'General Bonus Terms apply.'],
+  },
+  {
+    slug: 'saturday-featured-promotion',
+    image: 'https://i.imgur.com/CmuEAMk.jpeg',
+    tag: 'Saturday Special',
+    title: 'Discover more special rewards.',
+    scope: 'casino',
+    description: 'Explore this featured promotion.',
+    terms: ['Eligibility and reward conditions are subject to the published offer rules.', 'General Bonus Terms apply.'],
+  },
+  {
+    slug: 'sunday-featured-promotion',
+    image: 'https://i.imgur.com/V9tDnF9.jpeg',
+    tag: 'Sunday Special',
+    title: 'A little extra for your Sunday.',
+    scope: 'casino',
+    description: 'Explore this featured promotion.',
+    terms: ['Eligibility and reward conditions are subject to the published offer rules.', 'General Bonus Terms apply.'],
+  },
+  {
+    slug: 'crypto-featured-promotion',
+    image: 'https://i.imgur.com/InQuRtL.jpeg',
+    tag: 'Crypto Special',
+    title: 'Explore a crypto-themed promotion.',
+    scope: 'casino',
+    description: 'Explore this featured promotion.',
+    terms: ['Eligibility and reward conditions are subject to the published offer rules.', 'General Bonus Terms apply.'],
+  },
 ]
 
-export default function Promotions() {
-  const casino = PROMOTIONS.filter((p) => p.scope === 'casino')
-  const sports = PROMOTIONS.filter((p) => p.scope === 'sports')
+const ALL_PROMOTIONS: Promotion[] = [...PROMOTIONS, ...FEATURED_PROMOTIONS]
+
+const PROMOTION_IMAGE_OVERRIDES: Record<string, string> = {
+  'welcome-casino-package': '/assets/home/welcome-casino-bonus.webp',
+  'welcome-sports-bonus': '/assets/home/welcome-sports-bonus.jpg',
+  'welcome-sports-freebet': '/assets/home/welcome-sports-freebet.jpg',
+  'welcome-crypto-combo': '/assets/home/welcome-crypto-bonus.jpg',
+  'mondays-reload-bonus': '/assets/home/monday-reload-bonus.jpg',
+}
+
+function PromotionTile({ promo }: { promo: Promotion }) {
+  const [imageSource, setImageSource] = useState(PROMOTION_IMAGE_OVERRIDES[promo.slug] ?? promo.image)
+  const [imageFailed, setImageFailed] = useState(false)
 
   return (
-    <div className="max-w-[1200px] mx-auto px-4 md:px-8 py-6">
-      <PageTitle title="Promotions" subtitle="Bonuses, freebets and reload offers." />
+    <Link
+      to={`/promotions/${promo.slug}`}
+      aria-label={`View promotion: ${promo.tag}`}
+      className="group block min-w-0 overflow-hidden rounded-lg border border-transparent bg-[var(--cb-card)] transition-colors hover:border-[var(--cb-yellow)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--cb-yellow)]"
+    >
+      <div className="aspect-[16/9] w-full overflow-hidden bg-[#07141c]">
+        {!imageFailed ? (
+          <img
+            src={imageSource}
+            alt={promo.tag}
+            loading="lazy"
+            decoding="async"
+            onError={() => {
+              if (imageSource !== promo.image) setImageSource(promo.image)
+              else setImageFailed(true)
+            }}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.015]"
+          />
+        ) : (
+          <div className="h-full w-full bg-[var(--cb-card)]" />
+        )}
+      </div>
+      <div className="min-h-[148px] px-6 py-6">
+        <h2 className="line-clamp-2 text-sm font-extrabold leading-5 text-white">{promo.tag}</h2>
+        <p className="mt-2 line-clamp-2 text-sm leading-5 text-[#aebfca]">{promo.title}</p>
+      </div>
+    </Link>
+  )
+}
 
-      <section aria-labelledby="featured-promotions-heading" className="mb-10">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 id="featured-promotions-heading" className="text-lg font-extrabold text-foreground md:text-xl">Featured promotions</h2>
-          <span className="text-xs font-semibold text-muted-foreground">{FEATURED_PROMOTION_IMAGES.length} offers</span>
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {FEATURED_PROMOTION_IMAGES.map((image, index) => (
-            <a
-              key={image}
-              href={image}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`Open featured promotion image ${index + 1} in a new tab`}
-              className="group block min-w-0 overflow-hidden rounded-xl border border-[var(--cb-line)] bg-[#07141c] transition-colors hover:border-[var(--cb-yellow)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--cb-yellow)]"
+export default function Promotions() {
+  const [filter, setFilter] = useState<PromotionFilter>('all')
+  const visiblePromotions = ALL_PROMOTIONS.filter((promo) => filter === 'all' || promo.scope === filter)
+
+  const filters: { value: PromotionFilter; label: string }[] = [
+    { value: 'all', label: 'All' },
+    { value: 'casino', label: 'Casino' },
+    { value: 'sports', label: 'Sports' },
+  ]
+
+  return (
+    <div className="mx-auto w-full max-w-none px-2 py-4">
+      <header className="mb-4 flex min-h-9 items-center justify-between gap-3">
+        <h1 className="text-xl font-extrabold leading-7 text-white">Promotions</h1>
+        <div role="group" aria-label="Filter promotions" className="flex shrink-0 items-center gap-2">
+          {filters.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={filter === value}
+              onClick={() => setFilter(value)}
+              className={`rounded-lg px-4 py-3 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--cb-yellow)] ${filter === value ? 'bg-[#203646] text-white' : 'bg-[var(--cb-card)] text-[#aebfca] hover:bg-[var(--cb-hover)] hover:text-white'}`}
             >
-              <div className="flex aspect-[16/9] w-full items-center justify-center overflow-hidden bg-[#07141c]">
-                <img
-                  src={image}
-                  alt={`Featured promotion ${index + 1}`}
-                  loading={index < 3 ? 'eager' : 'lazy'}
-                  decoding="async"
-                  className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.015]"
-                />
-              </div>
-              <div className="flex items-center justify-between gap-3 border-t border-[var(--cb-line)] px-3 py-2.5">
-                <span className="text-sm font-bold text-white">Promotion {index + 1}</span>
-                <span className="text-xs font-semibold text-[var(--cb-yellow)]">View offer ↗</span>
-              </div>
-            </a>
+              {label}
+            </button>
           ))}
         </div>
-      </section>
+      </header>
 
-      <h2 className="text-lg md:text-xl font-extrabold text-foreground mb-4">Casino offers</h2>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-10">
-        {casino.map((p) => (
-          <PromoCard key={p.slug} promo={p} className="w-full" />
-        ))}
-      </div>
-
-      <h2 className="text-lg md:text-xl font-extrabold text-foreground mb-4">Sports offers</h2>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {sports.map((p) => (
-          <PromoCard key={p.slug} promo={p} className="w-full" />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {visiblePromotions.map((promo) => (
+          <PromotionTile key={promo.slug} promo={promo} />
         ))}
       </div>
     </div>
@@ -73,13 +157,13 @@ export default function Promotions() {
 
 export function PromotionDetail() {
   const { slug = '' } = useParams()
-  const promo = PROMOTIONS.find((p) => p.slug === slug)
+  const promo = ALL_PROMOTIONS.find((p) => p.slug === slug)
 
   if (!promo) {
     return (
-      <div className="max-w-[900px] mx-auto px-4 md:px-8 py-16 text-center">
+      <div className="mx-auto max-w-[900px] px-4 py-16 text-center">
         <p className="text-muted-foreground">This promotion could not be found.</p>
-        <Link to="/promotions" className="text-primary font-semibold text-sm mt-3 inline-block">
+        <Link to="/promotions" className="mt-3 inline-block text-sm font-semibold text-primary">
           Back to promotions
         </Link>
       </div>
@@ -87,36 +171,33 @@ export function PromotionDetail() {
   }
 
   return (
-    <div className="max-w-[900px] mx-auto px-4 md:px-8 py-6">
-      <Link to="/promotions" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
-        <ChevronLeft className="w-4 h-4" /> Promotions
+    <div className="mx-auto max-w-[900px] px-4 py-6 md:px-8">
+      <Link to="/promotions" className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground">
+        <ChevronLeft className="h-4 w-4" /> Promotions
       </Link>
 
-      <div className="rounded-2xl bg-card border border-border overflow-hidden">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
         <div className="relative">
-          <img
-            src={promo.image}
-            alt={promo.tag}
-            className="aspect-[16/8] w-full object-cover"
-          />
-          <span className="absolute top-3 left-3 bg-primary text-primary-foreground text-xs font-bold px-2.5 py-1.5 rounded">
+          <img src={promo.image} alt={promo.tag} className="aspect-[16/8] w-full object-cover" />
+          <span className="absolute left-3 top-3 rounded bg-primary px-2.5 py-1.5 text-xs font-bold text-primary-foreground">
             {promo.tag}
           </span>
         </div>
         <div className="p-5 md:p-8">
-          <h1 className="text-2xl md:text-3xl font-extrabold text-foreground">{promo.title}</h1>
-          <p className="text-sm md:text-base text-muted-foreground mt-3">{promo.description}</p>
+          <h1 className="text-2xl font-extrabold text-foreground md:text-3xl">{promo.tag}</h1>
+          <p className="mt-3 text-sm text-muted-foreground md:text-base">{promo.title}</p>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{promo.description}</p>
 
-          <div className="grid grid-cols-2 gap-3 my-6">
-            <div className="rounded-lg bg-secondary/50 border border-border p-4 flex items-center gap-3">
-              <Percent className="w-5 h-5 text-primary" />
+          <div className="my-6 grid grid-cols-2 gap-3">
+            <div className="flex items-center gap-3 rounded-lg border border-border bg-secondary/50 p-4">
+              <Percent className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-xs text-muted-foreground">Offer type</p>
-                <p className="text-sm font-bold text-foreground capitalize">{promo.scope} bonus</p>
+                <p className="text-sm font-bold capitalize text-foreground">{promo.scope} bonus</p>
               </div>
             </div>
-            <div className="rounded-lg bg-secondary/50 border border-border p-4 flex items-center gap-3">
-              <CalendarClock className="w-5 h-5 text-primary" />
+            <div className="flex items-center gap-3 rounded-lg border border-border bg-secondary/50 p-4">
+              <CalendarClock className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-xs text-muted-foreground">Availability</p>
                 <p className="text-sm font-bold text-foreground">Limited period</p>
@@ -126,25 +207,22 @@ export function PromotionDetail() {
 
           <Link
             to="/wallet/deposit"
-            className="inline-flex h-11 px-6 rounded-lg cb-yellow text-primary-foreground font-bold text-sm items-center hover:brightness-110 transition-all"
+            className="cb-yellow inline-flex h-11 items-center rounded-lg px-6 text-sm font-bold text-primary-foreground transition-all hover:brightness-110"
           >
             Deposit &amp; claim
           </Link>
 
           <div className="mt-8 border-t border-border pt-6">
-            <h2 className="text-base font-extrabold text-foreground mb-3">Bonus terms</h2>
+            <h2 className="mb-3 text-base font-extrabold text-foreground">Bonus terms</h2>
             <ul className="space-y-2">
-              {promo.terms.map((t) => (
-                <li key={t} className="text-sm text-muted-foreground flex gap-2">
-                  <span className="text-primary mt-1.5 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
-                  {t}
+              {promo.terms.map((term) => (
+                <li key={term} className="flex gap-2 text-sm text-muted-foreground">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                  {term}
                 </li>
               ))}
             </ul>
-            <Link
-              to="/info/bonus-terms"
-              className="text-xs text-primary font-semibold mt-4 inline-block hover:underline"
-            >
+            <Link to="/info/bonus-terms" className="mt-4 inline-block text-xs font-semibold text-primary hover:underline">
               Read the full General Bonus Terms
             </Link>
           </div>
