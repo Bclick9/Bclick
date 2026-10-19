@@ -2611,6 +2611,8 @@ type CmsSkinGame = {
   title: string
   provider: string
   category: string
+  rtp: string
+  players: string
   categories: string[]
   categoryExpirations: Record<string, string>
   showOnPage: string[]
@@ -2630,10 +2632,12 @@ type CmsSkinGame = {
   updated: string
 }
 const INITIAL_CMS_SKIN_GAMES: CmsSkinGame[] = [
-  { id: 'SKN-001', title: 'Zeus vs Hades', provider: 'Demo Studio', category: 'Video Slots', categories: ['Video Slots', 'New', 'Popular Games'], categoryExpirations: {}, showOnPage: ['Home'], gameParameters: ['Play Now', 'For Fun'], badge: 'new', active: true, description: 'A mythology-themed slot adventure.', iconImage: '', backgroundImage: '', certificateNumber: '', betLimitCurrency: 'EUR', betLimitMin: '', betLimitMax: '', skin: 'Mythology Gold', status: 'Active', art: 'from-indigo-950 via-violet-800 to-amber-500', updated: '18 Oct 2026' },
-  { id: 'SKN-002', title: 'Wild Clusters', provider: 'Play’n GO', category: 'Megaways', categories: ['Megaways', 'Video Slots'], categoryExpirations: {}, showOnPage: ['Home'], gameParameters: ['Play Now', 'For Fun'], badge: '', active: true, description: 'A cascading reel slot game.', iconImage: '', backgroundImage: '', certificateNumber: '', betLimitCurrency: 'EUR', betLimitMin: '', betLimitMax: '', skin: 'Emerald Reels', status: 'Active', art: 'from-emerald-950 via-green-800 to-lime-500', updated: '17 Oct 2026' },
-  { id: 'SKN-003', title: 'Roulette Royale', provider: 'Evolution', category: 'Live Dealer', categories: ['Live Dealer', 'Table Games'], categoryExpirations: {}, showOnPage: [], gameParameters: ['Play Now'], badge: 'top', active: true, description: 'Live roulette from a royal gaming table.', iconImage: '', backgroundImage: '', certificateNumber: '', betLimitCurrency: 'EUR', betLimitMin: '', betLimitMax: '', skin: 'Royal Table', status: 'Draft', art: 'from-slate-950 via-red-950 to-amber-600', updated: '16 Oct 2026' },
-  { id: 'SKN-004', title: 'Rocket Rush', provider: 'Demo Studio', category: 'Crash Games', categories: ['Crash Games', 'New'], categoryExpirations: {}, showOnPage: ['Home'], gameParameters: ['Play Now', 'For Fun'], badge: 'promo', active: false, description: 'A fast-paced crash-style game.', iconImage: '', backgroundImage: '', certificateNumber: '', betLimitCurrency: 'EUR', betLimitMin: '', betLimitMax: '', skin: 'Neon Rush', status: 'Paused', art: 'from-blue-950 via-cyan-800 to-fuchsia-500', updated: '14 Oct 2026' },
+  { id: 'GM-001', title: 'Zeus vs Hades', provider: 'Demo Studio', category: 'Slots', rtp: '96.40%', players: '1,248', categories: ['Video Slots', 'New', 'Popular Games'], categoryExpirations: {}, showOnPage: ['Home'], gameParameters: ['Play Now', 'For Fun'], badge: 'new', active: true, description: 'A mythology-themed slot adventure.', iconImage: '', backgroundImage: '', certificateNumber: '', betLimitCurrency: 'EUR', betLimitMin: '', betLimitMax: '', skin: 'Mythology Gold', status: 'Active', art: 'from-indigo-950 via-violet-800 to-amber-500', updated: '18 Oct 2026' },
+  { id: 'GM-002', title: 'Wild Clusters', provider: 'Play’n GO', category: 'Slots', rtp: '96.10%', players: '982', categories: ['Video Slots', 'Megaways'], categoryExpirations: {}, showOnPage: ['Home'], gameParameters: ['Play Now', 'For Fun'], badge: '', active: true, description: 'A cascading reel slot game.', iconImage: '', backgroundImage: '', certificateNumber: '', betLimitCurrency: 'EUR', betLimitMin: '', betLimitMax: '', skin: 'Emerald Reels', status: 'Active', art: 'from-emerald-950 via-green-800 to-lime-500', updated: '17 Oct 2026' },
+  { id: 'GM-003', title: 'Roulette Royale', provider: 'Evolution', category: 'Live casino', rtp: '97.30%', players: '764', categories: ['Live Dealer', 'Table Games'], categoryExpirations: {}, showOnPage: [], gameParameters: ['Play Now'], badge: 'top', active: true, description: 'Live roulette from a royal gaming table.', iconImage: '', backgroundImage: '', certificateNumber: '', betLimitCurrency: 'EUR', betLimitMin: '', betLimitMax: '', skin: 'Royal Table', status: 'Active', art: 'from-slate-950 via-red-950 to-amber-600', updated: '16 Oct 2026' },
+  { id: 'GM-004', title: 'Lightning Blackjack', provider: 'Evolution', category: 'Live casino', rtp: '99.10%', players: '538', categories: ['Live Dealer', 'Table Games'], categoryExpirations: {}, showOnPage: ['Home'], gameParameters: ['Play Now'], badge: '', active: true, description: 'Live blackjack with fast-paced rounds.', iconImage: '', backgroundImage: '', certificateNumber: '', betLimitCurrency: 'EUR', betLimitMin: '', betLimitMax: '', skin: 'Royal Table', status: 'Active', art: 'from-slate-950 via-red-950 to-amber-600', updated: '16 Oct 2026' },
+  { id: 'GM-005', title: 'Rocket Rush', provider: 'Demo Studio', category: 'Crash', rtp: '97.00%', players: '1,105', categories: ['Crash Games', 'New'], categoryExpirations: {}, showOnPage: ['Home'], gameParameters: ['Play Now', 'For Fun'], badge: 'promo', active: false, description: 'A fast-paced crash-style game.', iconImage: '', backgroundImage: '', certificateNumber: '', betLimitCurrency: 'EUR', betLimitMin: '', betLimitMax: '', skin: 'Neon Rush', status: 'Paused', art: 'from-blue-950 via-cyan-800 to-fuchsia-500', updated: '14 Oct 2026' },
+  { id: 'GM-006', title: 'Golden Pharaoh', provider: 'Pragmatic Play', category: 'Slots', rtp: '96.50%', players: '416', categories: ['Video Slots', 'Jackpots'], categoryExpirations: {}, showOnPage: ['Home'], gameParameters: ['Play Now', 'For Fun'], badge: 'jackpot', active: true, description: 'An Egyptian-themed slot adventure.', iconImage: '', backgroundImage: '', certificateNumber: '', betLimitCurrency: 'EUR', betLimitMin: '', betLimitMax: '', skin: 'Mythology Gold', status: 'Active', art: 'from-amber-950 via-yellow-800 to-orange-500', updated: '15 Oct 2026' },
 ]
 const SKIN_GAME_CATEGORY_OPTIONS = [
   'Achievements Slots', 'Age of the Gods', 'All', 'All Games', 'Arcade Games', 'Autumn Slots',
@@ -2679,8 +2683,7 @@ const SKIN_GAME_BADGES = [
   { value: 'vpn', label: 'VPN' }, { value: 'tournament', label: 'Tournament' }, { value: 'hot', label: 'Hot' },
   { value: 'ortak', label: 'Ortak' }, { value: 'trending', label: 'Trending' },
 ]
-function CmsSkinGamesPage({ onNotify }: { onNotify: (message: string) => void }) {
-  const [games, setGames] = useState<CmsSkinGame[]>(INITIAL_CMS_SKIN_GAMES)
+function CmsSkinGamesPage({ games, onSaveGame, onNotify }: { games: CmsSkinGame[]; onSaveGame: (game: CmsSkinGame) => void; onNotify: (message: string) => void }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'All' | CmsSkinGame['status']>('All')
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
@@ -2727,7 +2730,7 @@ function CmsSkinGamesPage({ onNotify }: { onNotify: (message: string) => void })
     event.preventDefault()
     if (!editDraft) return
     const saved: CmsSkinGame = { ...editDraft, category: editDraft.categories[0] || '', status: !editDraft.active ? 'Paused' : (editDraft.status === 'Paused' ? 'Active' : editDraft.status), updated: '19 Oct 2026' }
-    setGames((current) => current.map((item) => item.id === saved.id ? saved : item))
+    onSaveGame(saved)
     setEditDraft(null)
     setShowEditCategoryPicker(false)
     onNotify('Game details saved in this local CMS preview. Publishing is not connected.')
@@ -2902,7 +2905,7 @@ export default function App() {
   const [users, setUsers] = useState<UserRow[]>(INITIAL_USERS)
   const [promotions, setPromotions] = useState<Offer[]>(INITIAL_PROMOTIONS)
   const [bonuses, setBonuses] = useState<Offer[]>(INITIAL_BONUSES)
-  const [games, setGames] = useState<GameRow[]>(INITIAL_GAMES)
+  const [games, setGames] = useState<CmsSkinGame[]>(INITIAL_CMS_SKIN_GAMES)
   const [searchQuery, setSearchQuery] = useState('')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [notificationOpen, setNotificationOpen] = useState(false)
@@ -3123,7 +3126,7 @@ export default function App() {
                       {activePage === 'users' ? <PlayersPage users={users} query={searchQuery} onQueryChange={setSearchQuery} onAdd={() => setUserOpen(true)} onSelect={setSelectedUser} onToggleStatus={toggleUserStatus} /> : null}
                       {activePage === 'promotions' ? <OffersPage title="Promotions" description="Create campaigns and track engagement across channels." offers={promotions} kind="promotions" onCreate={() => setPromotionOpen(true)} onToggle={(id) => toggleOffer('promotions', id)} /> : null}
                       {activePage === 'bonuses' ? <BonusesPage offers={bonuses} onCreate={() => setBonusTypeChooserOpen(true)} onToggle={(id) => toggleOffer('bonuses', id)} onNotify={notify} /> : null}
-                      {activePage === 'games' ? <GamesPage games={games} onToggle={toggleGame} /> : null}
+                      {activePage === 'games' ? <GamesPage games={games.map((game) => ({ id: game.id, title: game.title, provider: game.provider, category: game.category, rtp: game.rtp, players: game.players, status: game.active ? 'Active' : 'Paused' }))} onToggle={toggleGame} /> : null}
                       {activePage === 'transactions' ? <TransactionsPage query={searchQuery} onQueryChange={setSearchQuery} users={users} onNotify={notify} onSelectPlayer={setSelectedUser} /> : null}
                       {activePage === 'reports' ? <ReportsPage /> : null}
                       {activePage === 'settings' ? <SettingsPage /> : null}
@@ -3131,7 +3134,7 @@ export default function App() {
             {workspace === 'cms' && activePage === 'cms-banners' ? <CmsBannersPage onNotify={notify} /> : null}
             {workspace === 'cms' && activePage === 'cms-promotions' ? <CmsPromotionsPage onNotify={notify} /> : null}
             {workspace === 'cms' && activePage === 'cms-pages' ? <CmsPagesPage onNotify={notify} /> : null}
-            {workspace === 'cms' && activePage === 'cms-skin-games' ? <CmsSkinGamesPage onNotify={notify} /> : null}
+            {workspace === 'cms' && activePage === 'cms-skin-games' ? <CmsSkinGamesPage games={games} onSaveGame={(updatedGame) => setGames((current) => current.map((game) => game.id === updatedGame.id ? updatedGame : game))} onNotify={notify} /> : null}
             {workspace === 'cms' && activePage === 'cms-categories' ? <CmsCategoriesPage onNotify={notify} /> : null}
             {workspace === 'cms' && activePage === 'cms-providers' ? <CmsProvidersPage onNotify={notify} /> : null}
             {workspace === 'cms' && activePage === 'cms-customization' ? <CmsCustomizationPage onNotify={notify} /> : null}
