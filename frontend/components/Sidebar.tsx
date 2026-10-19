@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
-  Home, Coins, Disc3, Volleyball, Gift, Trophy, Crown, MessageSquare, Target, Gamepad2,
+  Home, Coins, Disc3, Volleyball, Gift, Trophy, Crown, MessageSquare, Target, Gamepad2, Tv,
 } from 'lucide-react'
 import { cn } from '../lib/shadcn/utils'
 
@@ -26,15 +26,14 @@ type SidebarGlyph = ComponentType<SidebarIconProps>
 
 const DESKTOP_ITEMS: { to: string; icon: SidebarGlyph; label: string }[] = [
   { to: '/', icon: HomeGlyph, label: 'Home' },
+  { to: '/sports', icon: SportsGlyph, label: 'Sports' },
   { to: '/casino', icon: CasinoGlyph, label: 'Casino' },
   { to: '/live-casino', icon: LiveCasinoGlyph, label: 'Live Casino' },
-  { to: '/sports', icon: SportsGlyph, label: 'Sports' },
+  { to: '/casino/slot-games', icon: GamesGlyph, label: 'Games' },
+  { to: '/live-casino#game-shows', icon: TVGamesGlyph, label: 'TV Games' },
   { to: '/virtual-sports/kiron', icon: VirtualSportsGlyph, label: 'Virtual Sports' },
   { to: '/promotions', icon: PromotionsGlyph, label: 'Promotions' },
-  { to: '/jackpots', icon: JackpotsGlyph, label: 'Jackpots' },
   { to: '/tournaments', icon: TournamentGlyph, label: 'Tournaments' },
-  { to: '/vip', icon: VipGlyph, label: 'VIP' },
-  { to: '/rewards', icon: RewardsGlyph, label: 'Rewards' },
 ]
 
 /* English (UK), matching the flag displayed on the reference sidebar. */
@@ -49,7 +48,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ expanded, onToggle }: SidebarProps) {
-  const { pathname } = useLocation()
+  const { pathname, hash } = useLocation()
   const width = expanded ? SIDEBAR_WIDTH.expanded : SIDEBAR_WIDTH.collapsed
 
   return (
@@ -73,11 +72,23 @@ export function Sidebar({ expanded, onToggle }: SidebarProps) {
 
       <nav id="desktop-sidebar-nav" className="scrollbar flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden">
         {DESKTOP_ITEMS.map(({ to, icon: Icon, label }) => {
-          const active = to === '/'
+          const active = label === 'Home'
             ? pathname === '/'
-            : to === '/sports'
+            : label === 'Sports'
               ? pathname === '/sports' || pathname.startsWith('/sports/')
-              : pathname === to || pathname.startsWith(to + '/')
+              : label === 'Casino'
+                ? pathname === '/casino' || (pathname.startsWith('/casino/') && !pathname.startsWith('/casino/slot-games'))
+                : label === 'Games'
+                  ? pathname === '/casino/slot-games' || pathname.startsWith('/casino/slot-games/')
+                  : label === 'TV Games'
+                    ? pathname === '/live-casino' && hash === '#game-shows'
+                    : label === 'Live Casino'
+                      ? pathname === '/live-casino' && hash !== '#game-shows'
+                      : label === 'Virtual Sports'
+                        ? pathname.startsWith('/virtual-sports')
+                        : label === 'Promotions'
+                          ? pathname === '/promotions' || pathname.startsWith('/promotions/')
+                          : pathname === to
 
           return (
             <Link key={to} to={to} title={label} aria-label={label} aria-current={active ? 'page' : undefined} className="block w-full shrink-0 outline-none">
@@ -197,21 +208,20 @@ function VirtualSportsGlyph({ className }: SidebarIconProps) {
   )
 }
 
+function GamesGlyph({ className }: SidebarIconProps) {
+  return <Gamepad2 className={className} />
+}
+
+function TVGamesGlyph({ className }: SidebarIconProps) {
+  return <Tv className={className} />
+}
+
 function PromotionsGlyph({ className }: SidebarIconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M10.8359 11.5999C11.1841 11.5999 11.4685 11.902 11.4688 12.2776H11.4775V19.8216C11.4775 20.1974 11.193 20.5003 10.8447 20.5003H7.16992C5.85016 20.5003 4.77757 19.3728 4.77734 17.9798V12.2776C4.77758 11.9022 5.06124 11.6002 5.40918 11.5999H10.8359Z" />
       <path d="M18.499 11.5999C18.847 11.6001 19.1307 11.9021 19.1309 12.2776V17.9788C19.1309 19.3718 18.0589 20.5 16.7393 20.5003H13.082C12.7337 20.5003 12.4492 20.1974 12.4492 19.8216V12.2776C12.4494 11.902 12.7338 11.5999 13.082 11.5999H18.499Z" />
       <path d="M13.8047 3.74148C14.1272 3.41933 14.6591 3.4191 14.9814 3.74148L16.2188 4.97976C16.5323 5.2935 16.5413 5.79015 16.2451 6.11258H18.5371C19.8183 6.11258 20.2803 6.89699 20.2803 7.85574V8.72781C20.2801 9.68634 19.8181 10.471 18.5371 10.471H5.46289C4.12982 10.4709 3.71986 9.68627 3.71973 8.72781V7.85574C3.71973 6.89706 4.1296 6.1127 5.46289 6.11258H7.74707C7.45085 5.79021 7.45905 5.29356 7.77246 4.97976L9.01074 3.74148C9.33324 3.41925 9.86509 3.41911 10.1875 3.74148L12 5.55496L13.8047 3.74148Z" />
-    </svg>
-  )
-}
-
-function JackpotsGlyph({ className }: SidebarIconProps) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M4 4h16v3.4L12.1 20H7.5l6.6-12H4V4Z" />
-      <path d="M3 4h2v3H3zM7 6h2v2H7z" />
     </svg>
   )
 }
@@ -224,19 +234,6 @@ function TournamentGlyph({ className }: SidebarIconProps) {
       <path d="M18.1416 20.8751C18.1416 20.9474 18.0824 20.9999 18.0167 20.9999C16.8272 20.9999 7.1996 20.9999 6.01012 20.9999C5.93783 20.9999 5.88525 20.9474 5.88525 20.8751C5.88525 20.4873 6.02983 20.0668 6.35842 19.7513C6.68701 19.4359 7.20617 19.219 7.94221 19.219H10.308C10.6235 19.219 10.8798 18.9627 10.8798 18.6473V16.4392C10.8798 16.1237 10.6235 15.8674 10.308 15.8674H9.77572C7.8042 15.8674 6.20727 14.2705 6.20727 12.299V6.54868C6.2007 4.5903 7.79106 2.99994 9.74944 2.99994H14.2577C16.492 2.99994 17.8195 4.32086 17.813 6.54868V12.3252C17.813 14.5465 16.4855 15.874 14.2511 15.874H13.7188C13.4033 15.874 13.147 16.1303 13.147 16.4457V18.6538C13.147 18.9693 13.4033 19.2256 13.7188 19.2256H16.0846C17.4384 19.2256 18.1481 20.1062 18.1416 20.8816V20.8751Z" />
     </svg>
   )
-}
-
-function VipGlyph({ className }: SidebarIconProps) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M18.4686 17.2656C19.0506 17.2656 19.5233 17.7373 19.5233 18.3193V18.583C19.5232 18.814 19.3359 20 19.1053 20H4.90707C4.67663 19.9992 4.49016 18.8139 4.49008 18.583V18.3193C4.49008 17.7375 4.96199 17.2658 5.54379 17.2656H18.4686Z" />
-      <path d="M11.9901 4C12.0999 4.00001 12.1989 4.02152 12.2977 4.06543C12.3965 4.10934 12.4838 4.17588 12.5496 4.26367L16.3163 9.19434C16.481 9.4139 16.7341 9.56741 17.0086 9.61133C17.283 9.65513 17.5682 9.58914 17.7987 9.43555L20.5116 7.59082C20.6213 7.51408 20.7528 7.46977 20.8954 7.46973C21.0381 7.46973 21.1703 7.51395 21.2801 7.59082C21.5105 7.75549 21.6093 8.05181 21.5545 8.32617L20.3465 14.6846C20.2916 14.9261 20.1594 15.1461 19.9618 15.2998C19.7642 15.4533 19.5227 15.541 19.2704 15.541H4.72055C4.46817 15.541 4.22671 15.4533 4.02914 15.2998C3.8315 15.1461 3.69929 14.9261 3.64438 14.6846L2.45883 8.31543C2.42589 8.18366 2.42565 8.04071 2.46957 7.91992C2.51351 7.78832 2.6011 7.67837 2.71078 7.60156C2.93039 7.43686 3.22726 7.41489 3.45785 7.55762L6.785 9.49023C7.02658 9.63299 7.31223 9.67721 7.58676 9.61133C7.86123 9.54542 8.10297 9.38022 8.25668 9.13867L11.452 4.30762C11.5069 4.21979 11.5946 4.14279 11.6825 4.08789C11.7813 4.03299 11.8803 4.01098 11.9901 4Z" />
-    </svg>
-  )
-}
-
-function RewardsGlyph({ className }: SidebarIconProps) {
-  return <img className={cn('object-contain', className)} src="https://campeonbet.io/assets/rewards-DYB6diur.png" alt="" />
 }
 
 function SupportGlyph({ className }: SidebarIconProps) {
