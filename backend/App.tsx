@@ -1839,7 +1839,7 @@ function ReportDataTable({ title }: { title: string }) {
             </tr>
             {hasDetailsColumn && expandedRows.includes(row.id) ? <tr className="bg-slate-50/80"><td colSpan={shownColumns.length + 1} className="border-b border-slate-200 px-4 py-3"><div className="grid gap-x-5 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">{shownColumns.slice(0, title === 'Bets Report' ? 8 : shownColumns.length).map((column) => <div key={column.key} className="min-w-0"><p className="text-[10px] font-medium text-slate-400">{column.label}</p><p className="mt-1 truncate text-xs font-medium text-slate-700">{row.values[column.key] ?? '—'}</p></div>)}</div></td></tr> : null}
           </Fragment>)}
-          {pageRows.length === 0 ? <tr><td colSpan={shownColumns.length + (hasDetailsColumn ? 1 : 0)} className="border-b border-slate-100 px-4 py-12 text-center text-xs text-slate-400">{config.emptyState ? <div className="flex flex-col items-center justify-center gap-2"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-50 text-slate-400"><FileText className="h-4 w-4" /></span><span className="font-medium text-slate-600">No payment records found</span><span className="text-[11px] text-slate-400">Payment data will appear here when records are available.</span></div> : 'No matching records.'}</td></tr> : null}
+          {pageRows.length === 0 ? <tr><td colSpan={shownColumns.length + (hasDetailsColumn ? 1 : 0)} className="border-b border-slate-100 px-4 py-12 text-center text-xs text-slate-400">{config.emptyState ? <div className="flex flex-col items-center justify-center gap-2.5"><span className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-50 text-slate-300"><FileText className="h-5 w-5" /></span><span className="font-medium text-slate-500">No Result</span></div> : 'No matching records.'}</td></tr> : null}
         </tbody>
         {config.showTotals !== false ? <tfoot><tr className="sticky bottom-0 z-[2] bg-slate-50">
           {hasDetailsColumn ? <td className="sticky left-0 z-[3] border-t border-slate-200 bg-slate-50 px-2 py-3" /> : null}
@@ -1859,7 +1859,7 @@ function ReportDataTable({ title }: { title: string }) {
         <Button type="button" variant="outline" size="icon" className="h-8 w-8 rounded-md" aria-label="Next page" disabled={currentPage >= totalPages} onClick={() => setPageNumber((current) => Math.min(totalPages, current + 1))}><ChevronRight className="h-3.5 w-3.5" /></Button>
       </div>
     </div> : null}
-    <p className="border-t border-slate-100 px-4 py-2.5 text-[10px] text-slate-400">Sample report data · Layout settings and CSV export are available in this preview.</p>
+
   </section>
 }
 
