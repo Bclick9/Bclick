@@ -1416,6 +1416,313 @@ function TransactionsPage({ query, onQueryChange, users, onNotify, onSelectPlaye
 }
 
 
+type ReportColumn = { key: string; label: string; width: number }
+type ReportRow = { id: string; values: Record<string, string> }
+type ReportTableConfig = {
+  columns: ReportColumn[]
+  rows: ReportRow[]
+  totals: Record<string, string>
+  searchable: boolean
+  sportFilter: boolean
+  defaultSortKey?: string
+  defaultSortDirection?: 'asc' | 'desc'
+}
+const makeReportRows = (columns: ReportColumn[], rows: { id: string; values: Record<string, string> }[]): ReportRow[] =>
+  rows.map((row) => ({ id: row.id, values: Object.fromEntries(columns.map((column) => [column.key, row.values[column.key] ?? '—'])) }))
+
+const BET_REPORT_COLUMNS: ReportColumn[] = [
+  { key: 'betId', label: 'Bet ID', width: 150 },
+  { key: 'playerId', label: 'Player ID', width: 150 },
+  { key: 'currency', label: 'Currency', width: 110 },
+  { key: 'stake', label: 'Stake', width: 125 },
+  { key: 'stakeUsd', label: 'Stake In (USD)', width: 145 },
+  { key: 'odds', label: 'Odds', width: 110 },
+  { key: 'winning', label: 'Winning', width: 125 },
+  { key: 'winningUsd', label: 'Winning In (USD)', width: 155 },
+  { key: 'type', label: 'Type', width: 125 },
+  { key: 'state', label: 'State', width: 125 },
+  { key: 'firstName', label: 'First Name', width: 130 },
+  { key: 'lastName', label: 'Last Name', width: 130 },
+  { key: 'username', label: 'Username', width: 180 },
+  { key: 'externalId', label: 'External ID', width: 130 },
+  { key: 'created', label: 'Created', width: 170 },
+  { key: 'calcDate', label: 'Calc. Date', width: 155 },
+  { key: 'source', label: 'Source', width: 115 },
+  { key: 'playerCategory', label: 'Player Category', width: 145 },
+  { key: 'isLive', label: 'Is Live', width: 100 },
+  { key: 'isTest', label: 'Is Test', width: 100 },
+  { key: 'bonusId', label: 'Bonus Id', width: 125 },
+  { key: 'bonusAmount', label: 'Bonus', width: 115 },
+  { key: 'bonusType', label: 'Bonus Type', width: 135 },
+  { key: 'cashDeskName', label: 'CashDesk Name', width: 150 },
+  { key: 'cashDeskInfo', label: 'Cashdesk Info', width: 145 },
+  { key: 'betshopInfo', label: 'Betshop Info', width: 145 },
+  { key: 'bonusBetAmount', label: 'Bonus Bet Amount', width: 155 },
+  { key: 'bonusWinAmount', label: 'Bonus Win Amount', width: 155 },
+  { key: 'systemMin', label: 'System Min', width: 120 },
+  { key: 'betNumber', label: 'Bet Number', width: 130 },
+  { key: 'paidDate', label: 'Paid Date', width: 160 },
+  { key: 'paidCashDesk', label: 'Paid Cash Desk', width: 155 },
+  { key: 'taxAmount', label: 'Tax Amount', width: 125 },
+  { key: 'selectionCount', label: 'Selection Count', width: 145 },
+  { key: 'freeBetAmount', label: 'Free Bet Amount', width: 145 },
+  { key: 'clientCashDesk', label: 'Client Cashdesk', width: 155 },
+  { key: 'barcode', label: 'Barcode', width: 125 },
+  { key: 'betshopGroup', label: 'Betshop Group', width: 150 },
+  { key: 'betshopName', label: 'Betshop Name', width: 150 },
+  { key: 'ggrUsd', label: 'GGR (USD)', width: 125 },
+  { key: 'eachWay', label: 'Each Way', width: 115 },
+  { key: 'possibleWin', label: 'Possible Winning', width: 155 },
+  { key: 'actualSportBonus', label: 'Actual Sport Bonus', width: 165 },
+  { key: 'stakeTax', label: 'Stake Tax', width: 120 },
+  { key: 'calculatedBy', label: 'Calculated By', width: 150 },
+  { key: 'autoCashout', label: 'Auto Cashout', width: 145 },
+  { key: 'cashoutDisabled', label: 'Cashout Disabled', width: 155 },
+  { key: 'partialCashout', label: 'Partial Cashout', width: 150 },
+  { key: 'remainingAmount', label: 'Remaining Amount', width: 160 },
+  { key: 'remainingUsd', label: 'Remaining Amount In (USD)', width: 200 },
+]
+const BET_REPORT_ROWS = makeReportRows(BET_REPORT_COLUMNS, [
+  { id: 'bet-6760318180', values: { betId: '6760318180', playerId: '500435780', currency: 'TND', stake: '5.00', stakeUsd: '$1.68', odds: '42.107', winning: '0.00', winningUsd: '$0.00', type: 'Multiple', state: 'Accepted', firstName: 'Alex', lastName: 'Morgan', username: 'alex.morgan', externalId: '—', created: '19-10-2026 14:28:31', calcDate: '—', source: 'Web', playerCategory: 'New User', isLive: 'Yes', isTest: 'No', bonusId: '—', bonusAmount: '0.00', bonusType: '—', bonusBetAmount: '0.00', bonusWinAmount: '0.00', taxAmount: '0.00', selectionCount: '3', freeBetAmount: '0.00', ggrUsd: '$1.68', eachWay: 'No', possibleWin: '$70.76', actualSportBonus: '$0.00', stakeTax: '0.00', autoCashout: 'No', cashoutDisabled: 'No', partialCashout: 'No', remainingAmount: '0.00', remainingUsd: '$0.00' } },
+  { id: 'bet-6760318181', values: { betId: '6760318181', playerId: '500435781', currency: 'EUR', stake: '10.00', stakeUsd: '$10.85', odds: '2.450', winning: '24.50', winningUsd: '$26.59', type: 'Single', state: 'Won', firstName: 'Jordan', lastName: 'Taylor', username: 'jtaylor', created: '19-10-2026 13:47:12', source: 'Mobile', playerCategory: 'Regular', isLive: 'No', isTest: 'No', selectionCount: '1', possibleWin: '$26.59', ggrUsd: '-$15.74', autoCashout: 'No', cashoutDisabled: 'No', partialCashout: 'No' } },
+  { id: 'bet-6760318182', values: { betId: '6760318182', playerId: '500435782', currency: 'USD', stake: '15.00', stakeUsd: '$15.00', odds: '1.850', winning: '0.00', winningUsd: '$0.00', type: 'Multiple', state: 'Lost', firstName: 'Casey', lastName: 'Reed', username: 'casey.reed', created: '19-10-2026 12:55:04', source: 'Web', playerCategory: 'VIP', isLive: 'Yes', isTest: 'No', selectionCount: '4', possibleWin: '$27.75', ggrUsd: '$15.00', eachWay: 'No', autoCashout: 'No', cashoutDisabled: 'No', partialCashout: 'No' } },
+  { id: 'bet-6760318183', values: { betId: '6760318183', playerId: '500435783', currency: 'TND', stake: '8.00', stakeUsd: '$2.68', odds: '3.200', winning: '25.60', winningUsd: '$8.58', type: 'Single', state: 'Paid', firstName: 'Riley', lastName: 'Parker', username: 'riley.p', created: '19-10-2026 11:32:45', source: 'Retail', playerCategory: 'Regular', isLive: 'No', isTest: 'No', selectionCount: '1', possibleWin: '$8.58', ggrUsd: '-$5.90', paidDate: '19-10-2026 12:00:00', autoCashout: 'No', cashoutDisabled: 'No', partialCashout: 'No' } },
+])
+
+const SPORTS_REPORT_COLUMNS: ReportColumn[] = [
+  { key: 'sport', label: 'Sport', width: 250 },
+  { key: 'stakes', label: 'Stakes (USD)', width: 250 },
+  { key: 'winnings', label: 'Winning (USD)', width: 250 },
+  { key: 'profit', label: 'P/L (USD)', width: 250 },
+  { key: 'profitability', label: 'Profitability %', width: 160 },
+]
+const SPORTS_REPORT_ROWS = makeReportRows(SPORTS_REPORT_COLUMNS, [
+  { id: 'sport-football', values: { sport: 'Football', stakes: '$1.68', winnings: '$0.00', profit: '$1.68', profitability: '100%' } },
+  { id: 'sport-basketball', values: { sport: 'Basketball', stakes: '$245.80', winnings: '$174.20', profit: '$71.60', profitability: '29.1%' } },
+  { id: 'sport-tennis', values: { sport: 'Tennis', stakes: '$182.40', winnings: '$196.80', profit: '-$14.40', profitability: '-7.9%' } },
+])
+const COMPETITIONS_REPORT_COLUMNS: ReportColumn[] = [
+  { key: 'sport', label: 'Sport', width: 170 },
+  { key: 'region', label: 'Region', width: 170 },
+  { key: 'competition', label: 'Competitions', width: 250 },
+  { key: 'stakes', label: 'Stakes (USD)', width: 170 },
+  { key: 'winnings', label: 'Winning (USD)', width: 170 },
+  { key: 'profit', label: 'P/L (USD)', width: 160 },
+  { key: 'profitability', label: 'Profitability %', width: 160 },
+]
+const COMPETITIONS_REPORT_ROWS = makeReportRows(COMPETITIONS_REPORT_COLUMNS, [
+  { id: 'competition-ucl', values: { sport: 'Football', region: 'Europe', competition: 'UEFA Champions League', stakes: '$1.46', winnings: '$0.00', profit: '$1.46', profitability: '100%' } },
+  { id: 'competition-greece', values: { sport: 'Football', region: 'Greece', competition: 'Super League 2', stakes: '$0.23', winnings: '$0.00', profit: '$0.23', profitability: '100%' } },
+  { id: 'competition-nba', values: { sport: 'Basketball', region: 'North America', competition: 'NBA', stakes: '$245.80', winnings: '$174.20', profit: '$71.60', profitability: '29.1%' } },
+  { id: 'competition-atp', values: { sport: 'Tennis', region: 'International', competition: 'ATP Tour', stakes: '$182.40', winnings: '$196.80', profit: '-$14.40', profitability: '-7.9%' } },
+])
+const MARKET_TYPES_REPORT_COLUMNS: ReportColumn[] = [
+  { key: 'sport', label: 'Sport', width: 170 },
+  { key: 'marketType', label: 'Market Type', width: 230 },
+  { key: 'betCount', label: 'Bet', width: 130 },
+  { key: 'stakes', label: 'Stakes (USD)', width: 170 },
+  { key: 'winnings', label: 'Winning (USD)', width: 170 },
+  { key: 'profit', label: 'P/L (USD)', width: 160 },
+  { key: 'profitability', label: 'Profitability %', width: 160 },
+]
+const MARKET_TYPES_REPORT_ROWS = makeReportRows(MARKET_TYPES_REPORT_COLUMNS, [
+  { id: 'market-result', values: { sport: 'Football', marketType: 'Match Result', betCount: '3', stakes: '$1.68', winnings: '$0.00', profit: '$1.68', profitability: '100%' } },
+  { id: 'market-over-under', values: { sport: 'Football', marketType: 'Over / Under', betCount: '18', stakes: '$84.25', winnings: '$63.90', profit: '$20.35', profitability: '24.2%' } },
+  { id: 'market-handicap', values: { sport: 'Basketball', marketType: 'Asian Handicap', betCount: '24', stakes: '$245.80', winnings: '$174.20', profit: '$71.60', profitability: '29.1%' } },
+  { id: 'market-winner', values: { sport: 'Tennis', marketType: 'Match Winner', betCount: '11', stakes: '$182.40', winnings: '$196.80', profit: '-$14.40', profitability: '-7.9%' } },
+])
+
+function getReportTableConfig(title: string): ReportTableConfig | null {
+  if (title === 'Bets Report') return {
+    columns: BET_REPORT_COLUMNS, rows: BET_REPORT_ROWS,
+    totals: { betId: 'Total', stakeUsd: '$30.21', winningUsd: '$35.17', bonusAmount: '0.00', bonusBetAmount: '0.00', bonusWinAmount: '0.00', taxAmount: '0.00', selectionCount: '9', freeBetAmount: '0.00', ggrUsd: '-$4.96', possibleWin: '$133.68', actualSportBonus: '$0.00', stakeTax: '0.00', remainingAmount: '0.00', remainingUsd: '$0.00' },
+    searchable: false, sportFilter: false, defaultSortKey: 'betId', defaultSortDirection: 'desc',
+  }
+  if (title === 'Sports Report') return {
+    columns: SPORTS_REPORT_COLUMNS, rows: SPORTS_REPORT_ROWS,
+    totals: { sport: 'Total', stakes: '$429.88', winnings: '$371.00', profit: '$58.88', profitability: '13.7%' },
+    searchable: true, sportFilter: false,
+  }
+  if (title === 'Competitions Report') return {
+    columns: COMPETITIONS_REPORT_COLUMNS, rows: COMPETITIONS_REPORT_ROWS,
+    totals: { sport: 'Total', stakes: '$429.89', winnings: '$371.00', profit: '$58.89', profitability: '13.7%' },
+    searchable: true, sportFilter: true,
+  }
+  if (title === 'Market Types Report') return {
+    columns: MARKET_TYPES_REPORT_COLUMNS, rows: MARKET_TYPES_REPORT_ROWS,
+    totals: { sport: 'Total', betCount: '56', stakes: '$514.13', winnings: '$434.90', profit: '$79.23', profitability: '15.4%' },
+    searchable: true, sportFilter: true,
+  }
+  return null
+}
+
+function ReportDataTable({ title }: { title: string }) {
+  const config = getReportTableConfig(title)
+  const [search, setSearch] = useState('')
+  const [sportFilter, setSportFilter] = useState('All sports')
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => (config?.columns ?? []).map((column) => column.key))
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => (config?.columns ?? []).map((column) => column.key))
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [sortKey, setSortKey] = useState<string | null>(config?.defaultSortKey ?? null)
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>(config?.defaultSortDirection ?? 'asc')
+  const [draggedColumn, setDraggedColumn] = useState<string | null>(null)
+  const [expandedRows, setExpandedRows] = useState<string[]>([])
+  const [pageSize, setPageSize] = useState(20)
+  const [pageNumber, setPageNumber] = useState(1)
+
+  if (!config) return null
+  const orderedColumns = columnOrder.map((key) => config.columns.find((column) => column.key === key)).filter((column): column is ReportColumn => Boolean(column))
+  const shownColumns = orderedColumns.filter((column) => visibleColumns.includes(column.key))
+  const filteredRows = config.rows.filter((row) => {
+    const matchesSearch = !config.searchable || Object.values(row.values).join(' ').toLowerCase().includes(search.toLowerCase())
+    const matchesSport = !config.sportFilter || sportFilter === 'All sports' || row.values.sport === sportFilter
+    return matchesSearch && matchesSport
+  })
+  const sortedRows = [...filteredRows].sort((left, right) => {
+    if (!sortKey) return 0
+    const a = left.values[sortKey] ?? ''
+    const b = right.values[sortKey] ?? ''
+    const numericA = Number(a.replace(/[$,%\s,]/g, ''))
+    const numericB = Number(b.replace(/[$,%\s,]/g, ''))
+    const numeric = a !== '' && b !== '' && !Number.isNaN(numericA) && !Number.isNaN(numericB)
+    const compare = numeric ? numericA - numericB : a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+    return sortDirection === 'asc' ? compare : -compare
+  })
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / pageSize))
+  const currentPage = Math.min(pageNumber, totalPages)
+  const pageRows = sortedRows.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const tableWidth = shownColumns.reduce((total, column) => total + column.width, 0)
+  const resetTable = () => {
+    setSearch('')
+    setSportFilter('All sports')
+    setColumnOrder(config.columns.map((column) => column.key))
+    setVisibleColumns(config.columns.map((column) => column.key))
+    setSortKey(config.defaultSortKey ?? null)
+    setSortDirection(config.defaultSortDirection ?? 'asc')
+    setExpandedRows([])
+    setPageNumber(1)
+    setPageSize(20)
+    setDraggedColumn(null)
+    setSettingsOpen(false)
+  }
+  const sortBy = (key: string) => {
+    if (sortKey === key) setSortDirection((current) => current === 'asc' ? 'desc' : 'asc')
+    else { setSortKey(key); setSortDirection('asc') }
+    setPageNumber(1)
+  }
+  const moveColumn = (targetKey: string) => {
+    if (!draggedColumn || draggedColumn === targetKey) return
+    setColumnOrder((current) => {
+      const next = [...current]
+      const from = next.indexOf(draggedColumn)
+      const to = next.indexOf(targetKey)
+      if (from < 0 || to < 0) return current
+      next.splice(from, 1)
+      next.splice(to, 0, draggedColumn)
+      return next
+    })
+    setDraggedColumn(null)
+  }
+  const exportCsv = () => {
+    const csvCell = (value: string) => '"' + value.replace(/"/g, '""') + '"'
+    const csv = [shownColumns.map((column) => csvCell(column.label)).join(','), ...sortedRows.map((row) => shownColumns.map((column) => csvCell(row.values[column.key] ?? '—')).join(','))].join('\r\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }))
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.csv'
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    URL.revokeObjectURL(url)
+  }
+  const toggleExpanded = (id: string) => setExpandedRows((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
+
+  return <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none">
+    <div className="flex min-h-[54px] items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 sm:px-5">
+      <h2 className="min-w-0 truncate text-sm font-semibold text-slate-900">{title}</h2>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <div className="relative">
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-md text-slate-600 hover:bg-slate-100" aria-label="Report table settings" title="Table settings" onClick={() => setSettingsOpen((open) => !open)}><Settings className="h-4 w-4" /></Button>
+          {settingsOpen ? <div className="absolute right-0 top-9 z-30 w-[min(320px,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+            <div className="mb-2 flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+              <div><p className="text-xs font-semibold text-slate-900">Table settings</p><p className="mt-1 text-[10px] text-slate-500">Choose which columns are visible.</p></div>
+              <button type="button" onClick={() => setVisibleColumns(config.columns.map((column) => column.key))} className="text-[10px] font-semibold text-slate-600 hover:text-slate-950">Show all</button>
+            </div>
+            <div className="admin-scrollbar grid max-h-[300px] grid-cols-2 gap-x-3 gap-y-2 overflow-y-auto py-1">
+              {config.columns.map((column) => <label key={column.key} className="flex min-w-0 cursor-pointer items-center gap-2 text-[11px] text-slate-600"><input type="checkbox" checked={visibleColumns.includes(column.key)} onChange={(event) => setVisibleColumns((current) => event.target.checked ? [...current, column.key] : current.filter((key) => key !== column.key))} className="h-3.5 w-3.5 shrink-0 rounded border-slate-300 accent-slate-900" /><span className="truncate" title={column.label}>{column.label}</span></label>)}
+            </div>
+            <div className="mt-3 border-t border-slate-100 pt-3 text-[10px] text-slate-400">Drag column headings to change their order.</div>
+          </div> : null}
+        </div>
+        <div className="h-5 w-px bg-slate-200" />
+        <Button type="button" variant="ghost" size="sm" className="h-8 rounded-md px-2.5 text-xs" onClick={exportCsv}><Download className="h-3.5 w-3.5" /> Export</Button>
+        <div className="h-5 w-px bg-slate-200" />
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-md text-slate-600 hover:bg-slate-100" aria-label="Reset report" title="Reset report table" onClick={resetTable}><RotateCcw className="h-4 w-4" /></Button>
+      </div>
+    </div>
+
+    {config.searchable || config.sportFilter ? <div className="flex flex-col gap-2.5 border-b border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+      {config.searchable ? <div className="relative w-full sm:max-w-[320px]">
+        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+        <Input aria-label={'Search ' + title} value={search} onChange={(event) => { setSearch(event.target.value); setPageNumber(1) }} placeholder="Search" className="h-9 rounded-md border-slate-200 bg-white pl-9 text-xs placeholder:text-slate-400 focus:bg-white" />
+      </div> : <span className="text-[11px] text-slate-400">All bets</span>}
+      {config.sportFilter ? <label className="flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-[11px] text-slate-500"><span>Sport</span><select aria-label="Filter by sport" value={sportFilter} onChange={(event) => { setSportFilter(event.target.value); setPageNumber(1) }} className="bg-transparent text-xs text-slate-800 outline-none">{['All sports', ...Array.from(new Set(config.rows.map((row) => row.values.sport).filter(Boolean)))].map((sport) => <option key={sport}>{sport}</option>)}</select></label> : null}
+    </div> : null}
+
+    <div className="admin-scrollbar max-h-[min(62vh,620px)] min-h-[220px] w-full overflow-auto bg-white">
+      {shownColumns.length > 0 ? <table className="border-separate border-spacing-0 text-left" style={{ width: tableWidth + 42, minWidth: tableWidth + 42, tableLayout: 'fixed' }}>
+        <thead className="sticky top-0 z-10 bg-white">
+          <tr>
+            <th className="sticky left-0 z-20 w-[42px] min-w-[42px] border-b border-slate-200 bg-white px-2" aria-label="Details" />
+            {shownColumns.map((column) => <th key={column.key} draggable onDragStart={(event) => { event.dataTransfer.setData('text/plain', column.key); event.dataTransfer.effectAllowed = 'move'; setDraggedColumn(column.key) }} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move' }} onDrop={(event) => { event.preventDefault(); const key = event.dataTransfer.getData('text/plain') || draggedColumn; if (key) { setDraggedColumn(key); moveColumn(column.key) } }} onDragEnd={() => setDraggedColumn(null)} style={{ width: column.width, minWidth: column.width }} className={cn('group/report-th box-border h-10 overflow-hidden border-b border-r border-slate-200 bg-white px-3 text-[11px] font-medium text-slate-600 last:border-r-0', draggedColumn === column.key && 'opacity-40')}>
+              <div className="flex items-center gap-2">
+                <GripVertical className="h-3.5 w-3.5 shrink-0 cursor-grab text-slate-300 opacity-0 transition group-hover/report-th:opacity-100" />
+                <button type="button" onClick={() => sortBy(column.key)} className="inline-flex min-w-0 items-center gap-1.5 text-left hover:text-slate-950"><span className="truncate">{column.label}</span><span className="text-[9px] text-slate-300">{sortKey === column.key ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span></button>
+              </div>
+            </th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {pageRows.map((row, rowIndex) => <Fragment key={row.id}>
+            <tr className={cn('group/report-row transition-colors hover:bg-slate-50', rowIndex % 2 === 1 && 'bg-slate-50/40')}>
+              <td className="sticky left-0 z-[1] border-b border-slate-100 bg-inherit px-2 py-2 text-center">
+                <button type="button" aria-label={(expandedRows.includes(row.id) ? 'Hide' : 'Show') + ' details for row'} onClick={() => toggleExpanded(row.id)} className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-800"><ChevronRight className={cn('h-3.5 w-3.5 transition-transform', expandedRows.includes(row.id) && 'rotate-90')} /></button>
+              </td>
+              {shownColumns.map((column, columnIndex) => {
+                const value = row.values[column.key] ?? '—'
+                const numeric = /amount|stake|winning|profit|ggr|odds|selection|count|tax|remaining|bonus/i.test(column.key)
+                const status = column.key === 'state'
+                return <td key={column.key} style={{ width: column.width, minWidth: column.width }} className={cn('box-border h-[43px] overflow-hidden border-b border-slate-100 px-3 text-xs', status ? 'text-slate-700' : numeric ? 'text-right tabular-nums text-slate-600' : 'text-slate-600', columnIndex === 0 && 'font-medium text-slate-800')} title={value}>
+                  {status ? <Badge variant={value === 'Won' || value === 'Paid' ? 'success' : value === 'Lost' ? 'warning' : 'outline'}>{value}</Badge> : <span className="block truncate">{value}</span>}
+                </td>
+              })}
+            </tr>
+            {expandedRows.includes(row.id) ? <tr className="bg-slate-50/80"><td colSpan={shownColumns.length + 1} className="border-b border-slate-200 px-4 py-3"><div className="grid gap-x-5 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">{shownColumns.slice(0, title === 'Bets Report' ? 8 : shownColumns.length).map((column) => <div key={column.key} className="min-w-0"><p className="text-[10px] font-medium text-slate-400">{column.label}</p><p className="mt-1 truncate text-xs font-medium text-slate-700">{row.values[column.key] ?? '—'}</p></div>)}</div></td></tr> : null}
+          </Fragment>)}
+          {pageRows.length === 0 ? <tr><td colSpan={shownColumns.length + 1} className="border-b border-slate-100 px-4 py-12 text-center text-xs text-slate-400">No matching records.</td></tr> : null}
+        </tbody>
+        <tfoot><tr className="sticky bottom-0 z-[2] bg-slate-50">
+          <td className="sticky left-0 z-[3] border-t border-slate-200 bg-slate-50 px-2 py-3" />
+          {shownColumns.map((column) => <td key={column.key} style={{ width: column.width, minWidth: column.width }} className="border-t border-slate-200 px-3 py-3 text-xs font-semibold tabular-nums text-slate-700"><span className="block truncate" title={config.totals[column.key] ?? ''}>{config.totals[column.key] ?? ''}</span></td>)}
+        </tr></tfoot>
+      </table> : <div className="flex min-h-52 items-center justify-center px-4 text-center text-xs text-slate-400">Choose at least one column in table settings to display the report.</div>}
+    </div>
+
+    <div className="flex flex-col gap-3 border-t border-slate-100 px-3 py-3 text-[10px] text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+      <div className="flex items-center gap-2">
+        <select aria-label="Rows per page" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPageNumber(1) }} className="h-8 rounded-md border border-slate-200 bg-white px-2 text-[11px] text-slate-600"><option value={10}>10</option><option value={20}>20</option><option value={50}>50</option><option value={100}>100</option></select>
+        <span>{sortedRows.length === 0 ? '0' : (currentPage - 1) * pageSize + 1 + '–' + Math.min(currentPage * pageSize, sortedRows.length)} of {sortedRows.length}</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <Button type="button" variant="outline" size="icon" className="h-8 w-8 rounded-md" aria-label="Previous page" disabled={currentPage <= 1} onClick={() => setPageNumber((current) => Math.max(1, current - 1))}><ChevronRight className="h-3.5 w-3.5 rotate-180" /></Button>
+        <span className="min-w-8 text-center tabular-nums">{currentPage} / {totalPages}</span>
+        <Button type="button" variant="outline" size="icon" className="h-8 w-8 rounded-md" aria-label="Next page" disabled={currentPage >= totalPages} onClick={() => setPageNumber((current) => Math.min(totalPages, current + 1))}><ChevronRight className="h-3.5 w-3.5" /></Button>
+      </div>
+    </div>
+    <p className="border-t border-slate-100 px-4 py-2.5 text-[10px] text-slate-400">Sample report data · Layout settings and CSV export are available in this preview.</p>
+  </section>
+}
+
 function ReportsPage() {
   const [selectedReport, setSelectedReport] = useState<{
     group: string
@@ -1464,6 +1771,7 @@ function ReportsPage() {
 
   if (selectedReport) {
     const ReportIcon = selectedReport.report.icon
+    const supportsDataTable = ['Bets Report', 'Sports Report', 'Competitions Report', 'Market Types Report'].includes(selectedReport.report.title)
     return <div className="page-enter space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 sm:px-5">
         <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
@@ -1475,15 +1783,10 @@ function ReportsPage() {
         </div>
         <Button type="button" variant="outline" size="sm" onClick={() => setSelectedReport(null)}><ArrowRight className="h-3.5 w-3.5 rotate-180" /> All reports</Button>
       </div>
-
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none">
+      {supportsDataTable ? <ReportDataTable key={selectedReport.report.title} title={selectedReport.report.title} /> : <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none">
         <div className="flex items-start gap-3 border-b border-slate-100 px-4 py-4 sm:px-5">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-600"><ReportIcon className="h-5 w-5" /></span>
-          <div className="min-w-0">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{selectedReport.group}</p>
-            <h1 className="mt-1 text-base font-semibold text-slate-900">{selectedReport.report.title}</h1>
-            <p className="mt-1 text-xs leading-5 text-slate-500">{selectedReport.report.description}</p>
-          </div>
+          <div className="min-w-0"><p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{selectedReport.group}</p><h1 className="mt-1 text-base font-semibold text-slate-900">{selectedReport.report.title}</h1><p className="mt-1 text-xs leading-5 text-slate-500">{selectedReport.report.description}</p></div>
         </div>
         <div className="flex min-h-[300px] flex-col items-center justify-center px-5 py-12 text-center">
           <span className="flex h-12 w-12 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-400"><FileText className="h-5 w-5" /></span>
@@ -1492,7 +1795,7 @@ function ReportsPage() {
           <p className="mt-3 text-[10px] text-slate-400">Navigation preview · No production data connected</p>
           <Button type="button" variant="outline" size="sm" className="mt-5" onClick={() => setSelectedReport(null)}>Back to all reports</Button>
         </div>
-      </section>
+      </section>}
     </div>
   }
 
@@ -1513,17 +1816,9 @@ function ReportsPage() {
           <div className="grid gap-px bg-slate-100 sm:grid-cols-2 xl:grid-cols-4">
             {group.reports.map((report) => {
               const ReportIcon = report.icon
-              return <button
-                key={report.title}
-                type="button"
-                onClick={() => setSelectedReport({ group: group.title, report })}
-                className="group flex min-h-[100px] min-w-0 items-start gap-3 bg-white px-4 py-4 text-left transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-400"
-              >
+              return <button key={report.title} type="button" onClick={() => setSelectedReport({ group: group.title, report })} className="group flex min-h-[100px] min-w-0 items-start gap-3 bg-white px-4 py-4 text-left transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-400">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition group-hover:border-slate-300 group-hover:text-slate-800"><ReportIcon className="h-4 w-4" /></span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-xs font-semibold text-slate-800">{report.title}</span>
-                  <span className="mt-1.5 block text-[11px] leading-4 text-slate-500">{report.description}</span>
-                </span>
+                <span className="min-w-0 flex-1"><span className="block text-xs font-semibold text-slate-800">{report.title}</span><span className="mt-1.5 block text-[11px] leading-4 text-slate-500">{report.description}</span></span>
                 <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-600" />
               </button>
             })}
