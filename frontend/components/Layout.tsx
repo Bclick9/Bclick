@@ -20,12 +20,12 @@ export function Layout() {
       >
         <HeaderDesktop />
         <HeaderMobile />
-        <main className={isAccountRoute ? "flex w-full min-w-0 flex-1 flex-col min-h-[calc(100dvh-3.5rem)] md:min-h-[calc(100dvh-4rem)] pb-0" : isSportsBook ? "flex-1 pb-0" : "flex-1 pb-20 md:pb-0"}>
+        <main className={isAccountRoute ? "flex w-full min-w-0 flex-1 flex-col min-h-[calc(100dvh-3.5rem)] md:min-h-[calc(100dvh-4rem)] pb-20 md:pb-0" : isSportsBook ? "flex-1 pb-0" : "flex-1 pb-20 md:pb-0"}>
           <Outlet />
         </main>
         {!isSportsBook && !isAccountRoute ? <Footer /> : null}
       </div>
-      {!isAccountRoute ? <BottomNav /> : null}
+      <BottomNav />
     </div>
   )
 }
