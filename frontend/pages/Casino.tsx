@@ -292,7 +292,7 @@ export function CasinoCategory() {
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-5 md:py-6">
-      {isLobby && !searchTerm ? <TrendingGames /> : null}
+      {isLobby ? <TrendingGames /> : null}
 
       <CasinoFilterBar searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} />
 
@@ -356,6 +356,7 @@ export function Providers() {
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-6">
+      <TrendingGames />
       <CasinoFilterBar searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} providersActive />
       <CategoryStrip active="" />
       <div className="flex items-center gap-3 mb-6">
