@@ -17,7 +17,23 @@ type WorkspaceMode = 'backoffice' | 'cms'
 type PageKey = 'overview' | 'users' | 'promotions' | 'bonuses' | 'games' | 'transactions' | 'reports' | 'settings' | 'cms-overview' | 'cms-lobby' | 'cms-categories' | 'cms-banners' | 'cms-design' | 'cms-settings'
 type Status = 'Active' | 'Paused' | 'Scheduled' | 'Suspended' | 'Completed' | 'Pending' | 'Failed'
 type UserRow = { id: string; name: string; email: string; country: string; joined: string; balance: string; status: 'Active' | 'Suspended'; tier: 'VIP' | 'Gold' | 'Standard' }
-type Offer = { id: string; name: string; description: string; channel: 'Casino' | 'Sports' | 'Both'; reward: string; claims: string; ends: string; status: 'Active' | 'Paused' | 'Scheduled' }
+type Offer = {
+  id: string
+  name: string
+  description: string
+  channel: 'Casino' | 'Sports' | 'Both'
+  reward: string
+  claims: string
+  ends: string
+  status: 'Active' | 'Paused' | 'Scheduled'
+  bonusType?: string
+  productType?: string
+  expirationDate?: string
+  expirationDays?: string
+  startDate?: string
+  endDate?: string
+  platformDefinitionBonusId?: string
+}
 type GameRow = { id: string; title: string; provider: string; category: string; rtp: string; players: string; status: 'Active' | 'Paused' }
 
 const NAV_GROUPS: { title: string; items: { page: PageKey; label: string; icon: LucideIcon; count?: string }[] }[] = [
@@ -87,12 +103,7 @@ const INITIAL_PROMOTIONS: Offer[] = [
   { id: 'PR-0104', name: 'Super Sunday', description: 'A special sports reward for Sunday.', channel: 'Sports', reward: '€10 free bet', claims: '1,096', ends: 'Oct 12, 2026', status: 'Paused' },
 ]
 
-const INITIAL_BONUSES: Offer[] = [
-  { id: 'BN-0234', name: 'Casino Welcome Bonus', description: 'New player deposit match.', channel: 'Casino', reward: '100% up to €200', claims: '1,742', ends: 'Nov 30, 2026', status: 'Active' },
-  { id: 'BN-0233', name: 'Sports Free Bet', description: 'A free bet after qualifying activity.', channel: 'Sports', reward: '€10 free bet', claims: '984', ends: 'Nov 15, 2026', status: 'Active' },
-  { id: 'BN-0232', name: 'High Roller Reload', description: 'A reload reward for VIP segments.', channel: 'Both', reward: '25% up to €500', claims: '128', ends: 'Oct 31, 2026', status: 'Paused' },
-  { id: 'BN-0231', name: 'Friday Free Spins', description: 'Free spins on selected slot titles.', channel: 'Casino', reward: '40 free spins', claims: '712', ends: 'Oct 23, 2026', status: 'Scheduled' },
-]
+const INITIAL_BONUSES: Offer[] = []
 
 const INITIAL_GAMES: GameRow[] = [
   { id: 'GM-001', title: 'Zeus vs Hades', provider: 'Demo Studio', category: 'Slots', rtp: '96.40%', players: '1,248', status: 'Active' },
@@ -790,6 +801,147 @@ function PlayersPage({ users, query, onQueryChange, onAdd, onSelect, onToggleSta
   )
 }
 
+
+type BonusColumnKey = 'id' | 'name' | 'bonusType' | 'productType' | 'expirationDate' | 'expirationDays' | 'startDate' | 'endDate' | 'platformDefinitionBonusId'
+type BonusColumn = { key: BonusColumnKey; label: string; width: number }
+const BONUS_COLUMNS: BonusColumn[] = [
+  { key: 'id', label: 'ID', width: 150 },
+  { key: 'name', label: 'Name', width: 210 },
+  { key: 'bonusType', label: 'Type', width: 160 },
+  { key: 'productType', label: 'Product Type', width: 155 },
+  { key: 'expirationDate', label: 'Expiration Date', width: 160 },
+  { key: 'expirationDays', label: 'Expiration Days', width: 145 },
+  { key: 'startDate', label: 'Start Date', width: 155 },
+  { key: 'endDate', label: 'End Date', width: 155 },
+  { key: 'platformDefinitionBonusId', label: 'Platform Definition Bonus Id', width: 230 },
+]
+
+function BonusesPage({ offers, onCreate, onToggle, onNotify }: { offers: Offer[]; onCreate: () => void; onToggle: (id: string) => void; onNotify: (message: string) => void }) {
+  const [columnOrder, setColumnOrder] = useState<BonusColumnKey[]>(BONUS_COLUMNS.map((column) => column.key))
+  const [visibleColumns, setVisibleColumns] = useState<BonusColumnKey[]>(BONUS_COLUMNS.map((column) => column.key))
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [actionBonusId, setActionBonusId] = useState<string | null>(null)
+  const [selectedBonus, setSelectedBonus] = useState<Offer | null>(null)
+  const [sortKey, setSortKey] = useState<BonusColumnKey>('id')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+  const [draggedColumn, setDraggedColumn] = useState<BonusColumnKey | null>(null)
+
+  const orderedColumns = columnOrder.map((key) => BONUS_COLUMNS.find((column) => column.key === key)).filter((column): column is BonusColumn => Boolean(column))
+  const shownColumns = orderedColumns.filter((column) => visibleColumns.includes(column.key))
+  const rowFor = (offer: Offer): Record<BonusColumnKey, string> => ({
+    id: offer.id,
+    name: offer.name,
+    bonusType: offer.bonusType || (offer.name.toLowerCase().includes('welcome') ? 'Welcome Bonus' : offer.name.toLowerCase().includes('spin') ? 'Free Spins' : 'Deposit Bonus'),
+    productType: offer.productType || (offer.channel === 'Both' ? 'Casino + Sports' : offer.channel === 'Sports' ? 'Sportsbook' : 'Casino'),
+    expirationDate: offer.expirationDate || offer.ends || '—',
+    expirationDays: offer.expirationDays || '30',
+    startDate: offer.startDate || '—',
+    endDate: offer.endDate || offer.ends || '—',
+    platformDefinitionBonusId: offer.platformDefinitionBonusId || '—',
+  })
+  const sortedOffers = [...offers].sort((left, right) => {
+    const a = rowFor(left)[sortKey]
+    const b = rowFor(right)[sortKey]
+    const compare = a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+    return sortDirection === 'asc' ? compare : -compare
+  })
+  const tableWidth = shownColumns.reduce((total, column) => total + column.width, 0)
+  const resetTable = () => {
+    setColumnOrder(BONUS_COLUMNS.map((column) => column.key))
+    setVisibleColumns(BONUS_COLUMNS.map((column) => column.key))
+    setSortKey('id')
+    setSortDirection('desc')
+    setSettingsOpen(false)
+    setActionBonusId(null)
+    onNotify('Bonus table layout reset.')
+  }
+  const sortBy = (key: BonusColumnKey) => {
+    if (key === sortKey) setSortDirection((current) => current === 'asc' ? 'desc' : 'asc')
+    else { setSortKey(key); setSortDirection('asc') }
+  }
+  const moveColumn = (target: BonusColumnKey) => {
+    if (!draggedColumn || draggedColumn === target) return
+    setColumnOrder((current) => {
+      const next = [...current]
+      const from = next.indexOf(draggedColumn)
+      const to = next.indexOf(target)
+      if (from < 0 || to < 0) return current
+      next.splice(from, 1)
+      next.splice(to, 0, draggedColumn)
+      return next
+    })
+    setDraggedColumn(null)
+  }
+
+  return <div className="page-enter min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none">
+    <div className="flex min-h-[54px] items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 sm:px-5">
+      <div className="flex min-w-0 items-center"><h1 className="truncate text-sm font-semibold text-slate-900">Bonuses</h1></div>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <div className="relative">
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md text-slate-600 hover:bg-slate-100" aria-label="Bonus table settings" title="Table settings" onClick={() => setSettingsOpen((open) => !open)}><Settings className="h-4 w-4" /></Button>
+          {settingsOpen ? <div className="absolute right-0 top-9 z-30 w-[min(300px,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+            <div className="mb-2 flex items-start justify-between gap-3 border-b border-slate-100 pb-3"><div><p className="text-xs font-semibold text-slate-900">Table settings</p><p className="mt-1 text-[10px] text-slate-500">Choose the visible bonus fields.</p></div><button type="button" onClick={() => setVisibleColumns(BONUS_COLUMNS.map((column) => column.key))} className="text-[10px] font-semibold text-slate-600 hover:text-slate-950">Show all</button></div>
+            <div className="admin-scrollbar grid max-h-[320px] grid-cols-2 gap-x-3 gap-y-2 overflow-y-auto py-1">
+              {BONUS_COLUMNS.map((column) => <label key={column.key} className="flex min-w-0 cursor-pointer items-center gap-2 text-[11px] text-slate-600"><input type="checkbox" checked={visibleColumns.includes(column.key)} onChange={(event) => setVisibleColumns((current) => event.target.checked ? [...current, column.key] : current.filter((key) => key !== column.key))} className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900" /><span className="truncate" title={column.label}>{column.label}</span></label>)}
+            </div>
+            <div className="mt-3 border-t border-slate-100 pt-3 text-[10px] text-slate-400">Drag a column heading to change its order.</div>
+          </div> : null}
+        </div>
+        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md text-slate-600 hover:bg-slate-100" aria-label="Reset bonus table" title="Reset table" onClick={resetTable}><RotateCcw className="h-4 w-4" /></Button>
+      </div>
+    </div>
+    <div className="flex min-h-[50px] items-center justify-end border-b border-slate-200 px-3 py-2.5">
+      <Button size="sm" className="h-8 rounded-md px-3 text-xs" onClick={onCreate}><Plus className="h-3.5 w-3.5" /> New</Button>
+    </div>
+
+    <div className="table-holder">
+      <div className="admin-scrollbar overflow-auto bg-white" style={{ minHeight: offers.length ? '0px' : '270px', maxHeight: 'min(72vh, 660px)' }}>
+        <table className="border-separate border-spacing-0 text-left" style={{ minWidth: tableWidth + 48 }}>
+          <thead className="sticky top-0 z-10 bg-white">
+            <tr>
+              {shownColumns.map((column) => <th key={column.key} draggable onDragStart={() => setDraggedColumn(column.key)} onDragOver={(event) => event.preventDefault()} onDrop={() => moveColumn(column.key)} onDragEnd={() => setDraggedColumn(null)} style={{ width: column.width, minWidth: column.width }} className={cn('group/bonus-th h-10 border-b border-slate-200 bg-white px-3 text-[11px] font-medium text-slate-600', draggedColumn === column.key && 'opacity-40')}>
+                <div className="flex items-center gap-2">
+                  <GripVertical className="h-3.5 w-3.5 shrink-0 cursor-grab text-slate-300 opacity-0 transition group-hover/bonus-th:opacity-100" />
+                  <button type="button" onClick={() => sortBy(column.key)} className="inline-flex min-w-0 items-center gap-1.5 text-left hover:text-slate-950"><span className="truncate">{column.label}</span><Filter className="h-3 w-3 shrink-0 text-slate-300" />{sortKey === column.key ? <span className="text-[9px] text-slate-500">{sortDirection === 'asc' ? '↑' : '↓'}</span> : null}</button>
+                </div>
+              </th>)}
+              <th className="w-12 min-w-12 border-b border-slate-200 bg-white px-2" aria-label="Row actions" />
+            </tr>
+          </thead>
+          <tbody>
+            {sortedOffers.map((offer, index) => {
+              const row = rowFor(offer)
+              return <tr key={offer.id} className={cn('group/bonus-row transition-colors hover:bg-slate-50', index % 2 === 1 && 'bg-slate-50/40')}>
+                {shownColumns.map((column) => <td key={column.key} style={{ width: column.width, minWidth: column.width }} className="h-[43px] max-w-[260px] border-b border-slate-100 px-3 text-xs text-slate-600">
+                  {column.key === 'name' ? <button type="button" onClick={() => setSelectedBonus(offer)} className="max-w-[245px] truncate text-left font-medium text-slate-800 hover:underline">{row[column.key]}</button>
+                  : column.key === 'bonusType' ? <Badge variant="outline">{row[column.key]}</Badge>
+                  : column.key === 'productType' ? <Badge variant="secondary">{row[column.key]}</Badge>
+                  : <span title={row[column.key]} className="block max-w-[250px] truncate">{row[column.key]}</span>}
+                </td>)}
+                <td className="relative h-[43px] border-b border-slate-100 px-2 text-right">
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500" aria-label={'Actions for ' + offer.name} onClick={() => setActionBonusId((current) => current === offer.id ? null : offer.id)}><MoreHorizontal className="h-4 w-4" /></Button>
+                  {actionBonusId === offer.id ? <div className="absolute right-2 top-9 z-30 w-44 rounded-lg border border-slate-200 bg-white p-1.5 text-left shadow-xl">
+                    <button type="button" onClick={() => { onToggle(offer.id); setActionBonusId(null) }} className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-xs text-slate-700 hover:bg-slate-50">{offer.status === 'Active' ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}{offer.status === 'Active' ? 'Pause bonus' : 'Activate bonus'}</button>
+                    <button type="button" onClick={() => { setSelectedBonus(offer); setActionBonusId(null) }} className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-xs text-slate-700 hover:bg-slate-50"><Eye className="h-3.5 w-3.5" /> View details</button>
+                  </div> : null}
+                </td>
+              </tr>
+            })}
+            {sortedOffers.length === 0 ? <tr><td colSpan={shownColumns.length + 1} className="p-0"><div className="flex min-h-[260px] flex-col items-center justify-center px-5 py-8 text-center"><span className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-400"><Gift className="h-5 w-5" /></span><p className="mt-3 text-sm font-medium text-slate-700">No Result</p></div></td></tr> : null}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {offers.length > 0 ? <div className="border-t border-slate-200 px-4 py-3 text-[10px] text-slate-400">Showing {offers.length} bonus definitions · Demo data only</div> : null}
+    <Modal open={!!selectedBonus} onOpenChange={(open) => { if (!open) setSelectedBonus(null) }} title={selectedBonus ? selectedBonus.name : 'Bonus details'} description={selectedBonus ? rowFor(selectedBonus).id + ' · ' + rowFor(selectedBonus).bonusType : undefined}>
+      {selectedBonus ? <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">{BONUS_COLUMNS.map((column) => <div key={column.key} className="rounded-md border border-slate-200 px-3 py-2.5"><p className="text-[10px] text-slate-400">{column.label}</p><p className="mt-1 break-words text-xs font-medium text-slate-800">{rowFor(selectedBonus)[column.key]}</p></div>)}</div>
+        <div className="flex justify-end"><Button variant="outline" onClick={() => setSelectedBonus(null)}>Close</Button></div>
+      </div> : null}
+    </Modal>
+  </div>
+}
+
 function OffersPage({ title, description, offers, kind, onCreate, onToggle }: { title: string; description: string; offers: Offer[]; kind: 'promotions' | 'bonuses'; onCreate: () => void; onToggle: (id: string) => void }) {
   const [filter, setFilter] = useState<'All' | 'Casino' | 'Sports' | 'Both'>('All')
   const [query, setQuery] = useState('')
@@ -1382,13 +1534,29 @@ function PlayerProfilePage({ user, onBack, onToggle, onNotify, onSave }: {
 
 function OfferFormModal({ open, onOpenChange, kind, onSubmit }: { open: boolean; onOpenChange: (open: boolean) => void; kind: 'promotion' | 'bonus'; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
   const isPromotion = kind === 'promotion'
-  return <Modal open={open} onOpenChange={onOpenChange} title={isPromotion ? 'Create promotion' : 'Create bonus'} description={isPromotion ? 'Design a new campaign. This is a UI-only preview.' : 'Configure a bonus offer for the prototype.'} footer={<><Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit" form={isPromotion ? 'promotion-form' : 'bonus-form'}><Plus className="h-4 w-4" /> Create {isPromotion ? 'promotion' : 'bonus'}</Button></>}>
+  return <Modal open={open} onOpenChange={onOpenChange} title={isPromotion ? 'Create promotion' : 'New bonus'} description={isPromotion ? 'Design a new campaign. This is a UI-only preview.' : 'Define the bonus type, product scope, and validity dates.'} footer={<><Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit" form={isPromotion ? 'promotion-form' : 'bonus-form'}><Plus className="h-4 w-4" /> Create {isPromotion ? 'promotion' : 'bonus'}</Button></>}>
     <form id={isPromotion ? 'promotion-form' : 'bonus-form'} className="space-y-4" onSubmit={onSubmit}>
-      <label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Offer name</span><Input name="name" required placeholder={isPromotion ? 'e.g. Weekend Reload' : 'e.g. Casino Welcome Bonus'} /></label>
-      <label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Short description</span><Input name="description" placeholder="Add a short internal description" /></label>
-      <div className="grid gap-3 sm:grid-cols-2"><label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Channel</span><select name="channel" defaultValue="Casino" className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-ring"><option>Casino</option><option>Sports</option><option>Both</option></select></label><label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Reward display</span><Input name="reward" required placeholder="e.g. 50% up to €100" /></label></div>
-      <div className="grid gap-3 sm:grid-cols-2"><label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">End date</span><Input name="ends" type="date" /></label><label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Initial status</span><select name="status" defaultValue="Scheduled" className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-ring"><option>Scheduled</option><option>Active</option><option>Paused</option></select></label></div>
-      <div className="rounded-lg bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-900"><Sparkles className="mr-1.5 inline h-3.5 w-3.5" /> Preview only. Creating this item will update the local table and will not publish an offer.</div>
+      <label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Name</span><Input name="name" required placeholder={isPromotion ? 'e.g. Weekend Reload' : 'e.g. Casino Welcome Bonus'} /></label>
+      <label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Description</span><Input name="description" placeholder="Add a short internal description" /></label>
+      {isPromotion ? <>
+        <div className="grid gap-3 sm:grid-cols-2"><label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Channel</span><select name="channel" defaultValue="Casino" className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-ring"><option>Casino</option><option>Sports</option><option>Both</option></select></label><label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Reward display</span><Input name="reward" required placeholder="e.g. 50% up to €100" /></label></div>
+        <div className="grid gap-3 sm:grid-cols-2"><label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">End date</span><Input name="ends" type="date" /></label><label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Initial status</span><select name="status" defaultValue="Scheduled" className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-ring"><option>Scheduled</option><option>Active</option><option>Paused</option></select></label></div>
+      </> : <>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Type</span><select name="bonusType" defaultValue="Deposit Bonus" className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-ring"><option>Deposit Bonus</option><option>Welcome Bonus</option><option>No Deposit Bonus</option><option>Reload Bonus</option><option>Free Spins</option><option>Cashback</option><option>Free Bet</option></select></label>
+          <label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Product Type</span><select name="productType" defaultValue="Casino" className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-ring"><option>Casino</option><option>Sportsbook</option><option>Casino + Sports</option></select></label>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Expiration Date</span><Input name="expirationDate" type="date" /></label>
+          <label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Expiration Days</span><Input name="expirationDays" type="number" min="1" defaultValue="30" /></label>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Start Date</span><Input name="starts" type="date" /></label>
+          <label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">End Date</span><Input name="ends" type="date" /></label>
+        </div>
+        <label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Platform Definition Bonus Id</span><Input name="platformDefinitionBonusId" placeholder="Optional platform definition ID" /></label>
+      </>}
+      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs leading-5 text-slate-600"><Sparkles className="mr-1.5 inline h-3.5 w-3.5" /> Preview only. Creating this item updates the local table and does not publish it to a live system.</div>
     </form>
   </Modal>
 }
@@ -1741,14 +1909,34 @@ export default function App() {
     const data = new FormData(event.currentTarget)
     const name = String(data.get('name') || '').trim()
     const description = String(data.get('description') || '').trim() || 'New offer preview.'
-    const channel = String(data.get('channel') || 'Casino') as Offer['channel']
-    const reward = String(data.get('reward') || '').trim()
-    const rawDate = String(data.get('ends') || '')
-    const ends = rawDate ? new Date(rawDate + 'T12:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Not set'
-    const status = String(data.get('status') || 'Scheduled') as Offer['status']
-    if (!name || !reward) return
+    const productType = String(data.get('productType') || 'Casino')
+    const channel = (kind === 'bonus'
+      ? productType === 'Sportsbook' ? 'Sports' : productType === 'Casino + Sports' ? 'Both' : 'Casino'
+      : String(data.get('channel') || 'Casino')) as Offer['channel']
+    const reward = String(data.get('reward') || (kind === 'bonus' ? 'Configured bonus' : '')).trim()
+    const rawEndDate = String(data.get('ends') || '')
+    const rawExpirationDate = String(data.get('expirationDate') || '')
+    const rawStartDate = String(data.get('starts') || '')
+    const formatDate = (rawDate: string) => rawDate ? new Date(rawDate + 'T12:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+    const ends = rawEndDate ? formatDate(rawEndDate) : 'Not set'
+    const status = (kind === 'bonus' ? 'Active' : String(data.get('status') || 'Scheduled')) as Offer['status']
+    if (!name || (kind === 'promotion' && !reward)) return
     const list = kind === 'promotion' ? promotions : bonuses
-    const offer: Offer = { id: (kind === 'promotion' ? 'PR-' : 'BN-') + String(109 + list.length).padStart(4, '0'), name, description, channel, reward, claims: '0', ends, status }
+    const id = kind === 'promotion'
+      ? 'PR-' + String(109 + list.length).padStart(4, '0')
+      : 'BN-' + String(list.length + 1).padStart(4, '0')
+    const offer: Offer = {
+      id, name, description, channel, reward, claims: '0', ends, status,
+      ...(kind === 'bonus' ? {
+        bonusType: String(data.get('bonusType') || 'Deposit Bonus'),
+        productType,
+        expirationDate: formatDate(rawExpirationDate),
+        expirationDays: String(data.get('expirationDays') || '30'),
+        startDate: formatDate(rawStartDate),
+        endDate: formatDate(rawEndDate),
+        platformDefinitionBonusId: String(data.get('platformDefinitionBonusId') || '—').trim() || '—',
+      } : {}),
+    }
     if (kind === 'promotion') {
       setPromotions((current) => [offer, ...current])
       setPromotionOpen(false)
@@ -1760,11 +1948,10 @@ export default function App() {
     }
     notify('Sample ' + kind + ' added locally. Nothing was published.')
   }
-
   const createHeaderAction = () => {
     if (workspace === 'cms') return null
+    if (activePage === 'bonuses') return null
     if (activePage === 'promotions') return <Button onClick={() => setPromotionOpen(true)}><Plus className="h-4 w-4" /> Create promotion</Button>
-    if (activePage === 'bonuses') return <Button onClick={() => setBonusOpen(true)}><Plus className="h-4 w-4" /> Create bonus</Button>
     if (activePage === 'users') return <Button onClick={() => setUserOpen(true)}><Plus className="h-4 w-4" /> New player</Button>
     if (activePage === 'reports' || activePage === 'transactions') return <Button variant="outline" onClick={() => window.print()}><Download className="h-4 w-4" /> Export</Button>
     if (activePage === 'games') return <Button onClick={() => notify('Game provider connection is not included in this UI prototype.')}><Plus className="h-4 w-4" /> Add game</Button>
@@ -1823,14 +2010,14 @@ export default function App() {
 
         <main className="min-h-[calc(100vh-50px)] bg-white px-4 py-5 sm:px-5 xl:px-6">
           {selectedUser ? <PlayerProfilePage user={selectedUser} onBack={() => setSelectedUser(null)} onToggle={() => toggleUserStatus(selectedUser.id)} onNotify={notify} onSave={savePlayerProfile} /> : <>
-                      {activePage !== 'transactions' ? <>
+                      {activePage !== 'transactions' && activePage !== 'bonuses' ? <>
                         <div className="mb-5 flex items-center justify-between gap-3 lg:hidden"><div><p className="text-[10px] font-medium text-slate-500">{workspace === 'backoffice' ? 'Backoffice' : 'CMS'}</p><h1 className="mt-0.5 text-xl font-semibold tracking-tight text-slate-900">{page.title}</h1></div>{createHeaderAction()}</div>
                         <div className="mb-5 hidden items-center justify-between gap-4 lg:flex"><div><h1 className="text-xl font-semibold tracking-tight text-slate-900">{page.title}</h1><p className="mt-1 text-xs text-slate-500">{page.description}</p></div><div className="flex items-center gap-2">{createHeaderAction()}</div></div>
                       </> : null}
                       {activePage === 'overview' ? <OverviewPage onNavigate={navigate} onCreatePromotion={() => setPromotionOpen(true)} /> : null}
                       {activePage === 'users' ? <PlayersPage users={users} query={searchQuery} onQueryChange={setSearchQuery} onAdd={() => setUserOpen(true)} onSelect={setSelectedUser} onToggleStatus={toggleUserStatus} /> : null}
                       {activePage === 'promotions' ? <OffersPage title="Promotions" description="Create campaigns and track engagement across channels." offers={promotions} kind="promotions" onCreate={() => setPromotionOpen(true)} onToggle={(id) => toggleOffer('promotions', id)} /> : null}
-                      {activePage === 'bonuses' ? <OffersPage title="Bonuses" description="Manage bonus offers, wagering requirements, and eligibility." offers={bonuses} kind="bonuses" onCreate={() => setBonusOpen(true)} onToggle={(id) => toggleOffer('bonuses', id)} /> : null}
+                      {activePage === 'bonuses' ? <BonusesPage offers={bonuses} onCreate={() => setBonusOpen(true)} onToggle={(id) => toggleOffer('bonuses', id)} onNotify={notify} /> : null}
                       {activePage === 'games' ? <GamesPage games={games} onToggle={toggleGame} /> : null}
                       {activePage === 'transactions' ? <TransactionsPage query={searchQuery} onQueryChange={setSearchQuery} users={users} onNotify={notify} onSelectPlayer={setSelectedUser} /> : null}
                       {activePage === 'reports' ? <ReportsPage /> : null}
