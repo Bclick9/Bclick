@@ -2192,7 +2192,7 @@ type CmsPromotionCategory = { id: string; name: string; slug: string; status: 'P
 
 const EMPTY_CMS_PROMOTION: CmsPromotionDraft = {
   title: '', altText: '', platform: 'Web', status: 'Published', category: '',
-  startDate: '', endDate: '', modifiedDate: '', language: 'Français',
+  startDate: '', endDate: '', language: 'Français',
   showForUsers: 'Guest and Logged In', excludedCountries: '', includedCountries: '',
   newWindow: 'Yes', visibility: 'All', optInId: '', countdownDate: '',
   profileType: 'Global', customProfileTypes: 'All', depositStatus: 'Not selected',
