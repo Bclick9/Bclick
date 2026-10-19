@@ -55,8 +55,7 @@ const GROUPS = [
     label: 'History',
     icon: History,
     links: [
-      { label: 'Account statement', path: '/account/account-statement' },
-      { label: 'Profit & Loss', path: '/account/profit-and-loss' },
+      { label: 'Betslips', path: '/account/betslips' },
     ],
   },
 ]
@@ -198,8 +197,7 @@ export function AccountLayout({ children }: { children: ReactNode }) {
     { label: 'Reality check', path: '/account/reality-check' },
   ]
   const historyLinks = [
-    { label: 'Account statement', path: '/account/account-statement' },
-    { label: 'Profit & Loss', path: '/account/profit-and-loss' },
+    { label: 'Betslips', path: '/account/betslips' },
   ]
 
   const mobileLinks = pathname.startsWith('/account/wallet/')
@@ -208,7 +206,7 @@ export function AccountLayout({ children }: { children: ReactNode }) {
       ? bonusLinks
       : ['/account/self-exclusion', '/account/deposit-limits', '/account/reality-check'].includes(pathname)
         ? responsibleLinks
-        : ['/account/account-statement', '/account/profit-and-loss'].includes(pathname)
+        : pathname === '/account/betslips'
           ? historyLinks
           : profileLinks
   const isAccountHome = pathname === '/account'
