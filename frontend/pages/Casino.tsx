@@ -292,9 +292,9 @@ export function CasinoCategory() {
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-5 md:py-6">
-      <CasinoFilterBar searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} />
-
       {isLobby && !searchTerm ? <TrendingGames /> : null}
+
+      <CasinoFilterBar searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} />
 
       <CategoryStrip active={category} />
 
