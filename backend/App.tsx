@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import {
-  ArrowDownRight, ArrowRight, ArrowUpRight, BadgePercent, Bell, CalendarDays,
+  Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BadgePercent, Bell, CalendarDays,
   CheckCircle2, ChevronDown, ChevronRight, CircleHelp, Clock3, CreditCard, Download,
   Eye, FileText, Filter, Gamepad2, Gift, Globe, LayoutDashboard, LifeBuoy, LogOut,
   Menu, MoreHorizontal, Plus, Search, Settings, ShieldCheck,
@@ -528,7 +528,7 @@ function SettingsPage() {
   const [twoFactor, setTwoFactor] = useState(true)
   const [compactTables, setCompactTables] = useState(false)
   return <div className="page-enter">
-    <SectionHeading title="Workspace settings" description="The controls below are interaction previews and do not save to a server." actions={<Button onClick={() => window.alert('UI preview only — settings have not been saved.')}><Check className="h-4 w-4" /> Save preferences</Button>} />
+    <SectionHeading title="Workspace settings" description="The controls below are interaction previews and do not save to a server." actions={<Button onClick={() => notify('UI preview only — settings have not been saved.')}><Check className="h-4 w-4" /> Save preferences</Button>} />
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,.65fr)]">
       <div className="space-y-4">
         <Card><CardHeader><CardTitle>General</CardTitle><CardDescription>Basic details about your workspace.</CardDescription></CardHeader><CardContent className="space-y-4">
@@ -677,33 +677,33 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f9fc] text-slate-900">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       {mobileNavOpen ? <button type="button" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} className="fixed inset-0 z-30 bg-slate-950/40 lg:hidden" /> : null}
-      <aside className={cn('fixed inset-y-0 left-0 z-40 flex w-[252px] flex-col bg-[#101928] text-white transition-transform duration-200 lg:translate-x-0', mobileNavOpen ? 'translate-x-0' : '-translate-x-full')}>
-        <div className="flex h-[76px] items-center justify-between border-b border-white/[.08] px-5">
+      <aside className={cn('fixed inset-y-0 left-0 z-40 flex w-[252px] flex-col border-r border-slate-200 bg-white text-slate-900 transition-transform duration-200 lg:translate-x-0', mobileNavOpen ? 'translate-x-0' : '-translate-x-full')}>
+        <div className="flex h-[76px] items-center justify-between border-b border-slate-200 px-5">
           <button type="button" onClick={() => navigate('overview')} className="flex items-center gap-3 text-left">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f5c542] text-slate-950 shadow-lg shadow-amber-500/10"><Zap className="h-5 w-5 fill-current" /></span>
-            <span><span className="block font-display text-[17px] font-extrabold tracking-tight">bclick<span className="text-[#f5c542]">.</span></span><span className="mt-0.5 block text-[9px] font-bold uppercase tracking-[.19em] text-slate-400">Admin workspace</span></span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-white"><Zap className="h-5 w-5 fill-current" /></span>
+            <span><span className="block font-display text-[17px] font-extrabold tracking-tight">bclick<span className="text-slate-400">.</span></span><span className="mt-0.5 block text-[9px] font-bold uppercase tracking-[.19em] text-slate-400">Admin workspace</span></span>
           </button>
           <button type="button" className="text-slate-500 hover:text-white lg:hidden" aria-label="Close menu" onClick={() => setMobileNavOpen(false)}><X className="h-4 w-4" /></button>
         </div>
         <div className="px-3 pt-5">
-          <div className="rounded-lg border border-white/[.08] bg-white/[.035] px-3 py-2.5"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-400 ring-4 ring-emerald-400/10" /><span className="text-[11px] font-semibold text-slate-200">Workspace</span><ChevronDown className="ml-auto h-3.5 w-3.5 text-slate-500" /></div><p className="mt-1 pl-4 text-[10px] text-slate-500">Bclick Tunisia · Demo</p></div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-500 ring-4 ring-emerald-500/10" /><span className="text-[11px] font-semibold text-slate-700">Workspace</span><ChevronDown className="ml-auto h-3.5 w-3.5 text-slate-500" /></div><p className="mt-1 pl-4 text-[10px] text-slate-500">Bclick Tunisia · Demo</p></div>
         </div>
         <nav className="admin-scrollbar flex-1 overflow-y-auto px-3 py-5">
           {NAV_GROUPS.map((group) => <div key={group.title} className="mb-6">
-            <p className="mb-2 px-3 text-[9px] font-bold tracking-[.16em] text-slate-500">{group.title}</p>
-            <div className="space-y-1">{group.items.map((item) => { const Icon = item.icon; const active = activePage === item.page; return <button type="button" key={item.page} onClick={() => navigate(item.page)} className={cn('group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs font-semibold transition', active ? 'bg-[#f5c542]/[.12] text-[#f6d665]' : 'text-slate-400 hover:bg-white/[.05] hover:text-slate-100')}><Icon className={cn('h-[17px] w-[17px]', active ? 'text-[#f5c542]' : 'text-slate-500 group-hover:text-slate-300')} /><span className="flex-1">{item.label}</span>{item.count ? <span className={cn('rounded px-1.5 py-0.5 text-[9px]', active ? 'bg-[#f5c542]/10 text-[#f6d665]' : 'bg-white/[.06] text-slate-500')}>{item.count}</span> : null}{active ? <span className="h-1.5 w-1.5 rounded-full bg-[#f5c542]" /> : null}</button> })}</div>
+            <p className="mb-2 px-3 text-[10px] font-semibold tracking-wide text-slate-400">{group.title}</p>
+            <div className="space-y-1">{group.items.map((item) => { const Icon = item.icon; const active = activePage === item.page; return <button type="button" key={item.page} onClick={() => navigate(item.page)} className={cn('group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs font-semibold transition', active ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950')}><Icon className={cn('h-[17px] w-[17px]', active ? 'text-white' : 'text-slate-400 group-hover:text-slate-700')} /><span className="flex-1">{item.label}</span>{item.count ? <span className={cn('rounded px-1.5 py-0.5 text-[9px]', active ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-500')}>{item.count}</span> : null}{active ? <span className="h-1.5 w-1.5 rounded-full bg-white" /> : null}</button> })}</div>
           </div>)}
         </nav>
         <div className="px-3 pb-3">
-          <div className="rounded-xl border border-white/[.08] bg-gradient-to-br from-white/[.055] to-white/[.015] p-3.5">
-            <div className="flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#f5c542]/15 text-[#f5c542]"><LifeBuoy className="h-4 w-4" /></span><div><p className="text-[11px] font-semibold text-slate-200">Need a hand?</p><p className="mt-0.5 text-[9px] text-slate-500">Admin docs & help</p></div></div>
-            <button type="button" onClick={() => notify('Help centre is not connected in this prototype.')} className="mt-3 flex w-full items-center justify-between rounded-md bg-white/[.06] px-3 py-2 text-[10px] font-semibold text-slate-300 transition hover:bg-white/[.1]">Open help centre <ArrowRight className="h-3 w-3" /></button>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3.5">
+            <div className="flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 text-slate-700"><LifeBuoy className="h-4 w-4" /></span><div><p className="text-[11px] font-semibold text-slate-800">Need a hand?</p><p className="mt-0.5 text-[9px] text-slate-500">Admin docs & help</p></div></div>
+            <button type="button" onClick={() => notify('Help centre is not connected in this prototype.')} className="mt-3 flex w-full items-center justify-between rounded-md bg-white/[.06] px-3 py-2 text-[10px] font-semibold text-slate-700 transition hover:bg-slate-200">Open help centre <ArrowRight className="h-3 w-3" /></button>
           </div>
         </div>
-        <div className="border-t border-white/[.08] p-3">
-          <div className="flex items-center gap-3 rounded-lg px-2 py-2"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e4e9f0] text-xs font-extrabold text-slate-800">AD</div><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-slate-100">Admin Demo</p><p className="mt-0.5 truncate text-[10px] text-slate-500">Super administrator</p></div><button type="button" aria-label="Sign out (demo)" onClick={() => notify('Authentication is outside the scope of this UI prototype.')} className="text-slate-500 hover:text-white"><LogOut className="h-4 w-4" /></button></div>
+        <div className="border-t border-slate-200 p-3">
+          <div className="flex items-center gap-3 rounded-lg px-2 py-2"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e4e9f0] text-xs font-extrabold text-slate-800">AD</div><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-slate-800">Admin Demo</p><p className="mt-0.5 truncate text-[10px] text-slate-500">Super administrator</p></div><button type="button" aria-label="Sign out (demo)" onClick={() => notify('Authentication is outside the scope of this UI prototype.')} className="text-slate-500 hover:text-white"><LogOut className="h-4 w-4" /></button></div>
         </div>
       </aside>
 
