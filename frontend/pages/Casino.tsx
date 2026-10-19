@@ -5,7 +5,7 @@ import {
   Trophy, Search as SearchIcon, LayoutGrid, ChevronLeft, ChevronRight, Info, X,
   type LucideIcon,
 } from 'lucide-react'
-import { GameCard, Wireframe } from '../components/cards'
+import { GameCard, SectionRow, Wireframe } from '../components/cards'
 import { GAMES, CASINO_CATEGORIES } from '../data/catalog'
 import { cn } from '../lib/shadcn/utils'
 
@@ -13,21 +13,59 @@ const ICONS: Record<string, LucideIcon> = {
   Home, Cherry, Ghost, Flame, Sparkles, Crown, ShoppingBag, Rocket, Gem, Spade, Trophy,
 }
 
-type CategoryStripProps = {
-  active: string
-  searchOpen: boolean
+type CasinoFilterBarProps = {
   searchQuery: string
-  onSearchOpenChange: (open: boolean) => void
   onSearchQueryChange: (query: string) => void
+  providersActive?: boolean
 }
 
-function CategoryStrip({
-  active,
-  searchOpen,
-  searchQuery,
-  onSearchOpenChange,
-  onSearchQueryChange,
-}: CategoryStripProps) {
+function CasinoFilterBar({ searchQuery, onSearchQueryChange, providersActive = false }: CasinoFilterBarProps) {
+  return (
+    <section aria-label="Casino filters" className="mb-3">
+      <div className="flex min-w-0 items-center gap-2">
+        <div className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-xl border border-[var(--cb-line)] bg-[var(--cb-card)] px-3.5 transition-colors focus-within:border-[var(--cb-yellow)]">
+          <SearchIcon className="h-5 w-5 shrink-0 text-[#9aaab5]" aria-hidden="true" />
+          <input
+            type="search"
+            aria-label="Search casino games or providers"
+            placeholder="Search"
+            value={searchQuery}
+            onChange={(event) => onSearchQueryChange(event.target.value)}
+            className="h-full min-w-0 flex-1 bg-transparent text-sm font-medium text-white outline-none placeholder:text-[#aeb8c0]"
+          />
+          {searchQuery ? (
+            <button
+              type="button"
+              onClick={() => onSearchQueryChange('')}
+              aria-label="Clear search"
+              title="Clear search"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[#9aaab5] transition-colors hover:bg-[var(--cb-hover)] hover:text-white"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          ) : null}
+        </div>
+        <Link
+          to="/casino/rng/brands"
+          aria-label="Providers"
+          title="Providers"
+          aria-current={providersActive ? 'page' : undefined}
+          className={cn(
+            'flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold text-white transition-colors sm:px-4 md:w-[210px]',
+            providersActive
+              ? 'bg-[var(--cb-item-active)]'
+              : 'bg-[var(--cb-card)] hover:bg-[var(--cb-hover)]',
+          )}
+        >
+          <LayoutGrid className="h-5 w-5 shrink-0" aria-hidden="true" />
+          <span className="hidden sm:inline">Providers</span>
+        </Link>
+      </div>
+    </section>
+  )
+}
+
+function CategoryStrip({ active }: { active: string }) {
   const railRef = useRef<HTMLUListElement | null>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
@@ -54,7 +92,7 @@ function CategoryStrip({
       rail.removeEventListener('scroll', updateScrollButtons)
       resizeObserver?.disconnect()
     }
-  }, [searchOpen])
+  }, [])
 
   const scrollCategories = (direction: -1 | 1) => {
     const rail = railRef.current
@@ -65,127 +103,79 @@ function CategoryStrip({
     })
   }
 
-  const openSearch = () => {
-    onSearchQueryChange('')
-    onSearchOpenChange(true)
-  }
-
-  const closeSearch = () => {
-    onSearchQueryChange('')
-    onSearchOpenChange(false)
-  }
-
   return (
     <section className="mb-6">
       <div className="flex min-w-0 items-center gap-2 text-sm">
-        {searchOpen ? (
-          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-[var(--cb-line)] bg-[var(--cb-card)] px-3 py-2 transition-colors focus-within:border-[var(--cb-yellow)]">
-            <SearchIcon className="h-5 w-5 shrink-0 text-[#aebfca]" aria-hidden="true" />
-            <input
-              type="search"
-              autoFocus
-              aria-label="Search games or providers"
-              placeholder="Search games or providers..."
-              value={searchQuery}
-              onChange={(event) => onSearchQueryChange(event.target.value)}
-              className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-[#7f929f]"
-            />
-            <button
-              type="button"
-              onClick={closeSearch}
-              aria-label="Close casino search"
-              title="Close search"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[#aebfca] transition-colors hover:bg-[var(--cb-hover)] hover:text-white"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        ) : (
-          <div className="min-w-0 flex-1 overflow-x-hidden">
-            <ul
-              ref={railRef}
-              aria-label="Casino categories"
-              className="no-scrollbar -ml-2 flex snap-x snap-mandatory scroll-smooth flex-row overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden"
-            >
-              {CASINO_CATEGORIES.map((c) => {
-                const Icon = ICONS[c.icon] ?? Gem
-                const isActive = c.slug === active
-                return (
-                  <li key={c.slug} className="min-w-0 shrink-0 grow-0 snap-start pl-2">
-                    <Link
-                      to={'/casino/' + c.slug}
-                      aria-current={isActive ? 'page' : undefined}
-                      data-status={isActive ? 'active' : undefined}
-                      className={cn(
-                        'block rounded-lg px-3 py-2 text-sm font-semibold text-slate-300 transition-colors hover:bg-[var(--cb-hover)]',
-                        isActive ? 'bg-[var(--cb-item-active)] text-white' : 'bg-[var(--cb-card)]',
-                      )}
-                    >
-                      <div className="flex items-center gap-x-1">
-                        <Icon className="h-6 w-6 shrink-0 mix-blend-plus-lighter" aria-hidden="true" />
-                        <span className="whitespace-nowrap">{c.label}</span>
-                      </div>
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        )}
-
-        {!searchOpen ? (
-          <div className="hidden shrink-0 items-center gap-2 md:flex">
-            <button
-              type="button"
-              aria-label="Previous casino categories"
-              onClick={() => scrollCategories(-1)}
-              disabled={!canScrollLeft}
-              className="group rounded-[10px] bg-[var(--cb-card)] p-1 transition-colors enabled:cursor-pointer enabled:hover:bg-[var(--cb-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <div className="rounded-[6px] p-1.5 transition-colors group-enabled:group-hover:bg-[var(--cb-hover)]">
-                <ChevronLeft className="mx-auto h-5 w-5 text-slate-300 transition-transform group-enabled:group-active:scale-90" />
-              </div>
-            </button>
-            <button
-              type="button"
-              aria-label="Next casino categories"
-              onClick={() => scrollCategories(1)}
-              disabled={!canScrollRight}
-              className="group rounded-[10px] bg-[var(--cb-card)] p-1 transition-colors enabled:cursor-pointer enabled:hover:bg-[var(--cb-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <div className="rounded-[6px] p-1.5 transition-colors group-enabled:group-hover:bg-[var(--cb-hover)]">
-                <ChevronRight className="mx-auto h-5 w-5 text-slate-300 transition-transform group-enabled:group-active:scale-90" />
-              </div>
-            </button>
-          </div>
-        ) : null}
-
-        {!searchOpen ? (
+        <div className="min-w-0 flex-1 overflow-x-hidden">
+          <ul
+            ref={railRef}
+            aria-label="Casino categories"
+            className="no-scrollbar -ml-1 flex snap-x snap-mandatory scroll-smooth flex-row overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden"
+          >
+            {CASINO_CATEGORIES.map((c) => {
+              const Icon = ICONS[c.icon] ?? Gem
+              const isActive = c.slug === active
+              return (
+                <li key={c.slug} className="min-w-0 shrink-0 grow-0 snap-start pl-1">
+                  <Link
+                    to={'/casino/' + c.slug}
+                    aria-current={isActive ? 'page' : undefined}
+                    data-status={isActive ? 'active' : undefined}
+                    className={cn(
+                      'block rounded-xl px-3 py-2 text-sm font-semibold text-slate-300 transition-colors hover:bg-[var(--cb-hover)]',
+                      isActive ? 'bg-[var(--cb-item-active)] text-white' : 'bg-[var(--cb-card)]',
+                    )}
+                  >
+                    <span className="flex items-center gap-x-1.5">
+                      <Icon className="h-5 w-5 shrink-0 mix-blend-plus-lighter" aria-hidden="true" />
+                      <span className="whitespace-nowrap">{c.label}</span>
+                    </span>
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+        <div className="hidden shrink-0 items-center gap-1 md:flex">
           <button
             type="button"
-            onClick={openSearch}
-            aria-label="Search casino games"
-            title="Search casino games"
-            className="flex shrink-0 items-center gap-2 rounded-lg bg-[var(--cb-card)] px-2.5 py-2 font-semibold text-white transition-colors hover:bg-[var(--cb-hover)] sm:px-3"
+            aria-label="Previous casino categories"
+            onClick={() => scrollCategories(-1)}
+            disabled={!canScrollLeft}
+            className="rounded-lg bg-[var(--cb-card)] p-1.5 text-slate-300 transition-colors enabled:hover:bg-[var(--cb-hover)] disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <SearchIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-            <span className="hidden text-sm sm:inline">Search</span>
+            <ChevronLeft className="h-5 w-5" aria-hidden="true" />
           </button>
-        ) : null}
-
-        <Link
-          to="/casino/rng/brands"
-          aria-label="Providers"
-          title="Providers"
-          className="block shrink-0 rounded-lg bg-[var(--cb-card)] px-2.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--cb-hover)] sm:px-3"
-        >
-          <span className="flex items-center gap-x-2">
-            <LayoutGrid className="h-5 w-5 sm:h-6 sm:w-6 shrink-0" />
-            <span className="hidden lg:inline">Providers</span>
-          </span>
-        </Link>
+          <button
+            type="button"
+            aria-label="Next casino categories"
+            onClick={() => scrollCategories(1)}
+            disabled={!canScrollRight}
+            className="rounded-lg bg-[var(--cb-card)] p-1.5 text-slate-300 transition-colors enabled:hover:bg-[var(--cb-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ChevronRight className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
       </div>
     </section>
+  )
+}
+
+const TRENDING_GAME_IDS = [
+  'zeus-vs-hades', 'lucky-ladys-charm', 'wild-clusters', 'raptor-doublemax',
+  'wealth-bells-40', 'le-bandit', 'big-bass-trophy-catch', 'silver-coins',
+  'eggs-of-fortune', 'blazing-coins',
+]
+
+function TrendingGames() {
+  const trending = TRENDING_GAME_IDS
+    .map((id) => GAMES.find((game) => game.id === id))
+    .filter((game): game is (typeof GAMES)[number] => Boolean(game))
+
+  return (
+    <SectionRow title="Trending Games" more="/casino/top-picks">
+      {trending.map((game) => <GameCard key={game.id} game={game} />)}
+    </SectionRow>
   )
 }
 
@@ -286,7 +276,6 @@ function HalloweenBanner({ games }: { games: string[] }) {
 
 export function CasinoCategory() {
   const { category = 'lobby' } = useParams()
-  const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   if (category === 'providers') return <Providers />
   const known = CASINO_CATEGORIES.some((c) => c.slug === category) || category === 'drop-and-wins'
@@ -299,46 +288,42 @@ export function CasinoCategory() {
   const searchResults = searchTerm
     ? GAMES.filter((g) => `${g.title} ${g.provider}`.toLocaleLowerCase().includes(searchTerm)).map((g) => g.id)
     : []
+  const visibleCategoryGames = searchTerm ? searchResults : games
 
   return (
-    <div className="mx-auto w-full max-w-screen-2xl px-4 py-6">
-      <CategoryStrip
-        active={category}
-        searchOpen={searchOpen}
-        searchQuery={searchQuery}
-        onSearchOpenChange={setSearchOpen}
-        onSearchQueryChange={setSearchQuery}
-      />
+    <div className="mx-auto w-full max-w-screen-2xl px-4 py-5 md:py-6">
+      <CasinoFilterBar searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} />
 
-      {searchOpen && searchTerm ? (
+      {isLobby && !searchTerm ? <TrendingGames /> : null}
+
+      <CategoryStrip active={category} />
+
+      {searchTerm ? (
         <div>
-          <p className="mb-4 text-sm text-muted-foreground" aria-live="polite">
-            {searchResults.length} games found
-          </p>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h1 className="text-lg font-extrabold text-white md:text-xl">Search results</h1>
+            <p className="shrink-0 text-sm text-muted-foreground" aria-live="polite">
+              {searchResults.length} games found
+            </p>
+          </div>
           <GameGrid ids={searchResults} emptyMessage="No matching games found." />
         </div>
       ) : isLobby ? (
         <>
           <GameGrid ids={GAMES.map((g) => g.id)} />
-
-          {!searchOpen ? (
-            <>
-              <HalloweenBanner games={['death-dominion', 'coins-of-halloween', 'wolf-power-megaways', 'spooky-kabuki', 'vamp-hunt', 'halloween-bonanza', 'haunted-coins', 'halloween-jack', 'devils-feast']} />
-
-              <h2 className="text-lg md:text-xl font-extrabold text-foreground mb-4">Top Picks</h2>
-              <GameGrid ids={GAMES.filter((g) => g.categories.includes('top-picks')).map((g) => g.id)} />
-            </>
-          ) : null}
+          <HalloweenBanner games={['death-dominion', 'coins-of-halloween', 'wolf-power-megaways', 'spooky-kabuki', 'vamp-hunt', 'halloween-bonanza', 'haunted-coins', 'halloween-jack', 'devils-feast']} />
+          <h2 className="text-lg md:text-xl font-extrabold text-foreground mb-4">Top Picks</h2>
+          <GameGrid ids={GAMES.filter((g) => g.categories.includes('top-picks')).map((g) => g.id)} />
         </>
       ) : (
         <>
           <div className="flex items-center gap-3 mb-6">
             <h1 className="text-xl md:text-2xl font-extrabold text-foreground">{cat?.label ?? 'Games'}</h1>
             <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Info className="w-3.5 h-3.5" /> {games.length} games
+              <Info className="w-3.5 h-3.5" /> {visibleCategoryGames.length} games
             </span>
           </div>
-          <GameGrid ids={searchOpen && searchTerm ? searchResults : games} emptyMessage={searchOpen && searchTerm ? "No matching games found." : "No games in this category yet."} />
+          <GameGrid ids={visibleCategoryGames} emptyMessage={searchTerm ? "No matching games found." : "No games in this category yet."} />
         </>
       )}
     </div>
@@ -355,7 +340,6 @@ export function CasinoIndex() {
 }
 
 export function Providers() {
-  const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const providerNames = [...new Set(GAMES.map((g) => g.provider))]
   const searchTerm = searchQuery.trim().toLocaleLowerCase()
@@ -372,16 +356,11 @@ export function Providers() {
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-6">
-      <CategoryStrip
-        active=""
-        searchOpen={searchOpen}
-        searchQuery={searchQuery}
-        onSearchOpenChange={setSearchOpen}
-        onSearchQueryChange={setSearchQuery}
-      />
+      <CasinoFilterBar searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} providersActive />
+      <CategoryStrip active="" />
       <div className="flex items-center gap-3 mb-6">
         <h1 className="text-xl md:text-2xl font-extrabold text-foreground">Providers</h1>
-        {searchOpen && searchTerm ? <span className="text-xs text-muted-foreground">{filteredProviders.length} providers found</span> : null}
+        {searchTerm ? <span className="text-xs text-muted-foreground">{filteredProviders.length} providers found</span> : null}
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {filteredProviders.map((p) => (
