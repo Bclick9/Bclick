@@ -1417,17 +1417,17 @@ function TransactionsPage({ query, onQueryChange, users, onNotify, onSelectPlaye
 
 
 type ReportColumn = { key: string; label: string; width: number }
-type ReportRow = { id: string; values: Record<string, string> }
+type DetailedReportRow = { id: string; values: Record<string, string> }
 type ReportTableConfig = {
   columns: ReportColumn[]
-  rows: ReportRow[]
+  rows: DetailedReportRow[]
   totals: Record<string, string>
   searchable: boolean
   sportFilter: boolean
   defaultSortKey?: string
   defaultSortDirection?: 'asc' | 'desc'
 }
-const makeReportRows = (columns: ReportColumn[], rows: { id: string; values: Record<string, string> }[]): ReportRow[] =>
+const makeReportRows = (columns: ReportColumn[], rows: { id: string; values: Record<string, string> }[]): DetailedReportRow[] =>
   rows.map((row) => ({ id: row.id, values: Object.fromEntries(columns.map((column) => [column.key, row.values[column.key] ?? '—'] as const)) }))
 
 const BET_REPORT_COLUMNS: ReportColumn[] = [
