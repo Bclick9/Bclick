@@ -4,6 +4,7 @@ import {
   BadgeCheck, CircleCheck, Eye, FileText, Gift, History, Inbox, ShieldAlert, UserRound, Wallet, X,
 } from 'lucide-react'
 import { AccountLayout } from '../components/AccountPanel'
+import { cn } from '../lib/shadcn/utils'
 
 type Section = {
   title: string
