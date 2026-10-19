@@ -2683,7 +2683,7 @@ const SKIN_GAME_BADGES = [
   { value: 'vpn', label: 'VPN' }, { value: 'tournament', label: 'Tournament' }, { value: 'hot', label: 'Hot' },
   { value: 'ortak', label: 'Ortak' }, { value: 'trending', label: 'Trending' },
 ]
-function CmsSkinGamesPage({ games, onSaveGame, onNotify }: { games: CmsSkinGame[]; onSaveGame: (game: CmsSkinGame) => void; onNotify: (message: string) => void }) {
+function CmsSkinGamesPage({ games, onSaveGame, onMoveGame, onNotify }: { games: CmsSkinGame[]; onSaveGame: (game: CmsSkinGame) => void; onMoveGame: (draggedId: string, targetId: string) => void; onNotify: (message: string) => void }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'All' | CmsSkinGame['status']>('All')
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
@@ -2691,6 +2691,7 @@ function CmsSkinGamesPage({ games, onSaveGame, onNotify }: { games: CmsSkinGame[
   const [openFilter, setOpenFilter] = useState<'categories' | 'providers' | null>(null)
   const [categorySearch, setCategorySearch] = useState('')
   const [providerSearch, setProviderSearch] = useState('')
+  const [draggedGameId, setDraggedGameId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState<CmsSkinGame | null>(null)
   const [editCategorySearch, setEditCategorySearch] = useState('')
   const [showEditCategoryPicker, setShowEditCategoryPicker] = useState(false)
@@ -2750,8 +2751,6 @@ function CmsSkinGamesPage({ games, onSaveGame, onNotify }: { games: CmsSkinGame[
   const sectionClass = 'rounded-lg border border-slate-200 bg-white p-4'
   const inlineCheckClass = 'flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-xs text-slate-600 hover:bg-slate-50'
   return <div className="page-enter space-y-5">
-    <SectionHeading title="Skin Games" description="Manage the game catalogue available on the website and edit each game's CMS presentation." />
-    <div className="grid gap-3 sm:grid-cols-3">{[{label:'Games in catalogue',value:games.length},{label:'Active',value:games.filter((item)=>item.active).length},{label:'Paused',value:games.filter((item)=>!item.active).length}].map((item)=><Card key={item.label}><CardContent className="p-4"><p className="text-xs text-slate-500">{item.label}</p><p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">{item.value}</p></CardContent></Card>)}</div>
     <Card>
       <CardHeader className="pb-3"><div className="flex items-center justify-between gap-3"><div><CardTitle>Game filters</CardTitle><CardDescription className="mt-1">Filter the website game catalogue by category and provider.</CardDescription></div><Button type="button" variant="outline" size="sm" onClick={resetFilters}><RotateCcw className="h-3.5 w-3.5" /> Reset filters</Button></div></CardHeader>
       <CardContent className="grid gap-4 pt-0 md:grid-cols-2">
@@ -2782,8 +2781,23 @@ function CmsSkinGamesPage({ games, onSaveGame, onNotify }: { games: CmsSkinGame[
       </CardContent>
     </Card>
     <Card><CardContent className="p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="relative w-full sm:max-w-xs"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search games by name, provider, category…" className="pl-9" /></div><div className="flex items-center gap-2"><span className="text-xs text-slate-500">Status</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)} className={fieldClass}><option>All</option><option>Active</option><option>Draft</option><option>Paused</option></select></div></div><p className="mt-3 text-[11px] text-slate-400">Showing {shown.length} of {games.length} games</p>
-      <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[820px] table-fixed text-left"><thead><tr className="border-y border-slate-200 bg-slate-50 text-[11px] text-slate-500"><th className="w-[28%] px-3 py-2.5 font-medium">Game</th><th className="w-[16%] px-3 py-2.5 font-medium">Provider</th><th className="w-[17%] px-3 py-2.5 font-medium">Categories</th><th className="w-[15%] px-3 py-2.5 font-medium">Skin</th><th className="w-[10%] px-3 py-2.5 font-medium">Status</th><th className="w-[14%] px-3 py-2.5 text-right">Action</th></tr></thead><tbody>{shown.map((game) => <tr key={game.id} className="border-b border-slate-100 text-xs hover:bg-slate-50/80"><td className="px-3 py-3"><div className="flex items-center gap-3"><div className={cn('h-10 w-14 shrink-0 overflow-hidden rounded-md bg-gradient-to-br', game.art)}>{game.iconImage ? <img src={game.iconImage} alt="" className="h-full w-full object-cover" /> : null}</div><div className="min-w-0"><p className="truncate font-semibold text-slate-800">{game.title}</p><p className="mt-1 font-mono text-[9px] text-slate-400">{game.id}</p></div></div></td><td className="px-3 py-3 text-slate-600">{game.provider}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-1">{game.categories.slice(0, 2).map((category) => <span key={category} className="rounded bg-slate-100 px-1.5 py-1 text-[9px] text-slate-600">{category}</span>)}{game.categories.length > 2 ? <span className="text-[9px] text-slate-400">+{game.categories.length - 2}</span> : null}</div></td><td className="px-3 py-3 text-slate-600">{game.skin}</td><td className="px-3 py-3"><Badge variant={game.status === 'Active' ? 'success' : game.status === 'Draft' ? 'warning' : 'outline'}>{game.status}</Badge><p className="mt-1 text-[9px] text-slate-400">{game.active ? 'Enabled' : 'Inactive'}</p></td><td className="px-3 py-3 text-right"><Button size="sm" variant="outline" onClick={() => openEditor(game)}><Pencil className="h-3.5 w-3.5" /> Edit Game</Button></td></tr>)}</tbody></table>{shown.length === 0 ? <div className="py-12 text-center text-xs text-slate-400">No games match these filters.</div> : null}</div>
-    </CardContent></Card>
+       <div className="mt-4 overflow-x-auto">
+         <table className="w-full min-w-[860px] table-fixed text-left">
+           <thead><tr className="border-y border-slate-200 bg-slate-50 text-[11px] text-slate-500"><th className="w-10 px-2 py-2.5" aria-label="Reorder games"></th><th className="w-[26%] px-3 py-2.5 font-medium">Game</th><th className="w-[15%] px-3 py-2.5 font-medium">Provider</th><th className="w-[17%] px-3 py-2.5 font-medium">Categories</th><th className="w-[15%] px-3 py-2.5 font-medium">Skin</th><th className="w-[10%] px-3 py-2.5 font-medium">Status</th><th className="w-[14%] px-3 py-2.5 text-right">Action</th></tr></thead>
+           <tbody>{shown.map((game) => <tr key={game.id} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move" }} onDrop={(event) => { event.preventDefault(); const movingId = event.dataTransfer.getData("text/plain") || draggedGameId; if (movingId && movingId !== game.id) { onMoveGame(movingId, game.id); onNotify("Game order updated in the local CMS preview.") } setDraggedGameId(null) }} className={cn("group/game-row border-b border-slate-100 text-xs transition-colors hover:bg-slate-50/80", draggedGameId === game.id && "opacity-40")}>
+             <td className="px-2 py-3"><span draggable role="button" tabIndex={0} aria-label={"Drag to reorder " + game.title} title="Drag to reorder" onDragStart={(event) => { event.dataTransfer.setData("text/plain", game.id); event.dataTransfer.effectAllowed = "move"; setDraggedGameId(game.id) }} onDragEnd={() => setDraggedGameId(null)} className="inline-flex cursor-grab items-center justify-center rounded p-1 text-slate-300 transition hover:bg-slate-100 hover:text-slate-600 active:cursor-grabbing"><GripVertical className="h-4 w-4" /></span></td>
+             <td className="px-3 py-3"><div className="flex items-center gap-3"><div className={cn("h-10 w-14 shrink-0 overflow-hidden rounded-md bg-gradient-to-br", game.art)}>{game.iconImage ? <img src={game.iconImage} alt="" className="h-full w-full object-cover" /> : null}</div><div className="min-w-0"><p className="truncate font-semibold text-slate-800">{game.title}</p><p className="mt-1 font-mono text-[9px] text-slate-400">{game.id}</p></div></div></td>
+             <td className="px-3 py-3 text-slate-600">{game.provider}</td>
+             <td className="px-3 py-3"><div className="flex flex-wrap gap-1">{game.categories.slice(0, 2).map((category) => <span key={category} className="rounded bg-slate-100 px-1.5 py-1 text-[9px] text-slate-600">{category}</span>)}{game.categories.length > 2 ? <span className="text-[9px] text-slate-400">+{game.categories.length - 2}</span> : null}</div></td>
+             <td className="px-3 py-3 text-slate-600">{game.skin}</td>
+             <td className="px-3 py-3"><Badge variant={game.status === "Active" ? "success" : game.status === "Draft" ? "warning" : "outline"}>{game.status}</Badge><p className="mt-1 text-[9px] text-slate-400">{game.active ? "Enabled" : "Inactive"}</p></td>
+             <td className="px-3 py-3 text-right"><Button size="sm" variant="outline" onClick={() => openEditor(game)}><Pencil className="h-3.5 w-3.5" /> Edit Game</Button></td>
+           </tr>)}</tbody>
+         </table>
+         {shown.length === 0 ? <div className="py-12 text-center text-xs text-slate-400">No games match these filters.</div> : null}
+         <p className="mt-3 border-t border-slate-100 pt-3 text-[10px] text-slate-400">Drag the grip beside a game to change its order. Game ordering remains local to this preview.</p>
+       </div>
+     </CardContent></Card>
 
     <Modal open={!!editDraft} onOpenChange={(open) => { if (!open) { setEditDraft(null); setShowEditCategoryPicker(false) } }} title={editDraft ? 'Edit Game - ' + editDraft.title : 'Edit Game'} description={editDraft ? editDraft.provider + ' · ' + editDraft.id : undefined} size="full" footer={editDraft ? <><Button type="button" variant="outline" onClick={() => { setEditDraft(null); setShowEditCategoryPicker(false) }}>Cancel</Button><Button type="submit" form="skin-game-edit-form"><Check className="h-4 w-4" /> Save</Button></> : null}>
       {editDraft ? <form id="skin-game-edit-form" onSubmit={saveEditedGame} className="space-y-4">
@@ -3134,7 +3148,7 @@ export default function App() {
             {workspace === 'cms' && activePage === 'cms-banners' ? <CmsBannersPage onNotify={notify} /> : null}
             {workspace === 'cms' && activePage === 'cms-promotions' ? <CmsPromotionsPage onNotify={notify} /> : null}
             {workspace === 'cms' && activePage === 'cms-pages' ? <CmsPagesPage onNotify={notify} /> : null}
-            {workspace === 'cms' && activePage === 'cms-skin-games' ? <CmsSkinGamesPage games={games} onSaveGame={(updatedGame) => setGames((current) => current.map((game) => game.id === updatedGame.id ? updatedGame : game))} onNotify={notify} /> : null}
+             {workspace === 'cms' && activePage === 'cms-skin-games' ? <CmsSkinGamesPage games={games} onSaveGame={(updatedGame) => setGames((current) => current.map((game) => game.id === updatedGame.id ? updatedGame : game))} onMoveGame={(draggedId, targetId) => setGames((current) => { const from = current.findIndex((game) => game.id === draggedId); if (from < 0) return current; const next = [...current]; const [moved] = next.splice(from, 1); if (!moved) return current; const to = next.findIndex((game) => game.id === targetId); if (to < 0) return current; next.splice(to, 0, moved); return next })} onNotify={notify} /> : null}
             {workspace === 'cms' && activePage === 'cms-categories' ? <CmsCategoriesPage onNotify={notify} /> : null}
             {workspace === 'cms' && activePage === 'cms-providers' ? <CmsProvidersPage onNotify={notify} /> : null}
             {workspace === 'cms' && activePage === 'cms-customization' ? <CmsCustomizationPage onNotify={notify} /> : null}
