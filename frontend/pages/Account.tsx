@@ -22,7 +22,7 @@ const SECTIONS: Record<string, Section> = {
   'deposit-limits': { title: 'Deposit limits', subtitle: 'Set personal limits to help manage your play.' },
   'reality-check': { title: 'Reality check', subtitle: 'Review reminders about time spent playing.' },
   betslips: { title: 'Sports Betslips', subtitle: 'Review your sports bets and open each ticket for full details.' },
-  'casino-history': { title: 'Casino History', subtitle: 'Review your wagers on casino games and open any entry for details.' },
+  'casino-history': { title: 'Casino History', subtitle: 'Review your wagers on casino games and their results.' },
 }
 
 function ReadOnlyField({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
@@ -537,22 +537,19 @@ function casinoWagerStatusClass(status: DemoCasinoWager['status']) {
 }
 
 function CasinoHistorySection() {
-  const [selectedWagerId, setSelectedWagerId] = useState<string | null>(null)
-  const selectedWager = CASINO_WAGERS_DEMO.find((wager) => wager.id === selectedWagerId)
-
   return (
     <div className="min-w-0 space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-xl font-extrabold text-[var(--cb-light-text)]">Casino Betting History</h2>
-          <p className="mt-1 text-sm text-[var(--cb-light-muted)]">Review individual wagers and results from casino games.</p>
+          <p className="mt-1 text-sm text-[var(--cb-light-muted)]">Review your wagers and results from casino games.</p>
         </div>
         <span className="text-xs text-[var(--cb-light-muted)]">{CASINO_WAGERS_DEMO.length} wagers</span>
       </div>
 
       <div className="overflow-hidden rounded-md border border-[var(--cb-light-border)] bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[850px] border-collapse text-left">
+          <table className="w-full min-w-[760px] border-collapse text-left">
             <thead className="bg-[#f6f7f8]">
               <tr className="border-b border-[var(--cb-light-border)] text-[10px] font-bold uppercase tracking-wide text-[var(--cb-light-muted)]">
                 <th className="px-4 py-3">Bet ID</th>
@@ -562,7 +559,6 @@ function CasinoHistorySection() {
                 <th className="px-3 py-3">Stake</th>
                 <th className="px-3 py-3">Win</th>
                 <th className="px-3 py-3">Status</th>
-                <th className="px-4 py-3 text-center">View</th>
               </tr>
             </thead>
             <tbody>
@@ -580,54 +576,12 @@ function CasinoHistorySection() {
                   <td className="px-3 py-4">
                     <span className={'inline-flex rounded-full px-2 py-1 text-[10px] font-bold ' + casinoWagerStatusClass(wager.status)}>{wager.status}</span>
                   </td>
-                  <td className="px-4 py-3 text-center">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedWagerId((current) => current === wager.id ? null : wager.id)}
-                      aria-label={'View casino wager ' + wager.id}
-                      title="View wager details"
-                      aria-expanded={selectedWagerId === wager.id}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded border border-[var(--cb-light-border)] text-[var(--cb-light-text)] transition hover:border-[var(--cb-yellow)] hover:bg-[#fff8df]"
-                    >
-                      <Eye className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
-
-      {selectedWager ? (
-        <section className="rounded-md border border-[var(--cb-light-border)] bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--cb-light-border)] bg-[#f7f8f9] px-4 py-4">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--cb-light-muted)]">Casino wager details</p>
-              <h3 className="mt-1 text-base font-extrabold text-[var(--cb-light-text)]">{selectedWager.id}</h3>
-            </div>
-            <span className={'inline-flex rounded-full px-2.5 py-1.5 text-xs font-bold ' + casinoWagerStatusClass(selectedWager.status)}>{selectedWager.status}</span>
-          </div>
-          <div className="grid grid-cols-2 gap-px bg-[var(--cb-light-border)] sm:grid-cols-3">
-            {[
-              { label: 'Game', value: selectedWager.game },
-              { label: 'Provider', value: selectedWager.provider },
-              { label: 'Date', value: selectedWager.date },
-              { label: 'Stake', value: selectedWager.stake },
-              { label: 'Win amount', value: selectedWager.win },
-              { label: 'Balance after round', value: selectedWager.balance },
-              { label: 'Round ID', value: selectedWager.roundId },
-              { label: 'Multiplier', value: selectedWager.multiplier },
-              { label: 'Bet type', value: selectedWager.betType },
-            ].map((item) => (
-              <div key={item.label} className="min-w-0 bg-white p-3.5">
-                <p className="text-xs text-[var(--cb-light-muted)]">{item.label}</p>
-                <p className="mt-1 break-words text-sm font-semibold text-[var(--cb-light-text)]">{item.value}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       <p className="text-xs text-[var(--cb-light-muted)]">Sample data for interface preview only. Casino wagers and balances are not connected to a live game provider.</p>
     </div>
