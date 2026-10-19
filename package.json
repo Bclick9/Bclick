@@ -3,6 +3,8 @@
   "scripts": {
     "dev": "pnpm --filter frontend dev",
     "build": "pnpm --filter frontend build",
-    "preview": "pnpm --filter frontend preview"
+    "preview": "pnpm --filter frontend preview",
+    "admin:dev": "pnpm --filter backend dev",
+    "admin:build": "pnpm --filter backend build"
   }
 }
