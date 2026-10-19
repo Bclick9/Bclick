@@ -14,7 +14,7 @@ import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitl
 import { cn } from './lib/utils'
 
 type WorkspaceMode = 'backoffice' | 'cms'
-type PageKey = 'overview' | 'users' | 'promotions' | 'bonuses' | 'games' | 'transactions' | 'reports' | 'settings' | 'cms-banners' | 'cms-promotions' | 'cms-pages' | 'cms-skin-games' | 'cms-categories' | 'cms-providers' | 'cms-customization'
+type PageKey = 'overview' | 'users' | 'promotions' | 'bonuses' | 'transactions' | 'reports' | 'settings' | 'cms-banners' | 'cms-promotions' | 'cms-pages' | 'cms-skin-games' | 'cms-categories' | 'cms-providers' | 'cms-customization'
 type Status = 'Active' | 'Paused' | 'Scheduled' | 'Suspended' | 'Completed' | 'Pending' | 'Failed'
 type UserRow = { id: string; name: string; email: string; country: string; joined: string; balance: string; status: 'Active' | 'Suspended'; tier: 'VIP' | 'Gold' | 'Standard' }
 type BonusWizardForm = {
@@ -46,7 +46,6 @@ type Offer = {
   endDate?: string
   platformDefinitionBonusId?: string
 }
-type GameRow = { id: string; title: string; provider: string; category: string; rtp: string; players: string; status: 'Active' | 'Paused' }
 
 const NAV_GROUPS: { title: string; items: { page: PageKey; label: string; icon: LucideIcon; count?: string }[] }[] = [
   { title: 'WORKSPACE', items: [
@@ -55,7 +54,6 @@ const NAV_GROUPS: { title: string; items: { page: PageKey; label: string; icon: 
     { page: 'bonuses', label: 'Bonuses', icon: Gift },
   ] },
   { title: 'OPERATIONS', items: [
-    { page: 'games', label: 'Casino games', icon: Gamepad2 },
     { page: 'transactions', label: 'Transactions', icon: CreditCard },
     { page: 'reports', label: 'Reports & analytics', icon: TrendingUp },
   ] },
@@ -81,7 +79,6 @@ const PAGE_INFO: Record<PageKey, { title: string; description: string }> = {
   users: { title: 'Players', description: 'Manage player records, account status, verification, and profile activity.' },
   promotions: { title: 'Promotions', description: 'Create campaigns and track engagement across channels.' },
   bonuses: { title: 'Bonuses', description: 'Manage bonus offers, wagering requirements, and eligibility.' },
-  games: { title: 'Casino games', description: 'Review your game catalogue and availability.' },
   transactions: { title: 'Transactions', description: 'Browse demo deposits, withdrawals, and wallet activity.' },
   reports: { title: 'Reports & analytics', description: 'Explore platform performance and engagement trends.' },
   settings: { title: 'Settings', description: 'Preview workspace preferences and admin controls.' },
@@ -100,7 +97,6 @@ const PAGE_PATHS: Record<PageKey, string> = {
   users: '/backoffice/players',
   promotions: '/backoffice/promotions',
   bonuses: '/backoffice/bonuses',
-  games: '/backoffice/games',
   transactions: '/backoffice/transactions',
   reports: '/backoffice/reports',
   settings: '/backoffice/settings',
@@ -139,15 +135,6 @@ const INITIAL_PROMOTIONS: Offer[] = [
 ]
 
 const INITIAL_BONUSES: Offer[] = []
-
-const INITIAL_GAMES: GameRow[] = [
-  { id: 'GM-001', title: 'Zeus vs Hades', provider: 'Demo Studio', category: 'Slots', rtp: '96.40%', players: '1,248', status: 'Active' },
-  { id: 'GM-002', title: 'Wild Clusters', provider: 'Play’n GO', category: 'Slots', rtp: '96.10%', players: '982', status: 'Active' },
-  { id: 'GM-003', title: 'Roulette Royale', provider: 'Evolution', category: 'Live casino', rtp: '97.30%', players: '764', status: 'Active' },
-  { id: 'GM-004', title: 'Lightning Blackjack', provider: 'Evolution', category: 'Live casino', rtp: '99.10%', players: '538', status: 'Active' },
-  { id: 'GM-005', title: 'Rocket Rush', provider: 'Demo Studio', category: 'Crash', rtp: '97.00%', players: '1,105', status: 'Paused' },
-  { id: 'GM-006', title: 'Golden Pharaoh', provider: 'Pragmatic Play', category: 'Slots', rtp: '96.50%', players: '416', status: 'Active' },
-]
 
 type TransactionState = 'Confirmed' | 'Pending' | 'Rejected'
 type TransactionRecord = {
@@ -1205,43 +1192,6 @@ function OffersPage({ title, description, offers, kind, onCreate, onToggle }: { 
       </div>
       <div className="border-t border-border px-5 py-3 text-[11px] text-slate-400">Showing {filtered.length} of {offers.length} demo {isPromotions ? 'promotions' : 'bonuses'} · No campaigns are sent or activated.</div>
     </Card>
-  </div>
-}
-
-function GamesPage({ games, onToggle }: { games: GameRow[]; onToggle: (id: string) => void }) {
-  const [category, setCategory] = useState('All games')
-  const [query, setQuery] = useState('')
-  const filtered = games.filter((game) => (category === 'All games' || game.category === category) && (game.title + ' ' + game.provider).toLowerCase().includes(query.toLowerCase()))
-  const gradient = (categoryName: string) => categoryName === 'Live casino' ? 'from-blue-950 via-blue-800 to-sky-700' : categoryName === 'Crash' ? 'from-violet-950 via-violet-800 to-fuchsia-600' : 'from-slate-950 via-slate-800 to-amber-700'
-  return <div className="page-enter">
-    <SectionHeading title="Casino games" description="Curate your catalogue and preview availability by category." actions={<><Button variant="outline"><Download className="h-4 w-4" /> Export catalogue</Button><Button><Plus className="h-4 w-4" /> Add game</Button></>} />
-    <div className="mb-4 grid gap-3 sm:grid-cols-3">
-      <Card><CardContent className="p-4"><p className="text-xs text-slate-500">Total titles</p><p className="mt-1 font-display text-2xl font-extrabold">{games.length}</p></CardContent></Card>
-      <Card><CardContent className="p-4"><p className="text-xs text-slate-500">Available in lobby</p><p className="mt-1 font-display text-2xl font-extrabold">{games.filter((game) => game.status === 'Active').length}</p></CardContent></Card>
-      <Card><CardContent className="p-4"><p className="text-xs text-slate-500">Providers represented</p><p className="mt-1 font-display text-2xl font-extrabold">{new Set(games.map((game) => game.provider)).size}</p></CardContent></Card>
-    </div>
-    <Card>
-      <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1">{['All games', 'Slots', 'Live casino', 'Crash'].map((item) => <button key={item} type="button" onClick={() => setCategory(item)} className={cn('rounded-md px-3 py-1.5 text-xs font-semibold', category === item ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800')}>{item}</button>)}</div>
-        <div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search games or providers..." className="pl-9 sm:w-72" /></div>
-      </div>
-      <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
-        {filtered.map((game) => <div key={game.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white transition hover:-translate-y-0.5 hover:shadow-md">
-          <div className={cn('relative flex h-32 items-center justify-center overflow-hidden bg-gradient-to-br', gradient(game.category))}>
-            <span className="absolute -right-3 -top-8 h-32 w-32 rounded-full border border-white/10" /><span className="absolute -bottom-16 -left-5 h-40 w-40 rounded-full border border-white/10" />
-            <span className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white shadow-lg backdrop-blur"><Gamepad2 className="h-7 w-7" /></span>
-            <span className="absolute left-3 top-3 rounded-full bg-black/20 px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-white/90">{game.category}</span>
-            <span className="absolute right-3 top-3"><StatusBadge status={game.status} /></span>
-          </div>
-          <div className="p-4"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-bold text-slate-900">{game.title}</p><p className="mt-1 text-[11px] text-slate-400">{game.provider}</p></div><Button size="icon" variant="ghost" aria-label="More game options"><MoreHorizontal className="h-4 w-4 text-slate-500" /></Button></div>
-            <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3"><div><p className="text-[10px] text-slate-400">RTP</p><p className="mt-1 text-xs font-bold text-slate-700">{game.rtp}</p></div><div><p className="text-[10px] text-slate-400">Active players</p><p className="mt-1 text-xs font-bold text-slate-700">{game.players}</p></div></div>
-            <Button variant="outline" size="sm" className="mt-4 w-full" onClick={() => onToggle(game.id)}>{game.status === 'Active' ? <><Pause className="h-3.5 w-3.5" /> Pause game (demo)</> : <><Play className="h-3.5 w-3.5" /> Enable game (demo)</>}</Button>
-          </div>
-        </div>)}
-        {filtered.length === 0 ? <div className="col-span-full py-12 text-center text-sm text-slate-400">No games match your search.</div> : null}
-      </div>
-    </Card>
-    <p className="mt-4 text-center text-[10px] text-slate-400">Catalogue information is illustrative. Provider connections and game availability are not implemented.</p>
   </div>
 }
 
@@ -2449,7 +2399,20 @@ function UserFormModal({ open, onOpenChange, onSubmit }: { open: boolean; onOpen
 }
 
 
-type CmsCategory = { id: string; name: string; items: number; visible: boolean; description: string }
+type CmsCategory = { id: string; name: string; items: number; visible: boolean; description: string; icon: string }
+
+const CMS_CATEGORY_ICON_OPTIONS: { value: string; label: string; icon: LucideIcon }[] = [
+  { value: 'layers', label: 'Layers', icon: Layers },
+  { value: 'gamepad', label: 'Gamepad', icon: Gamepad2 },
+  { value: 'sparkles', label: 'Featured', icon: Sparkles },
+  { value: 'trending', label: 'Trending', icon: TrendingUp },
+  { value: 'clock', label: 'New releases', icon: Clock3 },
+  { value: 'users', label: 'Live tables', icon: Users },
+  { value: 'money', label: 'Jackpot', icon: CircleDollarSign },
+  { value: 'gift', label: 'Bonus', icon: Gift },
+  { value: 'trophy', label: 'Trophy', icon: Trophy },
+  { value: 'zap', label: 'Crash', icon: Zap },
+]
 type BannerStatus = 'Published' | 'Unpublished' | 'Trash'
 type CmsBannerGroup = { id: string; slug: string; status: BannerStatus }
 type CmsBannerDraft = {
@@ -2500,13 +2463,13 @@ const createEmptyCmsBannerDraft = (): CmsBannerDraft => ({
 })
 
 const INITIAL_CMS_CATEGORIES: CmsCategory[] = [
-  { id: 'cat-featured', name: 'Featured', items: 8, visible: true, description: 'Hand-picked games and highlights' },
-  { id: 'cat-popular', name: 'Popular Games', items: 24, visible: true, description: 'Top games by engagement' },
-  { id: 'cat-new', name: 'New Releases', items: 12, visible: true, description: 'Recently added casino titles' },
-  { id: 'cat-slots', name: 'Slots', items: 186, visible: true, description: 'Video slots and classic reels' },
-  { id: 'cat-live', name: 'Live Casino', items: 42, visible: true, description: 'Live dealer tables and shows' },
-  { id: 'cat-jackpot', name: 'Jackpot', items: 16, visible: false, description: 'Progressive jackpot games' },
-  { id: 'cat-crash', name: 'Crash Games', items: 9, visible: true, description: 'Fast-play and multiplier games' },
+  { id: 'cat-featured', name: 'Featured', items: 8, visible: true, description: 'Hand-picked games and highlights', icon: 'sparkles' },
+  { id: 'cat-popular', name: 'Popular Games', items: 24, visible: true, description: 'Top games by engagement', icon: 'trending' },
+  { id: 'cat-new', name: 'New Releases', items: 12, visible: true, description: 'Recently added casino titles', icon: 'clock' },
+  { id: 'cat-slots', name: 'Slots', items: 186, visible: true, description: 'Video slots and classic reels', icon: 'gamepad' },
+  { id: 'cat-live', name: 'Live Casino', items: 42, visible: true, description: 'Live dealer tables and shows', icon: 'users' },
+  { id: 'cat-jackpot', name: 'Jackpot', items: 16, visible: false, description: 'Progressive jackpot games', icon: 'money' },
+  { id: 'cat-crash', name: 'Crash Games', items: 9, visible: true, description: 'Fast-play and multiplier games', icon: 'zap' },
 ]
 
 const INITIAL_CMS_BANNER_GROUPS: CmsBannerGroup[] = []
@@ -2515,6 +2478,7 @@ const INITIAL_CMS_BANNERS: CmsBanner[] = []
 function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) => void }) {
   const [categories, setCategories] = useState<CmsCategory[]>(INITIAL_CMS_CATEGORIES)
   const [draftName, setDraftName] = useState('')
+  const [draftIcon, setDraftIcon] = useState('sparkles')
   const [search, setSearch] = useState('')
   const move = (index: number, direction: -1 | 1) => setCategories((current) => {
     const next = [...current]
@@ -2528,8 +2492,9 @@ function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) => void }
     event.preventDefault()
     const name = draftName.trim()
     if (!name) return
-    setCategories((current) => [...current, { id: 'cat-custom-' + (current.length + 1), name, items: 0, visible: true, description: 'New custom casino collection' }])
+    setCategories((current) => [...current, { id: 'cat-custom-' + (current.length + 1), name, items: 0, visible: true, description: 'New custom casino collection', icon: draftIcon }])
     setDraftName('')
+    setDraftIcon('sparkles')
     onNotify('Category added to the local CMS preview.')
   }
   const filtered = categories.filter((category) => (category.name + ' ' + category.description).toLowerCase().includes(search.toLowerCase()))
@@ -2544,13 +2509,15 @@ function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) => void }
         <div className="relative w-full sm:max-w-[230px]"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event)=>setSearch(event.target.value)} placeholder="Search categories…" className="pl-9" /></div>
       </div>
       <div className="p-4">
-        <form onSubmit={addCategory} className="mb-4 flex flex-col gap-2 sm:flex-row"><Input value={draftName} onChange={(event)=>setDraftName(event.target.value)} placeholder="New category name…" aria-label="New category name" /><Button type="submit" disabled={!draftName.trim()}><Plus className="h-4 w-4" /> Add category</Button></form>
+        <form onSubmit={addCategory} className="mb-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_180px_auto]"><Input value={draftName} onChange={(event)=>setDraftName(event.target.value)} placeholder="New category name…" aria-label="New category name" /><label className="relative"><span className="sr-only">Choose icon for new category</span><select value={draftIcon} onChange={(event)=>setDraftIcon(event.target.value)} aria-label="Choose icon for new category" className="h-10 w-full rounded-md border border-input bg-white px-3 text-xs text-slate-700 outline-none focus:ring-2 focus:ring-ring">{CMS_CATEGORY_ICON_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><Button type="submit" disabled={!draftName.trim()}><Plus className="h-4 w-4" /> Add category</Button></form>
         <div className="space-y-2">
           {filtered.map((category) => {
             const index = categories.findIndex((item) => item.id === category.id)
+            const selectedIcon = CMS_CATEGORY_ICON_OPTIONS.find((option) => option.value === category.icon) ?? CMS_CATEGORY_ICON_OPTIONS[0]
+            const CategoryIcon = selectedIcon.icon
             return <div key={category.id} className={cn('flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center', category.visible ? 'border-slate-200 bg-white' : 'border-dashed border-slate-200 bg-slate-50/70')}>
               <div className="flex items-center gap-2 sm:flex-col"><button type="button" aria-label={'Move ' + category.name + ' up'} disabled={index === 0} onClick={()=>move(index,-1)} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 disabled:opacity-25"><ArrowUp className="h-3.5 w-3.5" /></button><button type="button" aria-label={'Move ' + category.name + ' down'} disabled={index === categories.length - 1} onClick={()=>move(index,1)} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 disabled:opacity-25"><ArrowDown className="h-3.5 w-3.5" /></button></div>
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-800 to-slate-500 text-white"><Layers className="h-4 w-4" /></div>
+              <div className="flex shrink-0 items-center gap-2"><div className="flex h-11 w-11 items-center justify-center rounded-lg bg-gradient-to-br from-slate-800 to-slate-500 text-white"><CategoryIcon className="h-4 w-4" /></div><label className="min-w-0"><span className="sr-only">Icon for {category.name}</span><select value={category.icon} onChange={(event) => setCategories((current) => current.map((item) => item.id === category.id ? { ...item, icon: event.target.value } : item))} aria-label={"Icon for " + category.name} className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-[10px] text-slate-600 outline-none focus:ring-2 focus:ring-slate-200 sm:w-32">{CMS_CATEGORY_ICON_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label></div>
               <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-semibold text-slate-900">{category.name}</p><Badge variant={category.visible ? 'success' : 'outline'}>{category.visible ? 'Visible' : 'Hidden'}</Badge></div><p className="mt-1 text-[11px] text-slate-500">{category.description}</p></div>
               <div className="text-left sm:min-w-20 sm:text-right"><p className="text-sm font-bold text-slate-800">{category.items}</p><p className="text-[10px] text-slate-400">games</p></div>
               <Button size="sm" variant="outline" onClick={()=>toggle(category.id)}>{category.visible ? 'Hide category' : 'Show category'}</Button>
@@ -3686,7 +3653,14 @@ export default function App() {
   const [selectedUser, setSelectedUser] = useState<UserRow | null>(null)
   const [toast, setToast] = useState('')
   useEffect(() => {
+    const redirectRemovedGamesRoute = () => {
+      if ((window.location.pathname.replace(/\/+$/, '') || '/') === '/backoffice/games') {
+        window.history.replaceState({}, '', PAGE_PATHS.overview)
+      }
+    }
+    redirectRemovedGamesRoute()
     const syncRoute = () => {
+      redirectRemovedGamesRoute()
       const nextPage = pageFromPath(window.location.pathname)
       setActivePage(nextPage)
       setWorkspace(workspaceForPage(nextPage))
@@ -3736,11 +3710,6 @@ export default function App() {
     const setter = kind === 'promotions' ? setPromotions : setBonuses
     setter((current) => current.map((offer) => offer.id === id ? { ...offer, status: offer.status === 'Active' ? 'Paused' : 'Active' } : offer))
     notify('Sample offer status updated in this preview.')
-  }
-
-  function toggleGame(id: string) {
-    setGames((current) => current.map((game) => game.id === id ? { ...game, status: game.status === 'Active' ? 'Paused' : 'Active' } : game))
-    notify('Sample game availability updated in this preview.')
   }
 
   function handleUserSubmit(event: FormEvent<HTMLFormElement>) {
@@ -3830,7 +3799,6 @@ export default function App() {
     if (activePage === 'promotions') return <Button onClick={() => setPromotionOpen(true)}><Plus className="h-4 w-4" /> Create promotion</Button>
     if (activePage === 'users') return <Button onClick={() => setUserOpen(true)}><Plus className="h-4 w-4" /> New player</Button>
     if (activePage === 'reports' || activePage === 'transactions') return <Button variant="outline" onClick={() => window.print()}><Download className="h-4 w-4" /> Export</Button>
-    if (activePage === 'games') return <Button onClick={() => notify('Game provider connection is not included in this UI prototype.')}><Plus className="h-4 w-4" /> Add game</Button>
     return <Button onClick={() => navigate('promotions')}><Plus className="h-4 w-4" /> New campaign</Button>
   }
 
@@ -3894,7 +3862,6 @@ export default function App() {
                       {activePage === 'users' ? <PlayersPage users={users} query={searchQuery} onQueryChange={setSearchQuery} onAdd={() => setUserOpen(true)} onSelect={setSelectedUser} onToggleStatus={toggleUserStatus} /> : null}
                       {activePage === 'promotions' ? <OffersPage title="Promotions" description="Create campaigns and track engagement across channels." offers={promotions} kind="promotions" onCreate={() => setPromotionOpen(true)} onToggle={(id) => toggleOffer('promotions', id)} /> : null}
                       {activePage === 'bonuses' ? <BonusesPage offers={bonuses} onCreate={() => setBonusTypeChooserOpen(true)} onToggle={(id) => toggleOffer('bonuses', id)} onNotify={notify} /> : null}
-                      {activePage === 'games' ? <GamesPage games={games.map((game) => ({ id: game.id, title: game.title, provider: game.provider, category: game.category, rtp: game.rtp, players: game.players, status: (game.active ? 'Active' : 'Paused') as GameRow['status'] }))} onToggle={toggleGame} /> : null}
                       {activePage === 'transactions' ? <TransactionsPage query={searchQuery} onQueryChange={setSearchQuery} users={users} onNotify={notify} onSelectPlayer={setSelectedUser} /> : null}
                       {activePage === 'reports' ? <ReportsPage /> : null}
                       {activePage === 'settings' ? <SettingsPage /> : null}
