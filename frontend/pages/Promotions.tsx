@@ -116,7 +116,7 @@ export default function Promotions() {
   ]
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] px-3 py-4 sm:px-4 md:px-0">
+    <div className="mx-auto w-full max-w-screen-2xl px-4 py-4">
       <header className="mb-4 flex min-h-9 items-center justify-between gap-3">
         <h1 className="text-xl font-extrabold leading-7 text-white">Promotions</h1>
         <div role="group" aria-label="Filter promotions" className="flex shrink-0 items-center gap-2">
