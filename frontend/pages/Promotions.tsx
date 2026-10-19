@@ -2,7 +2,6 @@ import { Link, useParams } from 'react-router-dom'
 import { useState } from 'react'
 import { ChevronLeft, CalendarClock, Percent } from 'lucide-react'
 import type { Promotion } from '../data/catalog'
-import { PROMOTIONS } from '../data/catalog'
 
 type PromotionFilter = 'all' | 'casino' | 'sports'
 
@@ -72,18 +71,10 @@ const FEATURED_PROMOTIONS: Promotion[] = [
   },
 ]
 
-const ALL_PROMOTIONS: Promotion[] = [...PROMOTIONS, ...FEATURED_PROMOTIONS]
+const ALL_PROMOTIONS: Promotion[] = FEATURED_PROMOTIONS
 
-const PROMOTION_IMAGE_OVERRIDES: Record<string, string> = {
-  'welcome-casino-package': '/assets/home/welcome-casino-bonus.webp',
-  'welcome-sports-bonus': '/assets/home/welcome-sports-bonus.jpg',
-  'welcome-sports-freebet': '/assets/home/welcome-sports-freebet.jpg',
-  'welcome-crypto-combo': '/assets/home/welcome-crypto-bonus.jpg',
-  'mondays-reload-bonus': '/assets/home/monday-reload-bonus.jpg',
-}
 
 function PromotionTile({ promo }: { promo: Promotion }) {
-  const [imageSource, setImageSource] = useState(PROMOTION_IMAGE_OVERRIDES[promo.slug] ?? promo.image)
   const [imageFailed, setImageFailed] = useState(false)
 
   return (
@@ -95,23 +86,20 @@ function PromotionTile({ promo }: { promo: Promotion }) {
       <div className="aspect-[16/9] w-full overflow-hidden bg-[#07141c]">
         {!imageFailed ? (
           <img
-            src={imageSource}
+            src={promo.image}
             alt={promo.tag}
             loading="lazy"
             decoding="async"
-            onError={() => {
-              if (imageSource !== promo.image) setImageSource(promo.image)
-              else setImageFailed(true)
-            }}
+            onError={() => setImageFailed(true)}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.015]"
           />
         ) : (
           <div className="h-full w-full bg-[var(--cb-card)]" />
         )}
       </div>
-      <div className="min-h-[148px] px-6 py-6">
+      <div className="px-4 py-4">
         <h2 className="line-clamp-2 text-sm font-extrabold leading-5 text-white">{promo.tag}</h2>
-        <p className="mt-2 line-clamp-2 text-sm leading-5 text-[#aebfca]">{promo.title}</p>
+        <p className="mt-1.5 line-clamp-2 text-sm leading-5 text-[#aebfca]">{promo.title}</p>
       </div>
     </Link>
   )
@@ -128,7 +116,7 @@ export default function Promotions() {
   ]
 
   return (
-    <div className="mx-auto w-full max-w-none px-2 py-4">
+    <div className="mx-auto w-full max-w-[1400px] px-3 py-4 sm:px-4 md:px-0">
       <header className="mb-4 flex min-h-9 items-center justify-between gap-3">
         <h1 className="text-xl font-extrabold leading-7 text-white">Promotions</h1>
         <div role="group" aria-label="Filter promotions" className="flex shrink-0 items-center gap-2">
