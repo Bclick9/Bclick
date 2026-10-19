@@ -69,6 +69,7 @@ export default function App() {
         <Route path="account/account-statement" element={<Navigate to="/account/betslips" replace />} />
         <Route path="account/profit-and-loss" element={<Navigate to="/account/betslips" replace />} />
         <Route path="account/wallet/:tab" element={<WalletRouter />} />
+        <Route path="account/betslips/:betId" element={<AccountPage />} />
         <Route path="wallet" element={<Navigate to="/account/wallet/deposit" replace />} />
         <Route path="wallet/:tab" element={<LegacyWalletRedirect />} />
         <Route path="account/:section" element={<AccountPage />} />
