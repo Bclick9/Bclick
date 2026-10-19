@@ -69,7 +69,8 @@ export default function App() {
         <Route path="account/bonuses-available" element={<Navigate to="/account/bonuses" replace />} />
         <Route path="account/bonuses-active" element={<Navigate to="/account/bonuses" replace />} />
         <Route path="account/bonuses-closed" element={<Navigate to="/account/bonuses" replace />} />
-        <Route path="account/bonuses/*" element={<AccountPage />} />
+        <Route path="account/bonuses" element={<AccountPage />} />
+        <Route path="account/bonuses/:bonusTab" element={<AccountPage />} />
         <Route path="account/account-statement" element={<Navigate to="/account/betslips" replace />} />
         <Route path="account/profit-and-loss" element={<Navigate to="/account/betslips" replace />} />
         <Route path="account/wallet/:tab" element={<WalletRouter />} />
