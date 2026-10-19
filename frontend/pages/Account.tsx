@@ -42,10 +42,15 @@ function ReadOnlyField({ label, value, wide = false }: { label: string; value: s
 export default function AccountPage() {
   const { pathname } = useLocation()
   const isAccountHome = pathname === '/account'
-  const sectionKey = isAccountHome ? 'overview' : (pathname.split('/').filter(Boolean)[1] || 'personal-info')
-  const section = sectionKey === 'overview'
-    ? { title: 'Account overview', subtitle: 'Manage your profile and account services from one place.' }
-    : (SECTIONS[sectionKey] ?? SECTIONS['personal-info']!)
+  const pathParts = pathname.split('/').filter(Boolean)
+  const sectionKey = isAccountHome ? 'overview' : (pathParts[1] || 'personal-info')
+  const selectedBetId = sectionKey === 'betslips' ? pathParts[2] : undefined
+  const selectedBet = selectedBetId ? BETSLIPS_DEMO.find((bet) => bet.id === selectedBetId) : undefined
+  const section = selectedBetId
+    ? { title: 'Betslip details', subtitle: selectedBet ? `Review ticket ${selectedBet.id} and its event results.` : 'The requested betslip could not be found.' }
+    : sectionKey === 'overview'
+      ? { title: 'Account overview', subtitle: 'Manage your profile and account services from one place.' }
+      : (SECTIONS[sectionKey] ?? SECTIONS['personal-info']!)
   const [gender, setGender] = useState('')
   const [newsletter, setNewsletter] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -226,7 +231,13 @@ export default function AccountPage() {
           </div>
         ) : null}
 
-        {sectionKey === 'betslips' ? <BetslipsSection /> : null}
+        {sectionKey === 'betslips' ? (
+          selectedBetId
+            ? selectedBet
+              ? <BetslipTicketPage bet={selectedBet} />
+              : <EmptyState icon={History} title="Betslip not found" detail="This ticket may no longer be available. Return to Betslips to choose another ticket." />
+            : <BetslipsSection />
+        ) : null}
 
         {!SECTIONS[sectionKey] && sectionKey !== 'profile' && sectionKey !== 'overview' ? (
           <EmptyState icon={UserRound} title="Account overview" detail="Choose a section from the account menu to view its details." />
@@ -334,8 +345,6 @@ function betStatusClass(status: DemoBetslip['status']) {
 }
 
 function BetslipsSection() {
-  const [selectedBet, setSelectedBet] = useState<DemoBetslip | null>(null)
-
   return (
     <div className="min-w-0 space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -376,15 +385,14 @@ function BetslipsSection() {
                     <span className={'inline-flex rounded-full px-2 py-1 text-[10px] font-bold ' + betStatusClass(bet.status)}>{bet.status}</span>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedBet(bet)}
+                    <Link
+                      to={`/account/betslips/${bet.id}`}
                       aria-label={'View betslip ' + bet.id}
                       title="View ticket"
                       className="inline-flex h-8 w-8 items-center justify-center rounded border border-[var(--cb-light-border)] text-[var(--cb-light-text)] transition hover:border-[var(--cb-yellow)] hover:bg-[#fff8df]"
                     >
                       <Eye className="h-4 w-4" aria-hidden="true" />
-                    </button>
+                    </Link>
                   </td>
                 </tr>
               ))}
@@ -395,88 +403,103 @@ function BetslipsSection() {
 
       <p className="text-xs text-[var(--cb-light-muted)]">Sample data for interface preview only. Bet results and payouts are not connected to a live sportsbook.</p>
 
-      {selectedBet ? <BetslipTicket bet={selectedBet} onClose={() => setSelectedBet(null)} /> : null}
     </div>
   )
 }
 
-function BetslipTicket({ bet, onClose }: { bet: DemoBetslip; onClose: () => void }) {
+
+function BetslipTicketPage({ bet }: { bet: DemoBetslip }) {
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-2 sm:p-5"
-      role="dialog"
-      aria-modal="true"
-      aria-label={'Betslip ticket ' + bet.id}
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[94dvh] w-full max-w-6xl flex-col overflow-hidden rounded-md border border-[#292929] bg-[#080808] text-[#eeeeee] shadow-2xl"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-center justify-between gap-3 border-b border-[#2b2b2b] bg-[#111111] px-4 py-3 sm:px-6">
-          <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-[#9b9b9b]">Sports ticket</p>
-            <h2 className="mt-0.5 truncate text-sm font-bold sm:text-base">{bet.id}</h2>
-          </div>
-          <div className="flex shrink-0 items-center gap-3">
-            <span className={'rounded px-2.5 py-1 text-xs font-bold ' + (bet.status === 'Won' ? 'bg-[#0f4a19] text-[#62de72]' : bet.status === 'Lost' ? 'bg-[#501616] text-[#ff7373]' : 'bg-[#57450a] text-[#ffd35b]')}>{bet.status}</span>
-            <button type="button" aria-label="Close ticket" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded text-[#b4b4b4] hover:bg-white/10 hover:text-white">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        <div className="overflow-y-auto">
-          <div className="border-b border-[#2b2b2b] px-4 py-4 sm:px-6 sm:py-5">
-            <div className="grid max-w-2xl grid-cols-[minmax(110px,1fr)_minmax(120px,1fr)] gap-x-5 gap-y-2 text-xs sm:gap-x-10">
-              <span className="font-semibold text-[#eeeeee]">Status</span>
-              <span className={bet.status === 'Won' ? 'font-bold text-[#45db54]' : bet.status === 'Lost' ? 'font-bold text-[#ff6262]' : 'font-bold text-[#ffcf50]'}>{bet.status}</span>
-              <span className="font-semibold italic text-[#f3c74b]">Stake</span>
-              <span className="font-semibold text-[#f3c74b]">{bet.stake}</span>
-              <span className="font-semibold italic text-[#f3c74b]">Bonus</span>
-              <span className="font-semibold text-[#f3c74b]">{bet.bonus}</span>
-              <span className="font-semibold italic text-[#f3c74b]">Gain</span>
-              <span className="font-semibold text-[#f3c74b]">{bet.gain}</span>
-              <span className="font-semibold text-[#eeeeee]">Payment date</span>
-              <span className="text-[#eeeeee]">{bet.paymentDate}</span>
-            </div>
-          </div>
-
-          <div className="px-4 py-4 sm:px-6 sm:py-5">
-            <h3 className="mb-3 text-sm font-bold text-[#e8e8e8]">Events</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[850px] border-collapse text-left">
-                <thead>
-                  <tr className="border-b border-[#292929] text-[10px] font-bold text-[#d8d8d8]">
-                    <th className="px-2 py-2">Event</th>
-                    <th className="px-2 py-2">Start date</th>
-                    <th className="px-2 py-2">Bet type</th>
-                    <th className="px-2 py-2">Selection</th>
-                    <th className="px-2 py-2 text-right">Odds</th>
-                    <th className="px-2 py-2 text-right">Score</th>
-                    <th className="px-2 py-2 text-center">Result</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bet.events.map((event, index) => (
-                    <tr key={event.event + index} className="border-b border-[#252525] last:border-0">
-                      <td className="max-w-[300px] px-2 py-2 text-[11px] text-[#eeeeee]">{event.event}</td>
-                      <td className="whitespace-nowrap px-2 py-2 text-[10px] text-[#c8c8c8]">{event.start}</td>
-                      <td className="px-2 py-2 text-[10px] text-[#e2e2e2]">{event.market}</td>
-                      <td className="px-2 py-2 text-[10px] text-[#e2e2e2]">{event.selection}</td>
-                      <td className="px-2 py-2 text-right text-[11px] text-[#eeeeee]">{event.odds}</td>
-                      <td className="whitespace-nowrap px-2 py-2 text-right text-[11px] text-[#eeeeee]">{event.score}</td>
-                      <td className="px-2 py-2 text-center">
-                        {event.result === 'won' ? <CircleCheck className="inline h-3.5 w-3.5 text-[#27ca4b]" aria-label="Won" /> : event.result === 'lost' ? <X className="inline h-3.5 w-3.5 text-[#f05252]" aria-label="Lost" /> : <span className="text-xs text-[#f3c74b]">•</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+    <div className="min-w-0 space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link
+          to="/account/betslips"
+          className="inline-flex min-h-9 items-center gap-2 rounded border border-[var(--cb-light-border)] bg-white px-3 py-2 text-sm font-semibold text-[var(--cb-light-text)] transition hover:border-[var(--cb-yellow)]"
+        >
+          <span aria-hidden="true" className="text-base leading-none">←</span>
+          Back to betslips
+        </Link>
+        <span className={'inline-flex rounded-full px-3 py-1.5 text-xs font-bold ' + betStatusClass(bet.status)}>{bet.status}</span>
       </div>
+
+      <section className="overflow-hidden rounded-md border border-[var(--cb-light-border)] bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--cb-light-border)] bg-[#f7f8f9] px-4 py-4 md:px-5">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--cb-light-muted)]">Sports betslip</p>
+            <h2 className="mt-1 text-lg font-extrabold text-[var(--cb-light-text)]">{bet.id}</h2>
+          </div>
+          <span className="rounded bg-white px-3 py-1.5 text-xs font-semibold text-[var(--cb-light-text)] ring-1 ring-inset ring-[var(--cb-light-border)]">{bet.type}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-px bg-[var(--cb-light-border)] sm:grid-cols-3 xl:grid-cols-5">
+          <div className="bg-white p-4">
+            <p className="text-xs text-[var(--cb-light-muted)]">Stake</p>
+            <p className="mt-1 text-base font-bold text-[var(--cb-light-text)]">{bet.stake}</p>
+          </div>
+          <div className="bg-white p-4">
+            <p className="text-xs text-[var(--cb-light-muted)]">Bonus</p>
+            <p className="mt-1 text-base font-bold text-[var(--cb-light-text)]">{bet.bonus}</p>
+          </div>
+          <div className="bg-white p-4">
+            <p className="text-xs text-[var(--cb-light-muted)]">Gain</p>
+            <p className="mt-1 text-base font-bold text-[var(--cb-light-text)]">{bet.gain}</p>
+          </div>
+          <div className="bg-white p-4">
+            <p className="text-xs text-[var(--cb-light-muted)]">Bet date</p>
+            <p className="mt-1 text-sm font-semibold text-[var(--cb-light-text)]">{bet.date}</p>
+          </div>
+          <div className="bg-white p-4 sm:col-span-2 xl:col-span-1">
+            <p className="text-xs text-[var(--cb-light-muted)]">Payment date</p>
+            <p className="mt-1 text-sm font-semibold text-[var(--cb-light-text)]">{bet.paymentDate}</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-md border border-[var(--cb-light-border)] bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--cb-light-border)] px-4 py-4 md:px-5">
+          <div>
+            <h2 className="text-base font-extrabold text-[var(--cb-light-text)]">Events</h2>
+            <p className="mt-1 text-xs text-[var(--cb-light-muted)]">{bet.events.length} {bet.events.length === 1 ? 'selection' : 'selections'} on this ticket</p>
+          </div>
+          <span className="text-xs text-[var(--cb-light-muted)]">Overall status: <strong className="text-[var(--cb-light-text)]">{bet.status}</strong></span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[800px] border-collapse text-left">
+            <thead className="bg-[#f7f8f9]">
+              <tr className="border-b border-[var(--cb-light-border)] text-[10px] font-bold uppercase tracking-wide text-[var(--cb-light-muted)]">
+                <th className="px-4 py-3">Event</th>
+                <th className="px-3 py-3">Start date</th>
+                <th className="px-3 py-3">Bet type</th>
+                <th className="px-3 py-3">Selection</th>
+                <th className="px-3 py-3 text-right">Odds</th>
+                <th className="px-3 py-3 text-right">Score</th>
+                <th className="px-4 py-3 text-center">Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bet.events.map((event, index) => (
+                <tr key={event.event + index} className="border-b border-[var(--cb-light-border)] last:border-0 hover:bg-[#fafafa]">
+                  <td className="max-w-[320px] px-4 py-3 text-xs font-medium text-[var(--cb-light-text)]">{event.event}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-[11px] text-[var(--cb-light-muted)]">{event.start}</td>
+                  <td className="px-3 py-3 text-xs text-[var(--cb-light-text)]">{event.market}</td>
+                  <td className="px-3 py-3 text-xs font-semibold text-[var(--cb-light-text)]">{event.selection}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-right text-xs text-[var(--cb-light-text)]">{event.odds}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-right text-xs text-[var(--cb-light-text)]">{event.score}</td>
+                  <td className="px-4 py-3 text-center">
+                    {event.result === 'won'
+                      ? <CircleCheck className="inline h-4 w-4 text-[#229447]" aria-label="Won" />
+                      : event.result === 'lost'
+                        ? <X className="inline h-4 w-4 text-[#c52c2c]" aria-label="Lost" />
+                        : <span className="text-xs font-semibold text-[#856300]">Pending</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="border-t border-[var(--cb-light-border)] bg-[#fbfbfb] px-4 py-3 text-xs text-[var(--cb-light-muted)] md:px-5">
+          Sample ticket for interface preview only — results and payouts are not connected to a live sportsbook.
+        </div>
+      </section>
     </div>
   )
 }
