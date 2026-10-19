@@ -16,9 +16,7 @@ const SECTIONS: Record<string, Section> = {
   documents: { title: 'Documents', subtitle: 'Verify your account identity and document status.' },
   'change-password': { title: 'Change password', subtitle: 'Keep your account secure with a strong password.' },
   messages: { title: 'Messages', subtitle: 'Your account messages and notifications appear here.' },
-  'bonuses-available': { title: 'Available bonuses', subtitle: 'Explore bonuses that may be available to your account.' },
-  'bonuses-active': { title: 'Active bonuses', subtitle: 'Review your currently active bonus offers.' },
-  'bonuses-closed': { title: 'Closed bonuses', subtitle: 'Review previously closed bonus offers.' },
+  bonuses: { title: 'Bonuses', subtitle: 'Browse sports and casino bonuses, redeem a promo code, and review bonus activity.' },
   'self-exclusion': { title: 'Self-exclusion', subtitle: 'Manage access breaks and self-exclusion settings.' },
   'deposit-limits': { title: 'Deposit limits', subtitle: 'Set personal limits to help manage your play.' },
   'reality-check': { title: 'Reality check', subtitle: 'Review reminders about time spent playing.' },
@@ -45,6 +43,7 @@ export default function AccountPage() {
   const pathParts = pathname.split('/').filter(Boolean)
   const sectionKey = isAccountHome ? 'overview' : (pathParts[1] || 'personal-info')
   const selectedBetId = sectionKey === 'betslips' ? pathParts[2] : undefined
+  const bonusTab = sectionKey === 'bonuses' ? (pathParts[2] || 'sports') : 'sports'
   const selectedBet = selectedBetId ? BETSLIPS_DEMO.find((bet) => bet.id === selectedBetId) : undefined
   const section = selectedBetId
     ? { title: 'Betslip details', subtitle: selectedBet ? `Review ticket ${selectedBet.id} and its event results.` : 'The requested betslip could not be found.' }
@@ -215,9 +214,7 @@ export default function AccountPage() {
           <EmptyState icon={Inbox} title="No messages yet" detail="Account messages and notifications will appear here." />
         ) : null}
 
-        {sectionKey.startsWith('bonuses-') ? (
-          <EmptyState icon={Gift} title={sectionKey === 'bonuses-available' ? 'No available bonuses' : sectionKey === 'bonuses-active' ? 'No active bonuses' : 'No closed bonuses'} detail="Bonus information is not connected in this preview." />
-        ) : null}
+        {sectionKey === 'bonuses' ? <BonusesCenter tab={bonusTab} /> : null}
 
         {['self-exclusion', 'deposit-limits', 'reality-check'].includes(sectionKey) ? (
           <div className="max-w-2xl border border-[var(--cb-light-border)] bg-white p-5 md:p-6">
@@ -500,6 +497,277 @@ function BetslipTicketPage({ bet }: { bet: DemoBetslip }) {
           Sample ticket for interface preview only — results and payouts are not connected to a live sportsbook.
         </div>
       </section>
+    </div>
+  )
+}
+
+
+type BonusScope = 'sports' | 'casino'
+type BonusTab = BonusScope | 'promo-code' | 'activity-history'
+
+type DemoBonus = {
+  id: string
+  title: string
+  scope: BonusScope
+  timeToWager: string
+  wageringReq: string
+  depositWageringReq: string
+  description: string
+  terms: string[]
+}
+
+const DEMO_BONUSES: DemoBonus[] = [
+  {
+    id: 'slots-welcome',
+    title: 'Slots welcome bonus',
+    scope: 'casino',
+    timeToWager: '15 Days',
+    wageringReq: '35X',
+    depositWageringReq: '1X',
+    description: 'A welcome reward for eligible slot games.',
+    terms: ['Bonus wagering requirement: 35X.', 'Deposit wagering requirement: 1X.', 'Complete wagering within 15 days.', 'Demo offer only; no bonus will be credited.'],
+  },
+  {
+    id: 'crash-welcome',
+    title: 'Crash games welcome bonus',
+    scope: 'casino',
+    timeToWager: '15 Days',
+    wageringReq: '33X',
+    depositWageringReq: '1X',
+    description: 'A sample welcome offer for crash games.',
+    terms: ['Bonus wagering requirement: 33X.', 'Deposit wagering requirement: 1X.', 'Complete wagering within 15 days.', 'Demo offer only; no bonus will be credited.'],
+  },
+  {
+    id: 'slots-daily',
+    title: 'Slots daily deposit bonus',
+    scope: 'casino',
+    timeToWager: '1 Day',
+    wageringReq: '3X',
+    depositWageringReq: '1X',
+    description: 'A sample daily reward for eligible slot deposits.',
+    terms: ['Bonus wagering requirement: 3X.', 'Deposit wagering requirement: 1X.', 'Complete wagering within 1 day.', 'Demo offer only; no bonus will be credited.'],
+  },
+  {
+    id: 'crash-daily',
+    title: 'Crash games daily deposit bonus',
+    scope: 'casino',
+    timeToWager: '1 Day',
+    wageringReq: '5X',
+    depositWageringReq: '1X',
+    description: 'A sample daily reward for crash games.',
+    terms: ['Bonus wagering requirement: 5X.', 'Deposit wagering requirement: 1X.', 'Complete wagering within 1 day.', 'Demo offer only; no bonus will be credited.'],
+  },
+  {
+    id: 'sports-welcome',
+    title: 'Sports welcome bonus',
+    scope: 'sports',
+    timeToWager: '30 Days',
+    wageringReq: '6X',
+    depositWageringReq: '1X',
+    description: 'A sample welcome bonus for qualifying sports bets.',
+    terms: ['Minimum odds and qualifying bets would apply to a live offer.', 'Wagering requirement shown for preview: 6X.', 'Demo offer only; no bonus will be credited.'],
+  },
+  {
+    id: 'sports-freebet',
+    title: 'Welcome sports freebet',
+    scope: 'sports',
+    timeToWager: '7 Days',
+    wageringReq: '1X',
+    depositWageringReq: '—',
+    description: 'A sample freebet promotion for sports betting.',
+    terms: ['Freebet stake and eligible markets would follow the offer rules.', 'Use within 7 days in this sample offer.', 'Demo offer only; no freebet will be credited.'],
+  },
+  {
+    id: 'sports-odds-boost',
+    title: 'Sports odds boost',
+    scope: 'sports',
+    timeToWager: '3 Days',
+    wageringReq: '1X',
+    depositWageringReq: '—',
+    description: 'A sample odds boost for selected sports markets.',
+    terms: ['Applies to selected markets only in a live system.', 'Check offer terms and eligible odds.', 'Demo offer only; no bonus will be credited.'],
+  },
+]
+
+const BONUS_TABS: { value: BonusTab; label: string }[] = [
+  { value: 'sports', label: 'Sports' },
+  { value: 'casino', label: 'Casino' },
+  { value: 'promo-code', label: 'Promo Code' },
+  { value: 'activity-history', label: 'Activity History' },
+]
+
+function BonusCard({ bonus }: { bonus: DemoBonus }) {
+  const [aboutOpen, setAboutOpen] = useState(false)
+  const [claimed, setClaimed] = useState(false)
+
+  return (
+    <article className="overflow-hidden rounded-md border border-[var(--cb-light-border)] bg-white">
+      <div className="p-4 sm:p-5">
+        <div className="flex flex-wrap items-start gap-3">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#fff5d6] text-[#876400]">
+            <Gift className="h-7 w-7" aria-hidden="true" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="min-w-0 flex-1 text-base font-extrabold text-[var(--cb-light-text)]">{bonus.title}</h3>
+              <button
+                type="button"
+                onClick={() => setClaimed(true)}
+                disabled={claimed}
+                className={cn(
+                  'inline-flex h-9 shrink-0 items-center justify-center rounded px-5 text-sm font-bold transition-colors',
+                  claimed
+                    ? 'cursor-default border border-[var(--cb-light-border)] bg-[#f3f5f6] text-[var(--cb-light-muted)]'
+                    : 'bg-[var(--cb-yellow)] text-[#071722] hover:brightness-105',
+                )}
+              >
+                {claimed ? 'Claimed (demo)' : 'Claim'}
+              </button>
+            </div>
+            <p className="mt-1 text-sm leading-5 text-[var(--cb-light-muted)]">{bonus.description}</p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 border-t border-[var(--cb-light-border)] pt-4 sm:grid-cols-2">
+          <p className="text-sm text-[var(--cb-light-muted)]">Status: <span className="font-semibold text-[#277443]">{claimed ? 'Claimed (demo)' : 'Available'}</span></p>
+          <p className="text-sm text-[var(--cb-light-muted)]">Time to wager: <span className="font-semibold text-[var(--cb-light-text)]">{bonus.timeToWager}</span></p>
+          <p className="text-sm text-[var(--cb-light-muted)]">Wagering Req: <span className="font-semibold text-[var(--cb-light-text)]">{bonus.wageringReq}</span></p>
+          <p className="text-sm text-[var(--cb-light-muted)]">Deposit Wagering Req: <span className="font-semibold text-[var(--cb-light-text)]">{bonus.depositWageringReq}</span></p>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        aria-expanded={aboutOpen}
+        onClick={() => setAboutOpen((open) => !open)}
+        className="flex w-full items-center justify-between border-t border-[var(--cb-light-border)] bg-[#f8f9fa] px-4 py-3 text-left text-sm font-bold text-[var(--cb-light-text)] transition-colors hover:bg-[#f0f2f4]"
+      >
+        <span>About Bonus</span>
+        <span className="text-[var(--cb-light-muted)]">{aboutOpen ? '−' : '+'}</span>
+      </button>
+      {aboutOpen ? (
+        <ul className="space-y-2 border-t border-[var(--cb-light-border)] px-4 py-4">
+          {bonus.terms.map((term) => (
+            <li key={term} className="flex gap-2 text-sm leading-5 text-[var(--cb-light-muted)]">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--cb-yellow)]" />
+              {term}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </article>
+  )
+}
+
+function BonusesCenter({ tab }: { tab: string }) {
+  const [promoCode, setPromoCode] = useState('')
+  const [promoMessage, setPromoMessage] = useState('')
+  const validTab: BonusTab = BONUS_TABS.some((item) => item.value === tab) ? tab as BonusTab : 'sports'
+  const currentTitle = BONUS_TABS.find((item) => item.value === validTab)?.label ?? 'Sports'
+  const bonusList = DEMO_BONUSES.filter((bonus) => bonus.scope === validTab)
+
+  return (
+    <div className="min-w-0 space-y-4">
+      <nav aria-label="Bonus categories" className="flex gap-2 overflow-x-auto pb-1">
+        {BONUS_TABS.map(({ value, label }) => (
+          <Link
+            key={value}
+            to={`/account/bonuses/${value}`}
+            aria-current={validTab === value ? 'page' : undefined}
+            className={cn(
+              'shrink-0 whitespace-nowrap rounded border px-3 py-2.5 text-sm transition-colors',
+              validTab === value
+                ? 'border-[var(--cb-yellow)] bg-[#fff8df] font-bold text-[var(--cb-light-text)]'
+                : 'border-[var(--cb-light-border)] bg-white text-[var(--cb-light-muted)] hover:bg-[#f6f7f8]',
+            )}
+          >
+            {label}
+          </Link>
+        ))}
+      </nav>
+
+      {validTab === 'sports' || validTab === 'casino' ? (
+        <div className="space-y-3">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-extrabold text-[var(--cb-light-text)]">{currentTitle} Bonuses</h2>
+              <p className="mt-1 text-sm text-[var(--cb-light-muted)]">Review available bonus offers and their wagering requirements.</p>
+            </div>
+            <span className="shrink-0 text-xs text-[var(--cb-light-muted)]">{bonusList.length} available</span>
+          </div>
+          {bonusList.map((bonus) => <BonusCard key={bonus.id} bonus={bonus} />)}
+        </div>
+      ) : null}
+
+      {validTab === 'promo-code' ? (
+        <section className="max-w-2xl rounded-md border border-[var(--cb-light-border)] bg-white p-5 sm:p-6">
+          <div className="flex items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#fff5d6] text-[#876400]">
+              <Gift className="h-6 w-6" aria-hidden="true" />
+            </span>
+            <div>
+              <h2 className="text-lg font-extrabold text-[var(--cb-light-text)]">Redeem a promo code</h2>
+              <p className="mt-1 text-sm text-[var(--cb-light-muted)]">Enter a promotional code to preview the redemption flow.</p>
+            </div>
+          </div>
+          <form
+            className="mt-5 flex flex-col gap-2 sm:flex-row"
+            onSubmit={(event) => {
+              event.preventDefault()
+              setPromoMessage(promoCode.trim()
+                ? 'Preview only: this code has not been validated or redeemed.'
+                : 'Enter a promo code first.')
+            }}
+          >
+            <input
+              value={promoCode}
+              onChange={(event) => { setPromoCode(event.target.value); setPromoMessage('') }}
+              placeholder="Enter promo code"
+              aria-label="Promo code"
+              className="h-11 min-w-0 flex-1 rounded border border-[var(--cb-light-border)] bg-white px-3 text-sm text-[var(--cb-light-text)] outline-none focus:border-[var(--cb-yellow)]"
+            />
+            <button type="submit" className="h-11 shrink-0 rounded bg-[var(--cb-yellow)] px-5 text-sm font-bold text-[#071722] transition hover:brightness-105">Apply code</button>
+          </form>
+          {promoMessage ? <p role="status" className="mt-3 text-sm text-[var(--cb-light-muted)]">{promoMessage}</p> : null}
+          <p className="mt-4 text-xs text-[var(--cb-light-muted)]">Demo only — promotional codes are not checked by a live bonus system.</p>
+        </section>
+      ) : null}
+
+      {validTab === 'activity-history' ? (
+        <section className="overflow-hidden rounded-md border border-[var(--cb-light-border)] bg-white">
+          <div className="border-b border-[var(--cb-light-border)] px-4 py-4">
+            <h2 className="text-lg font-extrabold text-[var(--cb-light-text)]">Bonus Activity History</h2>
+            <p className="mt-1 text-sm text-[var(--cb-light-muted)]">Example activity entries for layout preview.</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-left">
+              <thead className="bg-[#f6f7f8] text-[10px] font-bold uppercase tracking-wide text-[var(--cb-light-muted)]">
+                <tr>
+                  <th className="px-4 py-3">Bonus</th>
+                  <th className="px-4 py-3">Activity</th>
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { title: 'Slots welcome bonus', activity: 'Offer available', date: '19/10/2026', status: 'Available' },
+                  { title: 'Crash games welcome bonus', activity: 'Offer available', date: '19/10/2026', status: 'Available' },
+                  { title: 'Sports welcome bonus', activity: 'Offer available', date: '19/10/2026', status: 'Available' },
+                ].map((item) => (
+                  <tr key={item.title} className="border-t border-[var(--cb-light-border)] text-sm">
+                    <td className="px-4 py-4 font-semibold text-[var(--cb-light-text)]">{item.title}</td>
+                    <td className="px-4 py-4 text-[var(--cb-light-muted)]">{item.activity}</td>
+                    <td className="whitespace-nowrap px-4 py-4 text-[var(--cb-light-muted)]">{item.date}</td>
+                    <td className="px-4 py-4"><span className="rounded-full bg-[#e7f7eb] px-2 py-1 text-xs font-bold text-[#277443]">{item.status}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="border-t border-[var(--cb-light-border)] bg-[#fbfbfb] px-4 py-3 text-xs text-[var(--cb-light-muted)]">Sample data only — actual bonus activity is not connected.</p>
+        </section>
+      ) : null}
     </div>
   )
 }
