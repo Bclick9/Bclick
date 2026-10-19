@@ -25,9 +25,10 @@ const GROUPS = [
     label: 'Bonuses',
     icon: Gift,
     links: [
-      { label: 'Available', path: '/account/bonuses-available' },
-      { label: 'Active', path: '/account/bonuses-active' },
-      { label: 'Closed', path: '/account/bonuses-closed' },
+      { label: 'Sports', path: '/account/bonuses/sports' },
+      { label: 'Casino', path: '/account/bonuses/casino' },
+      { label: 'Promo Code', path: '/account/bonuses/promo-code' },
+      { label: 'Activity History', path: '/account/bonuses/activity-history' },
     ],
   },
   {
@@ -173,9 +174,10 @@ export function AccountLayout({ children }: { children: ReactNode }) {
     { label: 'Transaction History', path: '/account/wallet/transaction-history' },
   ]
   const bonusLinks = [
-    { label: 'Available', path: '/account/bonuses-available' },
-    { label: 'Active', path: '/account/bonuses-active' },
-    { label: 'Closed', path: '/account/bonuses-closed' },
+    { label: 'Sports', path: '/account/bonuses/sports' },
+    { label: 'Casino', path: '/account/bonuses/casino' },
+    { label: 'Promo Code', path: '/account/bonuses/promo-code' },
+    { label: 'Activity History', path: '/account/bonuses/activity-history' },
   ]
   const historyLinks = [
     { label: 'Betslips', path: '/account/betslips' },
@@ -183,7 +185,7 @@ export function AccountLayout({ children }: { children: ReactNode }) {
 
   const mobileLinks = pathname.startsWith('/account/wallet/')
     ? walletLinks
-    : pathname.startsWith('/account/bonuses-')
+    : pathname.startsWith('/account/bonuses')
       ? bonusLinks
       : pathname.startsWith('/account/betslips')
         ? historyLinks
