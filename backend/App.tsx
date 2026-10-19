@@ -5,7 +5,7 @@ import {
   Eye, FileText, Filter, Gamepad2, Gift, Globe, LayoutDashboard, LifeBuoy, LogOut,
   Menu, MoreHorizontal, Plus, Search, Settings, ShieldCheck,
   Sparkles, TrendingUp, Users, Wallet, X, Zap, UserPlus, CircleDollarSign,
-  Shield, Check, Pause, Play, Pencil, Trophy,
+  Shield, Check, Pause, Play, Pencil, Trophy, RotateCcw,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Modal } from './components/ui'
@@ -20,7 +20,7 @@ type GameRow = { id: string; title: string; provider: string; category: string; 
 const NAV_GROUPS: { title: string; items: { page: PageKey; label: string; icon: LucideIcon; count?: string }[] }[] = [
   { title: 'WORKSPACE', items: [
     { page: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { page: 'users', label: 'Users', icon: Users, count: '2.4k' },
+    { page: 'users', label: 'Players', icon: Users, count: '2.4k' },
     { page: 'promotions', label: 'Promotions', icon: BadgePercent },
     { page: 'bonuses', label: 'Bonuses', icon: Gift },
   ] },
@@ -36,7 +36,7 @@ const NAV_GROUPS: { title: string; items: { page: PageKey; label: string; icon: 
 
 const PAGE_INFO: Record<PageKey, { title: string; description: string }> = {
   overview: { title: 'Overview', description: 'Here’s what’s happening across your platform today.' },
-  users: { title: 'Users', description: 'Manage player accounts, account status, and VIP segments.' },
+  users: { title: 'Players', description: 'Manage player records, account status, verification, and profile activity.' },
   promotions: { title: 'Promotions', description: 'Create campaigns and track engagement across channels.' },
   bonuses: { title: 'Bonuses', description: 'Manage bonus offers, wagering requirements, and eligibility.' },
   games: { title: 'Casino games', description: 'Review your game catalogue and availability.' },
@@ -381,40 +381,326 @@ function OverviewPage() {
   )
 }
 
-function UsersPage({ users, query, onQueryChange, onAdd, onSelect, onToggleStatus }: { users: UserRow[]; query: string; onQueryChange: (value: string) => void; onAdd: () => void; onSelect: (user: UserRow) => void; onToggleStatus: (id: string) => void }) {
-  const [filter, setFilter] = useState<'All' | 'Active' | 'Suspended'>('All')
-  const filtered = useMemo(() => users.filter((user) => (filter === 'All' || user.status === filter) && (user.name + ' ' + user.email + ' ' + user.id + ' ' + user.country).toLowerCase().includes(query.toLowerCase())), [users, filter, query])
-  return <div className="page-enter">
-    <SectionHeading title="Player accounts" description="A central view of player profiles and account status." actions={<><Button variant="outline"><Download className="h-4 w-4" /> Export CSV</Button><Button onClick={onAdd}><UserPlus className="h-4 w-4" /> Add user</Button></>} />
-    <div className="mb-4 grid gap-3 sm:grid-cols-3">
-      {[{ label: 'All players', value: users.length.toLocaleString(), sub: 'Across all segments' }, { label: 'Active accounts', value: users.filter((user) => user.status === 'Active').length.toString(), sub: 'Able to sign in', tone: 'text-emerald-600' }, { label: 'VIP players', value: users.filter((user) => user.tier === 'VIP').length.toString(), sub: 'Priority segment', tone: 'text-amber-600' }].map((item) => <Card key={item.label}><CardContent className="p-4"><p className="text-xs text-slate-500">{item.label}</p><p className={cn('mt-1 font-display text-2xl font-extrabold text-slate-900', item.tone)}>{item.value}</p><p className="mt-1 text-[10px] text-slate-400">{item.sub}</p></CardContent></Card>)}
-    </div>
-    <Card>
-      <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-1 rounded-lg bg-slate-100 p-1">
-          {(['All', 'Active', 'Suspended'] as const).map((status) => <button key={status} type="button" onClick={() => setFilter(status)} className={cn('rounded-md px-3 py-1.5 text-xs font-semibold transition', filter === status ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800')}>{status}{status === 'All' ? ' (' + users.length + ')' : ''}</button>)}
+type PlayerColumn = { key: string; label: string; defaultVisible?: boolean }
+
+const PLAYER_COLUMNS: PlayerColumn[] = [
+  { key: 'login', label: 'Login', defaultVisible: true },
+  { key: 'id', label: 'ID', defaultVisible: true },
+  { key: 'firstName', label: 'First Name', defaultVisible: true },
+  { key: 'lastName', label: 'Last Name', defaultVisible: true },
+  { key: 'personalId', label: 'Personal ID', defaultVisible: true },
+  { key: 'email', label: 'Email', defaultVisible: true },
+  { key: 'externalId', label: 'External ID', defaultVisible: true },
+  { key: 'status', label: 'Status', defaultVisible: true },
+  { key: 'accountHolder', label: 'Account Holder' },
+  { key: 'address', label: 'Address' },
+  { key: 'additionalAddress', label: 'Additional Address' },
+  { key: 'balance', label: 'Balance', defaultVisible: true },
+  { key: 'birthCity', label: 'Birth City' },
+  { key: 'birthday', label: 'Birthday' },
+  { key: 'birthDepartment', label: 'Birth Department' },
+  { key: 'birthRegionCode', label: 'Birth Region Code' },
+  { key: 'cashDeskId', label: 'CashDesk ID' },
+  { key: 'created', label: 'Created', defaultVisible: true },
+  { key: 'currency', label: 'Currency' },
+  { key: 'customCategory', label: 'Custom Player Category', defaultVisible: true },
+  { key: 'documentIssueDate', label: 'Document Issue Date' },
+  { key: 'documentIssuedBy', label: 'Document Issued By' },
+  { key: 'documentNumber', label: 'Document Number' },
+  { key: 'gender', label: 'Gender' },
+  { key: 'iban', label: 'IBAN' },
+  { key: 'isResident', label: 'Is Resident' },
+  { key: 'newsletter', label: 'Subscribed to Newsletter' },
+  { key: 'isTest', label: 'Is Test' },
+  { key: 'isVerified', label: 'Is Verified', defaultVisible: true },
+  { key: 'language', label: 'Language' },
+  { key: 'lastLogin', label: 'Last Login Date', defaultVisible: true },
+  { key: 'middleName', label: 'Middle Name' },
+  { key: 'mobilePhone', label: 'Mobile Phone' },
+  { key: 'phone', label: 'Phone' },
+  { key: 'profileId', label: 'Profile ID' },
+  { key: 'promoCode', label: 'Promo Code' },
+  { key: 'province', label: 'Province' },
+  { key: 'country', label: 'Country Name', defaultVisible: true },
+  { key: 'registrationSource', label: 'Registration Source', defaultVisible: true },
+  { key: 'registrationIp', label: 'Registration IP' },
+  { key: 'clientCategory', label: 'Client Category', defaultVisible: true },
+  { key: 'swiftCode', label: 'Swift Code' },
+  { key: 'title', label: 'Title' },
+  { key: 'zipCode', label: 'Zip Code' },
+  { key: 'bankName', label: 'Bank Name' },
+  { key: 'state', label: 'State' },
+  { key: 'lastLoginIp', label: 'Last Login IP' },
+  { key: 'lastSportBet', label: 'Sport Last Bet' },
+  { key: 'lastCasinoBet', label: 'Gaming Last Bet' },
+  { key: 'phoneCallSubscription', label: 'Subscribed to Phone Calls' },
+  { key: 'pushSubscription', label: 'Subscribed to Push Notifications' },
+  { key: 'firstDepositDate', label: 'First Deposit Date' },
+  { key: 'internalMessages', label: 'Subscribed Internal Message' },
+  { key: 'wrongLoginBlock', label: 'Wrong Login Block Time' },
+  { key: 'wrongLoginAttempts', label: 'Wrong Login Attempts' },
+  { key: 'pepStatus', label: 'PEP Status' },
+  { key: 'incomeSource', label: 'Income Source' },
+  { key: 'loyaltyPoints', label: 'Loyalty Points' },
+  { key: 'city', label: 'City' },
+  { key: 'loyaltyLevel', label: 'Loyalty Level' },
+  { key: 'amlStatus', label: 'AML Status', defaultVisible: true },
+  { key: 'lastDepositDate', label: 'Last Deposit Date' },
+  { key: 'childId', label: 'Child ID' },
+  { key: 'parentId', label: 'Parent ID' },
+  { key: 'partnerFlag', label: 'Partner Flag' },
+  { key: 'lastWrongLogin', label: 'Last Wrong Login Date' },
+  { key: 'documentRegion', label: 'Document Region' },
+]
+
+const DEFAULT_PLAYER_COLUMNS = PLAYER_COLUMNS.filter((column) => column.defaultVisible).map((column) => column.key)
+
+function playerCellValue(user: UserRow, key: string): string {
+  const names = user.name.split(/\s+/).filter(Boolean)
+  const firstName = names[0] || '—'
+  const lastName = names.slice(1).join(' ') || '—'
+  const accountStatus = user.status === 'Active' ? 'Open' : 'Locked'
+  const verified = user.tier === 'VIP' || user.tier === 'Gold'
+  const city = user.country === 'Tunisia' ? 'Tunis' : '—'
+  const masked = '••••••'
+  const values: Record<string, string> = {
+    login: user.email,
+    id: user.id,
+    firstName,
+    lastName,
+    personalId: '••••' + user.id.slice(-3),
+    email: user.email.replace(/^(.).+(@.+)$/, '$1••••$2'),
+    externalId: '—',
+    status: accountStatus,
+    accountHolder: '—',
+    address: '—',
+    additionalAddress: '—',
+    balance: user.balance,
+    birthCity: city,
+    birthday: '—',
+    birthDepartment: '—',
+    birthRegionCode: '—',
+    cashDeskId: '—',
+    created: user.joined,
+    currency: 'EUR',
+    customCategory: user.tier,
+    documentIssueDate: '—',
+    documentIssuedBy: '—',
+    documentNumber: '•••• ' + user.id.slice(-4),
+    gender: '—',
+    iban: '••••••••',
+    isResident: user.country === 'Tunisia' ? 'Yes' : 'No',
+    newsletter: 'Yes',
+    isTest: 'No',
+    isVerified: verified ? 'Yes' : 'No',
+    language: 'en',
+    lastLogin: '18 Oct 2026, 11:52',
+    middleName: '—',
+    mobilePhone: masked,
+    phone: masked,
+    profileId: '—',
+    promoCode: '—',
+    province: '—',
+    country: user.country,
+    registrationSource: 'Web',
+    registrationIp: '•••.•••.•••.•••',
+    clientCategory: user.tier === 'VIP' ? 'VIP Player' : user.tier === 'Gold' ? 'Gold Player' : 'Standard',
+    swiftCode: '—',
+    title: '—',
+    zipCode: '—',
+    bankName: '—',
+    state: accountStatus,
+    lastLoginIp: '•••.•••.•••.•••',
+    lastSportBet: '—',
+    lastCasinoBet: '—',
+    phoneCallSubscription: 'No',
+    pushSubscription: 'Yes',
+    firstDepositDate: user.tier === 'Standard' ? '—' : '15 Oct 2026',
+    internalMessages: 'Yes',
+    wrongLoginBlock: '—',
+    wrongLoginAttempts: '0',
+    pepStatus: 'No',
+    incomeSource: '—',
+    loyaltyPoints: user.tier === 'VIP' ? '2,450' : user.tier === 'Gold' ? '860' : '120',
+    city,
+    loyaltyLevel: user.tier,
+    amlStatus: 'Low',
+    lastDepositDate: user.tier === 'Standard' ? '—' : '18 Oct 2026',
+    childId: '—',
+    parentId: '—',
+    partnerFlag: 'No',
+    lastWrongLogin: '—',
+    documentRegion: '—',
+  }
+  return values[key] ?? '—'
+}
+
+function PlayersPage({ users, query, onQueryChange, onAdd, onSelect, onToggleStatus }: {
+  users: UserRow[]
+  query: string
+  onQueryChange: (value: string) => void
+  onAdd: () => void
+  onSelect: (user: UserRow) => void
+  onToggleStatus: (id: string) => void
+}) {
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Open' | 'Locked'>('All')
+  const [verificationFilter, setVerificationFilter] = useState<'All' | 'Verified' | 'Unverified'>('All')
+  const [countryFilter, setCountryFilter] = useState('All countries')
+  const [columnSettingsOpen, setColumnSettingsOpen] = useState(false)
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_PLAYER_COLUMNS)
+  const [sortKey, setSortKey] = useState('id')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+  const [pageNumber, setPageNumber] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [historyUser, setHistoryUser] = useState<UserRow | null>(null)
+  const [actionUserId, setActionUserId] = useState<string | null>(null)
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    return users.filter((user) => {
+      const valuesMatch = !needle || PLAYER_COLUMNS.some((column) => playerCellValue(user, column.key).toLowerCase().includes(needle))
+      const statusMatch = statusFilter === 'All' || playerCellValue(user, 'status') === statusFilter
+      const verificationMatch = verificationFilter === 'All' || (verificationFilter === 'Verified' ? playerCellValue(user, 'isVerified') === 'Yes' : playerCellValue(user, 'isVerified') === 'No')
+      const countryMatch = countryFilter === 'All countries' || user.country === countryFilter
+      return valuesMatch && statusMatch && verificationMatch && countryMatch
+    }).sort((a, b) => {
+      const aValue = playerCellValue(a, sortKey)
+      const bValue = playerCellValue(b, sortKey)
+      const result = aValue.localeCompare(bValue, undefined, { numeric: true, sensitivity: 'base' })
+      return sortDirection === 'asc' ? result : -result
+    })
+  }, [users, query, statusFilter, verificationFilter, countryFilter, sortKey, sortDirection])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const currentPage = Math.min(pageNumber, totalPages)
+  const pageRows = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const shownColumns = PLAYER_COLUMNS.filter((column) => visibleColumns.includes(column.key))
+
+  function resetPlayerView() {
+    onQueryChange('')
+    setStatusFilter('All')
+    setVerificationFilter('All')
+    setCountryFilter('All countries')
+    setVisibleColumns(DEFAULT_PLAYER_COLUMNS)
+    setSortKey('id')
+    setSortDirection('desc')
+    setPageNumber(1)
+    setPageSize(10)
+    setColumnSettingsOpen(false)
+  }
+
+  function sortBy(columnKey: string) {
+    if (sortKey === columnKey) setSortDirection((current) => current === 'asc' ? 'desc' : 'asc')
+    else {
+      setSortKey(columnKey)
+      setSortDirection(columnKey === 'id' ? 'desc' : 'asc')
+    }
+    setPageNumber(1)
+  }
+
+  function toggleColumn(columnKey: string) {
+    setVisibleColumns((current) => {
+      if (current.includes(columnKey)) {
+        if (current.length === 1) return current
+        return current.filter((key) => key !== columnKey)
+      }
+      return PLAYER_COLUMNS.filter((column) => current.includes(column.key) || column.key === columnKey).map((column) => column.key)
+    })
+  }
+
+  return (
+    <div className="page-enter space-y-4">
+      <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-slate-800">Player directory</p>
+          <p className="mt-1 text-xs text-muted-foreground">Search player records, review account details, and manage status.</p>
         </div>
-        <div className="relative w-full sm:max-w-xs"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Search players..." className="pl-9" /></div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => setColumnSettingsOpen((open) => !open)}><Settings className="h-4 w-4" /> Columns <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">{visibleColumns.length}</span></Button>
+          <Button type="button" variant="ghost" size="sm" onClick={resetPlayerView}><RotateCcw className="h-4 w-4" /> Reset</Button>
+        </div>
       </div>
-      <div className="admin-scrollbar overflow-x-auto">
-        <table className="w-full min-w-[820px] text-left text-sm">
-          <thead className="bg-slate-50/80 text-[10px] font-bold uppercase tracking-wider text-slate-400"><tr><th className="px-5 py-3.5">Player</th><th className="px-4 py-3.5">Player ID</th><th className="px-4 py-3.5">Joined</th><th className="px-4 py-3.5">Balance</th><th className="px-4 py-3.5">Segment</th><th className="px-4 py-3.5">Status</th><th className="px-5 py-3.5 text-right">Actions</th></tr></thead>
-          <tbody className="divide-y divide-slate-100">
-            {filtered.map((user, i) => <tr key={user.id} className="transition hover:bg-slate-50/70">
-              <td className="px-5 py-3.5"><div className="flex items-center gap-3"><Avatar name={user.name} tone={['bg-amber-100 text-amber-800', 'bg-blue-100 text-blue-800', 'bg-violet-100 text-violet-800', 'bg-emerald-100 text-emerald-800'][i % 4]} /><div className="min-w-0"><button type="button" onClick={() => onSelect(user)} className="block max-w-[190px] truncate text-left text-xs font-bold text-slate-800 hover:text-amber-700">{user.name}</button><p className="mt-1 max-w-[190px] truncate text-[10px] text-slate-400">{user.email}</p></div></div></td>
-              <td className="whitespace-nowrap px-4 py-3.5 font-mono text-[11px] text-slate-500">{user.id}</td><td className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-500">{user.joined}</td><td className="whitespace-nowrap px-4 py-3.5 text-xs font-bold text-slate-800">{user.balance}</td>
-              <td className="px-4 py-3.5">{user.tier === 'VIP' ? <Badge variant="warning"><Sparkles className="mr-1 h-3 w-3" />VIP</Badge> : user.tier === 'Gold' ? <Badge variant="info">Gold</Badge> : <Badge variant="outline">Standard</Badge>}</td>
-              <td className="px-4 py-3.5"><StatusBadge status={user.status} /></td>
-              <td className="px-5 py-3.5"><div className="flex justify-end gap-1"><Button size="icon" variant="ghost" aria-label={'View ' + user.name} onClick={() => onSelect(user)}><Eye className="h-4 w-4 text-slate-500" /></Button><Button size="icon" variant="ghost" aria-label={user.status === 'Active' ? 'Suspend user' : 'Activate user'} onClick={() => onToggleStatus(user.id)}>{user.status === 'Active' ? <Shield className="h-4 w-4 text-slate-500" /> : <CheckCircle2 className="h-4 w-4 text-emerald-600" />}</Button></div></td>
-            </tr>)}
-            {filtered.length === 0 ? <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-slate-400">No users match your search.</td></tr> : null}
-          </tbody>
-        </table>
-      </div>
-      <div className="flex flex-col gap-2 border-t border-border px-5 py-3 text-[11px] text-slate-400 sm:flex-row sm:items-center sm:justify-between"><span>Showing {filtered.length} of {users.length} demonstration users</span><div className="flex items-center gap-2"><Button variant="outline" size="sm" disabled><ChevronRight className="h-3.5 w-3.5 rotate-180" /> Previous</Button><Button variant="outline" size="sm" disabled>Next <ChevronRight className="h-3.5 w-3.5" /></Button></div></div>
-    </Card>
-    <p className="mt-4 text-center text-[10px] text-slate-400">User information is sample content. Status changes stay in this browser preview only.</p>
-  </div>
+
+      {columnSettingsOpen ? <Card className="shadow-none">
+        <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <div><CardTitle>Visible columns</CardTitle><CardDescription>Choose which player fields appear in the table.</CardDescription></div>
+          <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => setVisibleColumns(DEFAULT_PLAYER_COLUMNS)}>Default</Button><Button size="icon" size="icon" variant="ghost" aria-label="Close column settings" onClick={() => setColumnSettingsOpen(false)}><X className="h-4 w-4" /></Button></div>
+        </CardHeader>
+        <CardContent className="grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+          {PLAYER_COLUMNS.map((column) => <label key={column.key} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-xs text-slate-600 transition hover:bg-muted/60">
+            <input type="checkbox" checked={visibleColumns.includes(column.key)} onChange={() => toggleColumn(column.key)} className="h-4 w-4 rounded border-slate-300 accent-slate-900" />
+            <span>{column.label}</span>
+          </label>)}
+        </CardContent>
+      </Card> : null}
+
+      <Card className="overflow-visible shadow-none">
+        <div className="flex flex-col gap-3 border-b border-border p-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="relative w-full xl:max-w-xs"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={query} onChange={(event) => { onQueryChange(event.target.value); setPageNumber(1) }} placeholder="Search login, ID, email..." className="pl-9" /></div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 xl:flex xl:items-center">
+            <select aria-label="Filter by status" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value as typeof statusFilter); setPageNumber(1) }} className="h-9 min-w-[125px] rounded-md border border-input bg-background px-3 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"><option value="All">All statuses</option><option value="Open">Open</option><option value="Locked">Locked</option></select>
+            <select aria-label="Filter by verification" value={verificationFilter} onChange={(event) => { setVerificationFilter(event.target.value as typeof verificationFilter); setPageNumber(1) }} className="h-9 min-w-[145px] rounded-md border border-input bg-background px-3 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"><option value="All">All verification</option><option value="Verified">Verified</option><option value="Unverified">Unverified</option></select>
+            <select aria-label="Filter by country" value={countryFilter} onChange={(event) => { setCountryFilter(event.target.value); setPageNumber(1) }} className="h-9 min-w-[145px] rounded-md border border-input bg-background px-3 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"><option>All countries</option>{Array.from(new Set(users.map((user) => user.country))).sort().map((country) => <option key={country}>{country}</option>)}</select>
+          </div>
+        </div>
+
+        <div className="admin-scrollbar overflow-x-auto">
+          <table className="w-full min-w-[1550px] border-collapse text-left text-sm">
+            <thead className="bg-muted/50 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <tr>{shownColumns.map((column, index) => <th key={column.key} className={cn('whitespace-nowrap border-b border-border px-4 py-3 font-medium', index === 0 && 'sticky left-0 z-[1] min-w-[230px] bg-muted/95', column.key === 'id' && 'min-w-[130px]', ['balance', 'isVerified', 'status'].includes(column.key) && 'min-w-[110px]')}>
+                <button type="button" onClick={() => sortBy(column.key)} className="inline-flex items-center gap-1.5 transition hover:text-foreground">{column.label}{sortKey === column.key ? <span className="text-[9px]">{sortDirection === 'asc' ? '↑' : '↓'}</span> : null}</button>
+              </th>)}<th className="sticky right-0 z-[1] w-[104px] border-b border-border bg-muted/95 px-4 py-3 text-right font-medium">Actions</th></tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {pageRows.map((user) => <tr key={user.id} className="group transition-colors hover:bg-muted/30">
+                {shownColumns.map((column, index) => {
+                  const value = playerCellValue(user, column.key)
+                  return <td key={column.key} className={cn('max-w-[230px] whitespace-nowrap border-b border-border/70 px-4 py-3 text-xs text-slate-600', index === 0 && 'sticky left-0 z-[1] min-w-[230px] bg-white group-hover:bg-slate-50', column.key === 'id' && 'font-mono text-[11px] text-slate-500', column.key === 'balance' && 'font-semibold tabular-nums text-slate-800')}>
+                    {column.key === 'login' ? <button type="button" onClick={() => onSelect(user)} className="max-w-[205px] truncate text-left font-medium text-slate-800 hover:underline">{value}</button>
+                    : column.key === 'status' ? <Badge variant={user.status === 'Active' ? 'success' : 'danger'}><span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-current" />{value}</Badge>
+                    : column.key === 'isVerified' ? <Badge variant={value === 'Yes' ? 'success' : 'warning'}>{value}</Badge>
+                    : column.key === 'customCategory' || column.key === 'clientCategory' || column.key === 'loyaltyLevel' ? <Badge variant={user.tier === 'VIP' ? 'warning' : user.tier === 'Gold' ? 'info' : 'outline'}>{value}</Badge>
+                    : <span title={value} className="block max-w-[205px] truncate">{value}</span>}
+                  </td>
+                })}
+                <td className="sticky right-0 z-[1] border-b border-border/70 bg-white px-3 py-2.5 group-hover:bg-slate-50">
+                  <div className="flex items-center justify-end gap-0.5">
+                    <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={'View player ' + user.id} title="View player profile" onClick={() => onSelect(user)}><Eye className="h-4 w-4 text-slate-500" /></Button>
+                    <div className="relative">
+                      <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="More player actions" title="More actions" onClick={() => setActionUserId((current) => current === user.id ? null : user.id)}><MoreHorizontal className="h-4 w-4 text-slate-500" /></Button>
+                      {actionUserId === user.id ? <div className="absolute right-0 top-9 z-20 w-48 rounded-lg border border-border bg-white p-1.5 shadow-lg">
+                        <button type="button" onClick={() => { setHistoryUser(user); setActionUserId(null) }} className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs text-slate-700 hover:bg-muted"><Activity className="h-3.5 w-3.5" /> Log history</button>
+                        <button type="button" onClick={() => { onSelect(user); setActionUserId(null) }} className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs text-slate-700 hover:bg-muted"><Eye className="h-3.5 w-3.5" /> View profile</button>
+                        <button type="button" onClick={() => { onToggleStatus(user.id); setActionUserId(null) }} className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs text-slate-700 hover:bg-muted">{user.status === 'Active' ? <Shield className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}{user.status === 'Active' ? 'Lock account (demo)' : 'Unlock account (demo)'}</button>
+                      </div> : null}
+                    </div>
+                  </div>
+                </td>
+              </tr>)}
+              {pageRows.length === 0 ? <tr><td colSpan={shownColumns.length + 1} className="px-5 py-16 text-center"><div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground"><Users className="h-5 w-5" /></div><p className="mt-3 text-sm font-semibold text-foreground">No players found</p><p className="mt-1 text-xs text-muted-foreground">Try a different search term or reset the filters.</p><Button variant="outline" size="sm" className="mt-3" onClick={resetPlayerView}>Reset filters</Button></td></tr> : null}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-border px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-xs text-muted-foreground">Showing <span className="font-medium text-foreground">{filtered.length ? (currentPage - 1) * pageSize + 1 : 0}–{Math.min(currentPage * pageSize, filtered.length)}</span> of <span className="font-medium text-foreground">{filtered.length}</span> players <span className="text-slate-400">· Demo data</span></div>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">Rows per page<select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPageNumber(1) }} className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none"><option value={10}>10</option><option value={20}>20</option><option value={50}>50</option></select></label>
+            <span className="text-xs text-muted-foreground">Page {currentPage} of {totalPages}</span>
+            <div className="flex items-center gap-1"><Button variant="outline" size="icon" className="h-8 w-8" aria-label="Previous page" disabled={currentPage <= 1} onClick={() => setPageNumber((current) => Math.max(1, current - 1))}><ChevronRight className="h-4 w-4 rotate-180" /></Button><Button variant="outline" size="icon" className="h-8 w-8" aria-label="Next page" disabled={currentPage >= totalPages} onClick={() => setPageNumber((current) => Math.min(totalPages, current + 1))}><ChevronRight className="h-4 w-4" /></Button></div>
+          </div>
+        </div>
+      </Card>
+      <p className="text-center text-[10px] text-muted-foreground">Player records shown are fictional demonstration data. Personal identifiers and network addresses are masked in this interface preview.</p>
+
+      <Modal open={!!historyUser} onOpenChange={(open) => { if (!open) setHistoryUser(null) }} title="Player log history" description={historyUser ? 'Sample activity for ' + historyUser.name + ' · ' + historyUser.id : undefined}>
+        {historyUser ? <div className="space-y-3">
+          {[{ title: 'Player record created', detail: 'Registration source: Web', time: historyUser.joined, icon: UserPlus }, { title: 'Email verification status checked', detail: playerCellValue(historyUser, 'isVerified') === 'Yes' ? 'Verified in sample record' : 'Verification pending in sample record', time: '18 Oct 2026, 11:52', icon: CheckCircle2 }, { title: 'Last login', detail: 'Device and IP details are masked in this preview', time: playerCellValue(historyUser, 'lastLogin'), icon: Eye }].map((event) => { const Icon = event.icon; return <div key={event.title} className="flex gap-3 rounded-lg border border-border p-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"><Icon className="h-4 w-4" /></span><div className="min-w-0 flex-1"><p className="text-xs font-semibold text-foreground">{event.title}</p><p className="mt-1 text-xs text-muted-foreground">{event.detail}</p><p className="mt-2 text-[10px] text-muted-foreground">{event.time}</p></div></div> }) }
+          <div className="flex justify-end"><Button variant="outline" onClick={() => setHistoryUser(null)}>Close history</Button></div>
+        </div> : null}
+      </Modal>
+    </div>
+  )
 }
 
 function OffersPage({ title, description, offers, kind, onCreate, onToggle }: { title: string; description: string; offers: Offer[]; kind: 'promotions' | 'bonuses'; onCreate: () => void; onToggle: (id: string) => void }) {
@@ -670,7 +956,7 @@ export default function App() {
   const createHeaderAction = () => {
     if (activePage === 'promotions') return <Button onClick={() => setPromotionOpen(true)}><Plus className="h-4 w-4" /> Create promotion</Button>
     if (activePage === 'bonuses') return <Button onClick={() => setBonusOpen(true)}><Plus className="h-4 w-4" /> Create bonus</Button>
-    if (activePage === 'users') return <Button onClick={() => setUserOpen(true)}><UserPlus className="h-4 w-4" /> Add user</Button>
+    if (activePage === 'users') return <Button onClick={() => setUserOpen(true)}><Plus className="h-4 w-4" /> New player</Button>
     if (activePage === 'reports' || activePage === 'transactions') return <Button variant="outline" onClick={() => window.print()}><Download className="h-4 w-4" /> Export</Button>
     if (activePage === 'games') return <Button onClick={() => notify('Game provider connection is not included in this UI prototype.')}><Plus className="h-4 w-4" /> Add game</Button>
     return <Button onClick={() => navigate('promotions')}><Plus className="h-4 w-4" /> New campaign</Button>
@@ -725,7 +1011,7 @@ export default function App() {
           <div className="mb-6 flex items-center justify-between gap-3 lg:hidden"><div><p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Bclick Admin</p><h1 className="mt-1 font-display text-xl font-extrabold text-slate-900">{page.title}</h1></div>{createHeaderAction()}</div>
           <div className="mb-6 hidden items-end justify-between gap-4 lg:flex"><div><h1 className="font-display text-2xl font-extrabold tracking-tight text-slate-900">{page.title}</h1><p className="mt-1.5 text-sm text-slate-500">{page.description}</p></div><div className="flex items-center gap-2"><span className="mr-1 hidden text-[11px] text-slate-400 xl:block"><span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />Preview environment</span>{createHeaderAction()}</div></div>
           {activePage === 'overview' ? <OverviewPage onNavigate={navigate} onCreatePromotion={() => setPromotionOpen(true)} /> : null}
-          {activePage === 'users' ? <UsersPage users={users} query={searchQuery} onQueryChange={setSearchQuery} onAdd={() => setUserOpen(true)} onSelect={setSelectedUser} onToggleStatus={toggleUserStatus} /> : null}
+          {activePage === 'users' ? <PlayersPage users={users} query={searchQuery} onQueryChange={setSearchQuery} onAdd={() => setUserOpen(true)} onSelect={setSelectedUser} onToggleStatus={toggleUserStatus} /> : null}
           {activePage === 'promotions' ? <OffersPage title="Promotions" description="Create campaigns and track engagement across channels." offers={promotions} kind="promotions" onCreate={() => setPromotionOpen(true)} onToggle={(id) => toggleOffer('promotions', id)} /> : null}
           {activePage === 'bonuses' ? <OffersPage title="Bonuses" description="Manage bonus offers, wagering requirements, and eligibility." offers={bonuses} kind="bonuses" onCreate={() => setBonusOpen(true)} onToggle={(id) => toggleOffer('bonuses', id)} /> : null}
           {activePage === 'games' ? <GamesPage games={games} onToggle={toggleGame} /> : null}
