@@ -14,7 +14,7 @@ import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitl
 import { cn } from './lib/utils'
 
 type WorkspaceMode = 'backoffice' | 'cms'
-type PageKey = 'overview' | 'users' | 'promotions' | 'bonuses' | 'transactions' | 'reports' | 'settings' | 'cms-banners' | 'cms-promotions' | 'cms-pages' | 'cms-skin-games' | 'cms-categories' | 'cms-providers'
+type PageKey = 'overview' | 'users' | 'bonuses' | 'transactions' | 'reports' | 'settings' | 'cms-banners' | 'cms-promotions' | 'cms-pages' | 'cms-skin-games' | 'cms-categories' | 'cms-providers'
 type Status = 'Active' | 'Paused' | 'Scheduled' | 'Suspended' | 'Completed' | 'Pending' | 'Failed'
 type UserRow = { id: string; name: string; email: string; country: string; joined: string; balance: string; status: 'Active' | 'Suspended'; tier: 'VIP' | 'Gold' | 'Standard' }
 type BonusWizardForm = {
@@ -76,7 +76,6 @@ const CMS_NAV_GROUPS: { title: string; items: { page: PageKey; label: string; ic
 const PAGE_INFO: Record<PageKey, { title: string; description: string }> = {
   overview: { title: 'Overview', description: 'Here’s what’s happening across your platform today.' },
   users: { title: 'Players', description: 'Manage player records, account status, verification, and profile activity.' },
-  promotions: { title: 'Promotions', description: 'Create campaigns and track engagement across channels.' },
   bonuses: { title: 'Bonuses', description: 'Manage bonus offers, wagering requirements, and eligibility.' },
   transactions: { title: 'Transactions', description: 'Browse demo deposits, withdrawals, and wallet activity.' },
   reports: { title: 'Reports & analytics', description: 'Explore platform performance and engagement trends.' },
@@ -93,7 +92,6 @@ const PAGE_INFO: Record<PageKey, { title: string; description: string }> = {
 const PAGE_PATHS: Record<PageKey, string> = {
   overview: '/backoffice/overview',
   users: '/backoffice/players',
-  promotions: '/backoffice/promotions',
   bonuses: '/backoffice/bonuses',
   transactions: '/backoffice/transactions',
   reports: '/backoffice/reports',
@@ -121,14 +119,6 @@ const INITIAL_USERS: UserRow[] = [
   { id: 'BC-020477', name: 'Karim Haddad', email: 'karim.haddad@example.com', country: 'Italy', joined: 'Oct 15, 2026', balance: '€31.45', status: 'Suspended', tier: 'Standard' },
   { id: 'BC-020476', name: 'Ines Jaziri', email: 'ines.jaziri@example.com', country: 'Tunisia', joined: 'Oct 15, 2026', balance: '€416.25', status: 'Active', tier: 'Gold' },
   { id: 'BC-020475', name: 'Adam Kallel', email: 'adam.kallel@example.com', country: 'Germany', joined: 'Oct 14, 2026', balance: '€96.30', status: 'Active', tier: 'Standard' },
-]
-
-const INITIAL_PROMOTIONS: Offer[] = [
-  { id: 'PR-0108', name: 'Weekend Reload', description: 'A little extra for the weekend.', channel: 'Casino', reward: '50% up to €100', claims: '1,284', ends: 'Oct 25, 2026', status: 'Active' },
-  { id: 'PR-0107', name: 'Matchday Boost', description: 'Boost selected sports accumulators.', channel: 'Sports', reward: 'Odds boost +20%', claims: '842', ends: 'Oct 22, 2026', status: 'Active' },
-  { id: 'PR-0106', name: 'Welcome to Bclick', description: 'The first-deposit welcome campaign.', channel: 'Both', reward: '100% up to €200', claims: '3,206', ends: 'Nov 30, 2026', status: 'Active' },
-  { id: 'PR-0105', name: 'Midweek Spins', description: 'Free spins for eligible slot play.', channel: 'Casino', reward: '25 free spins', claims: '536', ends: 'Oct 20, 2026', status: 'Scheduled' },
-  { id: 'PR-0104', name: 'Super Sunday', description: 'A special sports reward for Sunday.', channel: 'Sports', reward: '€10 free bet', claims: '1,096', ends: 'Oct 12, 2026', status: 'Paused' },
 ]
 
 const INITIAL_BONUSES: Offer[] = []
@@ -1153,42 +1143,6 @@ function BonusesPage({ offers, onCreate, onToggle, onNotify }: { offers: Offer[]
         <div className="flex justify-end"><Button variant="outline" onClick={() => setSelectedBonus(null)}>Close</Button></div>
       </div> : null}
     </Modal>
-  </div>
-}
-
-function OffersPage({ title, description, offers, kind, onCreate, onToggle }: { title: string; description: string; offers: Offer[]; kind: 'promotions' | 'bonuses'; onCreate: () => void; onToggle: (id: string) => void }) {
-  const [filter, setFilter] = useState<'All' | 'Casino' | 'Sports' | 'Both'>('All')
-  const [query, setQuery] = useState('')
-  const filtered = offers.filter((offer) => (filter === 'All' || offer.channel === filter) && (offer.name + ' ' + offer.description + ' ' + offer.id).toLowerCase().includes(query.toLowerCase()))
-  const isPromotions = kind === 'promotions'
-  return <div className="page-enter">
-    <SectionHeading title={title} description={description} actions={<><Button variant="outline"><Download className="h-4 w-4" /> Export</Button><Button onClick={onCreate}><Plus className="h-4 w-4" /> {isPromotions ? 'Create promotion' : 'Create bonus'}</Button></>} />
-    <div className="mb-4 grid gap-3 sm:grid-cols-3">
-      <Card><CardContent className="flex items-center gap-3 p-4"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-700"><BadgePercent className="h-5 w-5" /></span><div><p className="text-xs text-slate-500">Total {isPromotions ? 'campaigns' : 'bonus offers'}</p><p className="mt-0.5 font-display text-2xl font-extrabold">{offers.length}</p></div></CardContent></Card>
-      <Card><CardContent className="flex items-center gap-3 p-4"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><CheckCircle2 className="h-5 w-5" /></span><div><p className="text-xs text-slate-500">Currently active</p><p className="mt-0.5 font-display text-2xl font-extrabold">{offers.filter((offer) => offer.status === 'Active').length}</p></div></CardContent></Card>
-      <Card><CardContent className="flex items-center gap-3 p-4"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700"><Users className="h-5 w-5" /></span><div><p className="text-xs text-slate-500">Total claims</p><p className="mt-0.5 font-display text-2xl font-extrabold">{offers.reduce((sum, offer) => sum + Number(offer.claims.replace(',', '')), 0).toLocaleString()}</p></div></CardContent></Card>
-    </div>
-    <Card>
-      <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap items-center gap-1 rounded-lg bg-slate-100 p-1">{(['All', 'Casino', 'Sports', 'Both'] as const).map((item) => <button type="button" key={item} onClick={() => setFilter(item)} className={cn('rounded-md px-3 py-1.5 text-xs font-semibold transition', filter === item ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800')}>{item === 'Both' ? 'Cross-channel' : item}</button>)}</div>
-        <div className="flex flex-col gap-2 sm:flex-row"><div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={'Search ' + (isPromotions ? 'promotions' : 'bonuses') + '...'} className="pl-9 sm:w-64" /></div><Button variant="outline" onClick={() => { setFilter('All'); setQuery('') }}><Filter className="h-4 w-4" /> Clear filters</Button></div>
-      </div>
-      <div className="admin-scrollbar overflow-x-auto">
-        <table className="w-full min-w-[780px] text-left text-sm">
-          <thead className="bg-slate-50/80 text-[10px] font-bold uppercase tracking-wider text-slate-400"><tr><th className="px-5 py-3.5">{isPromotions ? 'Promotion' : 'Bonus offer'}</th><th className="px-4 py-3.5">Channel</th><th className="px-4 py-3.5">Reward</th><th className="px-4 py-3.5">Claims</th><th className="px-4 py-3.5">End date</th><th className="px-4 py-3.5">Status</th><th className="px-5 py-3.5 text-right">Actions</th></tr></thead>
-          <tbody className="divide-y divide-slate-100">
-            {filtered.map((offer) => <tr key={offer.id} className="transition hover:bg-slate-50/70">
-              <td className="px-5 py-4"><div className="flex items-center gap-3"><span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', isPromotions ? 'bg-amber-50 text-amber-700' : 'bg-violet-50 text-violet-700')}>{isPromotions ? <BadgePercent className="h-5 w-5" /> : <Gift className="h-5 w-5" />}</span><div className="min-w-0"><p className="max-w-[220px] truncate text-xs font-bold text-slate-800">{offer.name}</p><p className="mt-1 max-w-[220px] truncate text-[10px] text-slate-400">{offer.description}</p><p className="mt-1 font-mono text-[9px] text-slate-400">{offer.id}</p></div></div></td>
-              <td className="px-4 py-4"><Badge variant={offer.channel === 'Casino' ? 'info' : offer.channel === 'Sports' ? 'success' : 'secondary'}>{offer.channel}</Badge></td>
-              <td className="whitespace-nowrap px-4 py-4 text-xs font-semibold text-slate-700">{offer.reward}</td><td className="whitespace-nowrap px-4 py-4 text-xs text-slate-600">{offer.claims}</td><td className="whitespace-nowrap px-4 py-4 text-xs text-slate-500">{offer.ends}</td><td className="px-4 py-4"><StatusBadge status={offer.status} /></td>
-              <td className="px-5 py-4"><div className="flex justify-end gap-1"><Button variant="ghost" size="icon" onClick={() => onToggle(offer.id)} aria-label={offer.status === 'Active' ? 'Pause offer' : 'Activate offer'}>{offer.status === 'Active' ? <Pause className="h-4 w-4 text-slate-500" /> : <Play className="h-4 w-4 text-slate-500" />}</Button><Button variant="ghost" size="icon" aria-label="Edit offer" onClick={onCreate}><Pencil className="h-4 w-4 text-slate-500" /></Button><Button variant="ghost" size="icon" aria-label="More offer actions"><MoreHorizontal className="h-4 w-4 text-slate-500" /></Button></div></td>
-            </tr>)}
-            {filtered.length === 0 ? <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-slate-400">No offers match the selected filters.</td></tr> : null}
-          </tbody>
-        </table>
-      </div>
-      <div className="border-t border-border px-5 py-3 text-[11px] text-slate-400">Showing {filtered.length} of {offers.length} demo {isPromotions ? 'promotions' : 'bonuses'} · No campaigns are sent or activated.</div>
-    </Card>
   </div>
 }
 
@@ -2353,35 +2307,6 @@ function PlayerProfilePage({ user, onBack, onToggle, onNotify, onSave }: {
       </div>
     </div>
   </div>
-}
-
-function OfferFormModal({ open, onOpenChange, kind, onSubmit }: { open: boolean; onOpenChange: (open: boolean) => void; kind: 'promotion' | 'bonus'; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
-  const isPromotion = kind === 'promotion'
-  return <Modal open={open} onOpenChange={onOpenChange} title={isPromotion ? 'Create promotion' : 'New bonus'} description={isPromotion ? 'Design a new campaign. This is a UI-only preview.' : 'Define the bonus type, product scope, and validity dates.'} footer={<><Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit" form={isPromotion ? 'promotion-form' : 'bonus-form'}><Plus className="h-4 w-4" /> Create {isPromotion ? 'promotion' : 'bonus'}</Button></>}>
-    <form id={isPromotion ? 'promotion-form' : 'bonus-form'} className="space-y-4" onSubmit={onSubmit}>
-      <label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Name</span><Input name="name" required placeholder={isPromotion ? 'e.g. Weekend Reload' : 'e.g. Casino Welcome Bonus'} /></label>
-      <label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Description</span><Input name="description" placeholder="Add a short internal description" /></label>
-      {isPromotion ? <>
-        <div className="grid gap-3 sm:grid-cols-2"><label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Channel</span><select name="channel" defaultValue="Casino" className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-ring"><option>Casino</option><option>Sports</option><option>Both</option></select></label><label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Reward display</span><Input name="reward" required placeholder="e.g. 50% up to €100" /></label></div>
-        <div className="grid gap-3 sm:grid-cols-2"><label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">End date</span><Input name="ends" type="date" /></label><label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Initial status</span><select name="status" defaultValue="Scheduled" className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-ring"><option>Scheduled</option><option>Active</option><option>Paused</option></select></label></div>
-      </> : <>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Type</span><select name="bonusType" defaultValue="Deposit Bonus" className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-ring"><option>Deposit Bonus</option><option>Welcome Bonus</option><option>No Deposit Bonus</option><option>Reload Bonus</option><option>Free Spins</option><option>Cashback</option><option>Free Bet</option></select></label>
-          <label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Product Type</span><select name="productType" defaultValue="Casino" className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-ring"><option>Casino</option><option>Sportsbook</option><option>Casino + Sports</option></select></label>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Expiration Date</span><Input name="expirationDate" type="date" /></label>
-          <label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Expiration Days</span><Input name="expirationDays" type="number" min="1" defaultValue="30" /></label>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Start Date</span><Input name="starts" type="date" /></label>
-          <label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">End Date</span><Input name="ends" type="date" /></label>
-        </div>
-        <label className="block space-y-1.5"><span className="text-xs font-semibold text-slate-600">Platform Definition Bonus Id</span><Input name="platformDefinitionBonusId" placeholder="Optional platform definition ID" /></label>
-      </>}
-      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs leading-5 text-slate-600"><Sparkles className="mr-1.5 inline h-3.5 w-3.5" /> Preview only. Creating this item updates the local table and does not publish it to a live system.</div>
-    </form>
-  </Modal>
 }
 
 function UserFormModal({ open, onOpenChange, onSubmit }: { open: boolean; onOpenChange: (open: boolean) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
@@ -3604,15 +3529,12 @@ export default function App() {
   const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false)
   const [activePage, setActivePage] = useState<PageKey>(() => pageFromPath(window.location.pathname))
   const [users, setUsers] = useState<UserRow[]>(INITIAL_USERS)
-  const [promotions, setPromotions] = useState<Offer[]>(INITIAL_PROMOTIONS)
   const [bonuses, setBonuses] = useState<Offer[]>(INITIAL_BONUSES)
   const [games, setGames] = useState<CmsSkinGame[]>(INITIAL_CMS_SKIN_GAMES)
   const [searchQuery, setSearchQuery] = useState('')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [notificationOpen, setNotificationOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [promotionOpen, setPromotionOpen] = useState(false)
-  const [bonusOpen, setBonusOpen] = useState(false)
   const [bonusTypeChooserOpen, setBonusTypeChooserOpen] = useState(false)
   const [bonusWizardOpen, setBonusWizardOpen] = useState(false)
   const [bonusWizardType, setBonusWizardType] = useState('Deposit Bonus')
@@ -3620,14 +3542,16 @@ export default function App() {
   const [selectedUser, setSelectedUser] = useState<UserRow | null>(null)
   const [toast, setToast] = useState('')
   useEffect(() => {
-    const redirectRemovedGamesRoute = () => {
-      if ((window.location.pathname.replace(/\/+$/, '') || '/') === '/backoffice/games') {
+    const redirectLegacyBackofficeRoutes = () => {
+      const path = window.location.pathname.replace(/\/+$/, '') || '/'
+      if (path === '/backoffice/games') {
         window.history.replaceState({}, '', PAGE_PATHS.overview)
+      } else if (path === '/backoffice/promotions') {
+        window.history.replaceState({}, '', PAGE_PATHS['cms-promotions'])
       }
     }
-    redirectRemovedGamesRoute()
     const syncRoute = () => {
-      redirectRemovedGamesRoute()
+      redirectLegacyBackofficeRoutes()
       const nextPage = pageFromPath(window.location.pathname)
       setActivePage(nextPage)
       setWorkspace(workspaceForPage(nextPage))
@@ -3639,6 +3563,7 @@ export default function App() {
       setSearchQuery('')
     }
     window.addEventListener('popstate', syncRoute)
+    syncRoute()
     return () => window.removeEventListener('popstate', syncRoute)
   }, [])
   const page = PAGE_INFO[activePage]
@@ -3677,10 +3602,9 @@ export default function App() {
     notify('Demo player profile updated locally.')
   }
 
-  function toggleOffer(kind: 'promotions' | 'bonuses', id: string) {
-    const setter = kind === 'promotions' ? setPromotions : setBonuses
-    setter((current) => current.map((offer) => offer.id === id ? { ...offer, status: offer.status === 'Active' ? 'Paused' : 'Active' } : offer))
-    notify('Sample offer status updated in this preview.')
+  function toggleOffer(id: string) {
+    setBonuses((current) => current.map((offer) => offer.id === id ? { ...offer, status: offer.status === 'Active' ? 'Paused' : 'Active' } : offer))
+    notify('Sample bonus status updated in this preview.')
   }
 
   function handleUserSubmit(event: FormEvent<HTMLFormElement>) {
@@ -3720,57 +3644,12 @@ export default function App() {
     notify('Bonus created in the local preview. Nothing was published.')
   }
 
-  function handleOfferSubmit(kind: 'promotion' | 'bonus', event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const data = new FormData(event.currentTarget)
-    const name = String(data.get('name') || '').trim()
-    const description = String(data.get('description') || '').trim() || 'New offer preview.'
-    const productType = String(data.get('productType') || 'Casino')
-    const channel = (kind === 'bonus'
-      ? productType === 'Sportsbook' ? 'Sports' : productType === 'Casino + Sports' ? 'Both' : 'Casino'
-      : String(data.get('channel') || 'Casino')) as Offer['channel']
-    const reward = String(data.get('reward') || (kind === 'bonus' ? 'Configured bonus' : '')).trim()
-    const rawEndDate = String(data.get('ends') || '')
-    const rawExpirationDate = String(data.get('expirationDate') || '')
-    const rawStartDate = String(data.get('starts') || '')
-    const formatDate = (rawDate: string) => rawDate ? new Date(rawDate + 'T12:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
-    const ends = rawEndDate ? formatDate(rawEndDate) : 'Not set'
-    const status = (kind === 'bonus' ? 'Active' : String(data.get('status') || 'Scheduled')) as Offer['status']
-    if (!name || (kind === 'promotion' && !reward)) return
-    const list = kind === 'promotion' ? promotions : bonuses
-    const id = kind === 'promotion'
-      ? 'PR-' + String(109 + list.length).padStart(4, '0')
-      : 'BN-' + String(list.length + 1).padStart(4, '0')
-    const offer: Offer = {
-      id, name, description, channel, reward, claims: '0', ends, status,
-      ...(kind === 'bonus' ? {
-        bonusType: String(data.get('bonusType') || 'Deposit Bonus'),
-        productType,
-        expirationDate: formatDate(rawExpirationDate),
-        expirationDays: String(data.get('expirationDays') || '30'),
-        startDate: formatDate(rawStartDate),
-        endDate: formatDate(rawEndDate),
-        platformDefinitionBonusId: String(data.get('platformDefinitionBonusId') || '—').trim() || '—',
-      } : {}),
-    }
-    if (kind === 'promotion') {
-      setPromotions((current) => [offer, ...current])
-      setPromotionOpen(false)
-      navigate('promotions')
-    } else {
-      setBonuses((current) => [offer, ...current])
-      setBonusOpen(false)
-      navigate('bonuses')
-    }
-    notify('Sample ' + kind + ' added locally. Nothing was published.')
-  }
   const createHeaderAction = () => {
     if (workspace === 'cms') return null
     if (activePage === 'bonuses') return null
-    if (activePage === 'promotions') return <Button onClick={() => setPromotionOpen(true)}><Plus className="h-4 w-4" /> Create promotion</Button>
     if (activePage === 'users') return <Button onClick={() => setUserOpen(true)}><Plus className="h-4 w-4" /> New player</Button>
     if (activePage === 'reports' || activePage === 'transactions') return <Button variant="outline" onClick={() => window.print()}><Download className="h-4 w-4" /> Export</Button>
-    return <Button onClick={() => navigate('promotions')}><Plus className="h-4 w-4" /> New campaign</Button>
+    return <Button onClick={() => navigate('cms-promotions')}><Plus className="h-4 w-4" /> New campaign</Button>
   }
 
   return (
@@ -3833,10 +3712,9 @@ export default function App() {
                         <div className="mb-5 flex items-center justify-between gap-3 lg:hidden"><div><p className="text-[10px] font-medium text-slate-500">{workspace === 'backoffice' ? 'Backoffice' : 'CMS'}</p><h1 className="mt-0.5 text-xl font-semibold tracking-tight text-slate-900">{page.title}</h1></div>{createHeaderAction()}</div>
                         <div className="mb-5 hidden items-center justify-between gap-4 lg:flex"><div><h1 className="text-xl font-semibold tracking-tight text-slate-900">{page.title}</h1><p className="mt-1 text-xs text-slate-500">{page.description}</p></div><div className="flex items-center gap-2">{createHeaderAction()}</div></div>
                       </> : null}
-                      {activePage === 'overview' ? <OverviewPage onNavigate={navigate} onCreatePromotion={() => setPromotionOpen(true)} /> : null}
+                      {activePage === 'overview' ? <OverviewPage /> : null}
                       {activePage === 'users' ? <PlayersPage users={users} query={searchQuery} onQueryChange={setSearchQuery} onAdd={() => setUserOpen(true)} onSelect={setSelectedUser} onToggleStatus={toggleUserStatus} /> : null}
-                      {activePage === 'promotions' ? <OffersPage title="Promotions" description="Create campaigns and track engagement across channels." offers={promotions} kind="promotions" onCreate={() => setPromotionOpen(true)} onToggle={(id) => toggleOffer('promotions', id)} /> : null}
-                      {activePage === 'bonuses' ? <BonusesPage offers={bonuses} onCreate={() => setBonusTypeChooserOpen(true)} onToggle={(id) => toggleOffer('bonuses', id)} onNotify={notify} /> : null}
+                      {activePage === 'bonuses' ? <BonusesPage offers={bonuses} onCreate={() => setBonusTypeChooserOpen(true)} onToggle={toggleOffer} onNotify={notify} /> : null}
                       {activePage === 'transactions' ? <TransactionsPage query={searchQuery} onQueryChange={setSearchQuery} users={users} onNotify={notify} onSelectPlayer={setSelectedUser} /> : null}
                       {activePage === 'reports' ? <ReportsPage /> : null}
                       {activePage === 'settings' ? <SettingsPage /> : null}
@@ -3853,7 +3731,6 @@ export default function App() {
         </main>
       </div>
 
-      <OfferFormModal open={promotionOpen} onOpenChange={setPromotionOpen} kind="promotion" onSubmit={(event) => handleOfferSubmit('promotion', event)} />
       <BonusTypeChooserModal open={bonusTypeChooserOpen} onOpenChange={setBonusTypeChooserOpen} onChoose={(type) => { setBonusWizardType(type); setBonusWizardOpen(true) }} />
       <BonusWizardModal open={bonusWizardOpen} onOpenChange={setBonusWizardOpen} bonusType={bonusWizardType} onCreate={handleBonusWizardCreate} />
       <UserFormModal open={userOpen} onOpenChange={setUserOpen} onSubmit={handleUserSubmit} />
