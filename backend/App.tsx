@@ -52,7 +52,6 @@ const NAV_GROUPS: { title: string; items: { page: PageKey; label: string; icon: 
   { title: 'WORKSPACE', items: [
     { page: 'overview', label: 'Overview', icon: LayoutDashboard },
     { page: 'users', label: 'Players', icon: Users, count: '2.4k' },
-    { page: 'promotions', label: 'Promotions', icon: BadgePercent },
     { page: 'bonuses', label: 'Bonuses', icon: Gift },
   ] },
   { title: 'OPERATIONS', items: [
