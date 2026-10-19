@@ -5,7 +5,7 @@ import {
   Eye, FileText, Filter, Gamepad2, Gift, Globe, LayoutDashboard, LifeBuoy, LogOut,
   Menu, MoreHorizontal, Plus, Search, Settings, ShieldCheck,
   Sparkles, TrendingUp, Users, Wallet, X, Zap, UserPlus, CircleDollarSign,
-  Shield, Check, Pause, Play, Pencil,
+  Shield, Check, Pause, Play, Pencil, Trophy,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Modal } from './components/ui'
