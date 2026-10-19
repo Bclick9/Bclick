@@ -2876,13 +2876,13 @@ export default function App() {
 
         <main className="min-h-[calc(100vh-50px)] bg-white px-4 py-5 sm:px-5 xl:px-6">
           {selectedUser ? <PlayerProfilePage user={selectedUser} onBack={() => setSelectedUser(null)} onToggle={() => toggleUserStatus(selectedUser.id)} onNotify={notify} onSave={savePlayerProfile} /> : <>
-                      {activePage !== 'transactions' && activePage !== 'bonuses' ? <>
+                      {activePage !== 'transactions' && activePage !== 'bonuses' && !(workspace === 'backoffice' && activePage === 'promotions') ? <>
                         <div className="mb-5 flex items-center justify-between gap-3 lg:hidden"><div><p className="text-[10px] font-medium text-slate-500">{workspace === 'backoffice' ? 'Backoffice' : 'CMS'}</p><h1 className="mt-0.5 text-xl font-semibold tracking-tight text-slate-900">{page.title}</h1></div>{createHeaderAction()}</div>
                         <div className="mb-5 hidden items-center justify-between gap-4 lg:flex"><div><h1 className="text-xl font-semibold tracking-tight text-slate-900">{page.title}</h1><p className="mt-1 text-xs text-slate-500">{page.description}</p></div><div className="flex items-center gap-2">{createHeaderAction()}</div></div>
                       </> : null}
                       {activePage === 'overview' ? <OverviewPage onNavigate={navigate} onCreatePromotion={() => setPromotionOpen(true)} /> : null}
                       {activePage === 'users' ? <PlayersPage users={users} query={searchQuery} onQueryChange={setSearchQuery} onAdd={() => setUserOpen(true)} onSelect={setSelectedUser} onToggleStatus={toggleUserStatus} /> : null}
-                      {activePage === 'promotions' ? <OffersPage title="Promotions" description="Create campaigns and track engagement across channels." offers={promotions} kind="promotions" onCreate={() => setPromotionOpen(true)} onToggle={(id) => toggleOffer('promotions', id)} /> : null}
+                      {activePage === 'promotions' ? <CmsPromotionsPage onNotify={notify} /> : null}
                       {activePage === 'bonuses' ? <BonusesPage offers={bonuses} onCreate={() => setBonusTypeChooserOpen(true)} onToggle={(id) => toggleOffer('bonuses', id)} onNotify={notify} /> : null}
                       {activePage === 'games' ? <GamesPage games={games} onToggle={toggleGame} /> : null}
                       {activePage === 'transactions' ? <TransactionsPage query={searchQuery} onQueryChange={setSearchQuery} users={users} onNotify={notify} onSelectPlayer={setSelectedUser} /> : null}
