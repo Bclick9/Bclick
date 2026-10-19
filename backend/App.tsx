@@ -217,8 +217,9 @@ function OverviewPage() {
   const [endDate, setEndDate] = useState('2026-10-18')
   const [pokerTab, setPokerTab] = useState<'Poker Overview' | 'Skill Games Overview'>('Poker Overview')
   const periods = ['Today', 'Yesterday', 'This Week', 'Last Week', 'This Month', 'Last Month', 'LMTD']
+  const formatDate = (value: string) => value ? value.split('-').reverse().join('/') : 'Select date'
   const dateRange = period === 'Custom'
-    ? String(startDate || 'Start date') + ' — ' + String(endDate || 'End date')
+    ? formatDate(startDate) + ' — ' + formatDate(endDate)
     : period === 'Today'
       ? '19/10/2026 — 19/10/2026'
       : period === 'Yesterday'
@@ -233,19 +234,19 @@ function OverviewPage() {
                 ? '01/09/2026 — 30/09/2026'
                 : '01/10/2026 — 18/10/2026'
 
-  const metrics: { label: string; value: string; icon: LucideIcon; tone: string; group: string }[] = [
-    { label: 'Total of Deposits', value: '$0.00', icon: Wallet, tone: 'text-sky-700 bg-sky-50', group: 'Financial' },
-    { label: 'Total of Withdrawals', value: '$0.00', icon: ArrowUpRight, tone: 'text-rose-700 bg-rose-50', group: 'Financial' },
-    { label: 'Players Logged In', value: '0', icon: Users, tone: 'text-amber-700 bg-amber-50', group: 'Players' },
-    { label: 'Total login count', value: '0', icon: Activity, tone: 'text-indigo-700 bg-indigo-50', group: 'Players' },
-    { label: 'Players Registered', value: '0', icon: UserPlus, tone: 'text-emerald-700 bg-emerald-50', group: 'Players' },
-    { label: 'Players Balance', value: '$(1.00)', icon: CircleDollarSign, tone: 'text-violet-700 bg-violet-50', group: 'Financial' },
-    { label: 'Profit', value: '$0.00', icon: TrendingUp, tone: 'text-teal-700 bg-teal-50', group: 'Financial' },
-    { label: 'Players Making Deposit', value: '0', icon: Wallet, tone: 'text-blue-700 bg-blue-50', group: 'Players' },
-    { label: 'Players Making Withdrawals', value: '0', icon: ArrowDownRight, tone: 'text-orange-700 bg-orange-50', group: 'Players' },
-    { label: 'Bonus Balance', value: '$(1.00)', icon: Gift, tone: 'text-pink-700 bg-pink-50', group: 'Financial' },
-    { label: 'Correction Up', value: '$0.00', icon: ArrowUpRight, tone: 'text-cyan-700 bg-cyan-50', group: 'Financial' },
-    { label: 'Correction Down', value: '$0.00', icon: ArrowDownRight, tone: 'text-red-700 bg-red-50', group: 'Financial' },
+  const metrics: { label: string; value: string; icon: LucideIcon; tone: string }[] = [
+    { label: 'Total of Deposits', value: '$0.00', icon: Wallet, tone: 'text-slate-700 bg-slate-100' },
+    { label: 'Total of Withdrawals', value: '$0.00', icon: ArrowUpRight, tone: 'text-slate-700 bg-slate-100' },
+    { label: 'Players Logged In', value: '0', icon: Users, tone: 'text-slate-700 bg-slate-100' },
+    { label: 'Total login count', value: '0', icon: Activity, tone: 'text-slate-700 bg-slate-100' },
+    { label: 'Players Registered', value: '0', icon: UserPlus, tone: 'text-slate-700 bg-slate-100' },
+    { label: 'Players Balance', value: '$(1.00)', icon: CircleDollarSign, tone: 'text-slate-700 bg-slate-100' },
+    { label: 'Profit', value: '$0.00', icon: TrendingUp, tone: 'text-slate-700 bg-slate-100' },
+    { label: 'Players Making Deposit', value: '0', icon: Wallet, tone: 'text-slate-700 bg-slate-100' },
+    { label: 'Players Making Withdrawals', value: '0', icon: ArrowDownRight, tone: 'text-slate-700 bg-slate-100' },
+    { label: 'Bonus Balance', value: '$(1.00)', icon: Gift, tone: 'text-slate-700 bg-slate-100' },
+    { label: 'Correction Up', value: '$0.00', icon: ArrowUpRight, tone: 'text-slate-700 bg-slate-100' },
+    { label: 'Correction Down', value: '$0.00', icon: ArrowDownRight, tone: 'text-slate-700 bg-slate-100' },
   ]
 
   const sportsbookRows: ReportRow[] = [
@@ -306,7 +307,6 @@ function OverviewPage() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-medium text-muted-foreground">{metric.label}</p>
                 <p className="mt-2 font-display text-[25px] font-bold leading-none tracking-tight tabular-nums text-foreground">{metric.value}</p>
-                <p className="mt-2 text-[10px] text-muted-foreground">{metric.group === 'Financial' ? 'Selected period total' : 'Selected period count'}</p>
               </div>
             </CardContent>
           </Card>
