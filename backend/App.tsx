@@ -17,6 +17,18 @@ type WorkspaceMode = 'backoffice' | 'cms'
 type PageKey = 'overview' | 'users' | 'promotions' | 'bonuses' | 'games' | 'transactions' | 'reports' | 'settings' | 'cms-overview' | 'cms-lobby' | 'cms-categories' | 'cms-banners' | 'cms-design' | 'cms-settings'
 type Status = 'Active' | 'Paused' | 'Scheduled' | 'Suspended' | 'Completed' | 'Pending' | 'Failed'
 type UserRow = { id: string; name: string; email: string; country: string; joined: string; balance: string; status: 'Active' | 'Suspended'; tier: 'VIP' | 'Gold' | 'Standard' }
+type BonusWizardForm = {
+  name: string; description: string; regions: string[]; decision: 'Reject' | 'Allow'
+  programStart: string; programEnd: string; expirationType: string; expirationDate: string
+  productType: string; visibleForAll: boolean; maxPlayers: string; depositNumber: string
+  paymentSystems: string[]; fromCashDesk: boolean; wallet: string; verifiedOnly: boolean
+  availableOnRequest: boolean; currencies: string[]; periodType: string; period: string; count: string
+  calculationType: string; bonusAmount: string; maxBonusAmount: string; minimumDeposit: string
+  maximumDeposit: string; wageringMultiplier: string; maxBet: string; maxWithdrawal: string
+  slots: boolean; liveCasino: boolean; tableGames: boolean; crashGames: boolean
+  gameContribution: string; excludedGames: string; providers: string[]
+}
+
 type Offer = {
   id: string
   name: string
@@ -895,11 +907,11 @@ function BonusesPage({ offers, onCreate, onToggle, onNotify }: { offers: Offer[]
     </div>
 
     <div className="table-holder">
-      <div className="admin-scrollbar overflow-auto bg-white" style={{ minHeight: offers.length ? '0px' : '270px', maxHeight: 'min(72vh, 660px)' }}>
-        <table className="border-separate border-spacing-0 text-left" style={{ minWidth: tableWidth + 48 }}>
+      <div className="admin-scrollbar w-full overflow-auto bg-white" style={{ height: offers.length ? 'min(72vh, 660px)' : '270px', minHeight: '270px', maxHeight: 'min(72vh, 660px)' }}>
+        <table className="border-separate border-spacing-0 text-left" style={{ width: tableWidth + 48, minWidth: tableWidth + 48, tableLayout: 'fixed' }}>
           <thead className="sticky top-0 z-10 bg-white">
             <tr>
-              {shownColumns.map((column) => <th key={column.key} draggable onDragStart={() => setDraggedColumn(column.key)} onDragOver={(event) => event.preventDefault()} onDrop={() => moveColumn(column.key)} onDragEnd={() => setDraggedColumn(null)} style={{ width: column.width, minWidth: column.width }} className={cn('group/bonus-th h-10 border-b border-slate-200 bg-white px-3 text-[11px] font-medium text-slate-600', draggedColumn === column.key && 'opacity-40')}>
+              {shownColumns.map((column) => <th key={column.key} draggable onDragStart={() => setDraggedColumn(column.key)} onDragOver={(event) => event.preventDefault()} onDrop={() => moveColumn(column.key)} onDragEnd={() => setDraggedColumn(null)} style={{ width: column.width, minWidth: column.width }} className={cn('group/bonus-th box-border h-10 overflow-hidden border-b border-slate-200 bg-white px-3 text-[11px] font-medium text-slate-600', draggedColumn === column.key && 'opacity-40')}>
                 <div className="flex items-center gap-2">
                   <GripVertical className="h-3.5 w-3.5 shrink-0 cursor-grab text-slate-300 opacity-0 transition group-hover/bonus-th:opacity-100" />
                   <button type="button" onClick={() => sortBy(column.key)} className="inline-flex min-w-0 items-center gap-1.5 text-left hover:text-slate-950"><span className="truncate">{column.label}</span><Filter className="h-3 w-3 shrink-0 text-slate-300" />{sortKey === column.key ? <span className="text-[9px] text-slate-500">{sortDirection === 'asc' ? '↑' : '↓'}</span> : null}</button>
@@ -912,7 +924,7 @@ function BonusesPage({ offers, onCreate, onToggle, onNotify }: { offers: Offer[]
             {sortedOffers.map((offer, index) => {
               const row = rowFor(offer)
               return <tr key={offer.id} className={cn('group/bonus-row transition-colors hover:bg-slate-50', index % 2 === 1 && 'bg-slate-50/40')}>
-                {shownColumns.map((column) => <td key={column.key} style={{ width: column.width, minWidth: column.width }} className="h-[43px] max-w-[260px] border-b border-slate-100 px-3 text-xs text-slate-600">
+                {shownColumns.map((column) => <td key={column.key} style={{ width: column.width, minWidth: column.width }} className="box-border h-[43px] overflow-hidden border-b border-slate-100 px-3 text-xs text-slate-600">
                   {column.key === 'name' ? <button type="button" onClick={() => setSelectedBonus(offer)} className="max-w-[245px] truncate text-left font-medium text-slate-800 hover:underline">{row[column.key]}</button>
                   : column.key === 'bonusType' ? <Badge variant="outline">{row[column.key]}</Badge>
                   : column.key === 'productType' ? <Badge variant="secondary">{row[column.key]}</Badge>
@@ -1841,6 +1853,9 @@ export default function App() {
   const [notificationOpen, setNotificationOpen] = useState(false)
   const [promotionOpen, setPromotionOpen] = useState(false)
   const [bonusOpen, setBonusOpen] = useState(false)
+  const [bonusTypeChooserOpen, setBonusTypeChooserOpen] = useState(false)
+  const [bonusWizardOpen, setBonusWizardOpen] = useState(false)
+  const [bonusWizardType, setBonusWizardType] = useState('Deposit Bonus')
   const [userOpen, setUserOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserRow | null>(null)
   const [toast, setToast] = useState('')
@@ -1902,6 +1917,28 @@ export default function App() {
     setUserOpen(false)
     setSearchQuery('')
     notify('Sample player added to this browser preview.')
+  }
+
+  function handleBonusWizardCreate(values: BonusWizardForm) {
+    const bonusNumber = bonuses.length + 1
+    const dateLabel = (value: string) => value ? new Date(value).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
+    const productChannel: Offer['channel'] = values.productType === 'Sportsbook' ? 'Sports' : values.productType === 'Casino + Sports' ? 'Both' : 'Casino'
+    const endDate = dateLabel(values.programEnd)
+    const bonus: Offer = {
+      id: 'BN-' + String(bonusNumber).padStart(4, '0'),
+      name: values.name.trim(), description: values.description.trim(), channel: productChannel,
+      reward: values.calculationType === 'Percentage' ? values.bonusAmount + '% bonus' : values.bonusAmount + ' bonus',
+      claims: '0', ends: endDate, status: 'Active', bonusType: bonusWizardType,
+      productType: values.productType, expirationDate: dateLabel(values.expirationDate),
+      expirationDays: values.expirationType === 'N Days After Activation' ? 'Configured by activation' : '—',
+      startDate: dateLabel(values.programStart), endDate, platformDefinitionBonusId: '—',
+    }
+    setBonuses((current) => [bonus, ...current])
+    setBonusWizardOpen(false)
+    setBonusTypeChooserOpen(false)
+    setActivePage('bonuses')
+    setSearchQuery('')
+    notify('Bonus created in the local preview. Nothing was published.')
   }
 
   function handleOfferSubmit(kind: 'promotion' | 'bonus', event: FormEvent<HTMLFormElement>) {
@@ -2017,7 +2054,7 @@ export default function App() {
                       {activePage === 'overview' ? <OverviewPage onNavigate={navigate} onCreatePromotion={() => setPromotionOpen(true)} /> : null}
                       {activePage === 'users' ? <PlayersPage users={users} query={searchQuery} onQueryChange={setSearchQuery} onAdd={() => setUserOpen(true)} onSelect={setSelectedUser} onToggleStatus={toggleUserStatus} /> : null}
                       {activePage === 'promotions' ? <OffersPage title="Promotions" description="Create campaigns and track engagement across channels." offers={promotions} kind="promotions" onCreate={() => setPromotionOpen(true)} onToggle={(id) => toggleOffer('promotions', id)} /> : null}
-                      {activePage === 'bonuses' ? <BonusesPage offers={bonuses} onCreate={() => setBonusOpen(true)} onToggle={(id) => toggleOffer('bonuses', id)} onNotify={notify} /> : null}
+                      {activePage === 'bonuses' ? <BonusesPage offers={bonuses} onCreate={() => setBonusTypeChooserOpen(true)} onToggle={(id) => toggleOffer('bonuses', id)} onNotify={notify} /> : null}
                       {activePage === 'games' ? <GamesPage games={games} onToggle={toggleGame} /> : null}
                       {activePage === 'transactions' ? <TransactionsPage query={searchQuery} onQueryChange={setSearchQuery} users={users} onNotify={notify} onSelectPlayer={setSelectedUser} /> : null}
                       {activePage === 'reports' ? <ReportsPage /> : null}
@@ -2036,7 +2073,8 @@ export default function App() {
       </div>
 
       <OfferFormModal open={promotionOpen} onOpenChange={setPromotionOpen} kind="promotion" onSubmit={(event) => handleOfferSubmit('promotion', event)} />
-      <OfferFormModal open={bonusOpen} onOpenChange={setBonusOpen} kind="bonus" onSubmit={(event) => handleOfferSubmit('bonus', event)} />
+      <BonusTypeChooserModal open={bonusTypeChooserOpen} onOpenChange={setBonusTypeChooserOpen} onChoose={(type) => { setBonusWizardType(type); setBonusWizardOpen(true) }} />
+      <BonusWizardModal open={bonusWizardOpen} onOpenChange={setBonusWizardOpen} bonusType={bonusWizardType} onCreate={handleBonusWizardCreate} />
       <UserFormModal open={userOpen} onOpenChange={setUserOpen} onSubmit={handleUserSubmit} />
 
       {toast ? <div role="status" className="fixed bottom-5 right-5 z-[70] flex max-w-sm items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-semibold text-slate-700 shadow-xl"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />{toast}</div> : null}
