@@ -37,7 +37,7 @@ const GROUPS = [
     links: [
       { label: 'Deposit', path: '/account/wallet/deposit' },
       { label: 'Withdraw', path: '/account/wallet/withdraw' },
-      { label: 'Pending withdrawals', path: '/account/wallet/pending-withdrawals' },
+      { label: 'Transaction History', path: '/account/wallet/transaction-history' },
     ],
   },
   {
@@ -185,7 +185,7 @@ export function AccountLayout({ children }: { children: ReactNode }) {
   const walletLinks = [
     { label: 'Deposit', path: '/account/wallet/deposit' },
     { label: 'Withdraw', path: '/account/wallet/withdraw' },
-    { label: 'Pending withdrawals', path: '/account/wallet/pending-withdrawals' },
+    { label: 'Transaction History', path: '/account/wallet/transaction-history' },
   ]
   const bonusLinks = [
     { label: 'Available', path: '/account/bonuses-available' },

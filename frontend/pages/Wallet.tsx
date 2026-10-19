@@ -5,9 +5,21 @@ import { AccountLayout } from '../components/AccountPanel'
 import { PAYMENT_METHODS } from '../data/catalog'
 import { cn } from '../lib/shadcn/utils'
 
-const PENDING_DEMO = [
-  { id: 'WD-10421', method: 'Skrill', amount: '€150.00', requested: '16/10 14:02', status: 'Pending' },
-  { id: 'WD-10418', method: 'Bitcoin', amount: '€420.00', requested: '15/10 19:47', status: 'Pending' },
+type DemoTransaction = {
+  id: string
+  type: 'Deposit' | 'Withdrawal'
+  method: string
+  amount: string
+  requested: string
+  status: 'Pending' | 'Completed' | 'Rejected'
+}
+
+const TRANSACTIONS_DEMO: DemoTransaction[] = [
+  { id: 'DP-20432', type: 'Deposit', method: 'Visa', amount: '€75.00', requested: '19/10 09:45', status: 'Completed' },
+  { id: 'WD-10421', type: 'Withdrawal', method: 'Skrill', amount: '€150.00', requested: '18/10 16:02', status: 'Pending' },
+  { id: 'DP-20418', type: 'Deposit', method: 'Bitcoin', amount: '€420.00', requested: '17/10 19:47', status: 'Completed' },
+  { id: 'WD-10418', type: 'Withdrawal', method: 'Bitcoin', amount: '€90.00', requested: '16/10 14:02', status: 'Rejected' },
+  { id: 'DP-20402', type: 'Deposit', method: 'Skrill', amount: '€150.00', requested: '15/10 11:23', status: 'Pending' },
 ]
 
 function MethodLogo({ name }: { name: string }) {
@@ -135,48 +147,93 @@ export function Withdraw() {
           Prototype only: the request is not submitted and no funds move.
         </p>
       </div>
-      <Link to="/wallet/pending-withdrawals" className="inline-flex items-center text-sm text-[var(--cb-yellow-dark)] font-semibold">
-        View pending withdrawals <ChevronRight className="w-4 h-4" />
+      <Link to="/account/wallet/transaction-history" className="inline-flex items-center text-sm text-[var(--cb-yellow-dark)] font-semibold">
+        View transaction history <ChevronRight className="w-4 h-4" />
       </Link>
     </AccountLayout>
   )
 }
 
-export function PendingWithdrawals() {
+export function TransactionHistory() {
   return (
     <AccountLayout>
-      <h1 className="text-2xl md:text-3xl font-extrabold text-[var(--cb-light-text)] mb-6">Pending withdrawals</h1>
-      <div className="rounded-md bg-white border border-[var(--cb-light-border)] overflow-hidden mb-6">
-        <div className="hidden md:grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-4 px-5 py-3 text-xs font-bold text-[var(--cb-light-muted)] uppercase tracking-wide border-b border-[var(--cb-light-border)]">
-          <span>ID</span><span>Method</span><span>Amount</span><span>Requested</span><span>Status</span>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-extrabold text-[var(--cb-light-text)] md:text-3xl">Transaction History</h1>
+          <p className="mt-1 text-sm text-[var(--cb-light-muted)]">Review your deposit and withdrawal requests.</p>
         </div>
-        {PENDING_DEMO.map((w) => (
-          <div key={w.id} className="grid md:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 md:gap-4 px-5 py-4 border-b border-[var(--cb-light-border)] last:border-0 items-center">
-            <span className="text-sm font-mono text-[var(--cb-light-text)]">{w.id}</span>
-            <span className="text-sm text-[var(--cb-light-muted)]">{w.method}</span>
-            <span className="text-sm font-bold text-[var(--cb-light-text)]">{w.amount}</span>
-            <span className="text-sm text-[var(--cb-light-muted)]">{w.requested}</span>
-            <span className="justify-self-start md:justify-self-end flex items-center gap-2">
-              <span className="text-[10px] font-bold px-2 py-1 rounded bg-[#fdf5dc] text-[var(--cb-yellow-dark)] uppercase tracking-wide">{w.status}</span>
-              <button className="text-xs font-bold text-[var(--cb-red)] hover:underline">Cancel</button>
-            </span>
+        <span className="text-xs text-[var(--cb-light-muted)]">{TRANSACTIONS_DEMO.length} transactions</span>
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-2 text-xs font-semibold">
+        <span className="rounded-full bg-[#edf3f5] px-3 py-1.5 text-[var(--cb-light-text)]">All transactions</span>
+        <span className="rounded-full bg-[#e8f5ec] px-3 py-1.5 text-[#236a3a]">Deposits</span>
+        <span className="rounded-full bg-[#eef0ff] px-3 py-1.5 text-[#3f4b9a]">Withdrawals</span>
+      </div>
+
+      <div className="mb-6 overflow-hidden rounded-md border border-[var(--cb-light-border)] bg-white">
+        <div className="hidden grid-cols-[1.05fr_0.8fr_1fr_0.9fr_1fr_auto] gap-3 border-b border-[var(--cb-light-border)] px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-[var(--cb-light-muted)] lg:grid lg:px-5">
+          <span>Transaction ID</span><span>Type</span><span>Method</span><span>Amount</span><span>Date</span><span>Status</span>
+        </div>
+        {TRANSACTIONS_DEMO.map((transaction) => (
+          <div
+            key={transaction.id}
+            className="grid grid-cols-2 items-center gap-x-4 gap-y-2 border-b border-[var(--cb-light-border)] px-4 py-4 last:border-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:grid-cols-[1.05fr_0.8fr_1fr_0.9fr_1fr_auto] lg:gap-3 lg:px-5"
+          >
+            <div className="min-w-0">
+              <span className="block text-[10px] text-[var(--cb-light-muted)] lg:hidden">Transaction ID</span>
+              <span className="truncate font-mono text-xs text-[var(--cb-light-text)]">{transaction.id}</span>
+            </div>
+            <div>
+              <span className="block text-[10px] text-[var(--cb-light-muted)] lg:hidden">Type</span>
+              <span className={cn(
+                'inline-flex rounded-full px-2 py-1 text-[10px] font-bold',
+                transaction.type === 'Deposit' ? 'bg-[#e8f5ec] text-[#236a3a]' : 'bg-[#eef0ff] text-[#3f4b9a]',
+              )}>{transaction.type}</span>
+            </div>
+            <div className="min-w-0">
+              <span className="block text-[10px] text-[var(--cb-light-muted)] lg:hidden">Method</span>
+              <span className="truncate text-xs text-[var(--cb-light-text)]">{transaction.method}</span>
+            </div>
+            <div>
+              <span className="block text-[10px] text-[var(--cb-light-muted)] lg:hidden">Amount</span>
+              <span className="text-sm font-bold text-[var(--cb-light-text)]">{transaction.amount}</span>
+            </div>
+            <div>
+              <span className="block text-[10px] text-[var(--cb-light-muted)] lg:hidden">Date</span>
+              <span className="text-xs text-[var(--cb-light-muted)]">{transaction.requested}</span>
+            </div>
+            <div className="col-span-2 lg:col-span-1">
+              <span className="block text-[10px] text-[var(--cb-light-muted)] lg:hidden">Status</span>
+              <span className={cn(
+                'inline-flex rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide',
+                transaction.status === 'Completed'
+                  ? 'bg-[#e8f5ec] text-[#236a3a]'
+                  : transaction.status === 'Pending'
+                    ? 'bg-[#fdf5dc] text-[var(--cb-yellow-dark)]'
+                    : 'bg-[#fdecec] text-[#a82e2e]',
+              )}>{transaction.status}</span>
+            </div>
           </div>
         ))}
       </div>
-      <p className="text-xs text-[var(--cb-light-muted)] flex items-center gap-2">
-        <WalletIcon className="w-4 h-4" />
-        Demonstration data — no real transactions exist behind this prototype.
+      <p className="flex items-center gap-2 text-xs text-[var(--cb-light-muted)]">
+        <WalletIcon className="h-4 w-4 shrink-0" />
+        Demonstration data only — deposits and withdrawals are not connected to a live payment system.
       </p>
     </AccountLayout>
   )
 }
+
+export const PendingWithdrawals = TransactionHistory
 
 export function WalletRouter() {
   const { tab = 'deposit' } = useParams()
   switch (tab) {
     case 'deposit': return <Deposit />
     case 'withdraw': return <Withdraw />
-    case 'pending-withdrawals': return <PendingWithdrawals />
+    case 'transaction-history': return <TransactionHistory />
+    case 'pending-withdrawals': return <Navigate to="/account/wallet/transaction-history" replace />
     default: return <Navigate to="/account/wallet/deposit" replace />
   }
 }
