@@ -120,7 +120,7 @@ export function SportsCategory() {
   const activeCat = SPORT_CATEGORIES.find((c) => c.slug === category)
 
   return (
-    <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-6">
+    <div className="mx-auto w-full max-w-screen-2xl px-4 py-6">
       {category ? (
         <Link to="/sports" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-2 transition-colors">
           <ChevronLeft className="w-4 h-4" /> All sports

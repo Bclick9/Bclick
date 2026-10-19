@@ -98,7 +98,7 @@ function ShufflePick() {
 
 export default function LiveCasino() {
   return (
-    <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-8">
+    <div className="mx-auto w-full max-w-screen-2xl px-4 py-6">
       <LiveCasinoCategories />
 
       <div id="live-casino" className="scroll-mt-24">

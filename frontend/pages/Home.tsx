@@ -23,7 +23,7 @@ const TRENDING = TRENDING_IDS
 
 export default function Home() {
   return (
-    <div className="mx-auto w-[calc(100%-28px)] max-w-[1400px] pt-4 pb-8 md:mx-0 md:ml-[clamp(40px,8vw,150px)] md:w-[calc(100%-clamp(40px,8vw,150px))] md:max-w-[1400px]">
+    <div className="mx-auto w-full max-w-screen-2xl px-4 pt-4 pb-8">
       <SectionRow title="Promotions" more="/promotions">
         {PROMOTIONS.slice(0, 3).map((promotion) => (
           <PromoCard key={promotion.slug} promo={promotion} />

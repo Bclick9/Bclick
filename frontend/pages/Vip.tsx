@@ -6,7 +6,7 @@ import { cn } from '../lib/shadcn/utils'
 
 export default function Vip() {
   return (
-    <div className="max-w-[1200px] mx-auto px-4 md:px-8 py-6">
+    <div className="mx-auto w-full max-w-screen-2xl px-4 py-6">
       <Link to="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-2 transition-colors">
         <ChevronLeft className="w-4 h-4" /> Home
       </Link>

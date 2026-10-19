@@ -5,7 +5,7 @@ import { TOURNAMENTS } from '../data/catalog'
 
 export default function Tournaments() {
   return (
-    <div className="max-w-[1200px] mx-auto px-4 md:px-8 py-6">
+    <div className="mx-auto w-full max-w-screen-2xl px-4 py-6">
       <PageTitle title="Tournaments" subtitle="Compete for leaderboard prizes." />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
