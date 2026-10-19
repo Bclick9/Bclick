@@ -1,33 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
-  Home, Coins, CircleDot, Volleyball, Gift, Trophy, Crown, Target, Headset,
-  PanelLeftClose, Search, Maximize2, Minimize2, X, WalletCards, Play, Gamepad2, LockKeyhole,
+  Search, Maximize2, Minimize2, X, WalletCards, Play, Gamepad2, LockKeyhole,
 } from 'lucide-react'
 import { AuthModal } from './Auth'
 import { GAMES } from '../data/catalog'
 import { cn } from '../lib/shadcn/utils'
 import { SearchDialog } from '../components/SearchDialog'
-
-const PLAY_NAV = [
-  { to: '/', label: 'Home', icon: Home },
-  { to: '/casino/lobby', label: 'Casino', icon: Coins },
-  { to: '/live-casino', label: 'Live Casino', icon: CircleDot },
-  { to: '/sports', label: 'Sports', icon: Volleyball },
-  { to: '/promotions', label: 'Promotions', icon: Gift },
-  { to: '/jackpots', label: 'Jackpots', icon: Trophy },
-  { to: '/tournaments', label: 'Tournaments', icon: Trophy },
-  { to: '/vip', label: 'VIP', icon: Crown },
-  { to: '/rewards', label: 'Rewards', icon: Target },
-]
+import { Sidebar, SIDEBAR_WIDTH } from '../components/Sidebar'
 
 export default function CasinoPlay() {
   const { mode = 'demo', gameId = '' } = useParams()
   const navigate = useNavigate()
-  const { pathname } = useLocation()
   const game = GAMES.find((item) => item.id === gameId)
   const stageRef = useRef<HTMLDivElement>(null)
   const [fullscreen, setFullscreen] = useState(false)
+  const [sidebarExpanded, setSidebarExpanded] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [poster, setPoster] = useState(game?.image || game?.imageFallback || '')
@@ -66,43 +54,12 @@ export default function CasinoPlay() {
   }
 
   return (
-    <div className="grid min-h-[100dvh] w-full grid-cols-1 bg-[#05090d] text-white md:grid-cols-[76px_minmax(0,1fr)]">
-      <aside className="z-10 hidden border-r border-[var(--cb-line)] bg-[var(--cb-nav)] md:block">
-        <div className="sticky top-0 flex h-[100dvh] min-h-0 flex-col px-2.5 pb-2.5">
-          <div className="flex h-16 shrink-0 items-center">
-            <Link to="/casino/lobby" aria-label="Back to casino lobby" title="Casino lobby" className="flex h-10 w-full items-center justify-center rounded-[10px] text-[#aebfca] transition-colors hover:bg-[var(--cb-hover)] hover:text-white">
-              <PanelLeftClose className="h-7 w-7" />
-            </Link>
-          </div>
-          <nav aria-label="Main navigation" className="scrollbar flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden">
-            {PLAY_NAV.map(({ to, label, icon: Icon }) => {
-              const active = label === 'Casino' ? pathname.startsWith('/casino') : pathname === to || (to !== '/' && pathname.startsWith(`${to}/`))
-              return (
-                <Link
-                  key={to}
-                  to={to}
-                  title={label}
-                  aria-label={label}
-                  className={cn(
-                    'flex h-12 shrink-0 items-center justify-center rounded-[10px] transition-colors',
-                    active ? 'bg-[#233d4b] text-white' : 'text-[#aebfca] hover:bg-[var(--cb-hover)] hover:text-white',
-                  )}
-                >
-                  <Icon className="h-6 w-6" />
-                </Link>
-              )
-            })}
-          </nav>
-          <div className="flex shrink-0 flex-col gap-2 pt-2">
-            <button type="button" aria-label="English language" title="British English" className="flex h-11 items-center justify-center rounded-[10px] border border-[var(--cb-line)] text-lg hover:bg-[var(--cb-hover)]">🇬🇧</button>
-            <Link to="/support" aria-label="Support" title="Support" className="flex h-11 items-center justify-center rounded-[10px] border border-[var(--cb-line)] text-[#aebfca] hover:bg-[var(--cb-hover)] hover:text-white">
-              <Headset className="h-6 w-6" />
-            </Link>
-          </div>
-        </div>
-      </aside>
-
-      <div className="flex min-h-[100dvh] min-w-0 flex-col">
+    <div className="min-h-[100dvh] w-full bg-[#05090d] text-white">
+      <Sidebar expanded={sidebarExpanded} onToggle={() => setSidebarExpanded((expanded) => !expanded)} />
+      <div
+        className="flex min-h-[100dvh] min-w-0 flex-col transition-[padding] duration-200 ease-out md:pl-[var(--sbw)]"
+        style={{ ['--sbw' as string]: `${sidebarExpanded ? SIDEBAR_WIDTH.expanded : SIDEBAR_WIDTH.collapsed}px` }}
+      >
         <header className="sticky top-0 z-[110] shrink-0 border-b border-[var(--cb-line)] bg-[var(--cb-nav)]">
           <div className="grid h-14 min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 sm:px-4 md:h-16 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-3">
             <div className="hidden min-w-0 items-center gap-2 xl:flex">
