@@ -870,7 +870,7 @@ function PlayerProfilePage({ user, onBack, onToggle, onNotify, onSave }: {
               : <span className={empty ? 'text-slate-300' : ''}>{empty ? '—' : raw}</span>}
           </div>
         </div>
-      })
+      })}
     </div>
   )
   const section = (title: string, fields: { label: string; key?: string; value?: string; flag?: boolean }[], description?: string) => (
