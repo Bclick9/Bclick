@@ -21,7 +21,8 @@ const SECTIONS: Record<string, Section> = {
   'self-exclusion': { title: 'Self-exclusion', subtitle: 'Manage access breaks and self-exclusion settings.' },
   'deposit-limits': { title: 'Deposit limits', subtitle: 'Set personal limits to help manage your play.' },
   'reality-check': { title: 'Reality check', subtitle: 'Review reminders about time spent playing.' },
-  betslips: { title: 'Betslips', subtitle: 'Review your sports bets and open each ticket for full details.' },
+  betslips: { title: 'Sports Betslips', subtitle: 'Review your sports bets and open each ticket for full details.' },
+  'casino-history': { title: 'Casino History', subtitle: 'Review your wagers on casino games and open any entry for details.' },
 }
 
 function ReadOnlyField({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
@@ -233,9 +234,11 @@ export default function AccountPage() {
           selectedBetId
             ? selectedBet
               ? <BetslipTicketPage bet={selectedBet} />
-              : <EmptyState icon={History} title="Betslip not found" detail="This ticket may no longer be available. Return to Betslips to choose another ticket." />
+              : <EmptyState icon={History} title="Betslip not found" detail="This ticket may no longer be available. Return to Sports history to choose another ticket." />
             : <BetslipsSection />
         ) : null}
+
+        {sectionKey === 'casino-history' ? <CasinoHistorySection /> : null}
 
         {!SECTIONS[sectionKey] && sectionKey !== 'profile' && sectionKey !== 'overview' ? (
           <EmptyState icon={UserRound} title="Account overview" detail="Choose a section from the account menu to view its details." />
@@ -502,6 +505,134 @@ function BetslipTicketPage({ bet }: { bet: DemoBetslip }) {
   )
 }
 
+
+
+type DemoCasinoWager = {
+  id: string
+  date: string
+  game: string
+  provider: string
+  betType: string
+  stake: string
+  win: string
+  balance: string
+  status: 'Won' | 'Lost' | 'No win'
+  roundId: string
+  multiplier: string
+}
+
+const CASINO_WAGERS_DEMO: DemoCasinoWager[] = [
+  { id: 'CW-914582', date: '19/10/2026 10:42:18', game: 'Zeus vs Hades: Gods of War', provider: 'Demo Studio', betType: 'Spin', stake: '€2.00', win: '€12.40', balance: '€10.40', status: 'Won', roundId: 'RND-78451209', multiplier: '6.20x' },
+  { id: 'CW-914579', date: '19/10/2026 10:39:06', game: 'Lucky Lady’s Charm Deluxe', provider: 'Novomatic', betType: 'Spin', stake: '€1.00', win: '€0.00', balance: '€9.00', status: 'Lost', roundId: 'RND-78451172', multiplier: '0.00x' },
+  { id: 'CW-914570', date: '19/10/2026 10:31:54', game: 'Wild Clusters', provider: 'Demo Studio', betType: 'Spin', stake: '€0.50', win: '€1.80', balance: '€9.80', status: 'Won', roundId: 'RND-78451041', multiplier: '3.60x' },
+  { id: 'CW-914554', date: '19/10/2026 10:14:22', game: 'Raptor 2 Doublemax', provider: 'Play’n GO', betType: 'Spin', stake: '€2.50', win: '€0.00', balance: '€7.30', status: 'Lost', roundId: 'RND-78450793', multiplier: '0.00x' },
+  { id: 'CW-914539', date: '19/10/2026 09:58:04', game: 'Wealth Bells 40', provider: 'BF Games', betType: 'Spin', stake: '€1.00', win: '€4.00', balance: '€11.30', status: 'Won', roundId: 'RND-78450433', multiplier: '4.00x' },
+  { id: 'CW-914522', date: '19/10/2026 09:42:37', game: 'Silver Coins', provider: 'BF Games', betType: 'Spin', stake: '€3.00', win: '€0.00', balance: '€8.30', status: 'No win', roundId: 'RND-78450184', multiplier: '0.00x' },
+]
+
+function casinoWagerStatusClass(status: DemoCasinoWager['status']) {
+  if (status === 'Won') return 'bg-[#e7f7eb] text-[#21743a]'
+  if (status === 'Lost') return 'bg-[#fdeaea] text-[#a22a2a]'
+  return 'bg-[#eef0f3] text-[#5a6570]'
+}
+
+function CasinoHistorySection() {
+  const [selectedWagerId, setSelectedWagerId] = useState<string | null>(null)
+  const selectedWager = CASINO_WAGERS_DEMO.find((wager) => wager.id === selectedWagerId)
+
+  return (
+    <div className="min-w-0 space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-extrabold text-[var(--cb-light-text)]">Casino Betting History</h2>
+          <p className="mt-1 text-sm text-[var(--cb-light-muted)]">Review individual wagers and results from casino games.</p>
+        </div>
+        <span className="text-xs text-[var(--cb-light-muted)]">{CASINO_WAGERS_DEMO.length} wagers</span>
+      </div>
+
+      <div className="overflow-hidden rounded-md border border-[var(--cb-light-border)] bg-white">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[850px] border-collapse text-left">
+            <thead className="bg-[#f6f7f8]">
+              <tr className="border-b border-[var(--cb-light-border)] text-[10px] font-bold uppercase tracking-wide text-[var(--cb-light-muted)]">
+                <th className="px-4 py-3">Bet ID</th>
+                <th className="px-3 py-3">Date</th>
+                <th className="px-3 py-3">Game</th>
+                <th className="px-3 py-3">Bet</th>
+                <th className="px-3 py-3">Stake</th>
+                <th className="px-3 py-3">Win</th>
+                <th className="px-3 py-3">Status</th>
+                <th className="px-4 py-3 text-center">View</th>
+              </tr>
+            </thead>
+            <tbody>
+              {CASINO_WAGERS_DEMO.map((wager) => (
+                <tr key={wager.id} className="border-b border-[var(--cb-light-border)] last:border-0 hover:bg-[#fafafa]">
+                  <td className="whitespace-nowrap px-4 py-4 font-mono text-xs font-semibold text-[var(--cb-light-text)]">{wager.id}</td>
+                  <td className="whitespace-nowrap px-3 py-4 text-xs text-[var(--cb-light-muted)]">{wager.date}</td>
+                  <td className="max-w-[220px] px-3 py-4">
+                    <span className="block truncate text-xs font-semibold text-[var(--cb-light-text)]">{wager.game}</span>
+                    <span className="mt-1 block truncate text-[10px] text-[var(--cb-light-muted)]">{wager.provider}</span>
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-4 text-xs text-[var(--cb-light-text)]">{wager.betType}</td>
+                  <td className="whitespace-nowrap px-3 py-4 text-xs font-bold text-[var(--cb-light-text)]">{wager.stake}</td>
+                  <td className="whitespace-nowrap px-3 py-4 text-xs font-bold text-[var(--cb-light-text)]">{wager.win}</td>
+                  <td className="px-3 py-4">
+                    <span className={'inline-flex rounded-full px-2 py-1 text-[10px] font-bold ' + casinoWagerStatusClass(wager.status)}>{wager.status}</span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedWagerId((current) => current === wager.id ? null : wager.id)}
+                      aria-label={'View casino wager ' + wager.id}
+                      title="View wager details"
+                      aria-expanded={selectedWagerId === wager.id}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded border border-[var(--cb-light-border)] text-[var(--cb-light-text)] transition hover:border-[var(--cb-yellow)] hover:bg-[#fff8df]"
+                    >
+                      <Eye className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {selectedWager ? (
+        <section className="rounded-md border border-[var(--cb-light-border)] bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--cb-light-border)] bg-[#f7f8f9] px-4 py-4">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--cb-light-muted)]">Casino wager details</p>
+              <h3 className="mt-1 text-base font-extrabold text-[var(--cb-light-text)]">{selectedWager.id}</h3>
+            </div>
+            <span className={'inline-flex rounded-full px-2.5 py-1.5 text-xs font-bold ' + casinoWagerStatusClass(selectedWager.status)}>{selectedWager.status}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-px bg-[var(--cb-light-border)] sm:grid-cols-3">
+            {[
+              { label: 'Game', value: selectedWager.game },
+              { label: 'Provider', value: selectedWager.provider },
+              { label: 'Date', value: selectedWager.date },
+              { label: 'Stake', value: selectedWager.stake },
+              { label: 'Win amount', value: selectedWager.win },
+              { label: 'Balance after round', value: selectedWager.balance },
+              { label: 'Round ID', value: selectedWager.roundId },
+              { label: 'Multiplier', value: selectedWager.multiplier },
+              { label: 'Bet type', value: selectedWager.betType },
+            ].map((item) => (
+              <div key={item.label} className="min-w-0 bg-white p-3.5">
+                <p className="text-xs text-[var(--cb-light-muted)]">{item.label}</p>
+                <p className="mt-1 break-words text-sm font-semibold text-[var(--cb-light-text)]">{item.value}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <p className="text-xs text-[var(--cb-light-muted)]">Sample data for interface preview only. Casino wagers and balances are not connected to a live game provider.</p>
+    </div>
+  )
+}
 
 type BonusScope = 'sports' | 'casino'
 type BonusTab = BonusScope | 'promo-code' | 'activity-history'
