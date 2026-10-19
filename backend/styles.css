@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 33% 98%;
+    --foreground: 222 38% 13%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 38% 13%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 38% 13%;
+    --primary: 45 91% 57%;
+    --primary-foreground: 222 38% 13%;
+    --secondary: 210 25% 96%;
+    --secondary-foreground: 222 32% 23%;
+    --muted: 210 25% 96%;
+    --muted-foreground: 215 13% 48%;
+    --accent: 210 25% 96%;
+    --accent-foreground: 222 32% 23%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 23% 91%;
+    --input: 214 23% 87%;
+    --ring: 45 91% 47%;
+    --radius: 0.7rem;
+  }
+
+  * { @apply border-border; }
+  html { min-width: 320px; background: #f7f9fc; }
+  body { @apply bg-background text-foreground antialiased; margin: 0; font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif; }
+  button, input, select, textarea { font: inherit; }
+  ::selection { background: rgba(245, 197, 66, .3); }
+}
+
+h1, h2, h3, .font-display { font-family: 'Manrope', 'DM Sans', ui-sans-serif, system-ui, sans-serif; }
+
+.admin-scrollbar { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+.admin-scrollbar::-webkit-scrollbar { width: 7px; height: 7px; }
+.admin-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+
+@keyframes soft-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.page-enter { animation: soft-in .24s ease-out both; }
+
+.chart-grid line { stroke: #e9edf3; stroke-dasharray: 3 5; }
+.chart-label { fill: #8a95a5; font-size: 11px; font-family: 'DM Sans', sans-serif; }
