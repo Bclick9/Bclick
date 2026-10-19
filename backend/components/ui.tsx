@@ -76,6 +76,7 @@ export function Modal({
   description,
   children,
   footer,
+  size = 'default',
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -83,12 +84,13 @@ export function Modal({
   description?: string
   children: ReactNode
   footer?: ReactNode
+  size?: 'default' | 'wide' | 'full'
 }) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in-0" />
-        <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-50 max-h-[90vh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-border bg-white p-6 shadow-2xl outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95">
+        <DialogPrimitive.Content className={cn("fixed left-1/2 top-1/2 z-50 max-h-[92vh] w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-border bg-white p-4 shadow-2xl outline-none sm:p-6 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95", size === 'default' && 'max-w-lg', size === 'wide' && 'max-w-4xl', size === 'full' && 'w-[96vw] max-w-[1500px]')}>
           <div className="mb-5 flex items-start justify-between gap-4">
             <div className="min-w-0">
               <DialogPrimitive.Title className="text-lg font-semibold tracking-tight text-slate-900">{title}</DialogPrimitive.Title>
