@@ -1,11 +1,11 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import {
-  Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BadgePercent, Bell, CalendarDays,
+  ArrowDownRight, ArrowRight, ArrowUpRight, BadgePercent, Bell, CalendarDays,
   CheckCircle2, ChevronDown, ChevronRight, CircleHelp, Clock3, CreditCard, Download,
   Eye, FileText, Filter, Gamepad2, Gift, Globe, LayoutDashboard, LifeBuoy, LogOut,
-  Mail, Menu, MoreHorizontal, Plus, Search, Settings, ShieldCheck, SlidersHorizontal,
-  Sparkles, TrendingUp, Users, Wallet, X, Zap, UserPlus, CircleDollarSign, Trophy,
-  MonitorPlay, Receipt, PanelLeftClose, Shield, Send, Check, Pause, Play, Pencil,
+  Menu, MoreHorizontal, Plus, Search, Settings, ShieldCheck,
+  Sparkles, TrendingUp, Users, Wallet, X, Zap, UserPlus, CircleDollarSign,
+  Shield, Check, Pause, Play, Pencil,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Modal } from './components/ui'
@@ -112,7 +112,7 @@ function Avatar({ name, tone = 'bg-amber-100 text-amber-800', size = 'md' }: { n
   return <div className={cn('inline-flex shrink-0 items-center justify-center rounded-full font-bold ring-2 ring-white', dimensions, tone)}>{initials(name)}</div>
 }
 
-function SectionHeading({ eyebrow, title, description, actions }: { eyebrow?: string; title: string; description?: string; actions?: React.ReactNode }) {
+function SectionHeading({ eyebrow, title, description, actions }: { eyebrow?: string; title: string; description?: string; actions?: ReactNode }) {
   return (
     <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
