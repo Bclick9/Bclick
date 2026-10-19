@@ -1428,7 +1428,7 @@ type ReportTableConfig = {
   defaultSortDirection?: 'asc' | 'desc'
 }
 const makeReportRows = (columns: ReportColumn[], rows: { id: string; values: Record<string, string> }[]): ReportRow[] =>
-  rows.map((row) => ({ id: row.id, values: Object.fromEntries(columns.map((column) => [column.key, row.values[column.key] ?? '—'])) }))
+  rows.map((row) => ({ id: row.id, values: Object.fromEntries(columns.map((column) => [column.key, row.values[column.key] ?? '—'] as const)) }))
 
 const BET_REPORT_COLUMNS: ReportColumn[] = [
   { key: 'betId', label: 'Bet ID', width: 150 },
