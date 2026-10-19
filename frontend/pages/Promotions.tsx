@@ -3,6 +3,16 @@ import { ChevronLeft, CalendarClock, Percent } from 'lucide-react'
 import { PromoCard, PageTitle } from '../components/cards'
 import { PROMOTIONS } from '../data/catalog'
 
+const FEATURED_PROMOTION_IMAGES = [
+  'https://i.imgur.com/LX0CyyU.jpeg',
+  'https://i.imgur.com/X75yedd.jpeg',
+  'https://i.imgur.com/v7bu7ga.jpeg',
+  'https://i.imgur.com/7dRXAXI.jpeg',
+  'https://i.imgur.com/CmuEAMk.jpeg',
+  'https://i.imgur.com/V9tDnF9.jpeg',
+  'https://i.imgur.com/InQuRtL.jpeg',
+]
+
 export default function Promotions() {
   const casino = PROMOTIONS.filter((p) => p.scope === 'casino')
   const sports = PROMOTIONS.filter((p) => p.scope === 'sports')
@@ -10,6 +20,39 @@ export default function Promotions() {
   return (
     <div className="max-w-[1200px] mx-auto px-4 md:px-8 py-6">
       <PageTitle title="Promotions" subtitle="Bonuses, freebets and reload offers." />
+
+      <section aria-labelledby="featured-promotions-heading" className="mb-10">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 id="featured-promotions-heading" className="text-lg font-extrabold text-foreground md:text-xl">Featured promotions</h2>
+          <span className="text-xs font-semibold text-muted-foreground">{FEATURED_PROMOTION_IMAGES.length} offers</span>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {FEATURED_PROMOTION_IMAGES.map((image, index) => (
+            <a
+              key={image}
+              href={image}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Open featured promotion image ${index + 1} in a new tab`}
+              className="group block min-w-0 overflow-hidden rounded-xl border border-[var(--cb-line)] bg-[#07141c] transition-colors hover:border-[var(--cb-yellow)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--cb-yellow)]"
+            >
+              <div className="flex aspect-[16/9] w-full items-center justify-center overflow-hidden bg-[#07141c]">
+                <img
+                  src={image}
+                  alt={`Featured promotion ${index + 1}`}
+                  loading={index < 3 ? 'eager' : 'lazy'}
+                  decoding="async"
+                  className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.015]"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-3 border-t border-[var(--cb-line)] px-3 py-2.5">
+                <span className="text-sm font-bold text-white">Promotion {index + 1}</span>
+                <span className="text-xs font-semibold text-[var(--cb-yellow)]">View offer ↗</span>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
 
       <h2 className="text-lg md:text-xl font-extrabold text-foreground mb-4">Casino offers</h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-10">
