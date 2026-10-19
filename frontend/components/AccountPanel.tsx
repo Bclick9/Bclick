@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
-  User2, ChevronDown, ChevronUp, BadgeCheck, Gift, Wallet, HeartPulse, History, Copy,
+  User2, ChevronDown, ChevronUp, BadgeCheck, Gift, Wallet, History, Copy,
 } from 'lucide-react'
 import { cn } from '../lib/shadcn/utils'
 
@@ -38,16 +38,6 @@ const GROUPS = [
       { label: 'Deposit', path: '/account/wallet/deposit' },
       { label: 'Withdraw', path: '/account/wallet/withdraw' },
       { label: 'Transaction History', path: '/account/wallet/transaction-history' },
-    ],
-  },
-  {
-    key: 'responsible',
-    label: 'Responsible gaming',
-    icon: HeartPulse,
-    links: [
-      { label: 'Self-exclusion', path: '/account/self-exclusion' },
-      { label: 'Deposit limits', path: '/account/deposit-limits' },
-      { label: 'Reality check', path: '/account/reality-check' },
     ],
   },
   {
@@ -191,11 +181,6 @@ export function AccountLayout({ children }: { children: ReactNode }) {
     { label: 'Active', path: '/account/bonuses-active' },
     { label: 'Closed', path: '/account/bonuses-closed' },
   ]
-  const responsibleLinks = [
-    { label: 'Self-exclusion', path: '/account/self-exclusion' },
-    { label: 'Deposit limits', path: '/account/deposit-limits' },
-    { label: 'Reality check', path: '/account/reality-check' },
-  ]
   const historyLinks = [
     { label: 'Betslips', path: '/account/betslips' },
   ]
@@ -204,11 +189,9 @@ export function AccountLayout({ children }: { children: ReactNode }) {
     ? walletLinks
     : pathname.startsWith('/account/bonuses-')
       ? bonusLinks
-      : ['/account/self-exclusion', '/account/deposit-limits', '/account/reality-check'].includes(pathname)
-        ? responsibleLinks
-        : pathname === '/account/betslips'
-          ? historyLinks
-          : profileLinks
+      : pathname === '/account/betslips'
+        ? historyLinks
+        : profileLinks
   const isAccountHome = pathname === '/account'
 
   return (
