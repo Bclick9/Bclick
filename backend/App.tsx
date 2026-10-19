@@ -1779,7 +1779,54 @@ function UserFormModal({ open, onOpenChange, onSubmit }: { open: boolean; onOpen
 
 
 type CmsCategory = { id: string; name: string; items: number; visible: boolean; description: string }
-type CmsBanner = { id: string; title: string; placement: string; status: 'Published' | 'Draft'; updated: string; tone: string }
+type BannerStatus = 'Published' | 'Unpublished' | 'Trash'
+type CmsBannerGroup = { id: string; slug: string; status: BannerStatus }
+type CmsBannerDraft = {
+  title: string
+  platform: string
+  status: BannerStatus
+  showForUsers: string
+  excludedCountries: string
+  includedCountries: string
+  newWindow: string
+  startDate: string
+  endDate: string
+  additionalFeatures: string
+  language: string
+  altText: string
+  hrefType: string
+  href: string
+  profileType: string
+  depositStatus: string
+  profileStatus: string
+  excludedCurrencies: string
+  ageAction: string
+  minAge: string
+  maxAge: string
+  content: string
+  mediaType: string
+  imageName: string
+  visibility: string
+  countryRestriction: string
+  countdownDate: string
+  casinoJackpot: string
+  matchId: string
+  profileTypes: string
+  customProfileTypes: string
+  verifiedProfile: string
+}
+type CmsBanner = CmsBannerDraft & { id: string; groupId: string; modifiedDate: string }
+
+const createEmptyCmsBannerDraft = (): CmsBannerDraft => ({
+  title: '', platform: 'Web', status: 'Published', showForUsers: 'Guest and Logged In',
+  excludedCountries: '', includedCountries: '', newWindow: 'No', startDate: '', endDate: '',
+  additionalFeatures: 'None', language: 'Français', altText: '', hrefType: 'URL', href: '',
+  profileType: 'Global', depositStatus: 'Not selected', profileStatus: 'Not selected',
+  excludedCurrencies: '', ageAction: 'Not selected', minAge: '', maxAge: '', content: '',
+  mediaType: 'Image', imageName: '', visibility: 'All', countryRestriction: 'All',
+  countdownDate: 'All', casinoJackpot: 'All', matchId: 'All', profileTypes: 'All',
+  customProfileTypes: 'All', verifiedProfile: 'All',
+})
 
 const INITIAL_CMS_CATEGORIES: CmsCategory[] = [
   { id: 'cat-featured', name: 'Featured', items: 8, visible: true, description: 'Hand-picked games and highlights' },
@@ -1791,11 +1838,8 @@ const INITIAL_CMS_CATEGORIES: CmsCategory[] = [
   { id: 'cat-crash', name: 'Crash Games', items: 9, visible: true, description: 'Fast-play and multiplier games' },
 ]
 
-const INITIAL_CMS_BANNERS: CmsBanner[] = [
-  { id: 'BNR-001', title: 'Welcome to Bclick', placement: 'Casino hero', status: 'Published', updated: '18 Oct 2026', tone: 'from-slate-950 via-slate-800 to-amber-700' },
-  { id: 'BNR-002', title: 'Weekend Tournament', placement: 'Promotions strip', status: 'Published', updated: '17 Oct 2026', tone: 'from-violet-950 via-purple-800 to-pink-600' },
-  { id: 'BNR-003', title: 'Live Casino Spotlight', placement: 'Live casino category', status: 'Draft', updated: '15 Oct 2026', tone: 'from-blue-950 via-blue-800 to-cyan-600' },
-]
+const INITIAL_CMS_BANNER_GROUPS: CmsBannerGroup[] = []
+const INITIAL_CMS_BANNERS: CmsBanner[] = []
 
 function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) => void }) {
   const [categories, setCategories] = useState<CmsCategory[]>(INITIAL_CMS_CATEGORIES)
