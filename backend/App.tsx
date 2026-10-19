@@ -2847,37 +2847,145 @@ function CmsSkinGamesPage({ games, onSaveGame, onMoveGame, onNotify }: { games: 
   </div>
 }
 
-type CmsProvider = { id: string; name: string; games: number; status: 'Enabled' | 'Disabled'; categories: string; updated: string }
+type CmsProvider = { id: string; name: string; providerCode: string; badge: boolean }
 const INITIAL_CMS_PROVIDERS: CmsProvider[] = [
-  { id: 'PRV-001', name: 'Evolution', games: 42, status: 'Enabled', categories: 'Live Casino', updated: '18 Oct 2026' },
-  { id: 'PRV-002', name: 'Pragmatic Play', games: 126, status: 'Enabled', categories: 'Slots, Live Casino', updated: '18 Oct 2026' },
-  { id: 'PRV-003', name: 'Play’n GO', games: 78, status: 'Enabled', categories: 'Slots', updated: '16 Oct 2026' },
-  { id: 'PRV-004', name: 'Demo Studio', games: 18, status: 'Enabled', categories: 'Slots, Crash', updated: '15 Oct 2026' },
-  { id: 'PRV-005', name: 'NetEnt', games: 64, status: 'Disabled', categories: 'Slots', updated: '10 Oct 2026' },
+  { id: 'PRV-001', name: 'Evolution', providerCode: 'EVO', badge: false },
+  { id: 'PRV-002', name: 'Pragmatic Play', providerCode: 'TPG', badge: false },
+  { id: 'PRV-003', name: 'Play’n GO', providerCode: 'PNG', badge: false },
+  { id: 'PRV-004', name: 'Demo Studio', providerCode: 'DEM', badge: false },
+  { id: 'PRV-005', name: 'NetEnt', providerCode: 'NET', badge: false },
 ]
+
+type ProviderSortKey = 'name' | 'id' | 'providerCode'
 function CmsProvidersPage({ onNotify }: { onNotify: (message: string) => void }) {
   const [providers, setProviders] = useState<CmsProvider[]>(INITIAL_CMS_PROVIDERS)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'All' | CmsProvider['status']>('All')
-  const [showCreate, setShowCreate] = useState(false)
-  const [newName, setNewName] = useState('')
-  const shown = providers.filter((item) => (statusFilter === 'All' || item.status === statusFilter) && (item.name + ' ' + item.categories).toLowerCase().includes(search.toLowerCase()))
-  const add = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!newName.trim()) return
-    setProviders((current) => [{ id: 'PRV-' + String(current.length + 1).padStart(3, '0'), name: newName.trim(), games: 0, status: 'Disabled', categories: 'Unassigned', updated: '19 Oct 2026' }, ...current])
-    setNewName('')
-    setShowCreate(false)
-    onNotify('Provider added to the local CMS preview.')
+  const [sortKey, setSortKey] = useState<ProviderSortKey | null>(null)
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [draggedProviderId, setDraggedProviderId] = useState<string | null>(null)
+
+  const filteredProviders = providers.filter((item) => (item.name + ' ' + item.id + ' ' + item.providerCode).toLowerCase().includes(search.toLowerCase()))
+  const shown = sortKey
+    ? [...filteredProviders].sort((left, right) => {
+        const compare = left[sortKey].localeCompare(right[sortKey], undefined, { numeric: true, sensitivity: 'base' })
+        return sortDirection === 'asc' ? compare : -compare
+      })
+    : filteredProviders
+
+  const sortBy = (key: ProviderSortKey) => {
+    if (sortKey === key) setSortDirection((current) => current === 'asc' ? 'desc' : 'asc')
+    else {
+      setSortKey(key)
+      setSortDirection('asc')
+    }
   }
-  const toggle = (id: string) => setProviders((current) => current.map((item) => item.id === id ? { ...item, status: item.status === 'Enabled' ? 'Disabled' : 'Enabled', updated: '19 Oct 2026' } : item))
-  return <div className="page-enter space-y-5">
-    <SectionHeading title="Providers" description="Control which game providers are available to the casino experience." actions={<Button onClick={() => setShowCreate((current) => !current)}><Plus className="h-4 w-4" /> Add provider</Button>} />
-    {showCreate ? <Card><CardHeader><CardTitle>Add provider</CardTitle><CardDescription>Add a local provider entry for content planning.</CardDescription></CardHeader><CardContent><form onSubmit={add} className="flex flex-col gap-3 sm:flex-row"><Input required value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Provider name" className="sm:max-w-sm" /><Button type="submit"><Plus className="h-4 w-4" /> Add</Button></form></CardContent></Card> : null}
-    <Card><CardContent className="p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="relative sm:w-72"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search providers…" className="pl-9" /></div><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)} className="h-10 rounded-md border border-input bg-white px-3 text-xs"><option>All</option><option>Enabled</option><option>Disabled</option></select></div>
-      <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[640px] table-fixed text-left"><thead><tr className="border-y border-slate-200 bg-slate-50 text-[11px] text-slate-500"><th className="w-[30%] px-3 py-2.5 font-medium">Provider</th><th className="w-[13%] px-3 py-2.5 font-medium">Games</th><th className="w-[25%] px-3 py-2.5 font-medium">Categories</th><th className="w-[15%] px-3 py-2.5 font-medium">Status</th><th className="w-[17%] px-3 py-2.5 font-medium">Updated</th></tr></thead><tbody>{shown.map((item) => <tr key={item.id} className="border-b border-slate-100 text-xs hover:bg-slate-50"><td className="px-3 py-3"><p className="font-medium text-slate-800">{item.name}</p><p className="mt-1 font-mono text-[9px] text-slate-400">{item.id}</p></td><td className="px-3 py-3 text-slate-600 tabular-nums">{item.games}</td><td className="px-3 py-3 text-slate-600">{item.categories}</td><td className="px-3 py-3"><button type="button" onClick={() => toggle(item.id)} className="focus:outline-none"><Badge variant={item.status === 'Enabled' ? 'success' : 'outline'}>{item.status}</Badge></button></td><td className="px-3 py-3 text-slate-500">{item.updated}</td></tr>)}</tbody></table>{shown.length === 0 ? <p className="py-10 text-center text-xs text-slate-400">No providers match these filters.</p> : null}</div>
-    </CardContent></Card>
-    <p className="text-[10px] text-slate-400">Provider availability and catalog counts are example data and do not change live integrations.</p>
+  const reorderProvider = (targetId: string, movingId: string) => {
+    if (targetId === movingId) return
+    setProviders((current) => {
+      const next = [...current]
+      const from = next.findIndex((item) => item.id === movingId)
+      const to = next.findIndex((item) => item.id === targetId)
+      if (from < 0 || to < 0) return current
+      const [moving] = next.splice(from, 1)
+      if (!moving) return current
+      next.splice(to, 0, moving)
+      return next
+    })
+    setSortKey(null)
+    setSortDirection('asc')
+    onNotify('Provider order updated in this local preview.')
+  }
+  const toggleBadge = (id: string) => {
+    setProviders((current) => current.map((item) => item.id === id ? { ...item, badge: !item.badge } : item))
+    onNotify('Provider badge updated in this local preview.')
+  }
+  const resetTable = () => {
+    setProviders(INITIAL_CMS_PROVIDERS)
+    setSearch('')
+    setSortKey(null)
+    setSortDirection('asc')
+    onNotify('Provider table reset.')
+  }
+
+  const sortButton = (key: ProviderSortKey, label: string) => (
+    <button type="button" onClick={() => sortBy(key)} className="inline-flex items-center gap-1.5 text-left hover:text-slate-900">
+      <span>{label}</span>
+      <span className="text-[10px] text-slate-300">{sortKey === key ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span>
+    </button>
+  )
+
+  return <div className="page-enter min-w-0 w-full space-y-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none lg:w-1/2">
+    <div className="flex min-h-[54px] items-center border-b border-slate-200 px-4 py-3 sm:px-5">
+      <h2 className="text-sm font-semibold text-slate-900">Providers</h2>
+    </div>
+
+    <div className="border-b border-slate-200 p-3 sm:p-4">
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+        <div className="relative w-full">
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+          <Input aria-label="Search providers" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search" autoComplete="off" className="h-9 rounded-md border-slate-200 bg-white pl-9 text-xs placeholder:text-slate-400 focus:bg-white" />
+        </div>
+        <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-md" aria-label="Reset provider table" title="Reset table" onClick={resetTable}><RotateCcw className="h-3.5 w-3.5" /></Button>
+      </div>
+    </div>
+
+    <div className="admin-scrollbar w-full overflow-auto">
+      <table className="w-full min-w-[540px] border-separate border-spacing-0 text-left">
+        <thead className="sticky top-0 z-10 bg-white">
+          <tr>
+            <th className="w-[38%] border-b border-slate-200 bg-white px-3 py-3 text-[11px] font-medium text-slate-600">{sortButton('name', 'Provider Title')}</th>
+            <th className="w-[24%] border-b border-slate-200 bg-white px-3 py-3 text-[11px] font-medium text-slate-600">{sortButton('id', 'id')}</th>
+            <th className="w-[20%] border-b border-slate-200 bg-white px-3 py-3 text-[11px] font-medium text-slate-600">{sortButton('providerCode', 'Provider')}</th>
+            <th className="w-[18%] border-b border-slate-200 bg-white px-3 py-3 text-right text-[11px] font-medium text-slate-600">Tools</th>
+          </tr>
+        </thead>
+        <tbody>
+          {shown.map((item, index) => <tr
+            key={item.id}
+            draggable
+            onDragStart={(event) => {
+              event.dataTransfer.setData('text/plain', item.id)
+              event.dataTransfer.effectAllowed = 'move'
+              setDraggedProviderId(item.id)
+            }}
+            onDragOver={(event) => {
+              event.preventDefault()
+              event.dataTransfer.dropEffect = 'move'
+            }}
+            onDrop={(event) => {
+              event.preventDefault()
+              const movingId = event.dataTransfer.getData('text/plain') || draggedProviderId
+              if (movingId) reorderProvider(item.id, movingId)
+              setDraggedProviderId(null)
+            }}
+            onDragEnd={() => setDraggedProviderId(null)}
+            className={cn('group/provider-row cursor-grab transition-colors hover:bg-slate-50 active:cursor-grabbing', index % 2 === 1 && 'bg-slate-50/40', draggedProviderId === item.id && 'opacity-40')}
+          >
+            <td className="border-b border-slate-100 px-3 py-3 text-xs">
+              <div className="flex items-center gap-2">
+                <GripVertical className="h-3.5 w-3.5 shrink-0 text-slate-300 opacity-0 transition group-hover/provider-row:opacity-100" />
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-medium text-slate-800">{item.name}</span>
+                    {item.badge ? <Badge variant="success">Featured</Badge> : null}
+                  </div>
+                </div>
+              </div>
+            </td>
+            <td className="border-b border-slate-100 px-3 py-3 font-mono text-[10px] text-slate-500">{item.id}</td>
+            <td className="border-b border-slate-100 px-3 py-3 text-xs text-slate-600">{item.providerCode}</td>
+            <td className="border-b border-slate-100 px-3 py-3 text-right">
+              <Button type="button" variant="ghost" size="icon" className={cn('h-8 w-8 rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900', item.badge && 'text-emerald-700')} aria-label={'Change badge for ' + item.name} title="Change Badge" onClick={() => toggleBadge(item.id)}><BadgePercent className="h-4 w-4" /></Button>
+            </td>
+          </tr>)}
+        </tbody>
+      </table>
+      {shown.length === 0 ? <div className="border-b border-slate-100 px-4 py-10 text-center text-xs text-slate-400">No providers match your search.</div> : null}
+    </div>
+    <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-[10px] text-slate-400">
+      <span>{shown.length} providers</span>
+      <span>Drag rows to reorder</span>
+    </div>
   </div>
 }
 
