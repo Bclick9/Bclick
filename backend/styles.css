@@ -49,3 +49,28 @@ h1, h2, h3, .font-display { font-family: 'Manrope', 'DM Sans', ui-sans-serif, sy
 
 .chart-grid line { stroke: #e9edf3; stroke-dasharray: 3 5; }
 .chart-label { fill: #8a95a5; font-size: 11px; font-family: 'DM Sans', sans-serif; }
+
+/* shadcnblocks-style workspace frame: quiet borders, compact chrome, neutral canvas. */
+.app-shell.theme-violet {
+  --primary: 262 83% 58%;
+  --ring: 262 83% 58%;
+}
+.app-shell.theme-blue {
+  --primary: 221 83% 53%;
+  --ring: 221 83% 53%;
+}
+.app-shell .workspace-nav-active {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+.app-shell.theme-violet .workspace-nav-active {
+  background-color: #f5f3ff;
+  color: #5b21b6;
+}
+.app-shell.theme-blue .workspace-nav-active {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+.app-shell .workspace-nav-active svg:last-child {
+  color: #64748b;
+}
