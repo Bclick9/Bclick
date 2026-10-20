@@ -10,6 +10,7 @@ Updated: 2026-10-20
 - **Phase 1 audit:** [`2026-10-20-IR-002-repository-audit.md`](./2026-10-20-IR-002-repository-audit.md).
 - **Phase 2 review:** [`2026-10-20-IR-003-phase-2-architecture-review.md`](./2026-10-20-IR-003-phase-2-architecture-review.md).
 - **Phase 3 implementation note:** [`2026-10-20-BE-001-api-skeleton.md`](./2026-10-20-BE-001-api-skeleton.md).
+- **Q-001–Q-003 owner decision memo:** [`2026-10-20-Q001-Q003-auth-csrf-owner-decisions.md`](./2026-10-20-Q001-Q003-auth-csrf-owner-decisions.md); [decision issue #55](https://github.com/Bclick9/Bclick/issues/55). Authentication/MFA/CSRF implementation remains blocked pending named owner approval.
 - **Verification runs:** [39423227939](https://github.com/Bclick9/Bclick/actions/runs/39423227939) passed after the `X-Request-Id` schema/runtime/test/client reconciliation. Run [39423555201](https://github.com/Bclick9/Bclick/actions/runs/39423555201) also passed after explicit Redocly structural/reference/operationId/parameter rules were pinned. Earlier run 39420950279 covered the original API skeleton implementation.
 - **Implementation status:** No authentication/session lifecycle, wallet ledger, payments, CMS media upload or provider adapter/callback/launch routes were added. No deployment or real-money operation performed.
 
@@ -19,6 +20,7 @@ Updated: 2026-10-20
 - **IR-002:** Audited the repository tree, workspace manifests, current UI boundaries and existing CI definitions.
 - **IR-003:** Recorded a recommended Phase 2 technical architecture/data-model baseline and the owner decisions/evidence that remain open.
 - **BE-001:** Added the separate Fastify `server/` workspace and health/readiness, validated config, PostgreSQL pool probe, redacted request logging, request IDs, exact `packages/money` primitives, shared config package, generated OpenAPI client, PostgreSQL Compose, migration wiring, CI, Caddy example and backup/restore runbooks.
+- **Phase 0.5 / Q-020 follow-up:** Added `scripts/verify_openapi_contracts.py` and pinned Python dependencies to detect duplicate YAML keys, unresolved refs, duplicate operation IDs/parameters, and validate representative error and Aggregator callback fixtures. The new CI run must pass before treating this evidence as accepted; it remains static validation, not runtime coverage for unimplemented handlers.
 - **BE-001 verification:** Both CI jobs passed on run 39423227939: OpenAPI lint/generated-client drift, workspace typecheck, config/money/server unit tests, API build, PostgreSQL migration, health startup, and Schemathesis Health checks with negative-data rejection enabled. The current head makes structural/reference/operationId/parameter rules explicit; run 39423555201 passed those checks.
 - Aligned Backoffice workflow to pnpm 10.4.1; generated `pnpm-lock.yaml` and the committed API-client declarations with a temporary branch-only workflow, then removed that temporary workflow after use.
 - Recorded [Phase 0.5 security/API gate status](./2026-10-20-PHASE-0-5-security-gates.md), separating verified contract work from owner/vendor/evidence gates that remain open.
