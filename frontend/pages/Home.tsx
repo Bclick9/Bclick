@@ -24,9 +24,13 @@ const TRENDING = TRENDING_IDS
 export default function Home() {
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 pt-4 pb-8">
-      <SectionRow title="Promotions" more="/promotions">
-        {PROMOTIONS.slice(0, 3).map((promotion) => (
-          <PromoCard key={promotion.slug} promo={promotion} />
+      <SectionRow title="Promotions" more="/promotions" fadeEdges={false} compactHeader>
+        {PROMOTIONS.map((promotion) => (
+          <PromoCard
+            key={promotion.slug}
+            promo={promotion}
+            className="basis-full sm:basis-[calc(50%_-_4px)] lg:basis-[calc(33.333333%_-_5.333333px)] 2xl:basis-[calc(25%_-_6px)]"
+          />
         ))}
       </SectionRow>
 
