@@ -16,7 +16,7 @@ The canonical planning OpenAPI file and the repository mirror now express the in
 - Fastify applies the same response-ID rule. Invalid, too-short, or overlong client values are replaced with a server-generated UUID.
 - Unit tests cover the shortest valid value and malformed, too-short, and overlong values.
 - The temporary Schemathesis `negative_data_rejection` exclusion was removed. The generated client declarations were brought back in sync with OpenAPI.
-- GitHub Actions run [39423227939](https://github.com/Bclick9/Bclick/actions/runs/39423227939) passed on commit `b46342161d31425a3578b612a709100f2a8b90f9`: OpenAPI lint/client generation/drift check and API typecheck, tests, build, migration, health startup and Schemathesis all passed.
+- GitHub Actions run [39423227939](https://github.com/Bclick9/Bclick/actions/runs/39423227939) passed on commit `b46342161d31425a3578b612a709100f2a8b90f9`: OpenAPI lint/client generation/drift check and API typecheck, tests, build, migration, health startup and Schemathesis all passed. A subsequent commit also pins explicit Redocly structural, unresolved-reference, unique-operationId and unique-parameter rules; its own CI run is pending in this update.
 
 This resolves only the request-ID inconsistency. It is not evidence that the complete API contract or security design has been accepted.
 
@@ -32,7 +32,7 @@ The statuses below are implementation/evidence statuses for this repository incr
 | Q-004 — CMS media storage/scanning/quarantine | **Open.** A choice of object storage and scanner/quarantine flow is not implemented. | Platform/CMS decision; 10 MiB cap, MIME and magic-byte checks, safe raster decoding/re-encoding, pixel bounds, quarantine, malware scanner outage failure tests. Upload remains disabled. |
 | Q-005 — game slug/provider/category semantics | **Open.** The skeleton contains no catalogue implementation. | Approved slug/UUID resolution and uniqueness policy; required provider and complete `categories[]` semantics; mapping/integration fixtures. |
 | Q-013 — CSP/frame/host-header policy | **Open.** Example proxy configuration is not deployed header evidence. | Approved player/admin/provider-frame policy; header and allowed-origin matrix tested in staging, including `frame-ancestors` and provider allowlists. |
-| Q-020 — required contract CI | **Partially implemented; still open.** Both OpenAPI documents are linted; generation/drift and client typecheck run; Health operations pass Schemathesis with all checks enabled. | Add explicit evidence/rules for duplicate keys, refs and operation IDs; add representative 400/401/403/422 contract cases where their handlers are implemented; test provider callbacks against approved vendor fixtures/contract harness. CI passing for Health is not whole-platform contract coverage. |
+| Q-020 — required contract CI | **Partially implemented; still open.** Both OpenAPI documents are linted; generation/drift and client typecheck run; Health operations pass Schemathesis with all checks enabled. Redocly now explicitly configures structural validation, unresolved-reference, unique-operationId and unique-parameter rules; YAML parse failures also fail lint. | Add explicit evidence/rules for duplicate keys, refs and operation IDs; add representative 400/401/403/422 contract cases where their handlers are implemented; test provider callbacks against approved vendor fixtures/contract harness. CI passing for Health is not whole-platform contract coverage. |
 | Q-006 — BigBang/WinHouse agent specs | **Open / vendor-blocked.** | Exact versioned agent documents or approved hashes and matching fixtures before either adapter is implemented. |
 | Q-007/Q-008 — Aggregator integrity and retry ID | **Open / risk and vendor evidence required.** | Written decision whether to keep real-money routing disabled or accept documented residual risk; same-ID replay and conflicting-payload fixtures. |
 | Q-009 — TND precision | **Open / per-provider evidence required.** | Written scale contract and millime fixtures for balance, debit, credit, refund, history and reconciliation. No TND route without proof. |
@@ -50,7 +50,7 @@ Until the corresponding gates close, do not enable admin mutations, CMS media up
 
 ## 5. Next work item
 
-1. Make Q-020's static contract guards explicit and reproducible without pretending unimplemented routes pass runtime tests.
+1. Verify the newly explicit Q-020 static guard configuration in CI and add runtime 400/401/403/422 contract cases as the corresponding route handlers are implemented. Do not treat Health-only runtime coverage as complete API coverage.
 2. Resolve Q-001 to Q-003 with the API/Auth and Security owners before implementing session, MFA or cookie-authenticated mutations.
 3. Resolve Q-004 and Q-005 with the Platform/CMS and Catalogue/API owners before connecting those frontends.
 4. Keep vendor-/risk-/compliance-dependent routes disabled until their listed evidence is supplied.
