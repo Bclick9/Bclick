@@ -26,7 +26,7 @@ Updated: 2026-10-20
 
 1. The supplied 15 planning files remain the source of truth in the shared Library; the two OpenAPI files are mirrored under GitHub `docs/planning/` for contract linting and generation. The remaining planning Markdown is not copied into GitHub `main`.
 2. The current `server/migrations/1792497600000_api_skeleton_baseline.sql` is intentionally a no-op migration to verify ordered migration tooling only. No production/domain tables have been created.
-3. Schemathesis found an inconsistency in the source-planning `X-Request-Id` rule: invalid IDs are documented to be replaced, but the schema defines a restrictive pattern. App behavior follows the documented replace rule and unit tests cover it. CI temporarily excludes only the negative-data-rejection check while testing the implemented Health operations; this is not closure of Q-020 or Phase 0.5. Reconcile the schema/semantics in Phase 0.5, then remove the exclusion.
+3. The `X-Request-Id` mismatch has been reconciled on the BE-001 branch: the request header schema accepts any string (so invalid values can be replaced), the response header schema constrains server IDs to 8-128 safe ASCII characters, and runtime validation/tests enforce the same rule. The temporary Schemathesis negative-data-rejection exclusion was removed. This addresses only this contract inconsistency; Q-020 and the other Phase 0.5/security gates remain open until their full required checks and approvals are evidenced.
 4. **Restore drill NOT RUN.** No staging VPS/off-host backup storage, encryption-key recovery, base backup/WAL set or independent archive monitoring was provisioned. Measured RPO/RTO are unavailable; repository runbook is guidance, not evidence.
 5. BigBang/WinHouse agent-spec evidence, Aggregator Q-007/Q-008 and per-provider TND Q-009 remain open; those routes are still absent from the skeleton. Q-001..Q-005, Q-010, Q-013, Q-020 and the other listed payment/compliance gates remain open or feature-specifically disabled.
 6. Phase 2 review recommended the architecture; it has not been falsely marked as a Tech Lead signature. This implementation branch remains unmerged.
@@ -34,6 +34,6 @@ Updated: 2026-10-20
 ## Next
 
 - Review the Phase 3 draft PR against the Phase 2 review branch; do not merge to `main` without owner review.
-- Reconcile the `X-Request-Id` source contract in Phase 0.5 and remove the temporary Schemathesis negative-data-rejection exclusion when the canonical contract is consistent.
+- Verify the request-ID reconciliation with the updated CI run; continue closing remaining Phase 0.5 P0 security/API gates with required evidence and approvals.
 - Provision isolated staging and off-host encrypted backup/WAL storage, then execute the real restore drill and record measured RPO/RTO and alerts before claiming recovery readiness.
 - Continue in roadmap order; do not add auth, wallet, payment or provider behavior until its contract/security prerequisites are satisfied.
