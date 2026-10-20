@@ -4174,11 +4174,12 @@ export interface components {
         };
         /** @description Password step result only; not proof of completed admin authentication. */
         AdminLoginResponse: {
-            /** @description No admin permissions/session until a factor is verified. Enrollment response cookie is restricted to MFA setup only. */
+            /** @description No admin permissions/session until a factor is verified. A short-lived HttpOnly browser-binding cookie is issued for every accepted password challenge. Enrollment cookies are issued only for enrollment_required. */
             data: {
                 /** @enum {string} */
                 status: "mfa_required" | "enrollment_required";
                 /** Format: uuid */
+                /** @description Locator only, not a bearer secret. The request must also present the HttpOnly browser-bound admin challenge cookie issued with this response. */
                 challengeId: string;
                 /** Format: date-time */
                 expiresAt: string;
@@ -4201,17 +4202,17 @@ export interface components {
                     id: string;
                     /** Format: email */
                     email: string;
-                    displayName?: string | null;
+                    displayName: string;
                     /** @enum {string} */
-                    status: "active" | "locked" | "disabled";
+                    status: "active";
                 };
                 roles: string[];
                 /** @description Effective permissions computed server-side; the client uses them only to control presentation. */
                 permissions: string[];
                 mfa: {
-                    enabled: boolean;
-                    /** @enum {string|null} */
-                    method: "totp" | null;
+                    enabled: true;
+                    /** @enum {string} */
+                    method: "totp";
                 };
                 session: {
                     /** Format: date-time */

@@ -322,6 +322,68 @@ def verify_csrf_cookie_policy(spec: dict[str, Any]) -> int:
     return checks
 
 
+
+def verify_admin_identity_contract(spec: dict[str, Any]) -> int:
+    """Enforce accepted Q-001/Q-002 semantics before authentication handlers exist."""
+    session_schema = spec["components"]["schemas"]["AdminSessionResponse"]
+    data_schema = session_schema["properties"]["data"]["properties"]
+    admin_schema = data_schema["admin"]
+    assert {"id", "email", "displayName", "status"}.issubset(set(admin_schema.get("required", []))), (
+        "Q-001: AdminSessionResponse.admin must require id/email/displayName/status"
+    )
+    admin_props = admin_schema["properties"]
+    assert admin_props["status"].get("const") == "active", (
+        "Q-001: successful admin sessions may represent active admins only; locked/disabled is 403"
+    )
+    assert admin_props["displayName"].get("type") == "string", "Q-001: displayName must be non-null text"
+    mfa_props = data_schema["mfa"]["properties"]
+    assert mfa_props["enabled"].get("const") is True, "Q-001: successful admin session must require enabled MFA"
+    assert mfa_props["method"].get("const") == "totp", "Q-001: successful admin session must require TOTP"
+    checks = 5
+
+    login = spec["paths"]["/api/v1/admin/auth/login"]["post"]
+    assert "202" in login["responses"], "Q-002: password step must return only a challenge"
+    cookie_contract = spec["components"]["headers"]["AdminEnrollmentCookie"]["description"]
+    for phrase in ("__Host-bclick_admin_challenge", "browser-binding secret", "mfa_required",
+                   "neither enrollment cookie is emitted", "expires within 5 minutes"):
+        assert phrase in cookie_contract, f"Q-002: challenge/cookie contract is missing {phrase!r}"
+        checks += 1
+    challenge_desc = spec["components"]["schemas"]["AdminLoginResponse"]["properties"]["data"]["properties"]["challengeId"].get("description", "").lower()
+    assert "locator only" in challenge_desc and "not a bearer secret" in challenge_desc, (
+        "Q-002: challengeId must be a locator, never bearer authorization"
+    )
+    verify_desc = spec["components"]["schemas"]["AdminMfaVerifyRequest"].get("description", "").lower()
+    assert "__host-bclick_admin_challenge" in verify_desc and "hash" in verify_desc, (
+        "Q-002: MFA verification must require browser-bound challenge proof"
+    )
+    checks += 2
+
+    validator = Draft202012Validator(session_schema)
+    good = {
+        "data": {
+            "admin": {"id": "4c9f69fb-f22b-44c6-85b1-8b7b36eacdea", "email": "admin@example.test",
+                      "displayName": "Project Admin", "status": "active"},
+            "roles": ["project-admin"], "permissions": ["admin.session.read"],
+            "mfa": {"enabled": True, "method": "totp"},
+            "session": {"authenticatedAt": "2026-10-20T00:00:00Z", "expiresAt": "2026-10-20T01:00:00Z"},
+        },
+        "requestId": "0123456789abcdef0123456789abcdef",
+    }
+    assert validator.is_valid(good), "Q-001: valid fully authenticated session fixture must validate"
+    locked = copy.deepcopy(good)
+    locked["data"]["admin"]["status"] = "locked"
+    assert not validator.is_valid(locked), "Q-001: locked admin must not validate as a successful session"
+    no_mfa = copy.deepcopy(good)
+    no_mfa["data"]["mfa"] = {"enabled": False, "method": None}
+    assert not validator.is_valid(no_mfa), "Q-001: incomplete MFA must not validate as a successful session"
+    missing_name = copy.deepcopy(good)
+    del missing_name["data"]["admin"]["displayName"]
+    assert not validator.is_valid(missing_name), "Q-001: displayName must be required"
+    checks += 4
+    print(f"PASS: {checks} Q-001/Q-002 admin identity contract checks and negative fixtures")
+    return checks
+
+
 def verify_guard_negative_canaries() -> int:
     """Prove each important guard rejects a deliberately malformed miniature input."""
     try:
@@ -375,6 +437,7 @@ def main() -> int:
     error_count = verify_error_fixtures(base)
     callback_fixture_count = verify_callback_fixtures(callback)
     csrf_check_count = verify_csrf_cookie_policy(base)
+    identity_check_count = verify_admin_identity_contract(base)
     print(f"PASS: {canaries} negative canaries for duplicate keys, unresolved refs, operationIds and parameters")
     print(f"PASS: duplicate-key-safe YAML parse ({base_name}; {callback_name})")
     print(f"PASS: resolved {base_refs + callback_refs} internal $refs")
@@ -382,6 +445,7 @@ def main() -> int:
     print(f"PASS: {error_count} standardized 400/401/403/422 contract fixtures")
     print(f"PASS: {callback_fixture_count} Aggregator callback response fixtures")
     print(f"PASS: {csrf_check_count} context-specific CSRF contract checks (static only; no auth routes exercised)")
+    print(f"PASS: {identity_check_count} Q-001/Q-002 pre-implementation contract checks")
     print("NOTE: static contract fixtures do not prove runtime behavior for unimplemented routes")
     return 0
 
