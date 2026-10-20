@@ -113,13 +113,11 @@ jobs:
         run: |
           python3 -m venv /tmp/schemathesis-venv
           /tmp/schemathesis-venv/bin/pip install --disable-pip-version-check "schemathesis==4.32.1"
-          # The planning parameter says invalid request IDs are replaced, but constrains
-          # them with a pattern. The explicit unit test covers replacement; exclude only
-          # negative-data rejection until Phase 0.5 reconciles this contract.
+          # Invalid client request IDs are accepted by the request schema and replaced
+          # by the server; response IDs are constrained by the response-header schema.
           /tmp/schemathesis-venv/bin/schemathesis run docs/planning/openapi.yaml \
             --url http://127.0.0.1:3000 \
             --include-tag Health \
             --checks all \
-            --exclude-checks negative_data_rejection \
             --max-examples 25 \
             --warnings off
