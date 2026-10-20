@@ -57,6 +57,13 @@ jobs:
         run: pnpm api:lint
       - name: Regenerate the typed client from OpenAPI
         run: pnpm api:client:generate
+      - name: Upload generated client snapshot for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase4-generated-openapi-client
+          path: packages/api-client/src/generated/openapi.d.ts
+          if-no-files-found: error
       - name: Require committed generated declarations
         run: git diff --exit-code -- packages/api-client/src/generated/openapi.d.ts
 
@@ -140,3 +147,23 @@ jobs:
             --checks all \
             --max-examples 25 \
             --warnings off
+
+  frontend-build:
+    name: Frontend and Backoffice build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install locked workspace
+        run: pnpm install --frozen-lockfile
+      - name: Build player frontend with the updated contract
+        run: pnpm build
+      - name: Build Backoffice
+        run: pnpm admin:build
