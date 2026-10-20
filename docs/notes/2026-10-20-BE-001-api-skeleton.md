@@ -3,7 +3,7 @@
 **Date:** 2026-10-20  
 **Roadmap phase:** Phase 3 — Backend skeleton / environments / CI and first restore drill  
 **Branch:** `feature/BE-001-api-skeleton`  
-**Review target:** `feature/IR-003-phase2-architecture-review` (do not merge to `main` before review)
+**Merged:** PR [#54](https://github.com/Bclick9/Bclick/pull/54) to `main` on 2026-10-20 (merge commit `88e8094605bfa96957e7f83a67b9c68639e03577`)
 
 ## 1. Implemented scope
 
@@ -46,7 +46,7 @@ The source-plan objectives (RPO ≤15 minutes and RTO ≤8 hours) remain targets
 
 - The request-ID schema/runtime/test/client reconciliation is complete for this increment and the Schemathesis negative-data-rejection exclusion is removed. Remaining Phase 0.5 gates are tracked in [`2026-10-20-PHASE-0-5-security-gates.md`](./2026-10-20-PHASE-0-5-security-gates.md).
 - Complete the required Phase 0.5 security/API contract evidence or explicitly preserve affected features as disabled. Do not mistake CI for sign-off on the whole platform.
-- Tech Lead review of the Phase 2 baseline remains a formal approval gate where applicable; this implementation does not retroactively sign ADRs.
+- The Tech Lead has accepted the Phase 2 baseline for planning in the updated IR-003 note; that acceptance does not retroactively approve every ADR or clear the owner-specific Q-001–Q-003 decisions.
 - Provision an isolated staging/off-host backup environment to perform and record the actual restore drill.
 - Only after review, continue the remaining Phase 3 acceptance work and later phases in the roadmap order.
 
@@ -57,4 +57,4 @@ The source-plan objectives (RPO ≤15 minutes and RTO ≤8 hours) remain targets
 - Commits after that run only updated review/progress/owner-decision notes; auth/MFA/CSRF or other sensitive application routes were not implemented.
 - External/staging restore: **not run**.
 - Production deployment / provider sandbox / money movement: **not performed**.
-- This branch has not been merged into `main`.
+- This implementation was merged into `main` via PR #54 (merge commit `88e8094605bfa96957e7f83a67b9c68639e03577`). The restore drill and Phase 0.5 gates remain open.
