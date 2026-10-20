@@ -1,100 +1,107 @@
 # ADR-021 Draft — Threshold-Based Deposits Without Full KYC
 
 **Date:** 2026-10-20  
-**Status:** DRAFT — not accepted; Legal/Compliance review required before any deposit enablement.  
+**Status:** DRAFT v2 — awaiting Project Owner approval; Legal/Compliance review is mandatory before any deposit enablement.  
 **Decision owners:** Project Owner, Legal/Compliance and Finance.  
-**Related:** [Phase 4 addendum](./2026-10-20-phase4-addendum.md) · [ADR-022 draft](./2026-10-20-ADR-022-kyc-lock-deposit-override-draft.md)
+**Related:** [Phase 4 Addendum v2](./2026-10-20-phase4-addendum-v2.md) · [ADR-022 draft](./2026-10-20-ADR-022-kyc-lock-deposit-override-draft.md)
 
 ## 1. Context
 
-The current planning material describes KYC-first behavior before deposits. The Project Owner proposes a staged, threshold-based model so that a player may deposit below an approved threshold before completing full identity-document verification. This is a material policy change with jurisdiction-specific legal, AML/CTF, sanctions, fraud, age-verification and responsible-gambling consequences.
+Existing planning language assumes KYC-first deposit eligibility. The Project Owner proposes a threshold-based staged model as the target design, allowing limited deposits before full KYC only where expressly approved by Legal/Compliance and Finance. This is a material policy change with jurisdiction-specific legal, AML/CTF, sanctions, fraud, age-verification and responsible-gambling consequences.
 
-Email verification is not required for account activation. Consequently, possession of an email address must not be treated as proof that the address is verified. Every registration still requires a valid date of birth and country, server-side age >= 18 validation, supported-jurisdiction checks and terms/age acknowledgements.
+Email verification is not mandatory for player activation. Email verification status must therefore remain distinct from KYC. A captured email is not proof of a verified address and does not, on its own, satisfy a legal identity or AML requirement.
 
-This ADR is a policy proposal, not evidence that the proposed model is legal or commercially approved in any jurisdiction.
+This ADR is a policy proposal, not evidence that the model is lawful or commercially approved in any jurisdiction.
 
 ## 2. Decision proposed
 
-Adopt a **threshold-based deposit eligibility model as the target design**, conditional on written Legal/Compliance approval for each launch jurisdiction and Finance approval of thresholds. Until those approvals exist, all deposit paths remain disabled.
+Adopt a **threshold-based KYC eligibility target design** only after written Legal/Compliance approval for each intended launch jurisdiction and Finance approval of limits. Until those approvals and all operational gates exist, all deposit routes remain disabled.
 
-| Level | Required evidence | Proposed eligibility |
-|---|---|---|
-| Level 0 — Light | Email captured, DOB and country; no mandatory email-verification step | Deposit permitted only up to low thresholds explicitly approved by jurisdiction, currency and time window. No bonuses. |
-| Level 1 — Basic | Government ID and selfie, plus all prior required checks | Deposit may be permitted up to a higher approved threshold. |
-| Level 2 — Full | ID, address and source-of-funds evidence | Withdrawal may be unlocked only after all applicable AML/CTF, sanctions, payment, fraud and jurisdiction rules also pass. Bonuses may become eligible, subject to product/finance rules. |
-| Level 3 — Enhanced | Enhanced due diligence and manual review triggered by high-value activity, PEP/sanctions or other risk signals | Manual-review status and restrictions are determined by approved policy; no automatic approval merely because a document set is complete. |
+### KYC tier enum and level mapping
 
-Level 3 is an enhanced review/risk state, not a substitute for screening that must occur earlier. PEP/sanctions checks and legally required controls must run at the stage required by law and policy, regardless of deposit amount.
+The canonical player field is `kycTier`, with required enum values:
+
+| `kycTier` | Level | Evidence / intent | Proposed capability |
+|---|---:|---|---|
+| `none` | 0 — Light | Email captured, date of birth and country; email verification is not required | Deposits only within explicitly approved jurisdiction/currency thresholds. No bonuses. |
+| `basic` | 1 — Basic | Government ID + selfie, plus all required prior checks | Deposits may use a higher explicitly approved threshold. |
+| `verified` | 2 — Full | ID + address + source of funds (SoF) | Withdrawals may be unlocked only when all applicable AML/CTF, sanctions, payment, fraud, responsible-gambling and jurisdiction checks also pass. Bonuses may be considered under separate product/finance policy. |
+| `enhanced` | 3 — Enhanced | Enhanced due diligence/manual review for high value, PEP/sanctions or other policy-driven risk | Manual review and restrictions according to approved policy; not automatic approval. |
+
+**Important terminology:** `kycTier=verified` means Level 2 KYC. It is unrelated to `emailVerificationStatus=verified`, which refers only to the email-verification lifecycle. Do not reuse `verificationStatus` as a combined KYC/email field.
+
+Level 3 controls are a risk state and do not postpone screening that must legally occur earlier. PEP/sanctions screening and legally required checks must run at the stage required by law and policy regardless of deposit threshold.
 
 ### Threshold configuration
 
-Thresholds are not defined by this ADR and must not be hard-coded. For every permitted jurisdiction/currency, Finance and Legal/Compliance must approve:
+Thresholds are not defined by this ADR and must never be invented or hard-coded. For every jurisdiction/currency, Finance and Legal/Compliance must approve:
 
-- per-transaction and cumulative thresholds with explicit rolling-period boundaries;
-- aggregation across payment methods, currencies and related accounts where required;
+- per-transaction and cumulative limits, explicit time windows and aggregation rules;
+- aggregation across methods/currencies/accounts where required;
 - treatment of pending deposits, reversals, refunds and chargebacks;
-- step-up conditions, manual-review triggers, expiry/reverification and audit requirements;
-- how self-exclusion, sanctions/AML holds, suspected fraud, player/account status, payment-method limits and responsible-gambling restrictions interact with thresholds.
+- step-up triggers, manual review, expiry/reverification and audit rules;
+- interactions with self-exclusion, sanctions/AML/fraud holds, player/account state, payment-method limits and responsible-gambling restrictions.
 
-A missing or stale threshold configuration fails closed. Do not infer a value, convert currencies using a display preference, or enable TND based on an unconfirmed provider capability.
+Missing, stale or ambiguous threshold configuration fails closed. Do not derive thresholds from display currency, infer vendor support or route TND without the written provider precision/currency evidence required by Q-009.
 
-## 3. Alternatives considered
+## 3. Eligibility invariants
+
+1. Registration requires server-side DOB validation (age >= 18), country/jurisdiction validation and required terms/age confirmations. An age checkbox is not an age-verification substitute.
+2. Email verification is optional and does not change `kycTier`.
+3. The tier is server-controlled, evidence-backed and ordered by explicit rank: `none=0`, `basic=1`, `verified=2`, `enhanced=3`. Do not compare enum strings lexicographically.
+4. The KYC-tier decision is only one part of deposit authorization. All player/account, jurisdiction, sanctions/AML, fraud, responsible-gambling/self-exclusion, payment-method/currency and other legal controls remain mandatory.
+5. Bonuses remain ineligible below Level 2 (`kycTier=verified`) regardless of deposit thresholds.
+6. Withdrawals remain ineligible below Level 2 under this proposal and still need separate payment/compliance eligibility.
+7. Every decision records policy version, amount/currency, evaluation time, applicable threshold window/totals and a safe reason code. Avoid exposing investigation details to the player.
+8. Unknown jurisdiction, missing evidence, unavailable mandatory checks or configuration errors fail closed.
+9. The hard KYC lock in ADR-022 has precedence over every override while the tier is below Level 2.
+10. Acceptance of this ADR does not enable a deposit route or authorize wallet postings, provider calls or callbacks.
+
+## 4. Alternatives considered
 
 ### A. Full KYC before every deposit
 
-Advantages: simpler enforcement and a conservative baseline; fewer threshold edge cases.  
-Disadvantages: higher user friction and potentially unnecessary document collection for low-risk/low-value activity.
+Advantages: conservative and operationally simpler, with fewer threshold aggregation edge cases.  
+Disadvantages: higher user friction and potentially unnecessary document collection for lower-risk activity.
 
-This remains the safe operational fallback until Legal approves an alternative. It is not a claim that full KYC is universally required by law.
+This remains the safe operational fallback until a jurisdiction-specific alternative is approved. This ADR does not assert that full KYC is universally required by law.
 
 ### B. Threshold-based staged verification — proposed
 
-Advantages: graduated evidence collection and a policy that can apply lower-risk limits before full KYC.  
-Disadvantages: materially more complex rule evaluation, cumulative-limit aggregation, step-up behavior, audit and compliance exposure; legality varies by jurisdiction.
+Advantages: staged evidence collection and a policy that can permit limited lower-value activity where legal rules allow it.  
+Disadvantages: greater complexity in aggregation, step-up logic, auditability, operational review and jurisdiction-by-jurisdiction compliance.
 
-**Proposed direction:** B, but only after written Legal/Compliance approval. If no approval exists, deposit eligibility remains disabled rather than silently treating the proposal as accepted.
+**Proposed direction:** B, conditionally. Without written Legal/Compliance approval, deposit eligibility remains disabled rather than assuming the proposal is permitted.
 
-## 4. Security and eligibility invariants
+## 5. Required changes after approval
 
-1. Registration validates DOB and jurisdiction server-side; age acknowledgement alone is insufficient.
-2. Email verification is optional and does not alter KYC level.
-3. KYC level is not the sole authorization input. Every deposit/withdrawal decision also checks current player/wallet state, jurisdiction, sanctions/AML/fraud holds, responsible-gambling and self-exclusion state, payment-method/currency limits and any hard KYC lock.
-4. Bonuses remain disabled below Level 2, regardless of deposit eligibility.
-5. Withdrawals remain locked below Level 2 under this proposal and still require all applicable payment/compliance checks.
-6. Level progression is evidence-backed; a UI flag or administrator-supplied status cannot make a player verified.
-7. Threshold decisions record the policy version, amount/currency, evaluation time, relevant rolling-period totals and a safe reason code without exposing sensitive investigation details to the player.
-8. Missing evidence, unknown jurisdiction, unavailable mandatory checks or configuration errors fail closed.
-9. This ADR does not authorize deposits, wallet postings, payment-provider calls or provider callbacks.
-
-## 5. Required implementation and contract changes after approval
-
-- Reconcile all KYC-first assumptions across OpenAPI, KYC/payment specifications, domain specifications, frontend integration and the implementation roadmap. Do not leave contradictory normative rules.
-- Define the server-side eligibility service as the single decision point used by every deposit path. UI gating is presentation only.
-- Define explicit level/status enums, evidence source and expiry, policy versioning, transition rules, event/audit records and reviewer separation.
-- Add tests for boundary thresholds, cumulative windows, multiple currencies/payment methods, stale policy, reversals, concurrent deposits, step-up, Level 2 gating for bonuses/withdrawals and every hard-block control.
-- Add negative tests proving direct API calls cannot bypass UI or policy.
-- Keep all deposit routes disabled until the jurisdiction decision and associated tests are accepted.
+- Reconcile KYC-first wording across OpenAPI, KYC/payment specifications, domain specifications, frontend integration and roadmap; preserve legal gates and avoid contradictory requirements.
+- Implement one server-side eligibility service used by every deposit path. The UI is not an authorization boundary.
+- Define verified evidence sources, expiry/reverification, policy versioning, transition rules, audit data and reviewer separation.
+- Add tests for threshold boundaries, rolling periods, currencies/methods, stale policy, reversals, concurrent deposits, step-up, Level 2 bonus/withdrawal gating and every hard-block control.
+- Add negative tests proving direct API calls cannot bypass policy.
+- Keep all deposit routes disabled until Legal/Compliance, operational and route-level acceptance requirements are met.
 
 ## 6. Dependencies and launch gates
 
-- **Q-015 remains Open:** written jurisdiction-specific Legal/Compliance readiness is mandatory before launch and before enabling deposits.
-- **Q-011 remains P0/Open:** no deployment until the actual isolated restore drill and required backup monitoring evidence pass.
-- **Q-009 remains Open:** TND routing stays disabled for each provider until the written three-decimal precision contract and golden fixtures are accepted.
-- **Q-020 remains Open:** actual route handlers require runtime contract/security tests.
-- Provider currency, settlement, callback-signature and payment/PSP facts must be independently verified; this ADR does not assert vendor support.
+- **Q-015 remains Open:** written jurisdiction-specific legal/compliance review is required before launch and before deposits.
+- **Q-011 remains P0/Open:** no deployment until the real isolated restore drill and required backup monitoring evidence pass.
+- **Q-009 remains Open:** TND routing stays disabled for each provider until written precision/currency evidence and golden tests pass.
+- **Q-020 remains Open:** every implemented route needs runtime contract/security coverage.
+- Provider settlement currency, signature, callback, payment-provider and tenant-specific constraints require independent evidence. This ADR does not assert vendor capability.
 
 ## 7. Consequences
 
-If accepted, the project must implement and maintain a versioned, auditable, fail-closed eligibility policy with per-jurisdiction and per-currency configuration. The policy will require legal maintenance, monitoring and review whenever a threshold, jurisdiction or payment method changes.
+If accepted and later legally approved, this model requires a versioned, auditable, fail-closed policy configured by jurisdiction and currency, with operational monitoring and review when rules or payment methods change.
 
-If Legal rejects threshold-based eligibility for a jurisdiction, that jurisdiction must remain disabled or use the legally approved alternative. There is no global assumption that this model is permitted.
+If Legal rejects the model in a jurisdiction, that jurisdiction must remain disabled or use the alternative policy Legal approves. A global threshold cannot be assumed.
 
 ## 8. Approval record
 
-- [ ] Project Owner accepts the threshold-based target design.
-- [ ] Legal/Compliance provides written approval per intended launch jurisdiction.
-- [ ] Finance approves threshold values, currencies and windows.
-- [ ] Product/Compliance approves Level 2 bonus and withdrawal rules.
-- [ ] Security/API owners approve the final state machine, audit and runtime acceptance suite.
+- [ ] Project Owner approves threshold-based eligibility as the target design.
+- [ ] Legal/Compliance grants written approval per intended launch jurisdiction.
+- [ ] Finance approves threshold values, currencies, time windows and aggregation.
+- [ ] Product/Compliance approves Level 2 bonus and withdrawal policy.
+- [ ] Security/API approves the state machine, audit and runtime acceptance suite.
 
 **No deposits may be enabled solely by accepting this ADR.**
