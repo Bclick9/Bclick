@@ -902,7 +902,7 @@ paths:
       tags:
         - Backoffice
       summary: Begin admin authentication
-      description: Validate password and return an MFA challenge; never issue a full admin session before a valid TOTP or one-time recovery code. If MFA is not enrolled, return an enrollment-only cookie plus a signed JavaScript-readable __Host-bclick_csrf cookie bound to the enrollment challenge; restrict both to the enrollment flow. Limit to 5 attempts per 15 minutes per normalized admin identity 
+      description: Validate password and return an MFA challenge; never issue a full admin session before a valid TOTP or one-time recovery code. If MFA is not enrolled, return an enrollment-only cookie plus the signed JavaScript-readable __Host-bclick_admin_enrollment_csrf cookie bound to the enrollment challenge; restrict both to the enrollment flow. Limit to 5 attempts per 15 minutes per normalized admin identity 
         and 20 per 15 minutes per IP.
       operationId: postAdminAuthLogin
       security: []
@@ -916,13 +916,13 @@ paths:
               $ref: '#/components/schemas/AdminLoginRequest'
       responses:
         '202':
-          description: Password accepted; MFA verification or one-time enrollment is required. When enrollment is required, the response sets BOTH the short-lived HttpOnly __Host-bclick_admin_enrollment cookie and a separate signed JavaScript-readable __Host-bclick_csrf cookie bound to that enrollment challenge; the browser sends the latter in X-CSRF-Token only to the MFA enrollment endpoints.
+          description: Password accepted; MFA verification or one-time enrollment is required. Emit the short-lived HttpOnly __Host-bclick_admin_enrollment cookie and JavaScript-readable __Host-bclick_admin_enrollment_csrf cookie only when response data.status is enrollment_required; bind the latter to that one-time enrollment challenge and use it in X-CSRF-Token only on TOTP enrollment endpoints. When data.status is mfa_required, neither enrollment cookie is emitted.
           headers:
             Set-Cookie:
               $ref: '#/components/headers/AdminEnrollmentCookie'
             X-CSRF-Token-Source:
-              description: Name of the readable CSRF cookie to copy to X-CSRF-Token; no secret token value is returned in this header.
-              schema: {type: string, const: '__Host-bclick_csrf'}
+              description: For an enrollment_required response, name of the enrollment-only readable CSRF cookie to copy to X-CSRF-Token; no token value is returned in this header.
+              schema: {type: string, const: '__Host-bclick_admin_enrollment_csrf'}
           content:
             application/json:
               schema:
@@ -1005,9 +1005,12 @@ paths:
       tags:
         - Backoffice
       summary: Verify and activate admin TOTP
-      description: Verifies a code for the pending secret, enables TOTP, invalidates the enrollment cookie and
-        rotates the CSRF token. Enrollment-only session remains restricted until verification succeeds; full 
-        admin session is then issued or the administrator must authenticate again.
+      description: Verifies a code for the pending secret and enables TOTP. When authenticated only by the
+        restricted adminEnrollment cookie, success atomically consumes the enrollment challenge, clears
+        __Host-bclick_admin_enrollment and __Host-bclick_admin_enrollment_csrf, creates the full admin session,
+        and emits __Host-bclick_admin_session plus a fresh __Host-bclick_admin_csrf. The old enrollment token
+        is invalid immediately. When called from an existing full admin session, rotate the admin CSRF token
+        after the factor/privilege change and retain the existing authorization boundary.
       operationId: postAdminTotpVerify
       security:
         - adminSession: []
@@ -1023,7 +1026,10 @@ paths:
               $ref: '#/components/schemas/AdminTotpVerifyRequest'
       responses:
         '204':
-          description: TOTP verified and enabled.
+          description: TOTP verified and enabled; enrollment credentials are revoked and the appropriate full-session CSRF context is rotated/issued.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/AdminSessionCookie'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -1072,7 +1078,7 @@ paths:
       tags:
         - Backoffice
       summary: Revoke admin session
-      description: Revokes the server-side admin session, clears admin and CSRF cookies, and records a 
+      description: Revokes the server-side admin session, clears __Host-bclick_admin_session and __Host-bclick_admin_csrf, and records a 
         security audit event.
       operationId: postAdminAuthLogout
       security:
@@ -1082,7 +1088,7 @@ paths:
         - $ref: '#/components/parameters/CsrfToken'
       responses:
         '204':
-          description: Admin session revoked; admin and CSRF cookies expired.
+          description: Admin session revoked; __Host-bclick_admin_session and __Host-bclick_admin_csrf expired.
           headers:
             Set-Cookie:
               $ref: '#/components/headers/ExpiredAdminSessionCookie'
@@ -5302,7 +5308,7 @@ paths:
       security: [{playerSession: []}]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/CsrfToken'}, {$ref: '#/components/parameters/XRequestId'}]
       responses:
-        '204': {description: "All active player sessions revoked, including current session; session and CSRF cookies cleared."}
+        '204': {description: "All active player sessions revoked, including current session; __Host-bclick_session and __Host-bclick_player_csrf cookies cleared."}
   /api/v1/auth/login-history:
     get:
       tags: [Authentication]
@@ -5477,18 +5483,16 @@ components:
       type: apiKey
       in: cookie
       name: __Host-bclick_session
-      description: Opaque server-side player session cookie __Host-bclick_session (Secure; HttpOnly; 
-        SameSite=Lax; Path=/; no Domain). Cookie-authenticated unsafe methods also require the signed 
-        double-submit __Host-bclick_csrf cookie plus X-CSRF-Token and strict Origin validation. No bearer 
-        token in localStorage.
+      description: Opaque server-side player session cookie __Host-bclick_session (Secure; HttpOnly; SameSite=Lax; Path=/; no Domain).
+        Unsafe methods require the signed __Host-bclick_player_csrf cookie plus X-CSRF-Token and strict exact-Origin validation.
+        Player CSRF is separate from admin and enrollment CSRF. No bearer token in localStorage. A __Host- cookie requires Secure, Path=/, and no Domain.
     adminSession:
       type: apiKey
       in: cookie
       name: __Host-bclick_admin_session
-      description: Separate admin principal/session cookie __Host-bclick_admin_session; Secure; HttpOnly; 
-        SameSite=Strict; Path=/; no Domain. MFA is mandatory before creating this full admin session. 
-        Cookie-authenticated unsafe methods also require the signed double-submit __Host-bclick_csrf cookie 
-        plus X-CSRF-Token and strict Origin validation.
+      description: Separate admin principal/session cookie __Host-bclick_admin_session; Secure; HttpOnly; SameSite=Strict; Path=/; no Domain.
+        MFA is mandatory before creating this full admin session. Unsafe methods require __Host-bclick_admin_csrf plus X-CSRF-Token
+        and strict exact-Origin validation. Player and enrollment CSRF tokens are not accepted. A __Host- cookie requires Secure, Path=/, and no Domain.
     adminEnrollment:
       type: apiKey
       in: cookie
@@ -5677,8 +5681,10 @@ components:
       name: X-CSRF-Token
       in: header
       required: true
-      description: Required on every unsafe method authenticated with a player or admin cookie. Must match the
-        signed __Host-bclick_csrf cookie and be bound to the current server session.
+      description: Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for
+        that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the
+        current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the
+        short-lived enrollment challenge; never accept a token from another context.
       schema:
         type: string
         minLength: 32
@@ -5686,9 +5692,12 @@ components:
 
   headers:
     SessionCookie:
-      description: One Set-Cookie header for __Host-bclick_session (Secure; HttpOnly; SameSite=Lax; Path=/; no
-        Domain). Authentication responses also emit a second Set-Cookie header for signed, JS-readable 
-        __Host-bclick_csrf (Secure; SameSite=Strict; Path=/; no Domain; not HttpOnly).
+      description: Emits __Host-bclick_session (Secure; HttpOnly; SameSite=Lax; Path=/; no Domain) plus a separate
+        Set-Cookie for signed, JavaScript-readable __Host-bclick_player_csrf (Secure; SameSite=Strict; Path=/;
+        no Domain; not HttpOnly) whenever the response establishes an authenticated player session. The current
+        registration operation also references this header; if it establishes a session, it must issue the same CSRF
+        cookie atomically. Clear the CSRF cookie on player logout/revocation. A __Host- cookie requires Secure,
+        Path=/, and no Domain.
       schema: {type: string}
     ETag:
       description: Opaque entity version for conditional updates.
@@ -5704,22 +5713,25 @@ components:
         maxLength: 128
         pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$'
     ExpiredSessionCookie:
-      description: 'Logout revokes the server-side session and clears __Host-bclick_session (Secure; HttpOnly; Path=/;
-        Max-Age=0) and __Host-bclick_csrf (Secure; Path=/; Max-Age=0) with Set-Cookie headers.'
+      description: 'Player logout/revocation clears __Host-bclick_session (Secure; HttpOnly; Path=/; no Domain; Max-Age=0)
+        and __Host-bclick_player_csrf (Secure; Path=/; no Domain; Max-Age=0). __Host- requires Secure, Path=/, and no Domain.'
       schema:
         type: string
     AdminSessionCookie:
-      description: Set-Cookie for __Host-bclick_admin_session (Secure; HttpOnly; SameSite=Strict; Path=/; no 
-        Domain), plus a separately emitted signed __Host-bclick_csrf cookie bound to this session.
+      description: After successful MFA verification, emit __Host-bclick_admin_session (Secure; HttpOnly; SameSite=Strict;
+        Path=/; no Domain) plus __Host-bclick_admin_csrf (Secure; SameSite=Strict; Path=/; no Domain; not HttpOnly)
+        bound to that full session. Rotate the CSRF cookie on session rotation/privilege change; clear it on admin logout/revocation.
+        If this is the first session following enrollment TOTP verification, also clear __Host-bclick_admin_enrollment and
+        __Host-bclick_admin_enrollment_csrf. A __Host- cookie requires Secure, Path=/, and no Domain.
       schema:
         type: string
     AdminEnrollmentCookie:
-      description: Authentication response emits separate Set-Cookie headers for a short-lived __Host-bclick_admin_enrollment cookie (Secure; HttpOnly; SameSite=Strict; Path=/; no Domain; expires within 10 minutes) and a signed JavaScript-readable __Host-bclick_csrf cookie bound to that enrollment challenge. The CSRF token is also returned through document.cookie; callers must copy it to X-CSRF-Token only on permitted enrollment routes.
+      description: Only when the admin password step returns enrollment_required, emit separate Set-Cookie headers for __Host-bclick_admin_enrollment (Secure; HttpOnly; SameSite=Strict; Path=/; no Domain; expires within 10 minutes) and __Host-bclick_admin_enrollment_csrf (Secure; SameSite=Strict; Path=/; no Domain; JavaScript-readable) bound to that challenge. Delete both when enrollment expires/revokes or upon successful TOTP verification; then issue a fresh __Host-bclick_admin_csrf with the full admin session. Enrollment CSRF is accepted only on TOTP enrollment routes. A __Host- cookie requires Secure, Path=/, and no Domain.
       schema:
         type: string
     ExpiredAdminSessionCookie:
-      description: Logout revokes admin session and clears __Host-bclick_admin_session and __Host-bclick_csrf 
-        via separate Set-Cookie headers.
+      description: Logout/revocation clears __Host-bclick_admin_session (Secure; HttpOnly; Path=/; no Domain; Max-Age=0)
+        and __Host-bclick_admin_csrf (Secure; Path=/; no Domain; Max-Age=0).
       schema:
         type: string
   responses:
@@ -8446,19 +8458,35 @@ x-planning-notes:
   - Never treat a sample vendor response as proof of TND support, precise settlement, or callback retry 
     guarantee.
 x-csrf-policy:
-  appliesTo: Every cookie-authenticated unsafe method (POST, PUT, PATCH, DELETE), for playerSession, adminSession and the restricted adminEnrollment challenge cookie.
-  mechanism: Signed double-submit cookie. Set a Secure; SameSite=Strict; Path=/; no Domain; 
-    JavaScript-readable __Host-bclick_csrf cookie, bound cryptographically to the active server-side session. 
-    The opaque player/admin session cookies remain HttpOnly. For restricted admin enrollment, bind the token to the one-time enrollment challenge/cookie and allow only MFA enrollment endpoints.
-  header: X-CSRF-Token must equal the cookie token and validate its server signature/session binding. Reject 
-    missing, mismatched, invalid, expired, or session-mismatched tokens with 403 CSRF_INVALID.
-  origin: Also validate Origin against the configured first-party origin; reject unsafe cross-origin requests.
-    SameSite is defense-in-depth, not a substitute.
-  rotation: Rotate CSRF token on login, admin MFA completion, session rotation, privilege changes, and 
-    logout/revocation; clear it on logout. Apply the same mechanism to __Host-bclick_session and __Host-bclick_admin_session; for the short-lived __Host-bclick_admin_enrollment cookie, bind validation to that restricted challenge and limit it to the TOTP enrollment endpoints.
-  exceptions: Unauthenticated login, registration and reset requests do not require the authenticated CSRF 
-    token; they still require strict Origin policy, rate limits and abuse protection. Provider callbacks use 
-    their own provider authentication and are outside cookie CSRF.
+  appliesTo: Every cookie-authenticated unsafe method (POST, PUT, PATCH, DELETE), scoped to playerSession, adminSession, or the restricted adminEnrollment challenge; each context accepts only its own CSRF cookie.
+  mechanism: Signed double-submit cookie, cryptographically bound to the active server-side session ID/version or the one-time enrollment challenge. CSRF cookies are Secure; SameSite=Strict; Path=/; no Domain; JavaScript-readable (not HttpOnly). The __Host- prefix requires Secure, Path=/, and no Domain. Session cookies remain Secure and HttpOnly. Cookie scope is host-based, not port-based; same-host localhost development therefore requires distinct names, and production must not assume separate subdomains.
+  header: X-CSRF-Token must exactly match the CSRF cookie selected for the authenticated context and validate its signature/binding. Missing, mismatched, malformed, duplicate, expired, revoked, cross-context, or wrong-session tokens return 403 CSRF_INVALID. Validate token length/format before constant-time comparison; never log tokens.
+  origin: Strict exact per-environment Origin allowlist for all unsafe cookie-authenticated requests and for unauthenticated login/register/reset endpoints; no wildcard. SameSite is defense-in-depth, not a substitute. Provider callbacks use their own authentication and are outside cookie CSRF.
+  cookies:
+    player:
+      name: __Host-bclick_player_csrf
+      issuedOn: Successful player login/session establishment. If registration issues an authenticated player session, emit this cookie atomically with that session too.
+      boundTo: Exact player server-side session ID/version.
+      rotateOn: [player session rotation, player privilege change]
+      deletedOn: [player logout, player session revocation, session expiry]
+      attributes: Secure; SameSite=Strict; Path=/; no Domain; JavaScript-readable; not HttpOnly.
+    admin:
+      name: __Host-bclick_admin_csrf
+      issuedOn: Successful admin MFA verification, atomically with the full __Host-bclick_admin_session.
+      boundTo: Exact full admin server-side session ID/version; never an MFA challenge.
+      rotateOn: [admin session rotation, admin privilege change]
+      deletedOn: [admin logout, admin session revocation, session expiry]
+      attributes: Secure; SameSite=Strict; Path=/; no Domain; JavaScript-readable; not HttpOnly.
+    enrollment:
+      name: __Host-bclick_admin_enrollment_csrf
+      issuedOn: Admin password step only when response status is enrollment_required, paired with the short-lived __Host-bclick_admin_enrollment cookie.
+      boundTo: Exact one-time restricted enrollment challenge; may authorize only TOTP enrollment endpoints.
+      rotateOn: [successful TOTP verification (revoke enrollment token and issue a new admin token), challenge renewal with prior token invalidated]
+      deletedOn: [enrollment expiry, enrollment cookie revocation, successful TOTP verification]
+      onTotpVerify: Revoke/delete enrollment cookie and CSRF token, then issue a fresh admin session and CSRF cookie only after TOTP succeeds; reject the prior enrollment token immediately.
+      attributes: Secure; SameSite=Strict; Path=/; no Domain; JavaScript-readable; not HttpOnly.
+  rotation: Rotate player/admin CSRF values on the respective session rotation or privilege change. Successful admin TOTP verification revokes enrollment CSRF and issues admin CSRF in the same successful session-establishment flow. Clear the matching context's CSRF cookie on logout/revocation; logout in one context must not clear another context's cookie.
+  exceptions: Unauthenticated login, registration and reset requests do not require an authenticated CSRF token; they still require strict Origin policy, rate limits and abuse protection. Never accept a player token on admin routes, an admin token on player routes, or an enrollment token on full admin routes.
 x-rate-limit-policy:
   login: 5 attempts per 15 minutes per normalized account identifier and 20 per 15 minutes per IP; progressive
     delay and generic errors.
