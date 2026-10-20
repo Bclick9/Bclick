@@ -102,5 +102,26 @@ export function buildApp(options: BuildAppOptions) {
     },
   );
 
+  app.setNotFoundHandler(async (request, reply) => {
+    const pathname = request.url.split('?', 1)[0] || '/';
+    const isHealthPath =
+      pathname === '/api/v1/health/live' || pathname === '/api/v1/health/ready';
+
+    if (isHealthPath && request.method !== 'GET' && request.method !== 'HEAD') {
+      reply.header('Allow', 'GET, HEAD');
+      return reply.code(405).send({
+        statusCode: 405,
+        error: 'Method Not Allowed',
+        message: 'Method not allowed',
+      });
+    }
+
+    return reply.code(404).send({
+      statusCode: 404,
+      error: 'Not Found',
+      message: 'Route not found',
+    });
+  });
+
   return app;
 }

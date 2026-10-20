@@ -97,3 +97,36 @@ test('readiness fails closed when no database probe is available', async () => {
     await app.close();
   }
 });
+
+test('returns 405 with Allow for undeclared methods on health endpoints', async () => {
+  const app = buildApp({ database: null, logLevel: 'silent' });
+
+  try {
+    const response = await app.inject({
+      method: 'TRACE',
+      url: '/api/v1/health/live',
+    });
+
+    assert.equal(response.statusCode, 405);
+    assert.equal(response.headers.allow, 'GET, HEAD');
+    assert.equal(response.json().statusCode, 405);
+  } finally {
+    await app.close();
+  }
+});
+
+test('returns 404 for unknown paths without exposing request query values', async () => {
+  const app = buildApp({ database: null, logLevel: 'silent' });
+
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/not-a-route?token=must-not-appear',
+    });
+
+    assert.equal(response.statusCode, 404);
+    assert.equal(response.body.includes('must-not-appear'), false);
+  } finally {
+    await app.close();
+  }
+});
