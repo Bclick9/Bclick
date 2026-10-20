@@ -554,7 +554,7 @@ export interface paths {
         put?: never;
         /**
          * Complete admin MFA authentication
-         * @description Consume a short-lived one-time challenge with a TOTP code or a single-use recovery code. On success create the opaque __Host-bclick_admin_session cookie, rotate CSRF token, and write a security audit event. Challenge expires within 5 minutes and has bounded attempts.
+         * @description Consume a short-lived one-time challenge with a TOTP code or a single-use recovery code. The `challengeId` is only a locator, not a bearer secret; require the browser-bound `__Host-bclick_admin_challenge` cookie and verify its hash in the same one-time challenge record. On success create the opaque `__Host-bclick_admin_session` cookie, clear the challenge cookie, issue a fresh admin CSRF cookie, and write a security audit event. The challenge expires within five minutes and has bounded attempts.
          */
         post: operations["postAdminAuthMfaVerify"];
         delete?: never;
@@ -4174,18 +4174,21 @@ export interface components {
         };
         /** @description Password step result only; not proof of completed admin authentication. */
         AdminLoginResponse: {
-            /** @description No admin permissions/session until a factor is verified. Enrollment response cookie is restricted to MFA setup only. */
+            /** @description No admin permissions/session until a factor is verified. A short-lived HttpOnly browser-binding cookie is issued for every accepted password challenge. Enrollment cookies are issued only for enrollment_required. */
             data: {
                 /** @enum {string} */
                 status: "mfa_required" | "enrollment_required";
-                /** Format: uuid */
+                /**
+                 * Format: uuid
+                 * @description Locator only, not a bearer secret. The request must also present the HttpOnly browser-bound admin challenge cookie issued with this response.
+                 */
                 challengeId: string;
                 /** Format: date-time */
                 expiresAt: string;
             };
             requestId: string;
         };
-        /** @description TOTP codes are short numeric codes; recovery codes are one-time high-entropy codes. Both are rate limited; recovery codes are consumed atomically. */
+        /** @description challengeId is a locator only, not a bearer secret; the browser must also present the HttpOnly __Host-bclick_admin_challenge cookie whose hash is bound to the challenge. TOTP codes are short numeric codes; recovery codes are one-time high-entropy codes. Both are rate limited; challenge consumption is atomic and recovery codes are consumed once. */
         AdminMfaVerifyRequest: {
             /** Format: uuid */
             challengeId: string;
@@ -4201,17 +4204,18 @@ export interface components {
                     id: string;
                     /** Format: email */
                     email: string;
-                    displayName?: string | null;
-                    /** @enum {string} */
-                    status: "active" | "locked" | "disabled";
+                    displayName: string;
+                    /** @constant */
+                    status: "active";
                 };
                 roles: string[];
                 /** @description Effective permissions computed server-side; the client uses them only to control presentation. */
                 permissions: string[];
                 mfa: {
-                    enabled: boolean;
-                    /** @enum {string|null} */
-                    method: "totp" | null;
+                    /** @constant */
+                    enabled: true;
+                    /** @constant */
+                    method: "totp";
                 };
                 session: {
                     /** Format: date-time */
@@ -4905,9 +4909,9 @@ export interface components {
         XRequestId: string;
         /** @description Player logout/revocation clears __Host-bclick_session (Secure; HttpOnly; Path=/; no Domain; Max-Age=0) and __Host-bclick_player_csrf (Secure; Path=/; no Domain; Max-Age=0). __Host- requires Secure, Path=/, and no Domain. */
         ExpiredSessionCookie: string;
-        /** @description After successful MFA verification, emit __Host-bclick_admin_session (Secure; HttpOnly; SameSite=Strict; Path=/; no Domain) plus __Host-bclick_admin_csrf (Secure; SameSite=Strict; Path=/; no Domain; not HttpOnly) bound to that full session. Rotate the CSRF cookie on session rotation/privilege change; clear it on admin logout/revocation. If this is the first session following enrollment TOTP verification, also clear __Host-bclick_admin_enrollment and __Host-bclick_admin_enrollment_csrf. A __Host- cookie requires Secure, Path=/, and no Domain. */
+        /** @description After successful TOTP or one-time recovery-code verification, emit __Host-bclick_admin_session (Secure; HttpOnly; SameSite=Strict; Path=/; no Domain) plus __Host-bclick_admin_csrf (Secure; SameSite=Strict; Path=/; no Domain; not HttpOnly) bound to that full session. Also expire __Host-bclick_admin_challenge. Rotate CSRF on session rotation/privilege change; clear it on admin logout/revocation. If this is the first session following enrollment TOTP verification, also clear __Host-bclick_admin_enrollment and __Host-bclick_admin_enrollment_csrf. A __Host- cookie requires Secure, Path=/, and no Domain. */
         AdminSessionCookie: string;
-        /** @description Only when the admin password step returns enrollment_required, emit separate Set-Cookie headers for __Host-bclick_admin_enrollment (Secure; HttpOnly; SameSite=Strict; Path=/; no Domain; expires within 10 minutes) and __Host-bclick_admin_enrollment_csrf (Secure; SameSite=Strict; Path=/; no Domain; JavaScript-readable) bound to that challenge. Delete both when enrollment expires/revokes or upon successful TOTP verification; then issue a fresh __Host-bclick_admin_csrf with the full admin session. Enrollment CSRF is accepted only on TOTP enrollment routes. A __Host- cookie requires Secure, Path=/, and no Domain. */
+        /** @description Every successful admin password challenge emits a separate Set-Cookie for __Host-bclick_admin_challenge (Secure; HttpOnly; SameSite=Strict; Path=/; no Domain; expires within 5 minutes), containing a random browser-binding secret whose hash is stored with the one-time challenge. Only when status is enrollment_required, also emit separate Set-Cookie headers for __Host-bclick_admin_enrollment (Secure; HttpOnly; SameSite=Strict; Path=/; no Domain; expires within 10 minutes) and __Host-bclick_admin_enrollment_csrf (Secure; SameSite=Strict; Path=/; no Domain; JavaScript-readable) bound to that challenge. When status is mfa_required, neither enrollment cookie is emitted. Clear the challenge cookie after successful verification or expiry/revocation. Delete both enrollment cookies on expiry/revocation or successful TOTP verification; then issue a fresh __Host-bclick_admin_csrf with the full admin session. Enrollment CSRF is accepted only on TOTP enrollment routes. Every __Host- cookie requires Secure, Path=/, and no Domain. */
         AdminEnrollmentCookie: string;
         /** @description Logout/revocation clears __Host-bclick_admin_session (Secure; HttpOnly; Path=/; no Domain; Max-Age=0) and __Host-bclick_admin_csrf (Secure; Path=/; no Domain; Max-Age=0). */
         ExpiredAdminSessionCookie: string;

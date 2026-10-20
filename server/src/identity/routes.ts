@@ -12,7 +12,7 @@ const ADMIN_CHALLENGE = '__Host-bclick_admin_challenge';
 const ADMIN_ENROLLMENT = '__Host-bclick_admin_enrollment';
 const ENROLLMENT_CSRF = '__Host-bclick_admin_enrollment_csrf';
 
-type CookieRead = { value?: string; duplicate: boolean };
+type CookieRead = { value: string | undefined; duplicate: boolean };
 function readCookie(request: FastifyRequest, name: string): CookieRead {
   const header = request.headers.cookie;
   if (typeof header !== 'string') return { duplicate: false };
@@ -207,7 +207,7 @@ async function requireEnrollment(
   return context;
 }
 
-export function registerIdentityRoutes(app: FastifyInstance, service: IdentityService, config: IdentityConfig): Promise<void> {
+export function registerIdentityRoutes(app: FastifyInstance, service: IdentityService, config: IdentityConfig): void {
   app.post('/api/v1/auth/register', { config: { rateLimit: false } }, async (request, reply) => safely(reply, request, async () => {
     if (!originAllowed(request, config, 'player')) return sendError(reply, request, 403, 'ORIGIN_INVALID', 'Request Origin is not allowed');
     const body = bodyObject(request);

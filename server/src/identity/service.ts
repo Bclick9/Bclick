@@ -1,6 +1,6 @@
 import { appendFile, chmod, mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import type { PoolClient, QueryResultRow } from 'pg';
 
 import {
@@ -84,7 +84,7 @@ export class IdentityService {
     return { id, token, csrf: this.createCsrf(type === 'player' ? 'player' : 'admin', id, version), expiresAt: expires.toISOString(), version };
   }
 
-  async registerPlayer(input: { email: string; password: string; countryCode: string; settlementCurrency: string; language?: string; preferredDisplayCurrency?: string },
+  async registerPlayer(input: { email: string; password: string; countryCode: string; settlementCurrency: string; language?: string | undefined; preferredDisplayCurrency?: string | undefined },
     requestId: string, remoteAddress: string): Promise<{ player: Record<string, unknown>; session: IssuedSession }> {
     const email = normalizeEmail(input.email);
     if (!(await this.allowAttempt('player-register-ip', remoteAddress, 900, 20))) throw new IdentityFault(429, 'RATE_LIMITED', 'Too many registration attempts');
@@ -185,7 +185,7 @@ export class IdentityService {
     return this.verifyCsrf(session.type === 'player' ? 'player' : 'admin', session.id, session.version, token);
   }
 
-  async updatePlayerProfile(session: AuthSession, input: { displayName?: string; language?: string }): Promise<Record<string, unknown>> {
+  async updatePlayerProfile(session: AuthSession, input: { displayName?: string | undefined; language?: string | undefined }): Promise<Record<string, unknown>> {
     if (session.type !== 'player') throw new IdentityFault(403, 'FORBIDDEN', 'Player context required');
     const result = await this.repository.query<DbRow>(`UPDATE identity_players SET display_name=COALESCE($2,display_name),language=COALESCE($3,language),updated_at=now()
       WHERE id=$1 RETURNING id,email,display_name,country_code,settlement_currency,language,preferred_display_currency,status,verification_status,created_at`,
