@@ -1,7 +1,7 @@
 # Phase 4 Identity Addendum — Registration and KYC Policy Decisions
 
 **Date:** 2026-10-20  
-**Status:** DRAFT — awaiting explicit Project Owner approval with ADR-021 and ADR-022.  
+**Status:** Superseded by [Phase 4 Identity Addendum v2](./2026-10-20-phase4-addendum-v2.md) for the PlayerSummary KYC/email fields and deposit-override semantics. Retained for history; v2 is the review target.  
 **Scope:** Planning and contract design only. No migration, application code, deposit route, or KYC override endpoint is authorized by this note.  
 **Related plan:** [Phase 4 Identity Plan](./2026-10-20-phase4-identity-plan.md)  
 **Related ADR drafts:** [ADR-021 — Deposit Without Full KYC](./2026-10-20-ADR-021-deposit-without-kyc-draft.md) · [ADR-022 — KYC Lock and Deposit Override](./2026-10-20-ADR-022-kyc-lock-deposit-override-draft.md)
