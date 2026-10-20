@@ -5967,6 +5967,7 @@ export interface operations {
             /** @description TOTP verified and enabled; enrollment credentials are revoked and the appropriate full-session CSRF context is rotated/issued. */
             204: {
                 headers: {
+                    "Set-Cookie": components["headers"]["AdminSessionCookie"];
                     [name: string]: unknown;
                 };
                 content?: never;
