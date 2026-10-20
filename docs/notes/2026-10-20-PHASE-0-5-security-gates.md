@@ -46,7 +46,7 @@ Until the corresponding gates close, do not enable admin mutations, CMS media up
 
 ## 4. Phase 0.5 exit decision
 
-**Not approved for exit.** The request-ID discrepancy is fixed and current CI is green; Q-020's static duplicate-key/reference/operationId/parameter and response-fixture guard now passes, but runtime 400/401/403/422 and callback handler tests remain future acceptance evidence. Q-001 through Q-005 and Q-013 and other feature-specific P0 gates remain open. The architecture review PR remains separate and still requires Tech Lead sign-off. Do not merge these stacked changes into `main` as a declaration of security or release readiness.
+**Not approved for exit.** The request-ID discrepancy is fixed and current CI is green; Q-020's static duplicate-key/reference/operationId/parameter and response-fixture guard now passes, but runtime 400/401/403/422 and callback handler tests remain future acceptance evidence. Q-001 through Q-005 and Q-013 and other feature-specific P0 gates remain open. The Tech Lead has since accepted the Phase 2 architecture/data-model baseline for planning in the updated IR-003 note. Phase 2 is still not fully closed because named owners and confirmed dates for remaining decisions are missing. This baseline sign-off does not approve Q-001–Q-003 or declare security/release readiness.
 
 ## 5. Next work item
 
