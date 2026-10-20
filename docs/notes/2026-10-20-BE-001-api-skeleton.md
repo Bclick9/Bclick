@@ -29,7 +29,7 @@ The `X-Request-Id` contract is reconciled in both the repository mirror and the 
 
 ## 3. Intentionally excluded from this skeleton
 
-No player/admin authentication, MFA, CSRF-protected mutations, RBAC-protected Backoffice actions, wallet posting, payment processing, CMS media upload, provider launch/session, provider callback or real-money route is implemented by this increment. Q-001 through Q-003 are recorded as proposed-but-unapproved owner decisions in [`2026-10-20-Q001-Q003-auth-csrf-owner-decisions.md`](./2026-10-20-Q001-Q003-auth-csrf-owner-decisions.md) and [issue #55](https://github.com/Bclick9/Bclick/issues/55). Q-020 has stronger static contract evidence but remains open for runtime checks of future handlers and provider callback tests backed by approved vendor evidence. Apart from the request-ID correction documented here and in [`2026-10-20-PHASE-0-5-security-gates.md`](./2026-10-20-PHASE-0-5-security-gates.md), the skeleton does not change ADRs or the open-question register. No real credentials or production provider configuration were added.
+No player/admin authentication, MFA, CSRF-protected mutations, RBAC-protected Backoffice actions, wallet posting, payment processing, CMS media upload, provider launch/session, provider callback or real-money route is implemented by this increment. Q-001 and Q-002 and the Q-003 CSRF policy were accepted by Project Owner Bclick9 on 2026-10-20 and are recorded in [`2026-10-20-Q001-Q003-auth-csrf-owner-decisions.md`](./2026-10-20-Q001-Q003-auth-csrf-owner-decisions.md) and [issue #55](https://github.com/Bclick9/Bclick/issues/55). Q-020 has stronger static contract evidence but remains open for runtime checks of future handlers and provider callback tests backed by approved vendor evidence. Apart from the request-ID correction documented here and in [`2026-10-20-PHASE-0-5-security-gates.md`](./2026-10-20-PHASE-0-5-security-gates.md), the skeleton does not change ADRs or the open-question register. No real credentials or production provider configuration were added.
 
 ## 4. Restore drill status — NOT RUN
 
@@ -40,11 +40,11 @@ The repository contains a backup/restore runbook, but no staging VPS, off-host o
 - restored-state ledger/projection reconciliation: **not available** because the wallet schema is a later phase;
 - off-host archive freshness monitoring: **not configured or verified**.
 
-The source-plan objectives (RPO ≤15 minutes and RTO ≤8 hours) remain targets, not achieved evidence. No backup-readiness or real-money launch claim can be made until the actual isolated restore drill and independent archive-alert checks pass.
+The source-plan objectives (RPO ≤15 minutes and RTO ≤8 hours) remain targets, not achieved evidence. Project Owner approval on 2026-10-20 allows local Phase 4 development in parallel only; Q-011 remains P0/Open and blocks real deployment and all provider integration until the actual isolated restore drill and independent archive-alert checks pass.
 
 ## 5. Remaining dependencies / next decisions
 
-- The request-ID schema/runtime/test/client reconciliation is complete for this increment and the Schemathesis negative-data-rejection exclusion is removed. Remaining Phase 0.5 gates are tracked in [`2026-10-20-PHASE-0-5-security-gates.md`](./2026-10-20-PHASE-0-5-security-gates.md).
+- The request-ID schema/runtime/test/client reconciliation is complete for this increment and the Schemathesis negative-data-rejection exclusion is removed. The Project Owner approved Q-001/Q-002 and the Q-003 policy; the new Phase 4 plan specifies the required contract/test reconciliation before any auth implementation. Remaining Phase 0.5 gates are tracked in [`2026-10-20-PHASE-0-5-security-gates.md`](./2026-10-20-PHASE-0-5-security-gates.md).
 - Complete the required Phase 0.5 security/API contract evidence or explicitly preserve affected features as disabled. Do not mistake CI for sign-off on the whole platform.
 - The Tech Lead has accepted the Phase 2 baseline for planning in the updated IR-003 note; that acceptance does not retroactively approve every ADR or clear the owner-specific Q-001–Q-003 decisions.
 - Provision an isolated staging/off-host backup environment to perform and record the actual restore drill.
