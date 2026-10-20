@@ -20,7 +20,7 @@ const healthResponseSchema = {
   additionalProperties: false,
 };
 
-const requestIdPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const requestIdPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/;
 
 function requestIdFromHeader(header: unknown): string {
   if (typeof header === 'string' && requestIdPattern.test(header)) {
