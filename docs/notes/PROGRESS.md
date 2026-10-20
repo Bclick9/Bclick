@@ -5,7 +5,7 @@ Updated: 2026-10-20
 ## Current state
 
 - **Current task:** Phase 4 pre-code gate — CSRF cookie separation and contract verification. The Project Owner approved the Phase 4 plan and accepted Q-003 with amendment on 2026-10-20. No Phase 4 application/middleware/auth-route code has started.
-- **Roadmap position:** The five planning contracts and GitHub OpenAPI mirror now specify distinct player/admin/enrollment CSRF cookies and lifecycle rules; generated-client declarations and a static collision/lifecycle guard are committed. Final acceptance awaits a green OpenAPI/generated-client/static-guard CI run. Runtime cross-context/rotation/logout tests remain pending until handlers exist. The Phase 3 API skeleton is merged via PR #54; Q-011 restore drill remains NOT RUN and P0/Open; Q-020 remains open.
+- **Roadmap position:** All five shared planning files and the GitHub OpenAPI mirror specify distinct player/admin/enrollment CSRF cookies and lifecycle rules. OpenAPI lint, generated-client drift, the CSRF lifecycle/collision guard, API types/tests/migration/Health contract and application builds passed in [run 39450975081](https://github.com/Bclick9/Bclick/actions/runs/39450975081) and [run 39450975053](https://github.com/Bclick9/Bclick/actions/runs/39450975053). Runtime cross-context/rotation/logout tests remain pending until handlers exist. The Phase 3 API skeleton is merged via PR #54; Q-011 restore drill remains NOT RUN and P0/Open; Q-020 remains open.
 - **Current branch:** `main` (PRs [#53](https://github.com/Bclick9/Bclick/pull/53) and [#54](https://github.com/Bclick9/Bclick/pull/54) merged; documentation-only Phase 4 plan committed for owner review).
 - **Phase 1 audit:** [`2026-10-20-IR-002-repository-audit.md`](./2026-10-20-IR-002-repository-audit.md).
 - **Phase 2 review:** [`2026-10-20-IR-003-phase-2-architecture-review.md`](./2026-10-20-IR-003-phase-2-architecture-review.md).
@@ -37,7 +37,7 @@ Updated: 2026-10-20
 
 ## Next
 
-1. The Phase 4 plan is approved. Finish the CSRF amendment's clean generated-client/static-contract CI check and record the result in [the amendment note](./2026-10-20-phase4-csrf-update.md). Do not add CSRF middleware or auth/session/MFA handlers until the amendment is accepted and the required runtime acceptance-test plan is in place.
+1. The Phase 4 plan is approved and static OpenAPI/generated-client/guard CI is green. Review and approve [the CSRF amendment note](./2026-10-20-phase4-csrf-update.md). Do not add CSRF middleware or auth/session/MFA handlers until that note is approved; include the required runtime acceptance tests in the implementation work before the relevant PR can merge.
 2. Continue runtime contract coverage for each actually implemented route as it lands; retain the existing OpenAPI lint, generated-client drift, static guard and Health-route Schemathesis checks. Q-020 remains open until applicable handlers and approved provider callbacks have runtime coverage.
 3. Provision isolated staging plus encrypted off-host base backup/WAL storage and independent archive monitoring when available; then run the real restore drill and record measured RPO/RTO. `infra/restore-drill/last-drill.md` must remain `NOT RUN` until actual evidence exists.
 4. The Q-011 controlled exception allows local Phase 4 development only; it does not authorize deployment or provider integration/callback. Keep wallet, payments, CMS media upload/publish, provider callbacks and real-money routes disabled until their feature-specific security, contract, restore, vendor and compliance gates pass.
