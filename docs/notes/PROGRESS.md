@@ -13,7 +13,7 @@ Updated: 2026-10-20
 
 ## Findings requiring owner decision or evidence
 
-1. The 15 supplied planning files are not present on GitHub `main` under `docs/planning/`; `docs/notes/` was also absent before this task.
+1. All 15 planning files are present in the shared ChatGPT Library under `/docs/planning/` and were supplied for review. Separately, GitHub `main` does not contain a mirrored `docs/planning/` copy; this is a repository traceability gap, not a missing shared source. `docs/notes/` was also absent before this task.
 2. BigBang and WinHouse `agent.md` sources could not be retrieved by the available browser fetcher. Do not begin either adapter based on inferred behavior or substitute HTML for the required source.
 3. Aggregator real-money work remains blocked by Q-007 (payload integrity), Q-008 (stable/replay-safe `call_id`) and Q-009 (TND 3dp precision).
 4. Other relevant gates remain open, including Q-001..Q-006, Q-010, Q-011, Q-013, Q-015..Q-017, Q-020 and Q-023..Q-025 plus the recorded PAY/CUR/reporting gates.
@@ -26,4 +26,4 @@ Updated: 2026-10-20
 
 ## Next
 
-Wait for the owner's review of `00-initial-review.md` and decision on the canonical in-repository planning bundle before starting a different task. No open question has been closed by this review.
+Wait for the owner's review of `00-initial-review.md` and decision on whether to mirror the 15 shared Library files into GitHub `docs/planning/`. No open question has been closed by this review.
