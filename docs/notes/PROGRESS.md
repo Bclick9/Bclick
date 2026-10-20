@@ -4,9 +4,9 @@ Updated: 2026-10-20
 
 ## Current state
 
-- **Current task:** BE-001 — Phase 3 API skeleton / environments / CI foundation.
-- **Roadmap position:** Phase 1 repository audit recorded; Phase 2 architecture/data-model review recorded with owner sign-off still pending; Phase 3 skeleton slice implemented. Phase 0.5 P0 contracts and staging restore acceptance remain open.
-- **Current branch:** `feature/BE-001-api-skeleton`.
+- **Current task:** post-merge roadmap gate review — Phase 2 baseline accepted by the Tech Lead; Phase 0.5 and Phase 3 acceptance are still open.
+- **Roadmap position:** Phase 1 audit is recorded; the Phase 2 technical baseline is accepted for planning, but Phase 2 cannot fully exit until remaining decision owners/dates are assigned. The limited Phase 3 API skeleton is merged via PR #54. Q-001–Q-005/Q-013 and other applicable Phase 0.5 gates remain open; the Q-011 restore drill is NOT RUN.
+- **Current branch:** `main` (PRs [#53](https://github.com/Bclick9/Bclick/pull/53) and [#54](https://github.com/Bclick9/Bclick/pull/54) merged; latest observed commit before this documentation update: `70a92ed13e9f848adb62612fb5a8ac98d66f7dd3`).
 - **Phase 1 audit:** [`2026-10-20-IR-002-repository-audit.md`](./2026-10-20-IR-002-repository-audit.md).
 - **Phase 2 review:** [`2026-10-20-IR-003-phase-2-architecture-review.md`](./2026-10-20-IR-003-phase-2-architecture-review.md).
 - **Phase 3 implementation note:** [`2026-10-20-BE-001-api-skeleton.md`](./2026-10-20-BE-001-api-skeleton.md).
@@ -33,11 +33,11 @@ Updated: 2026-10-20
 3. The `X-Request-Id` mismatch has been reconciled on the BE-001 branch: the request header schema accepts any string (so invalid values can be replaced), the response header schema constrains server IDs to 8-128 safe ASCII characters, and runtime validation/tests enforce the same rule. The temporary Schemathesis negative-data-rejection exclusion was removed. This addresses only this contract inconsistency; Q-020 and the other Phase 0.5/security gates remain open until their full required checks and approvals are evidenced.
 4. **Restore drill NOT RUN.** No staging VPS/off-host backup storage, encryption-key recovery, base backup/WAL set or independent archive monitoring was provisioned. Measured RPO/RTO are unavailable; repository runbook is guidance, not evidence.
 5. BigBang/WinHouse agent-spec evidence, Aggregator Q-007/Q-008 and per-provider TND Q-009 remain open; those routes are still absent from the skeleton. Q-001..Q-005, Q-010, Q-013, Q-020 and the other listed payment/compliance gates remain open or feature-specifically disabled.
-6. Phase 2 review recommended the architecture; it has not been falsely marked as a Tech Lead signature. This implementation branch remains unmerged.
+6. The Tech Lead has accepted the architecture/data-model baseline for planning in `2026-10-20-IR-003-phase-2-architecture-review.md`. Phase 2 remains partially open because named owners/confirmed dates are missing. PR #54 is merged into `main`; the source note has been reconciled to reflect that fact.
 
 ## Next
 
-- Review the Phase 3 draft PR against the Phase 2 review branch; do not merge to `main` without owner review.
-- Add runtime 400/401/403/422 contract cases as the corresponding handlers are implemented; continue closing remaining Phase 0.5 P0 gates with required evidence and owner approvals.
-- Provision isolated staging and off-host encrypted backup/WAL storage, then execute the real restore drill and record measured RPO/RTO and alerts before claiming recovery readiness.
-- Continue in roadmap order; do not add auth, wallet, payment or provider behavior until its contract/security prerequisites are satisfied.
+1. Obtain and record named API/Auth and Security approvers for Q-001–Q-003 in [Issue #55](https://github.com/Bclick9/Bclick/issues/55). This is the immediate implementation gate; no auth/session/MFA/CSRF handler may be added beforehand. Frontend/Platform must also approve Q-003 cookie/origin topology if that role is separate.
+2. Continue runtime contract coverage for each actually implemented route as it lands; retain the existing OpenAPI lint, generated-client drift, static guard and Health-route Schemathesis checks. Q-020 remains open until applicable handlers and approved provider callbacks have runtime coverage.
+3. Provision isolated staging plus encrypted off-host base backup/WAL storage and independent archive monitoring when available; then run the real restore drill and record measured RPO/RTO. `infra/restore-drill/last-drill.md` must remain `NOT RUN` until actual evidence exists.
+4. Continue in roadmap order. Keep wallet, payments, CMS media upload/publish, provider callbacks and real-money routes disabled until their feature-specific security, contract, vendor and compliance gates pass.
