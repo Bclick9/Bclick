@@ -1,0 +1,130 @@
+openapi: 3.1.0
+info:
+  title: Bclick Aggregator Network callback addendum
+  version: 0.1.0-planning
+  description: >-
+    Planning-only OpenAPI addendum for Aggregator Network inbound GET wallet callbacks.
+    This file is not a complete definition of Aggregator Network's outbound API. The
+    callback URL path must be confirmed against the actual account settings / Callback
+    Lab before registration. Public docs currently show action, call_id, timestamp and
+    key query parameters; amounts and balances are integers described as cents, and
+    responses must always use HTTP 200 with error and balance in JSON. TND's 3dp scale
+    is unconfirmed and blocks production use.
+servers:
+  - url: https://your.site
+    description: Replace with the registered Bclick environment hostname after approval.
+paths:
+  /callbacks/aggregator:
+    get:
+      operationId: handleAggregatorWalletCallback
+      summary: Receive an Aggregator Network wallet callback
+      description: >-
+        Proposed single registered callback URL, because public Aggregator docs show a
+        single callback URL receiving action=balance/debit/credit. Do not register this
+        path until the vendor confirms that one URL is used for all actions. The callback
+        is GET with query parameters. For accepted source IPs always return HTTP 200 with
+        AggregatorCallbackResponse, including business refusals and processing errors.
+        Do not return Bclick ErrorResponse for ordinary callback errors. The public
+        Validation page currently specifies key = md5(timestamp + saltkey), timestamp no
+        older than 30 seconds; this must be matched to the active account and fixtures.
+        The key does not cryptographically sign amount/action/player fields, so keep strict
+        IP allowlisting and request stronger vendor authentication where available.
+      parameters:
+        - name: username
+          in: query
+          required: true
+          description: Exact mapped Aggregator user_username; resolve to a Bclick player in this environment.
+          schema: { type: string, minLength: 1, maxLength: 128 }
+        - name: currency
+          in: query
+          required: true
+          description: Aggregator settlement currency ID; must match the saved mapping and exact precision policy.
+          schema: { type: string, pattern: '^[A-Z]{3}$' }
+        - name: action
+          in: query
+          required: true
+          schema: { type: string, enum: [balance, debit, credit] }
+        - name: call_id
+          in: query
+          required: true
+          description: Public docs describe this as a unique callback/transaction ID. Retry reuse and uniqueness scope must be confirmed.
+          schema: { type: string, minLength: 1, maxLength: 128 }
+        - name: timestamp
+          in: query
+          required: true
+          description: Timestamp string used by the documented md5(timestamp + saltkey) freshness signature.
+          schema: { type: string, minLength: 1, maxLength: 32 }
+        - name: key
+          in: query
+          required: true
+          description: Value to validate using the account-confirmed signature algorithm. Do not log it.
+          schema: { type: string, minLength: 1, maxLength: 128 }
+        - name: amount
+          in: query
+          required: false
+          description: Required for debit/credit by the public movement examples. Integer subunits described as cents; exact TND scale is P0 unconfirmed. Parse as a string then validate as an integer; never use floating-point money arithmetic.
+          schema: { type: string, pattern: '^(0|[1-9][0-9]*)$', maxLength: 30 }
+        - name: gameplay_final
+          in: query
+          required: false
+          description: Present in the public movement examples; exact boolean/integer semantics should be fixed from fixtures.
+          schema: { oneOf: [{ type: integer, enum: [0, 1] }, { type: string, enum: ['0', '1'] }] }
+        - name: type
+          in: query
+          required: false
+          description: Movement type, e.g. spin; bonus_fs has special non-cash debit semantics and is disabled initially.
+          schema: { type: string, maxLength: 64 }
+        - name: round_id
+          in: query
+          required: false
+          schema: { type: string, maxLength: 128 }
+        - name: game_id
+          in: query
+          required: false
+          description: Exact source-specific game ID/id_hash, retained for audit and reconciliation.
+          schema: { type: string, maxLength: 255 }
+        - name: rb
+          in: query
+          required: false
+          description: Public examples use 1 for rollback and 0 for normal event. Preserve action+rb combination exactly.
+          schema: { type: integer, enum: [0, 1] }
+        - name: operator_id
+          in: query
+          required: false
+          description: Present in some public examples; validate against configured tenant if present.
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Always HTTP 200 for an accepted callback network request; business outcome is carried in the body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AggregatorCallbackResponse'
+              examples:
+                success:
+                  value: { error: 0, balance: 250 }
+                insufficientFunds:
+                  value: { error: 1, balance: 250 }
+                processingError:
+                  value: { error: 2, balance: 0 }
+      x-bclick-contract-status: vendor-confirmation-required
+      x-bclick-open-questions: [A-01, A-02, A-03, A-07]
+components:
+  schemas:
+    AggregatorCallbackResponse:
+      type: object
+      additionalProperties: false
+      required: [error, balance]
+      properties:
+        error:
+          type: integer
+          enum: [0, 1, 2]
+          description: '0=success, 1=insufficient balance, 2=processing/identity/signature error per public docs.'
+        balance:
+          type: integer
+          minimum: 0
+          description: Integer subunits called cents in current public docs. Currency-specific precision, particularly TND, must be confirmed in writing before enabling money callbacks.
+  x-bclick-notes:
+    - Do not merge this file into docs/planning/openapi.yaml until the exact callback URL path and query encoding are confirmed with Aggregator.
+    - Accepted callback outcomes use HTTP 200 only; proxy/firewall filtering of unknown source IPs is a separate edge rejection.
+    - No requestBody is defined because this vendor callback is GET and carries its fields in the query string.
