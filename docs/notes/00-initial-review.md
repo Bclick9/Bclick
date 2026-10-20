@@ -7,9 +7,9 @@
 
 ## Executive result
 
-The 15 supplied planning files were reviewed as the source package for this assessment: 13 Markdown files and two OpenAPI 3.1 YAML contracts. They describe a planned system, not an implemented backend; the existing `frontend/` and `backend/` are client SPAs, with `backend/` being the Backoffice/CMS rather than the API server.
+The 15 planning files are present in the shared ChatGPT Library under `/docs/planning/`: 13 Markdown files and two OpenAPI 3.1 YAML contracts. That shared Library package is the source supplied for this review. These documents describe a planned system, not an implemented backend; the existing `frontend/` and `backend/` are client SPAs, with `backend/` being the Backoffice/CMS rather than the API server.
 
-**Repository mismatch:** GitHub `main` (checked at `b0c850eaa37c9711f3b7ec6b184b4459eb6af002`) contains neither `docs/planning/` nor `docs/notes/`; the uploaded planning files are available in this review session but are not committed at their expected repository paths. The requested note is therefore being added on a separate branch, and the planning bundle’s canonical in-repository location needs the owner’s decision before subsequent implementation work can safely cite it.
+**Separate repository observation:** GitHub `main` (checked at `b0c850eaa37c9711f3b7ec6b184b4459eb6af002`) contains neither `docs/planning/` nor `docs/notes/`. This is a gap in the checked-in GitHub copy, not an absence of the planning files from the shared Library, and it does not prevent using the shared files as the review source. The note is on a separate branch because the notes directory did not yet exist in the repository.
 
 **Provider-source status:** Aggregator’s official `/docs` and its linked Balance, Credit and Debit, and Validation pages were accessible. The specified BigBang and WinHouse `agent.md` URLs could not be retrieved by the available browser fetcher (unsupported `text/markdown` content type). Their agent specifications are **not verified** in this review; the HTML pages are not treated as substitutes. Q-006 remains a blocker for those adapters.
 
@@ -103,7 +103,7 @@ This review records these gates as blockers; it does **not** amend or close `12-
 
 ## 3. Main risks
 
-1. **Planning-source drift:** The supplied bundle is absent from `main/docs/planning/`, so changes could be implemented against an untracked or stale copy and contract provenance would be unclear.
+1. **Repository traceability gap:** The complete planning bundle exists in the shared Library and was used for this review, but it is not checked into `main/docs/planning/`; repo-level traceability to the exact reviewed version is therefore weaker.
 2. **Unverified provider contracts:** The designated BigBang and WinHouse `agent.md` files were not retrievable in this session; coding against inferred/HTML-only behaviour could produce invalid signatures, responses or amount semantics.
 3. **Aggregator callback integrity and retries:** The public MD5 check is timestamp-based rather than a signature over transaction fields, while `call_id` retry/conflict behaviour is not proven; accepting a movement under these conditions risks unauthorised or duplicate financial postings.
 4. **Currency precision and routing:** TND's third fractional digit has to be preserved end-to-end per configured provider account/tenant. Silent rounding, scale assumptions or fallback into a different-currency route can corrupt settlement and reporting.
@@ -114,13 +114,13 @@ This review records these gates as blockers; it does **not** amend or close `12-
 - **Roadmap reference:** Phase 0.5 is the immediate hardening stage; the absence of the planning package in `main` is also a Phase 1 repository-audit finding.
 - **Branch:** `feature/IR-001-initial-review`, created from `main` at `b0c850eaa37c9711f3b7ec6b184b4459eb6af002`.
 - **Files intended for this documentation step:** `docs/notes/00-initial-review.md` and `docs/notes/PROGRESS.md` only. No application code, either OpenAPI file, ADR document, or `12-open-questions.md` is modified.
-- **Validation performed:** Confirmed the 15 uploaded files were present for review; reviewed the Markdown package content and both OpenAPI contracts by file sections; checked the repository root and confirmed `docs/planning/` and `docs/notes/` are absent on `main`; checked that no branch matching `initial-review` existed before creating this task branch; examined Aggregator’s official Getting Started, Balance, Credit and Debit, and Validation documentation.
+- **Validation performed:** Verified the shared Library listing contains all 15 named files under `/docs/planning/`; reviewed the planning Markdown files and both OpenAPI contracts by file sections; separately checked the repository root and confirmed `docs/planning/` and `docs/notes/` are absent on GitHub `main`; checked that no matching initial-review branch existed before creating this task branch; examined Aggregator’s official Getting Started, Balance, Credit and Debit, and Validation documentation.
 - **Not performed / blocked:** No application tests were run because this commit contains documentation only and no runtime/API implementation was changed. No OpenAPI lint, code generation, Schemathesis, callback integration tests or restore drill are claimed as passed. BigBang and WinHouse `agent.md` content remains unverified due to fetcher content-type failure.
 - **Files changed:** This note and the cumulative progress note only.
 - **Test status:** Documentation/repository checks completed; application/contract test suites not run for this documentation-only step.
-- **Remaining risks:** Repository planning bundle is not committed at its documented path; BigBang/WinHouse agent specs remain unavailable; P0 gates above remain open.
-- **Deviation from plan:** No content/contract change was made to compensate for unavailable vendor documents or absent planning paths. The missing repository files are reported rather than silently recreated or used to infer a new architecture.
+- **Remaining risks:** The shared Library source is not mirrored under `main/docs/planning/`, which limits repository-local traceability; BigBang/WinHouse agent specs remain unverified; P0 gates above remain open.
+- **Deviation from plan:** No planning source, API contract, ADR, or open-question gate was changed. The GitHub path gap is documented separately from the available shared Library source; no files were inferred or recreated.
 
 ## 5. Proposed next step
 
-After reviewing this note, decide whether the exact 15-file planning bundle should be added without content changes under `docs/planning/` on a separate documentation-only branch. That would establish the in-repository source of truth before Phase 0.5 contract hardening proceeds. The provider-specific agent documents must still be verified from the sources mandated by the project before the BigBang or WinHouse adapters can start.
+**Question for the owner:** Do you want the exact 15 files from the shared Library copied verbatim into GitHub `docs/planning/` on a separate documentation-only branch, or should the shared Library remain the planning source while the repository note links/reference them? This is a repository traceability choice only; it does not question whether the files were shared. The provider-specific agent documents must still be verified from the mandated official sources before either adapter can start.
