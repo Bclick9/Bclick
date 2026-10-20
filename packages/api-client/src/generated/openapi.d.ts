@@ -3458,9 +3458,9 @@ export interface components {
                 status: "created" | "requires_action" | "pending" | "awaiting_proof" | "awaiting_scan" | "pending_review" | "more_info_requested" | "quarantined" | "approved" | "processing" | "succeeded" | "settled" | "failed" | "rejected" | "released" | "expired" | "refunded" | "cancelled" | "reversed" | "exception";
                 amount: components["schemas"]["PositiveAmount"];
                 expectedAmount?: components["schemas"]["PositiveAmount"];
-                /** @description Amount currently held for this withdrawal */
+                /** @description Amount currently held for this withdrawal, exact decimal string. */
                 heldAmount?: string | null;
-                /** @description Amount actually posted to player-available */
+                /** @description Amount actually posted to player-available, not the raw observed receipt amount. */
                 creditedAmount?: string | null;
                 currency: components["schemas"]["CurrencyCode"];
                 /** @description Disclosed fee amount in the currency specified by the method terms. */
@@ -9514,7 +9514,7 @@ export interface operations {
                 "multipart/form-data": {
                     /**
                      * Format: binary
-                     * @description JPEG
+                     * @description JPEG, PNG or PDF only; maximum 10 MiB before decoding.
                      */
                     file: string;
                 };
@@ -9549,7 +9549,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Malware */
+            /** @description Malware, duplicate hash, or image/PDF validation failure. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -10871,7 +10871,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Own closure state */
+            /** @description Own closure state, grace period and player-safe next action; no-store. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -11047,7 +11047,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description All active player sessions revoked */
+            /** @description All active player sessions revoked, including current session; session and CSRF cookies cleared. */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -11068,7 +11068,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Minimal */
+            /** @description Minimal, privacy-safe login history; no precise geolocation or raw IP unless policy specifically permits; no-store. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -11093,7 +11093,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description All admin sessions revoked */
+            /** @description All admin sessions revoked, including current session; cookies cleared and audit recorded. */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -11148,7 +11148,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Safe settings view; no-store */
+            /** @description Safe settings view; no-store, standard envelope. */
             200: {
                 headers: {
                     [name: string]: unknown;
