@@ -1,119 +1,125 @@
 # ADR-022 Draft — KYC Lock and Deposit Override Controls
 
 **Date:** 2026-10-20  
-**Status:** DRAFT — not accepted; no schema/API implementation authorized.  
-**Decision owners:** Project Owner, Security/API and Legal/Compliance; Finance consulted for deposit policy.  
-**Related:** [Phase 4 addendum](./2026-10-20-phase4-addendum.md) · [ADR-021 draft](./2026-10-20-ADR-021-deposit-without-kyc-draft.md)
+**Status:** DRAFT v2 — awaiting Project Owner approval; no schema/API implementation is authorized.  
+**Decision owners:** Project Owner and Security/API; Legal/Compliance and Finance consulted for policy scope.  
+**Related:** [Phase 4 Addendum v2](./2026-10-20-phase4-addendum-v2.md) · [ADR-021 draft](./2026-10-20-ADR-021-deposit-without-kyc-draft.md)
 
 ## 1. Context
 
-If the threshold-based model in ADR-021 is accepted, administrators need controlled ways to impose a hard KYC lock or request an exceptional deposit policy for an individual player. Such controls are sensitive financial/compliance operations: they must not be driven by a VIP label, frontend permissions or an unreviewed database flag alone.
+If ADR-021 is accepted and later approved by Legal for a jurisdiction, administrators need a controlled hard KYC lock and an auditable override for deposit KYC eligibility. These are sensitive compliance controls; they must not be granted by a VIP label, frontend-only role check, or unreviewed database update.
 
-The repository currently has no player domain table or admin authentication handlers. This ADR defines a proposed future contract only; no existing endpoint is implied to be operational.
+There is currently no canonical `players` domain table and no admin-authentication handler in the Phase 3 skeleton. This ADR defines the proposed contract and policy only. It does not make any endpoint operational.
 
-## 2. Decision proposed
+## 2. Canonical player fields
 
-### 2.1 Hard KYC lock
+The proposed current-state fields are:
 
-Proposed field: `players.kyc_lock BOOLEAN NOT NULL DEFAULT false`.
+- `kyc_tier TEXT NOT NULL DEFAULT 'none'`, constrained to `none | basic | verified | enhanced`;
+- `kyc_lock BOOLEAN NOT NULL DEFAULT false`;
+- `kyc_lock_reason TEXT NULL`;
+- `deposit_kyc_override TEXT NULL`, constrained to `require | waive` only;
+- `deposit_kyc_override_expires_at TIMESTAMPTZ NULL`;
+- `deposit_kyc_override_reason TEXT NULL`;
+- `deposit_kyc_override_requested_by UUID NULL`;
+- `deposit_kyc_override_approved_by UUID NULL`;
+- `deposit_kyc_override_set_at TIMESTAMPTZ NULL`.
 
-When `kyc_lock = true`, all deposits are blocked until the player reaches at least Level 2 and the eligibility service verifies all other current rules. The lock is a hard block and takes precedence over the deposit override. No `none`, `require` or `waive` override may bypass a true lock.
+A null `deposit_kyc_override` means **no override**. The value `none` is removed entirely. A normalized audit/history record is still required to retain requests, approvals, denials, changes, expiry/revocation and review evidence; current-state columns do not replace immutable audit history. Requester/approver columns reference canonical admin principal IDs, never usernames or free text.
 
-Setting or clearing the lock requires an authorized administrator, reason capture, immutable audit event and alert. Clearing a lock does not itself enable deposits; every other eligibility control must still pass.
+The first approved identity/domain migration must create the base `players` table from scratch before these constraints are applied. Do not author an ALTER migration against a nonexistent table, and do not create wallet/ledger/payment tables as a side effect.
 
-### 2.2 Deposit KYC override
+## 3. KYC tier ordering and precedence algorithm
 
-The owner-proposed state set is `none | require | waive`, with these requested meanings:
+Canonical enum: `kycTier = none | basic | verified | enhanced`. Rank mapping is explicit:
 
-- `require`: require additional KYC before the applicable deposit can proceed.
-- `none`: VIP exception, limited to 30 days.
-- `waive`: waive the applicable KYC requirement under dual approval.
+- `none = 0` (Level 0 — Light);
+- `basic = 1` (Level 1 — Basic);
+- `verified = 2` (Level 2 — Full: ID + address + source of funds);
+- `enhanced = 3` (Level 3 — Enhanced).
 
-**Naming decision remains open:** `none` ordinarily means “no override,” which conflicts with the stated VIP-exception meaning. This draft does not silently resolve that ambiguity. Before OpenAPI or schema work, the Project Owner must either approve this nonstandard meaning explicitly or rename the value to an unambiguous VIP-exception value. No implementation may infer a waiver from `none` until this is decided.
+The word `verified` in `kycTier` means Level 2 KYC; it is distinct from `emailVerificationStatus=verified`. Never perform lexicographic text comparisons to determine tier order; use an explicit numeric rank or equivalent exhaustive mapping.
 
-A simple enum on the player row is insufficient to support 30-day expiry, dual approval, audit and periodic review. Proposed persistence is an effective state plus an audit-backed override record/history containing at least:
+Evaluate the KYC-tier part of deposit eligibility in this exact order:
 
-- player and override type/state;
-- reason code and operator justification;
-- requester and, where required, independent approver;
-- requested, approved, effective, expiry and revocation timestamps;
-- related case/ticket reference where applicable;
-- decision and policy version;
-- review outcome and immutable audit correlation ID.
+1. **Absolute lock priority:** if `kyc_lock = true` AND `rank(kyc_tier) < rank('verified')`, **REJECT** the deposit KYC check. No override can bypass the lock.
+2. **Require override:** else if `deposit_kyc_override = 'require'` AND `rank(kyc_tier) < rank('verified')`, **REJECT** until Level 2 KYC is reached.
+3. **Active waiver:** else if `deposit_kyc_override = 'waive'` AND `(deposit_kyc_override_expires_at IS NULL OR deposit_kyc_override_expires_at > now())`, the KYC-tier sub-check may **PASS** only if the waiver is validly authorized:
+   - Future expiry = temporary waiver, approved by one eligible administrator under the approved policy; retain the 30-day maximum from the prior VIP-exception decision unless the Project Owner explicitly changes that limit.
+   - Null expiry = permanent waiver, which requires dual approval by distinct principals: `requested_by != approved_by`. It cannot be activated by the single-admin local installation.
+4. **Normal method rules:** in all other cases—including `deposit_kyc_override IS NULL` and an expired waiver—compare the explicit numeric player tier rank with the selected payment method's configured `kyc_tier_required`. Reject if player rank is lower; otherwise this KYC-tier sub-check passes.
 
-The schema design must prevent duplicate active overrides, enforce one-time state transitions, and safely revert expired exceptions to normal policy. Until the final schema is approved, do not assume all of the history can be represented by player columns alone.
+**`kyc_lock=false` + no override means follow method rules, not “no KYC.”** A temporary waiver that has expired no longer bypasses the method requirement. A `require` override is a KYC floor at Level 2 and must not weaken a method-specific higher tier.
 
-### 2.3 Dual approval
+Passing this KYC-tier sub-check is not a complete deposit authorization. Jurisdiction/legal approval, approved thresholds, player/account status, sanctions/AML/fraud controls, self-exclusion/responsible-gambling rules, method/currency limits and all other required checks must still pass. If a launch/operational gate remains open, the deposit route remains globally disabled.
 
-A `waive` request must never activate through a single administrator's mutation. Requester and approver must be different principals; the approver must have the explicit waive permission and an eligible active admin session with completed MFA. The initial local installation has one administrator, so waive activation remains unavailable until a safe independent approval path exists. Do not weaken separation rules to make the UI appear functional.
+## 4. Temporary and permanent waiver constraints
 
-The final API contract must specify whether the listed PATCH operation creates a pending request and a separate approval operation activates it, or whether another equivalent two-person workflow is used. A single PATCH cannot both request and approve a waiver under the separation rule.
+- **Null override:** no exception exists; evaluate normal method rules.
+- **`require`:** impose Level 2 KYC where the tier is lower; all method and legal requirements may still require more.
+- **`waive` + future `expires_at`:** temporary waiver, under approved policy and no longer than 30 days after activation unless the Project Owner explicitly approves a different cap. The server sets `set_at`, checks the future expiry, records the requester and applies alerts/review.
+- **`waive` + `expires_at IS NULL`:** permanent waiver; dual approval is mandatory. A database CHECK and the service transaction should ensure non-null requester and approver IDs and distinct principals for an active permanent waiver. Approval must be recorded before setting the effective state. A null expiry with missing/invalid approval fails closed.
+- **Expired `waive`:** treat it as inactive and return to normal method rules; emit expiry alert/audit event. Do not silently renew it.
+- **`kyc_lock=true`:** takes precedence whenever the tier is below Level 2, even if a temporary or permanent `waive` appears active.
 
-## 3. Proposed admin endpoints
+Any approved waiver has only the scope documented in its decision record and cannot override mandatory sanctions/AML, jurisdiction, responsible-gambling, player/account-state, PSP/payment or provider-security controls.
 
-Paths below are proposals and must be added to OpenAPI only after this ADR and the broader addendum are accepted:
+## 5. Proposed admin endpoints and permissions
+
+Proposed endpoints, not yet added to OpenAPI:
 
 - `PATCH /api/v1/admin/players/{playerId}/kyc-lock`
 - `PATCH /api/v1/admin/players/{playerId}/deposit-kyc-override`
 
-Required contract behavior:
+Required server-enforced permissions:
 
-- Require a full authenticated admin session, mandatory MFA and server-derived permissions.
-- Validate player ID, requested state, reason and applicable case/evidence references.
-- Validate transition and precedence rules transactionally; reject stale/conflicting state rather than silently overwriting it.
-- Use the standard error envelope and request ID. Add CSRF and exact-Origin protection for unsafe cookie-authenticated requests.
-- Record immutable audit details, emit security/operations alerts and expose no sensitive internal review notes to player-facing APIs.
-- Do not permit an override to bypass sanctions/AML, jurisdiction, responsible-gambling, account status, payment method/currency limits or other mandatory eligibility checks.
-- Do not enable deposit routes in an environment where the jurisdictional policy remains unapproved.
+- `players.kyc.lock` — set/clear the lock.
+- `players.deposit.override` — manage `require` and temporary override requests within policy.
+- `players.deposit.override.waive` — request/approve waiver actions subject to the dual-control invariants.
 
-The final request/approval structure, concurrency control (including ETag/If-Match or an equivalent version check), idempotency expectations and response schemas must be reviewed before implementation.
+The final API must define whether waiver request and approval are separate operations/states. A single PATCH cannot cause one principal to request and approve their own permanent waiver. The one-admin local setup must deny permanent waiver activation until an independent eligible approver exists.
 
-## 4. Permissions
+For every mutation, require a full admin session with mandatory MFA, server-derived permission checks, CSRF and exact-Origin protections, a reason, request ID and conflict/version handling. Record immutable audit events and emit security/operations alerts. UI button visibility is not an authorization boundary.
 
-Add the following server-enforced permissions:
+## 6. Database integrity, audit and operations
 
-- `players.kyc.lock` — set or clear the hard KYC lock.
-- `players.deposit.override` — request/manage a non-waive override within policy.
-- `players.deposit.override.waive` — request or independently approve a waiver, as assigned by the final dual-control contract.
+- Use a CHECK constraint restricting the override to NULL, `require` or `waive`; `none` is never stored.
+- Enforce referential integrity for requester and approver IDs.
+- Enforce that an active permanent `waive` cannot be effective without both principals and `requested_by != approved_by`. The service must repeat this check inside the transition transaction; a UI-only check is insufficient.
+- Use a transaction/version check to prevent concurrent admins from overwriting one another's decision. Define ETag/If-Match or the reviewed equivalent before final API contract.
+- Record requester, approver, target player, prior/new state, reason, policy version, timestamp, request ID and outcome. Never log passwords, session/CSRF tokens, raw KYC documents or unnecessary personal data.
+- Alert on lock changes, waiver requests/approvals, permanent waivers, attempted bypass while locked, expired waivers, invalid dual-control attempts and suspicious repeated actions.
+- Assign a review owner and interval before operations are enabled. Temporary waiver expiry must be monitored; there is no silent renewal.
 
-The policy must distinguish requesting a waiver from approving one. Possession of `players.deposit.override.waive` does not allow the same principal to act as requester and approver. Frontend visibility is not an authorization control. Test every operation with allowed and denied permission combinations.
+## 7. Acceptance tests
 
-## 5. Audit, alerts and periodic review
+1. `kyc_lock=true` and `kyc_tier < verified` rejects every deposit path even when override is `waive`.
+2. `kyc_lock=true` with Level 2 or higher proceeds only to the remaining rules; it never skips method-specific or legal checks.
+3. `kyc_lock=false` and a null override follows the method's configured `kyc_tier_required`; it does not imply no KYC.
+4. `require` rejects tiers below Level 2, and a method may still require a higher tier.
+5. Active future waiver passes only the KYC-tier sub-check and only within approved scope; expired waiver falls through to method rules.
+6. Temporary waiver expiry is no more than 30 days unless a new explicit owner decision changes the cap; expiry alerts and audit are emitted.
+7. Permanent waiver with null expiry requires distinct requester and approver IDs; same-principal approval is rejected; the one-admin installation cannot activate it.
+8. Invalid/missing requester, approver, reason, permission, MFA, policy state or stale version fails closed; concurrent conflicting updates are detected.
+9. The `none` enum value is rejected; only SQL NULL, `require` and `waive` are accepted.
+10. All requests, approvals, denials, expiries, revocations and reviews are auditable; alerts are emitted.
+11. No waiver bypasses jurisdiction, sanctions/AML, responsible-gambling/self-exclusion, account-state, method/currency or other mandatory checks.
+12. No test or admin endpoint enables deposits while Q-015, Q-011 and applicable Q-020/Q-009 gates remain open.
 
-Every request, approval, denial, edit, expiry, revocation and review must produce an audit event with actor, target, action, outcome, timestamp, request ID, reason and policy/record version. Never log credentials, session cookies, CSRF tokens, raw KYC documents or unnecessary personal data.
+## 8. Consequences and dependencies
 
-Alert on at least: creation/change of a hard lock, any waiver request and approval, an imminent/actual override expiry, attempted bypass while locked, expired or inconsistent state, failed dual-approval constraints, and repeated unauthorized attempts. The alert destination and response ownership must be configured before operations are enabled.
+This design requires approved ADR-021 policy, canonical player/admin identities, explicit RBAC, audit/history, expiry processing/monitoring and a two-person permanent-waiver workflow. Because the player table does not exist, schema implementation must start with the approved canonical `players` table and then add any normalized override/audit structures in the migration sequence approved after this ADR.
 
-The review interval and owner must be approved before implementation. VIP exceptions expire after 30 days as requested; there is no silent auto-renewal. Renewal requires fresh justification and a new decision/audit event. A `waive` exception must have an explicitly approved scope and expiry policy; do not default it to permanent.
+Q-011 remains P0/Open and blocks deployment. Q-015 blocks launch/deposits pending Legal/Compliance. Q-009 keeps TND provider routing blocked until written provider precision evidence and golden fixtures pass. Q-020 remains open until actual runtime coverage exists for implemented routes.
 
-## 6. Acceptance tests
+## 9. Approval record
 
-- A locked player cannot create/complete a deposit through any route, even when an override says `none` or `waive`.
-- A player below Level 2 remains locked from withdrawal under ADR-021 even when deposits are allowed.
-- `require` enforces the configured additional evidence and fails closed if evidence is missing, stale or rejected.
-- The VIP exception expires no later than 30 days after approval; it cannot self-renew and emits expiry alerts.
-- The ambiguous `none` state is rejected by implementation/contract tests until its semantics are approved.
-- A waive request cannot activate without independent approval; the same principal cannot request and approve.
-- The single-admin local configuration cannot complete a two-person waiver.
-- Missing reason, missing permission, missing MFA, stale version and conflicting concurrent changes are rejected safely.
-- All changes are audited; alerts are emitted; audit records are immutable to ordinary operators.
-- Expiry/revocation returns the player to normal policy without silently granting extra eligibility.
-- Overrides cannot bypass legal/jurisdiction, sanctions/AML, responsible-gambling, account-status, payment-method or other mandatory controls.
-- No test or admin operation makes a real-money route available while Q-015/Q-011 and relevant Q-020/Q-009 gates remain open.
+- [ ] Project Owner approves the `kyc_lock` absolute-precedence algorithm.
+- [ ] Project Owner approves nullable override semantics and removal of `none`.
+- [ ] Project Owner confirms the 30-day maximum for temporary waivers.
+- [ ] Security/API approves distinct-principal dual control for permanent waiver.
+- [ ] Legal/Compliance approves the contexts in which waiver is allowed.
+- [ ] Operations approves expiry alerts and periodic review ownership.
+- [ ] The final OpenAPI contract, migration design and runtime tests are reviewed together before implementation.
 
-## 7. Consequences and dependencies
-
-This decision adds state-management, dual-control, audit, alerting and review complexity. It also requires an approved eligibility policy (ADR-021), RBAC integration, a player-domain schema, API contracts and operator workflows. Because player/identity storage does not exist in the Phase 3 skeleton, migration planning must be sequential: first approve/create the canonical player schema, then add or evolve the override structures in a reviewed migration. No player migration may precede approval of this ADR.
-
-Q-011 remains P0/Open and blocks deployment; Q-015 blocks launch/deposits pending Legal/Compliance review; Q-009 keeps TND provider routing disabled until evidence is accepted; Q-020 remains open until runtime tests cover implemented routes.
-
-## 8. Approval record
-
-- [ ] Project Owner approves the hard-lock precedence and schema approach.
-- [ ] Project Owner resolves the meaning/name of `none`.
-- [ ] Security/API approves the independent approval workflow and permission split.
-- [ ] Legal/Compliance approves when a waiver is permitted and its expiry/scope.
-- [ ] Operations approves audit alerts and periodic review owner/interval.
-- [ ] OpenAPI, migrations and acceptance tests are reviewed together before implementation.
-
-**Until those approvals are recorded, this ADR remains a draft and authorizes no migration or endpoint.**
+**Until approvals are recorded, this ADR is a draft and authorizes no migration or endpoint.**
