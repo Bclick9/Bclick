@@ -534,7 +534,7 @@ export interface paths {
         put?: never;
         /**
          * Begin admin authentication
-         * @description Validate password and return an MFA challenge; never issue a full admin session before a valid TOTP or one-time recovery code. If MFA is not enrolled, return an enrollment-only cookie plus a signed JavaScript-readable __Host-bclick_csrf cookie bound to the enrollment challenge; restrict both to the enrollment flow. Limit to 5 attempts per 15 minutes per normalized admin identity and 20 per 15 minutes per IP.
+         * @description Validate password and return an MFA challenge; never issue a full admin session before a valid TOTP or one-time recovery code. If MFA is not enrolled, return an enrollment-only cookie plus the signed JavaScript-readable __Host-bclick_admin_enrollment_csrf cookie bound to the enrollment challenge; restrict both to the enrollment flow. Limit to 5 attempts per 15 minutes per normalized admin identity and 20 per 15 minutes per IP.
          */
         post: operations["postAdminAuthLogin"];
         delete?: never;
@@ -594,7 +594,7 @@ export interface paths {
         put?: never;
         /**
          * Verify and activate admin TOTP
-         * @description Verifies a code for the pending secret, enables TOTP, invalidates the enrollment cookie and rotates the CSRF token. Enrollment-only session remains restricted until verification succeeds; full admin session is then issued or the administrator must authenticate again.
+         * @description Verifies a code for the pending secret and enables TOTP. When authenticated only by the restricted adminEnrollment cookie, success atomically consumes the enrollment challenge, clears __Host-bclick_admin_enrollment and __Host-bclick_admin_enrollment_csrf, creates the full admin session, and emits __Host-bclick_admin_session plus a fresh __Host-bclick_admin_csrf. The old enrollment token is invalid immediately. When called from an existing full admin session, rotate the admin CSRF token after the factor/privilege change and retain the existing authorization boundary.
          */
         post: operations["postAdminTotpVerify"];
         delete?: never;
@@ -634,7 +634,7 @@ export interface paths {
         put?: never;
         /**
          * Revoke admin session
-         * @description Revokes the server-side admin session, clears admin and CSRF cookies, and records a security audit event.
+         * @description Revokes the server-side admin session, clears __Host-bclick_admin_session and __Host-bclick_admin_csrf, and records a security audit event.
          */
         post: operations["postAdminAuthLogout"];
         delete?: never;
@@ -4892,24 +4892,24 @@ export interface components {
         ReportPaymentType: "deposit" | "withdrawal";
         ReportPaymentStatus: string;
         ReportReconciliationStatus: string;
-        /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+        /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
         CsrfToken: string;
     };
     requestBodies: never;
     headers: {
-        /** @description One Set-Cookie header for __Host-bclick_session (Secure; HttpOnly; SameSite=Lax; Path=/; no Domain). Authentication responses also emit a second Set-Cookie header for signed, JS-readable __Host-bclick_csrf (Secure; SameSite=Strict; Path=/; no Domain; not HttpOnly). */
+        /** @description Emits __Host-bclick_session (Secure; HttpOnly; SameSite=Lax; Path=/; no Domain) plus a separate Set-Cookie for signed, JavaScript-readable __Host-bclick_player_csrf (Secure; SameSite=Strict; Path=/; no Domain; not HttpOnly) whenever the response establishes an authenticated player session. The current registration operation also references this header; if it establishes a session, it must issue the same CSRF cookie atomically. Clear the CSRF cookie on player logout/revocation. A __Host- cookie requires Secure, Path=/, and no Domain. */
         SessionCookie: string;
         /** @description Opaque entity version for conditional updates. */
         ETag: string;
         /** @description Server-generated or validated correlation identifier. */
         XRequestId: string;
-        /** @description Logout revokes the server-side session and clears __Host-bclick_session (Secure; HttpOnly; Path=/; Max-Age=0) and __Host-bclick_csrf (Secure; Path=/; Max-Age=0) with Set-Cookie headers. */
+        /** @description Player logout/revocation clears __Host-bclick_session (Secure; HttpOnly; Path=/; no Domain; Max-Age=0) and __Host-bclick_player_csrf (Secure; Path=/; no Domain; Max-Age=0). __Host- requires Secure, Path=/, and no Domain. */
         ExpiredSessionCookie: string;
-        /** @description Set-Cookie for __Host-bclick_admin_session (Secure; HttpOnly; SameSite=Strict; Path=/; no Domain), plus a separately emitted signed __Host-bclick_csrf cookie bound to this session. */
+        /** @description After successful MFA verification, emit __Host-bclick_admin_session (Secure; HttpOnly; SameSite=Strict; Path=/; no Domain) plus __Host-bclick_admin_csrf (Secure; SameSite=Strict; Path=/; no Domain; not HttpOnly) bound to that full session. Rotate the CSRF cookie on session rotation/privilege change; clear it on admin logout/revocation. If this is the first session following enrollment TOTP verification, also clear __Host-bclick_admin_enrollment and __Host-bclick_admin_enrollment_csrf. A __Host- cookie requires Secure, Path=/, and no Domain. */
         AdminSessionCookie: string;
-        /** @description Authentication response emits separate Set-Cookie headers for a short-lived __Host-bclick_admin_enrollment cookie (Secure; HttpOnly; SameSite=Strict; Path=/; no Domain; expires within 10 minutes) and a signed JavaScript-readable __Host-bclick_csrf cookie bound to that enrollment challenge. The CSRF token is also returned through document.cookie; callers must copy it to X-CSRF-Token only on permitted enrollment routes. */
+        /** @description Only when the admin password step returns enrollment_required, emit separate Set-Cookie headers for __Host-bclick_admin_enrollment (Secure; HttpOnly; SameSite=Strict; Path=/; no Domain; expires within 10 minutes) and __Host-bclick_admin_enrollment_csrf (Secure; SameSite=Strict; Path=/; no Domain; JavaScript-readable) bound to that challenge. Delete both when enrollment expires/revokes or upon successful TOTP verification; then issue a fresh __Host-bclick_admin_csrf with the full admin session. Enrollment CSRF is accepted only on TOTP enrollment routes. A __Host- cookie requires Secure, Path=/, and no Domain. */
         AdminEnrollmentCookie: string;
-        /** @description Logout revokes admin session and clears __Host-bclick_admin_session and __Host-bclick_csrf via separate Set-Cookie headers. */
+        /** @description Logout/revocation clears __Host-bclick_admin_session (Secure; HttpOnly; Path=/; no Domain; Max-Age=0) and __Host-bclick_admin_csrf (Secure; Path=/; no Domain; Max-Age=0). */
         ExpiredAdminSessionCookie: string;
     };
     pathItems: never;
@@ -5034,7 +5034,7 @@ export interface operations {
             header: {
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -5170,7 +5170,7 @@ export interface operations {
             header: {
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -5229,7 +5229,7 @@ export interface operations {
             header: {
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -5360,7 +5360,7 @@ export interface operations {
             header: {
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -5398,7 +5398,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -5613,7 +5613,7 @@ export interface operations {
             header: {
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -5868,12 +5868,12 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Password accepted; MFA verification or one-time enrollment is required. When enrollment is required, the response sets BOTH the short-lived HttpOnly __Host-bclick_admin_enrollment cookie and a separate signed JavaScript-readable __Host-bclick_csrf cookie bound to that enrollment challenge; the browser sends the latter in X-CSRF-Token only to the MFA enrollment endpoints. */
+            /** @description Password accepted; MFA verification or one-time enrollment is required. Emit the short-lived HttpOnly __Host-bclick_admin_enrollment cookie and JavaScript-readable __Host-bclick_admin_enrollment_csrf cookie only when response data.status is enrollment_required; bind the latter to that one-time enrollment challenge and use it in X-CSRF-Token only on TOTP enrollment endpoints. When data.status is mfa_required, neither enrollment cookie is emitted. */
             202: {
                 headers: {
                     "Set-Cookie": components["headers"]["AdminEnrollmentCookie"];
-                    /** @description Name of the readable CSRF cookie to copy to X-CSRF-Token; no secret token value is returned in this header. */
-                    "X-CSRF-Token-Source"?: "__Host-bclick_csrf";
+                    /** @description For an enrollment_required response, name of the enrollment-only readable CSRF cookie to copy to X-CSRF-Token; no token value is returned in this header. */
+                    "X-CSRF-Token-Source"?: "__Host-bclick_admin_enrollment_csrf";
                     [name: string]: unknown;
                 };
                 content: {
@@ -5923,7 +5923,7 @@ export interface operations {
             header: {
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -5952,7 +5952,7 @@ export interface operations {
             header: {
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -5964,10 +5964,11 @@ export interface operations {
             };
         };
         responses: {
-            /** @description TOTP verified and enabled. */
+            /** @description TOTP verified and enabled; enrollment credentials are revoked and the appropriate full-session CSRF context is rotated/issued. */
             204: {
                 headers: {
                     [name: string]: unknown;
+                    "Set-Cookie": components["headers"]["AdminSessionCookie"];
                 };
                 content?: never;
             };
@@ -5983,7 +5984,7 @@ export interface operations {
             header: {
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -6016,7 +6017,7 @@ export interface operations {
             header: {
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -6024,7 +6025,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Admin session revoked; admin and CSRF cookies expired. */
+            /** @description Admin session revoked; __Host-bclick_admin_session and __Host-bclick_admin_csrf expired. */
             204: {
                 headers: {
                     "Set-Cookie": components["headers"]["ExpiredAdminSessionCookie"];
@@ -6068,7 +6069,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -6135,7 +6136,7 @@ export interface operations {
             header: {
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -6173,7 +6174,7 @@ export interface operations {
             header: {
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
@@ -6220,7 +6221,7 @@ export interface operations {
             header: {
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
@@ -6301,7 +6302,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -6543,7 +6544,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -6607,7 +6608,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -6915,7 +6916,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -6980,7 +6981,7 @@ export interface operations {
                 "If-Match": components["parameters"]["IfMatch"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -7027,7 +7028,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -7068,7 +7069,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -7120,7 +7121,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -7159,7 +7160,7 @@ export interface operations {
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
                 "If-Match": components["parameters"]["IfMatch"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -7330,7 +7331,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -7450,7 +7451,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -7569,7 +7570,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -7688,7 +7689,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -7809,7 +7810,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -7929,7 +7930,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -8050,7 +8051,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -8171,7 +8172,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -8290,7 +8291,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -8410,7 +8411,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -8530,7 +8531,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -8627,7 +8628,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -8663,7 +8664,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -8692,7 +8693,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -8769,7 +8770,7 @@ export interface operations {
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
                 "If-Match": components["parameters"]["IfMatch"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
@@ -8821,7 +8822,7 @@ export interface operations {
                 "If-Match": components["parameters"]["IfMatch"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -9067,7 +9068,7 @@ export interface operations {
             header: {
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -9130,7 +9131,7 @@ export interface operations {
             header: {
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -9194,7 +9195,7 @@ export interface operations {
             header: {
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -9376,7 +9377,7 @@ export interface operations {
                 "If-Match": components["parameters"]["IfMatch"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -9501,7 +9502,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -9630,7 +9631,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -9666,7 +9667,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -9700,7 +9701,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -9734,7 +9735,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -9783,7 +9784,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -9818,7 +9819,7 @@ export interface operations {
                 "If-Match": components["parameters"]["IfMatch"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -9887,7 +9888,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -9922,7 +9923,7 @@ export interface operations {
                 "If-Match": components["parameters"]["IfMatch"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -9965,7 +9966,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -9999,7 +10000,7 @@ export interface operations {
                 "If-Match": components["parameters"]["IfMatch"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -10040,7 +10041,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -10106,7 +10107,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -10177,7 +10178,7 @@ export interface operations {
                 "If-Match": components["parameters"]["IfMatch"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -10221,7 +10222,7 @@ export interface operations {
                 "If-Match": components["parameters"]["IfMatch"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -10265,7 +10266,7 @@ export interface operations {
                 "If-Match": components["parameters"]["IfMatch"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -10362,7 +10363,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -10419,7 +10420,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -10508,7 +10509,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -10545,7 +10546,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -10623,7 +10624,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -10655,7 +10656,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path?: never;
@@ -10707,7 +10708,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
@@ -10766,7 +10767,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
                 "If-Match": components["parameters"]["IfMatch"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
@@ -10803,7 +10804,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
@@ -10835,7 +10836,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
@@ -10888,7 +10889,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
                 "If-Match": components["parameters"]["IfMatch"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
@@ -10931,7 +10932,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
                 "If-Match": components["parameters"]["IfMatch"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
@@ -10996,7 +10997,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
                 "If-Match": components["parameters"]["IfMatch"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
@@ -11037,7 +11038,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
@@ -11047,7 +11048,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description All active player sessions revoked, including current session; session and CSRF cookies cleared. */
+            /** @description All active player sessions revoked, including current session; __Host-bclick_session and __Host-bclick_player_csrf cookies cleared. */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -11083,7 +11084,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
@@ -11110,7 +11111,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -11168,7 +11169,7 @@ export interface operations {
                 "If-Match": components["parameters"]["IfMatch"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -11209,7 +11210,7 @@ export interface operations {
                 "If-Match": components["parameters"]["IfMatch"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -11270,7 +11271,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -11376,7 +11377,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
