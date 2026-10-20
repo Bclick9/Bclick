@@ -1,0 +1,131 @@
+name: API skeleton and contract checks
+
+on:
+  push:
+    branches: [main, feature/BE-001-api-skeleton]
+    paths:
+      - 'server/**'
+      - 'scripts/**'
+      - 'packages/**'
+      - 'docs/planning/openapi.yaml'
+      - 'docs/planning/openapi-aggregator-callbacks.yaml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'redocly.yaml'
+      - '.github/workflows/api-skeleton.yml'
+  pull_request:
+    branches: [main, feature/IR-003-phase2-architecture-review]
+    paths:
+      - 'server/**'
+      - 'scripts/**'
+      - 'packages/**'
+      - 'docs/planning/openapi.yaml'
+      - 'docs/planning/openapi-aggregator-callbacks.yaml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'redocly.yaml'
+      - '.github/workflows/api-skeleton.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: OpenAPI lint and generated client
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install locked workspace
+        run: pnpm install --frozen-lockfile
+      - name: Install pinned Python contract-check tools
+        run: |
+          python3 -m venv /tmp/openapi-contract-venv
+          /tmp/openapi-contract-venv/bin/pip install --disable-pip-version-check -r scripts/contract-requirements.txt
+      - name: Verify duplicate keys, references, operation IDs, parameters and response fixtures
+        run: /tmp/openapi-contract-venv/bin/python scripts/verify_openapi_contracts.py
+      - name: Lint canonical API contracts
+        run: pnpm api:lint
+      - name: Regenerate the typed client from OpenAPI
+        run: pnpm api:client:generate
+      - name: Require committed generated declarations
+        run: git diff --exit-code -- packages/api-client/src/generated/openapi.d.ts
+
+  api-tests:
+    name: API types, tests, migrations and health contract
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_DB: bclick_ci
+          POSTGRES_USER: bclick_ci
+          POSTGRES_PASSWORD: bclick_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bclick_ci -d bclick_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install locked workspace
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck shared packages and API
+        run: pnpm api:typecheck
+      - name: Run config, money and API tests
+        run: pnpm api:test
+      - name: Build the API
+        run: pnpm --filter @bclick/server build
+      - name: Verify ordered migrations against PostgreSQL
+        env:
+          DATABASE_URL: postgresql://bclick_ci:bclick_ci_password@127.0.0.1:5432/bclick_ci
+        run: pnpm --filter @bclick/server migrate:up
+      - name: Start the API for health contract tests
+        env:
+          NODE_ENV: test
+          HOST: 127.0.0.1
+          PORT: 3000
+          LOG_LEVEL: silent
+          DATABASE_URL: postgresql://bclick_ci:bclick_ci_password@127.0.0.1:5432/bclick_ci
+        run: |
+          pnpm --filter @bclick/server start > /tmp/bclick-api.log 2>&1 &
+          echo $! > /tmp/bclick-api.pid
+          for attempt in $(seq 1 45); do
+            if curl --fail --silent http://127.0.0.1:3000/api/v1/health/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/bclick-api.log
+          exit 1
+      - name: Run Schemathesis against implemented Health operations
+        run: |
+          python3 -m venv /tmp/schemathesis-venv
+          /tmp/schemathesis-venv/bin/pip install --disable-pip-version-check "schemathesis==4.32.1"
+          # Invalid client request IDs are accepted by the request schema and replaced
+          # by the server; response IDs are constrained by the response-header schema.
+          /tmp/schemathesis-venv/bin/schemathesis run docs/planning/openapi.yaml \
+            --url http://127.0.0.1:3000 \
+            --include-tag Health \
+            --checks all \
+            --max-examples 25 \
+            --warnings off

@@ -1,4 +1,4 @@
-name: Backend Dashboard Build
+name: Backoffice UI Build
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
       - 'backend/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - '.github/workflows/backend-build.yml'
   pull_request:
     branches: [main]
@@ -14,7 +15,11 @@ on:
       - 'backend/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - '.github/workflows/backend-build.yml'
+
+permissions:
+  contents: read
 
 jobs:
   build-dashboard:
@@ -25,7 +30,7 @@ jobs:
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10.4.1
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:

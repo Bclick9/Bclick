@@ -1,0 +1,11 @@
+extends:
+  - spec
+
+# Make the Phase 0.5 CI invariants visible here instead of relying on preset defaults.
+# Redocly also parses each input as YAML and errors on malformed/duplicate-key mappings.
+rules:
+  struct: error
+  no-unresolved-refs: error
+  operation-operationId-unique: error
+  operation-parameters-unique: error
+  parameters-unique: error
