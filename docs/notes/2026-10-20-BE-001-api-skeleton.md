@@ -18,17 +18,18 @@ This increment introduces the first real API workspace without changing the exis
 - Added PostgreSQL Compose configuration, an image for the API, a manual-only migration profile, Caddy example configuration, backup guidance and an isolated restore-drill runbook.
 - Added an empty/no-op ordered migration solely to verify `node-pg-migrate` wiring without prematurely creating domain tables. The first business/domain schema migration remains subject to its reviewed scope and source planning gate.
 - Added GitHub Actions checks for contract lint/generated-client drift, workspace TypeScript checks, unit tests, API build, ordered migration execution against PostgreSQL, API startup and Schemathesis against implemented Health operations.
+- Added a pinned Python contract guard (`scripts/verify_openapi_contracts.py`) for duplicate YAML keys, local reference resolution, operationId and parameter uniqueness, standardized error fixtures, and Aggregator callback response fixtures; wired it into CI.
 - Harmonized the existing Backoffice build workflow to the workspace's pinned pnpm version.
 
 ## 2. Verification and Phase 0.5 contract correction
 
-GitHub Actions run [39423227939](https://github.com/Bclick9/Bclick/actions/runs/39423227939) passed the OpenAPI lint/generated-client and API jobs after the request-ID correction. Run [39423555201](https://github.com/Bclick9/Bclick/actions/runs/39423555201) also passed after explicit Redocly structural, unresolved-reference, unique-operationId and unique-parameter rules were configured. The latter run's tested code/config commit is `460bd12e56682cd65fe23e2676fe2e7b2b868cae`; commits after it only change review/status notes.
+GitHub Actions run [39423227939](https://github.com/Bclick9/Bclick/actions/runs/39423227939) passed the OpenAPI lint/generated-client and API jobs after the request-ID correction. Run [39423555201](https://github.com/Bclick9/Bclick/actions/runs/39423555201) passed after explicit Redocly structural, unresolved-reference, unique-operationId and unique-parameter rules were configured. Run [39425591791](https://github.com/Bclick9/Bclick/actions/runs/39425591791) passed after adding the duplicate-key-safe parser/reference/operationId/parameter guard and representative error/callback response fixtures. Its API job also passed typecheck, tests, build, PostgreSQL migration, health startup and Schemathesis. Commits after the last run only update notes and owner-decision evidence.
 
 The `X-Request-Id` contract is reconciled in both the repository mirror and the canonical shared Library OpenAPI source: the request parameter accepts an arbitrary string so malformed IDs can be replaced without a 4xx response, while the response header requires an 8-128 character safe identifier. Runtime validation applies the same 8-128 character and ASCII allowlist rule, and tests cover the shortest valid value plus invalid characters, too-short values and overlong values. The temporary Schemathesis negative-data-rejection exclusion was removed so this check now runs. This closes only the request-ID mismatch; it does not by itself close Q-020 or all Phase 0.5 gates. Unsupported HTTP methods on the Health endpoints are explicitly covered by tests and should produce 405 with `Allow: GET, HEAD`.
 
 ## 3. Intentionally excluded from this skeleton
 
-No player/admin authentication, MFA, CSRF-protected mutations, RBAC-protected Backoffice actions, wallet posting, payment processing, CMS media upload, provider launch/session, provider callback or real-money route is implemented by this increment. Apart from the request-ID correction documented here and in [`2026-10-20-PHASE-0-5-security-gates.md`](./2026-10-20-PHASE-0-5-security-gates.md), the skeleton does not change ADRs or the open-question register. No real credentials or production provider configuration were added.
+No player/admin authentication, MFA, CSRF-protected mutations, RBAC-protected Backoffice actions, wallet posting, payment processing, CMS media upload, provider launch/session, provider callback or real-money route is implemented by this increment. Q-001 through Q-003 are recorded as proposed-but-unapproved owner decisions in [`2026-10-20-Q001-Q003-auth-csrf-owner-decisions.md`](./2026-10-20-Q001-Q003-auth-csrf-owner-decisions.md) and [issue #55](https://github.com/Bclick9/Bclick/issues/55). Q-020 has stronger static contract evidence but remains open for runtime checks of future handlers and provider callback tests backed by approved vendor evidence. Apart from the request-ID correction documented here and in [`2026-10-20-PHASE-0-5-security-gates.md`](./2026-10-20-PHASE-0-5-security-gates.md), the skeleton does not change ADRs or the open-question register. No real credentials or production provider configuration were added.
 
 ## 4. Restore drill status — NOT RUN
 
@@ -51,9 +52,9 @@ The source-plan objectives (RPO ≤15 minutes and RTO ≤8 hours) remain targets
 
 ## 6. Verification record
 
-- **Passed:** [Run 39423227939](https://github.com/Bclick9/Bclick/actions/runs/39423227939) verifies the request-ID reconciliation, and [run 39423555201](https://github.com/Bclick9/Bclick/actions/runs/39423555201) verifies the same code plus explicit Redocly rules.
-- Both latest jobs passed OpenAPI lint, generated-client regeneration/no-diff, workspace typecheck, config/money/server tests, API build, PostgreSQL migration, API startup and Schemathesis Health checks with all checks enabled.
-- Subsequent commits only updated progress/review notes; application code and CI configuration are unchanged from tested commit `460bd12e56682cd65fe23e2676fe2e7b2b868cae`.
+- **Passed:** [Run 39423227939](https://github.com/Bclick9/Bclick/actions/runs/39423227939) verifies the request-ID reconciliation, [run 39423555201](https://github.com/Bclick9/Bclick/actions/runs/39423555201) verifies explicit Redocly rules, and [run 39425591791](https://github.com/Bclick9/Bclick/actions/runs/39425591791) verifies the duplicate-key-safe parsing/reference/operationId/parameter checks and response fixtures.
+- Run 39425591791 passed both jobs: static guard, both OpenAPI lints and generated-client no-diff; plus API typecheck, tests, build, PostgreSQL migration, health startup and Schemathesis Health checks with all checks enabled.
+- Commits after that run only updated review/progress/owner-decision notes; auth/MFA/CSRF or other sensitive application routes were not implemented.
 - External/staging restore: **not run**.
 - Production deployment / provider sandbox / money movement: **not performed**.
 - This branch has not been merged into `main`.
