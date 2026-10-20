@@ -81,6 +81,38 @@ The final API must define whether waiver request and approval are separate opera
 
 For every mutation, require a full admin session with mandatory MFA, server-derived permission checks, CSRF and exact-Origin protections, a reason, request ID and conflict/version handling. Record immutable audit events and emit security/operations alerts. UI button visibility is not an authorization boundary.
 
+## 6. Normative server-side guard for permanent waiver
+
+The permanent-waiver check is a server-side authorization invariant, not a UI or documentation-only rule. The mutation service must execute the guard in the same database transaction as the effective override-state change, using an authoritative count of currently active admin principals from the database. Never accept `active_admin_count`, requester identity, approver identity, or approval state from client-supplied fields.
+
+Normative pseudocode:
+
+```ts
+// Execute inside the transaction that would persist the permanent waiver.
+if (deposit_kyc_override === 'waive' && expires_at === null) {
+  const active_admin_count = await tx.countActiveAdmins();
+
+  if (active_admin_count < 2) {
+    throw httpError(422, 'PERMANENT_WAIVE_REQUIRES_TWO_ADMINS');
+  }
+
+  if (requested_by === approved_by) {
+    throw httpError(403, 'REQUESTER_CANNOT_APPROVE_OWN');
+  }
+
+  // These IDs must resolve to active admin principals as well.
+  await tx.assertActiveAdmin(requested_by);
+  await tx.assertActiveAdmin(approved_by);
+
+  // Only after all guards pass may the approved state be persisted/audited.
+  await tx.persistPermanentWaive(/* approved state and audit context */);
+}
+```
+
+Use the standard error envelope and request ID. If the authoritative count query fails or returns an invalid count, fail closed and do not persist the waiver. The count and active-principal checks must use server-side state with the same transaction/locking strategy as the override write. Every route/service path that can set or approve a permanent waiver must call this guard; a UI-only check is prohibited.
+
+The repository currently has no KYC override endpoint or canonical `players` table. The guard must be unit-tested before the migration gate, then wired into the actual mutation service/route before any such endpoint can be enabled. The helper alone does not make a route operational; Q-020 runtime acceptance remains mandatory.
+
 ## 6. Database integrity, audit and operations
 
 - Use a CHECK constraint restricting the override to NULL, `require` or `waive`; `none` is never stored.
@@ -91,7 +123,7 @@ For every mutation, require a full admin session with mandatory MFA, server-deri
 - Alert on lock changes, waiver requests/approvals, permanent waivers, attempted bypass while locked, expired waivers, invalid dual-control attempts and suspicious repeated actions.
 - Assign a review owner and interval before operations are enabled. Temporary waiver expiry must be monitored; there is no silent renewal.
 
-## 7. Acceptance tests
+## 8. Acceptance tests
 
 1. `kyc_lock=true` and `kyc_tier < verified` rejects every deposit path even when override is `waive`.
 2. `kyc_lock=true` with Level 2 or higher proceeds only to the remaining rules; it never skips method-specific or legal checks.
@@ -106,13 +138,13 @@ For every mutation, require a full admin session with mandatory MFA, server-deri
 11. No waiver bypasses jurisdiction, sanctions/AML, responsible-gambling/self-exclusion, account-state, method/currency or other mandatory checks.
 12. No test or admin endpoint enables deposits while Q-015, Q-011 and applicable Q-020/Q-009 gates remain open.
 
-## 8. Consequences and dependencies
+## 9. Consequences and dependencies
 
 This design requires approved ADR-021 policy, canonical player/admin identities, explicit RBAC, audit/history, expiry processing/monitoring and a two-person permanent-waiver workflow. Because the player table does not exist, schema implementation must start with the approved canonical `players` table and then add any normalized override/audit structures in the migration sequence approved after this ADR.
 
 Q-011 remains P0/Open and blocks deployment. Q-015 blocks launch/deposits pending Legal/Compliance. Q-009 keeps TND provider routing blocked until written provider precision evidence and golden fixtures pass. Q-020 remains open until actual runtime coverage exists for implemented routes.
 
-## 9. Approval record
+## 10. Approval record
 
 - [ ] Project Owner approves the `kyc_lock` absolute-precedence algorithm.
 - [ ] Project Owner approves nullable override semantics and removal of `none`.
