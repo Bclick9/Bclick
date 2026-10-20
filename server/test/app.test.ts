@@ -110,6 +110,13 @@ test('returns 405 with Allow for undeclared methods on health endpoints', async 
     assert.equal(response.statusCode, 405);
     assert.equal(response.headers.allow, 'GET, HEAD');
     assert.equal(response.json().statusCode, 405);
+
+    const queryMethod = await app.inject({
+      method: 'QUERY',
+      url: '/api/v1/health/ready',
+    });
+    assert.equal(queryMethod.statusCode, 405);
+    assert.equal(queryMethod.headers.allow, 'GET, HEAD');
   } finally {
     await app.close();
   }
