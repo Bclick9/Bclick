@@ -8560,7 +8560,7 @@ x-csrf-policy:
 x-rate-limit-policy:
   login: 5 attempts per 15 minutes per normalized account identifier and 20 per 15 minutes per IP; progressive
     delay and generic errors.
-  register: 10 attempts per hour per IP, plus risk-based velocity controls.
+  register: 5 registration attempts per hour per IP, plus CAPTCHA verification and risk-based velocity controls.
   passwordReset: 3 requests per hour per normalized account identifier and 10 per hour per IP; 
     account-enumeration-safe response.
   deposits: 10 intent-creation requests per 15 minutes per player and 30 per hour per IP; also enforce 
