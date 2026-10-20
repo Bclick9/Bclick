@@ -1,0 +1,6 @@
+export { CmsCategoriesPage } from './Categories'
+export { CmsBannersPage } from './Banners'
+export { CmsPromotionsPage } from './Promotions'
+export { CmsPagesPage } from './Pages'
+export { CmsSkinGamesPage } from './SkinGames'
+export { CmsProvidersPage } from './Providers'
