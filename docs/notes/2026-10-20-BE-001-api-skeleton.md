@@ -51,8 +51,9 @@ The source-plan objectives (RPO ≤15 minutes and RTO ≤8 hours) remain targets
 
 ## 6. Verification record
 
-- Contract lint / generated client: see current branch workflow run.
-- Typecheck, unit tests, build and migration: see current branch workflow run.
+- **Passed:** GitHub Actions run [39420950279](https://github.com/Bclick9/Bclick/actions/runs/39420950279), tested code commit `645d167ae53317cf91acf06412ea7a999dac5f6f`.
+- The contract job passed OpenAPI lint, generated-client regeneration and the no-diff check. The API job passed workspace typecheck, config/money/server tests, server build, PostgreSQL migration, API health startup and Schemathesis Health checks.
+- Later commits only updated progress documentation; no application code changed after the tested code commit.
 - External/staging restore: **not run**.
 - Production deployment / provider sandbox / money movement: **not performed**.
 - This branch has not been merged into `main`.
