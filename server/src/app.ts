@@ -62,6 +62,20 @@ export function buildApp(options: BuildAppOptions) {
 
   app.addHook('onRequest', async (request, reply) => {
     reply.header('X-Request-Id', request.id);
+
+    const pathname = request.url.split('?', 1)[0] || '/';
+    const isHealthPath =
+      pathname === '/api/v1/health/live' || pathname === '/api/v1/health/ready';
+
+    // Run before content-type parsing so an unknown method consistently receives 405.
+    if (isHealthPath && request.method !== 'GET' && request.method !== 'HEAD') {
+      reply.header('Allow', 'GET, HEAD');
+      return reply.code(405).send({
+        statusCode: 405,
+        error: 'Method Not Allowed',
+        message: 'Method not allowed',
+      });
+    }
   });
 
   app.get(
