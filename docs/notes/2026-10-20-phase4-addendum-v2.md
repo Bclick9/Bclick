@@ -1,7 +1,7 @@
 # Phase 4 Identity Addendum v2 — Registration, KYC Tier and Override Contract
 
 **Date:** 2026-10-20  
-**Status:** DRAFT v2 — awaiting explicit Project Owner approval before migrations or application implementation.  
+**Status:** Project Owner-approved v2 (2026-10-20). Migration 001 remains gated on separate approval of the migration-plan note and the required CI evidence.  
 **Scope:** Contract/planning changes only. No migration, route handler, wallet, deposit or real-money capability is authorized.  
 **Supersedes:** [Phase 4 Identity Addendum v1](./2026-10-20-phase4-addendum.md) for the field names and override semantics revised here.  
 **Related plan:** [Phase 4 Identity Plan](./2026-10-20-phase4-identity-plan.md)  
@@ -172,11 +172,11 @@ The revised Phase 4 estimate remains **11–18 person-days**, including the orig
 
 ## 9. Explicit approval required
 
-- [ ] Approve this v2 note and the revised PlayerSummary/OpenAPI contract.
-- [ ] Approve ADR-021 threshold-based target design, with legal approval still required before activation.
-- [ ] Approve ADR-022 lock precedence, nullable override semantics and dual approval for permanent waiver.
-- [ ] Approve the proposed players-from-scratch migration design.
-- [ ] Approve the two future admin endpoints and three permission names.
-- [ ] Confirm temporary-waiver maximum validity (draft retains the earlier 30-day cap) and review/alert ownership.
+- [x] Project Owner approved this v2 note and revised PlayerSummary/OpenAPI contract (2026-10-20).
+- [x] Project Owner approved ADR-021 as the target design; written Legal/Compliance approval is still required before activation.
+- [x] Project Owner approved ADR-022 lock precedence, nullable override semantics and dual approval for permanent waiver.
+- [ ] Approve the separate Phase 4 migration-plan note before migration 001.
+- [x] Project Owner approved the proposed endpoint/permission scope at the policy level; final route contract and runtime tests remain required.
+- [x] Temporary-waiver maximum remains 30 days per the approved proposal; review/alert ownership remains an operational prerequisite.
 
 **Until this approval is recorded, this note and the updated OpenAPI mirror are drafts: no migration or application implementation may begin.**
