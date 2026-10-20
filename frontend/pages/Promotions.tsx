@@ -1,77 +1,11 @@
 import { Link, useParams } from 'react-router-dom'
 import { useState } from 'react'
 import { ChevronLeft, CalendarClock, Percent } from 'lucide-react'
-import type { Promotion } from '../data/catalog'
+import { PROMOTIONS, type Promotion } from '../data/catalog'
 
 type PromotionFilter = 'all' | 'casino' | 'sports'
 
-const FEATURED_PROMOTIONS: Promotion[] = [
-  {
-    slug: 'tuesday-on-the-reels',
-    image: 'https://i.imgur.com/LX0CyyU.jpeg',
-    tag: 'Tuesday on the reels',
-    title: '1000 FS to spin you around!',
-    scope: 'casino',
-    description: 'A featured Tuesday promotion for casino players.',
-    terms: ['Eligibility and reward conditions are subject to the published offer rules.', 'General Bonus Terms apply.'],
-  },
-  {
-    slug: 'wednesdays-double-fun',
-    image: 'https://i.imgur.com/X75yedd.jpeg',
-    tag: "Wednesday's double fun",
-    title: 'Get €5 Live Casino Bonus & 150 FS',
-    scope: 'casino',
-    description: 'A featured midweek promotion for casino and live casino play.',
-    terms: ['Eligibility and reward conditions are subject to the published offer rules.', 'General Bonus Terms apply.'],
-  },
-  {
-    slug: 'live-casino-thursday',
-    image: 'https://i.imgur.com/v7bu7ga.jpeg',
-    tag: 'Live Casino Thursday',
-    title: '25% Cashback to fuel more action!',
-    scope: 'casino',
-    description: 'A featured live casino promotion.',
-    terms: ['Eligibility and reward conditions are subject to the published offer rules.', 'General Bonus Terms apply.'],
-  },
-  {
-    slug: 'friday-featured-promotion',
-    image: 'https://i.imgur.com/7dRXAXI.jpeg',
-    tag: 'Friday Special',
-    title: 'A featured offer for the weekend ahead.',
-    scope: 'casino',
-    description: 'Explore this featured promotion.',
-    terms: ['Eligibility and reward conditions are subject to the published offer rules.', 'General Bonus Terms apply.'],
-  },
-  {
-    slug: 'saturday-featured-promotion',
-    image: 'https://i.imgur.com/CmuEAMk.jpeg',
-    tag: 'Saturday Special',
-    title: 'Discover more special rewards.',
-    scope: 'casino',
-    description: 'Explore this featured promotion.',
-    terms: ['Eligibility and reward conditions are subject to the published offer rules.', 'General Bonus Terms apply.'],
-  },
-  {
-    slug: 'sunday-featured-promotion',
-    image: 'https://i.imgur.com/V9tDnF9.jpeg',
-    tag: 'Sunday Special',
-    title: 'A little extra for your Sunday.',
-    scope: 'casino',
-    description: 'Explore this featured promotion.',
-    terms: ['Eligibility and reward conditions are subject to the published offer rules.', 'General Bonus Terms apply.'],
-  },
-  {
-    slug: 'crypto-featured-promotion',
-    image: 'https://i.imgur.com/InQuRtL.jpeg',
-    tag: 'Crypto Special',
-    title: 'Explore a crypto-themed promotion.',
-    scope: 'casino',
-    description: 'Explore this featured promotion.',
-    terms: ['Eligibility and reward conditions are subject to the published offer rules.', 'General Bonus Terms apply.'],
-  },
-]
-
-const ALL_PROMOTIONS: Promotion[] = FEATURED_PROMOTIONS
+const ALL_PROMOTIONS: Promotion[] = PROMOTIONS
 
 
 function PromotionTile({ promo }: { promo: Promotion }) {
