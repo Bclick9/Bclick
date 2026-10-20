@@ -9,6 +9,8 @@ import { OverviewPage } from './pages/backoffice/Overview'
 import { PlayersPage } from './pages/backoffice/Players'
 import { BonusTypeChooserModal, BonusWizardModal, BonusesPage } from './pages/backoffice/Bonuses'
 import { TransactionsPage } from './pages/backoffice/Transactions'
+import { DepositsPage } from './pages/backoffice/Deposits'
+import { WithdrawalsPage } from './pages/backoffice/Withdrawals'
 import { ReportsPage } from './pages/backoffice/Reports'
 import { SettingsPage } from './pages/backoffice/Settings'
 import { PlayerProfilePage } from './pages/backoffice/PlayerProfile'
@@ -142,7 +144,7 @@ export default function App() {
 
   const createHeaderAction = () => {
     if (workspace === 'cms') return null
-    if (activePage === 'bonuses') return null
+    if (activePage === 'bonuses' || activePage === 'deposits' || activePage === 'withdrawals') return null
     if (activePage === 'users') return <Button onClick={() => setUserOpen(true)}><Plus className="h-4 w-4" /> New player</Button>
     if (activePage === 'reports' || activePage === 'transactions') return <Button variant="outline" onClick={() => window.print()}><Download className="h-4 w-4" /> Export</Button>
     return <Button onClick={() => navigate('cms-promotions')}><Plus className="h-4 w-4" /> New campaign</Button>
@@ -212,6 +214,8 @@ export default function App() {
                       {activePage === 'users' ? <PlayersPage users={users} query={searchQuery} onQueryChange={setSearchQuery} onAdd={() => setUserOpen(true)} onSelect={setSelectedUser} onToggleStatus={toggleUserStatus} /> : null}
                       {activePage === 'bonuses' ? <BonusesPage offers={bonuses} onCreate={() => setBonusTypeChooserOpen(true)} onToggle={toggleOffer} onNotify={notify} /> : null}
                       {activePage === 'transactions' ? <TransactionsPage query={searchQuery} onQueryChange={setSearchQuery} users={users} onNotify={notify} onSelectPlayer={setSelectedUser} /> : null}
+                      {activePage === 'deposits' ? <DepositsPage onNotify={notify} /> : null}
+                      {activePage === 'withdrawals' ? <WithdrawalsPage onNotify={notify} /> : null}
                       {activePage === 'reports' ? <ReportsPage /> : null}
                       {activePage === 'settings' ? <SettingsPage onNotify={notify} /> : null}
 

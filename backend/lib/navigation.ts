@@ -1,4 +1,4 @@
-import { BadgePercent, CreditCard, FileText, Gamepad2, Gift, Image, Layers, LayoutDashboard, Settings, TrendingUp, Users, type LucideIcon } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, BadgePercent, CreditCard, FileText, Gamepad2, Gift, Image, Layers, LayoutDashboard, Settings, TrendingUp, Users, type LucideIcon } from 'lucide-react'
 import type { PageKey, WorkspaceMode } from './types'
 
 export const NAV_GROUPS: { title: string; items: { page: PageKey; label: string; icon: LucideIcon; count?: string }[] }[] = [
@@ -9,6 +9,8 @@ export const NAV_GROUPS: { title: string; items: { page: PageKey; label: string;
   ] },
   { title: 'OPERATIONS', items: [
     { page: 'transactions', label: 'Transactions', icon: CreditCard },
+    { page: 'deposits', label: 'Deposits', icon: ArrowDownToLine, count: '4' },
+    { page: 'withdrawals', label: 'Withdrawals', icon: ArrowUpFromLine, count: '3' },
     { page: 'reports', label: 'Reports & analytics', icon: TrendingUp },
   ] },
   { title: 'SYSTEM', items: [
@@ -32,6 +34,8 @@ export const PAGE_INFO: Record<PageKey, { title: string; description: string }> 
   users: { title: 'Players', description: 'Manage player records, account status, verification, and profile activity.' },
   bonuses: { title: 'Bonuses', description: 'Manage bonus offers, wagering requirements, and eligibility.' },
   transactions: { title: 'Transactions', description: 'Browse demo deposits, withdrawals, and wallet activity.' },
+  deposits: { title: 'Deposits', description: 'Review incoming payment requests and confirm verified deposits.' },
+  withdrawals: { title: 'Withdrawals', description: 'Review, approve, and track player payout requests.' },
   reports: { title: 'Reports & analytics', description: 'Explore platform performance and engagement trends.' },
   settings: { title: 'Settings', description: 'Preview workspace preferences and admin controls.' },
   'cms-banners': { title: 'Banners', description: 'Manage promotional artwork, hero placements, and casino visuals.' },
@@ -48,6 +52,8 @@ export const PAGE_PATHS: Record<PageKey, string> = {
   users: '/backoffice/players',
   bonuses: '/backoffice/bonuses',
   transactions: '/backoffice/transactions',
+  deposits: '/backoffice/deposits',
+  withdrawals: '/backoffice/withdrawals',
   reports: '/backoffice/reports',
   settings: '/backoffice/settings',
   'cms-banners': '/cms/banners',

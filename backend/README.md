@@ -53,6 +53,8 @@ backend/
 - `/backoffice/players`
 - `/backoffice/bonuses`
 - `/backoffice/transactions`
+- `/backoffice/deposits`
+- `/backoffice/withdrawals`
 - `/backoffice/reports`
 - `/backoffice/settings`
 
