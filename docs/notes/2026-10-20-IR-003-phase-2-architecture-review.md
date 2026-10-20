@@ -3,7 +3,7 @@
 **Date:** 2026-10-20  
 **Roadmap phase:** Phase 2 — Architecture and data model approval  
 **Branch:** `feature/IR-003-phase2-architecture-review`  
-**Status:** Technical review completed; recommended baseline recorded; Tech Lead sign-off still required. This note does **not** claim that proposed ADRs have already been approved.
+**Status:** Technical review completed; the Tech Lead accepted the architecture/data-model baseline for implementation planning on 2026-10-20. Phase 2 is **not fully closed**: named owners and confirmed dates for remaining decisions are still missing, and Phase 0.5 gates remain open. This sign-off does **not** approve unresolved security, vendor, retention, legal, deployment or real-money decisions, and does not approve proposed ADRs wholesale.
 
 ## 1. Purpose and outcome
 
@@ -32,6 +32,18 @@ These choices are the direction recommended by the planning documents, not a rec
 | Recovery objectives | Off-host encrypted base backups + continuous WAL archive; point-in-time restore and isolated drills. Target RPO ≤15 minutes and RTO ≤8 hours only after measured proof | Recommend accept as acceptance objectives, not achieved SLAs. Phase 3 must record measured evidence before anyone claims readiness. |
 | Budget | Planning estimate $89.80/mo base + $26.94 contingency = $116.74/mo envelope against a $200/mo infrastructure/technical-services cap; provider/GGR, payment, KYC/SMS and legal/licensing/compliance costs excluded | Use for planning only. Recheck prices and invoice estimates on purchase date; budget is not commercial approval. |
 | Testing/CI | OpenAPI lint, generated-client compile, Schemathesis, lint/typecheck/tests; Testcontainers for PostgreSQL; deterministic provider fixtures; property tests for money/ledger; k6 load testing when appropriate | Must become required CI. Existing UI workflows only build UIs and use different pnpm versions (9 versus 10.4.1); Phase 3 must standardize and extend them. |
+
+### Tech Lead disposition (2026-10-20)
+
+I accept the Section 2 baseline for continued implementation planning, with these boundaries:
+
+- Keep `frontend/` and the existing Backoffice/CMS `backend/` as presentation clients; the API remains a separate `server/` TypeScript/Fastify modular monolith.
+- Continue using PostgreSQL as the sole primary database, reviewed ordered SQL migrations, OpenAPI-first contracts, generated-client checks, and exact decimal-string / integer-minor-unit money handling.
+- Preserve Bclick's double-entry, append-only ledger as the planned wallet source of truth; do not create wallet/domain tables until their specific reviewed migration scope and prerequisites are satisfied.
+- The existing PostgreSQL Compose setup is accepted for reproducible local development. This is not approval to deploy a VPS or a production topology.
+- Retention periods, permitted jurisdictions, provider currency behavior, vendor callback integrity, the Q-001–Q-003 auth/MFA/CSRF contracts, and production/real-money activation remain separate decisions and are **not** approved by this baseline sign-off.
+
+This is a technical-baseline acceptance, not Phase 2 exit. The roadmap's named decision owners/confirmed dates and Phase 0.5 exit conditions remain outstanding.
 
 ## 3. Data-model invariants to preserve before writing migrations
 
@@ -85,7 +97,7 @@ Additional open decisions affecting later features include D-01..D-09 in `01-arc
 - [x] Read the roadmap Phase 2 acceptance definition and cross-reference the architecture, system design, API, security, operations, domain, payments and open-question packages.
 - [x] Record a coherent recommended architecture/data-model baseline and map it to existing source decisions.
 - [x] Record provider, legal, retention, money/security and CI blockers without resolving them by inference.
-- [ ] **Tech Lead sign-off:** accept the baseline in Section 2 (or request explicit changes). No source ADR is marked as signed merely because this review recommends it.
+- [x] **Tech Lead sign-off:** baseline in Section 2 accepted for implementation planning on 2026-10-20 within the limits recorded above. No source ADR is marked as signed merely because this review recommends it.
 - [ ] Assign named owners and confirmed dates to remaining decisions; role names in the source register are accountable roles, not assigned individuals.
 - [ ] Confirm Phase 0.5 contract gate status and which feature/provider paths remain disabled before dependent implementation begins.
 
