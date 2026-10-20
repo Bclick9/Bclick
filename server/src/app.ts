@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify from 'fastify';
 
 export interface DatabaseProbe {
   query(sql: string): Promise<unknown>;
@@ -29,23 +29,18 @@ function requestIdFromHeader(header: unknown): string {
   return randomUUID();
 }
 
-export function buildApp(options: BuildAppOptions): FastifyInstance {
+export function buildApp(options: BuildAppOptions) {
   const app = Fastify({
     logger: {
       level: options.logLevel ?? 'info',
       serializers: {
-        req(request: {
-          method?: string;
-          url?: string;
-          hostname?: string;
-          ip?: string;
-        }) {
+        req(request: { method: string; url: string; hostname: string; ip: string }) {
           // Never put query strings (which may carry provider tokens) in logs.
-          const path = request.url?.split('?', 1)[0] || '/';
+          const path = request.url.split('?', 1)[0] || '/';
           return {
             method: request.method,
             url: path,
-            hostname: request.hostname,
+            host: request.hostname,
             remoteAddress: request.ip,
           };
         },
