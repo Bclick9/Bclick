@@ -5,6 +5,7 @@ on:
     branches: [main, feature/BE-001-api-skeleton]
     paths:
       - 'server/**'
+      - 'scripts/**'
       - 'packages/**'
       - 'docs/planning/openapi.yaml'
       - 'docs/planning/openapi-aggregator-callbacks.yaml'
@@ -17,6 +18,7 @@ on:
     branches: [main, feature/IR-003-phase2-architecture-review]
     paths:
       - 'server/**'
+      - 'scripts/**'
       - 'packages/**'
       - 'docs/planning/openapi.yaml'
       - 'docs/planning/openapi-aggregator-callbacks.yaml'
@@ -45,6 +47,12 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - name: Install locked workspace
         run: pnpm install --frozen-lockfile
+      - name: Install pinned Python contract-check tools
+        run: |
+          python3 -m venv /tmp/openapi-contract-venv
+          /tmp/openapi-contract-venv/bin/pip install --disable-pip-version-check -r scripts/contract-requirements.txt
+      - name: Verify duplicate keys, references, operation IDs, parameters and response fixtures
+        run: /tmp/openapi-contract-venv/bin/python scripts/verify_openapi_contracts.py
       - name: Lint canonical API contracts
         run: pnpm api:lint
       - name: Regenerate the typed client from OpenAPI
