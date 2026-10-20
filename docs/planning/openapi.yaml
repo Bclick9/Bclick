@@ -4447,7 +4447,7 @@ paths:
             schema:
               type: object
               required: [file]
-              properties: {file: {type: string, format: binary, description: JPEG, PNG or PDF only; maximum 10 MiB before decoding.}}
+              properties: {file: {type: string, format: binary, description: "JPEG, PNG or PDF only; maximum 10 MiB before decoding."}}
       responses:
         '202':
           description: Accepted for scan/review; not a deposit confirmation.
@@ -4459,7 +4459,7 @@ paths:
         '409': {$ref: '#/components/responses/Conflict'}
         '413': {description: File exceeds 10 MiB limit.}
         '415': {description: Unsupported or detected disallowed file type.}
-        '422': {description: Malware, duplicate hash, or image/PDF validation failure.}
+        '422': {description: "Malware, duplicate hash, or image/PDF validation failure."}
         '429': {$ref: '#/components/responses/RateLimited'}
   /api/v1/admin/payments/pending:
     get:
@@ -5212,7 +5212,7 @@ paths:
       security: [{playerSession: []}]
       parameters: [{$ref: '#/components/parameters/XRequestId'}]
       responses:
-        '200': {description: Own closure state, grace period and player-safe next action; no-store.}
+        '200': {description: "Own closure state, grace period and player-safe next action; no-store."}
   /api/v1/admin/players/{playerId}/wallets/{currency}/status:
     patch:
       tags: [Backoffice]
@@ -5302,7 +5302,7 @@ paths:
       security: [{playerSession: []}]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/CsrfToken'}, {$ref: '#/components/parameters/XRequestId'}]
       responses:
-        '204': {description: All active player sessions revoked, including current session; session and CSRF cookies cleared.}
+        '204': {description: "All active player sessions revoked, including current session; session and CSRF cookies cleared."}
   /api/v1/auth/login-history:
     get:
       tags: [Authentication]
@@ -5311,7 +5311,7 @@ paths:
       security: [{playerSession: []}]
       parameters: [{$ref: '#/components/parameters/XRequestId'}]
       responses:
-        '200': {description: Minimal, privacy-safe login history; no precise geolocation or raw IP unless policy specifically permits; no-store.}
+        '200': {description: "Minimal, privacy-safe login history; no precise geolocation or raw IP unless policy specifically permits; no-store."}
   /api/v1/admin/auth/logout-all:
     post:
       tags: [Authentication, Security]
@@ -5320,7 +5320,7 @@ paths:
       security: [{adminSession: []}]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/CsrfToken'}, {$ref: '#/components/parameters/XRequestId'}]
       responses:
-        '204': {description: All admin sessions revoked, including current session; cookies cleared and audit recorded.}
+        '204': {description: "All admin sessions revoked, including current session; cookies cleared and audit recorded."}
   /api/v1/admin/providers/{providerCode}/replay-callback:
     post:
       tags: [Backoffice]
@@ -5350,7 +5350,7 @@ paths:
       security: [{adminSession: []}]
       parameters: [{$ref: '#/components/parameters/XRequestId'}]
       responses:
-        '200': {description: Safe settings view; no-store, standard envelope.}
+        '200': {description: "Safe settings view; no-store, standard envelope."}
         '403': {$ref: '#/components/responses/Forbidden'}
   /api/v1/admin/users/{adminId}:
     patch:
@@ -6331,8 +6331,8 @@ components:
             status: {type: string, enum: [created, requires_action, pending, awaiting_proof, awaiting_scan, pending_review, more_info_requested, quarantined, approved, processing, succeeded, settled, failed, rejected, released, expired, refunded, cancelled, reversed, exception], description: Direction/method-specific states share this public union. Only a posted ledger journal determines spendable credit/settlement; reversed is a compensating business fact and never rewrites original entries.}
             amount: {$ref: '#/components/schemas/PositiveAmount'}
             expectedAmount: {$ref: '#/components/schemas/PositiveAmount'}
-            heldAmount: {type: [string, 'null'], pattern: '^[0-9]+(\.[0-9]+)?$', description: Amount currently held for this withdrawal, exact decimal string.}
-            creditedAmount: {type: [string, 'null'], pattern: '^[0-9]+(\.[0-9]+)?$', description: Amount actually posted to player-available, not the raw observed receipt amount.}
+            heldAmount: {type: [string, 'null'], pattern: '^[0-9]+(\.[0-9]+)?$', description: "Amount currently held for this withdrawal, exact decimal string."}
+            creditedAmount: {type: [string, 'null'], pattern: '^[0-9]+(\.[0-9]+)?$', description: "Amount actually posted to player-available, not the raw observed receipt amount."}
             currency: {$ref: '#/components/schemas/CurrencyCode'}
             fee: {type: [string, 'null'], pattern: '^[0-9]+(\.[0-9]+)?$', description: Disclosed fee amount in the currency specified by the method terms.}
             redirectUrl: {type: [string, 'null'], format: uri, description: Future automated PSP URL only; never evidence of settlement.}

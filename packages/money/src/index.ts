@@ -35,7 +35,12 @@ export function parseDecimalToMinorUnits(
     throw new Error('Amount must be a plain decimal string');
   }
 
-  const [, sign, whole, fraction = ''] = match;
+  const sign = match[1];
+  const whole = match[2];
+  const fraction = match[3] ?? '';
+  if (sign === undefined || whole === undefined) {
+    throw new Error('Amount must be a plain decimal string');
+  }
   if (fraction.length > exponent) {
     throw new Error(`Amount has more than ${exponent} fractional digits for ${currency}`);
   }
