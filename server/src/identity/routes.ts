@@ -15,7 +15,7 @@ const ENROLLMENT_CSRF = '__Host-bclick_admin_enrollment_csrf';
 type CookieRead = { value: string | undefined; duplicate: boolean };
 function readCookie(request: FastifyRequest, name: string): CookieRead {
   const header = request.headers.cookie;
-  if (typeof header !== 'string') return { duplicate: false };
+  if (typeof header !== 'string') return { value: undefined, duplicate: false };
   let value: string | undefined;
   let duplicate = false;
   for (const part of header.split(';')) {
@@ -135,6 +135,10 @@ async function requirePlayer(request: FastifyRequest, reply: FastifyReply, servi
     sendError(reply, request, 401, 'UNAUTHORIZED', 'A valid player session is required');
     return null;
   }
+  if (session.status === 'suspended' || session.status === 'closed') {
+    sendError(reply, request, 403, 'FORBIDDEN', 'Player account is not active');
+    return null;
+  }
   if (unsafe) {
     const token = csrfValue(request, PLAYER_CSRF);
     if (!token || !service.verifyCsrfForSession(session, token)) {
@@ -208,7 +212,11 @@ async function requireEnrollment(
 }
 
 export function registerIdentityRoutes(app: FastifyInstance, service: IdentityService, config: IdentityConfig): void {
-  app.post('/api/v1/auth/register', { config: { rateLimit: false } }, async (request, reply) => safely(reply, request, async () => {
+  app.post('/api/v1/auth/register', { config: { rateLimit: false }, schema: { body: { type: 'object', additionalProperties: false, required: ['email','password','countryCode','settlementCurrency'], properties: {
+    email: { type: 'string', format: 'email', maxLength: 254 }, password: { type: 'string', minLength: 12, maxLength: 1024 },
+    countryCode: { type: 'string', pattern: '^[A-Z]{2}$' }, settlementCurrency: { type: 'string', enum: ['TND','EUR','USD'] },
+    language: { type: 'string', minLength: 2, maxLength: 12 }, preferredDisplayCurrency: { type: 'string', enum: ['TND','EUR','USD'] }
+  } } } }, async (request, reply) => safely(reply, request, async () => {
     if (!originAllowed(request, config, 'player')) return sendError(reply, request, 403, 'ORIGIN_INVALID', 'Request Origin is not allowed');
     const body = bodyObject(request);
     const result = await service.registerPlayer({
@@ -220,7 +228,7 @@ export function registerIdentityRoutes(app: FastifyInstance, service: IdentitySe
     return reply.code(201).send(playerResponse(result.player, request.id));
   }));
 
-  app.post('/api/v1/auth/login', async (request, reply) => safely(reply, request, async () => {
+  app.post('/api/v1/auth/login', { schema: { body: { type: 'object', additionalProperties: false, required: ['email','password'], properties: { email: { type: 'string', format: 'email', maxLength: 254 }, password: { type: 'string', minLength: 1, maxLength: 1024 } } } } }, async (request, reply) => safely(reply, request, async () => {
     if (!originAllowed(request, config, 'player')) return sendError(reply, request, 403, 'ORIGIN_INVALID', 'Request Origin is not allowed');
     const body = bodyObject(request);
     const result = await service.loginPlayer(String(body.email), String(body.password), request.id, request.ip);
@@ -266,14 +274,14 @@ export function registerIdentityRoutes(app: FastifyInstance, service: IdentitySe
     return reply.code(200).send(playerResponse(player, request.id));
   }));
 
-  app.post('/api/v1/auth/password-reset/request', async (request, reply) => safely(reply, request, async () => {
+  app.post('/api/v1/auth/password-reset/request', { schema: { body: { type: 'object', additionalProperties: false, required: ['email'], properties: { email: { type: 'string', format: 'email', maxLength: 254 } } } } }, async (request, reply) => safely(reply, request, async () => {
     if (!originAllowed(request, config, 'player')) return sendError(reply, request, 403, 'ORIGIN_INVALID', 'Request Origin is not allowed');
     const body = bodyObject(request);
     await service.requestPasswordReset(String(body.email), request.ip);
     return reply.code(202).send();
   }));
 
-  app.post('/api/v1/auth/password-reset/confirm', async (request, reply) => safely(reply, request, async () => {
+  app.post('/api/v1/auth/password-reset/confirm', { schema: { body: { type: 'object', additionalProperties: false, required: ['token','newPassword'], properties: { token: { type: 'string', minLength: 32, maxLength: 512 }, newPassword: { type: 'string', minLength: 12, maxLength: 1024 } } } } }, async (request, reply) => safely(reply, request, async () => {
     if (!originAllowed(request, config, 'player')) return sendError(reply, request, 403, 'ORIGIN_INVALID', 'Request Origin is not allowed');
     const body = bodyObject(request);
     await service.confirmPasswordReset(String(body.token), String(body.newPassword));
@@ -287,14 +295,14 @@ export function registerIdentityRoutes(app: FastifyInstance, service: IdentitySe
     return reply.code(202).send();
   }));
 
-  app.post('/api/v1/auth/email-verification/confirm', async (request, reply) => safely(reply, request, async () => {
+  app.post('/api/v1/auth/email-verification/confirm', { schema: { body: { type: 'object', additionalProperties: false, required: ['token'], properties: { token: { type: 'string', minLength: 32, maxLength: 512 } } } } }, async (request, reply) => safely(reply, request, async () => {
     if (!originAllowed(request, config, 'player')) return sendError(reply, request, 403, 'ORIGIN_INVALID', 'Request Origin is not allowed');
     const body = bodyObject(request);
     await service.confirmEmailVerification(String(body.token));
     return reply.code(204).send();
   }));
 
-  app.post('/api/v1/admin/auth/login', async (request, reply) => safely(reply, request, async () => {
+  app.post('/api/v1/admin/auth/login', { schema: { body: { type: 'object', additionalProperties: false, required: ['email','password'], properties: { email: { type: 'string', format: 'email', maxLength: 254 }, password: { type: 'string', minLength: 1, maxLength: 1024 } } } } }, async (request, reply) => safely(reply, request, async () => {
     if (!originAllowed(request, config, 'admin')) return sendError(reply, request, 403, 'ORIGIN_INVALID', 'Request Origin is not allowed');
     const body = bodyObject(request);
     const result = await service.beginAdminLogin(String(body.email), String(body.password), request.id, request.ip);
@@ -310,7 +318,7 @@ export function registerIdentityRoutes(app: FastifyInstance, service: IdentitySe
     return reply.code(202).send({ data: { status: result.status, challengeId: result.challengeId, expiresAt: result.expiresAt }, requestId: request.id });
   }));
 
-  app.post('/api/v1/admin/auth/mfa/verify', async (request, reply) => safely(reply, request, async () => {
+  app.post('/api/v1/admin/auth/mfa/verify', { schema: { body: { type: 'object', additionalProperties: false, required: ['challengeId','factor','code'], properties: { challengeId: { type: 'string', format: 'uuid' }, factor: { type: 'string', enum: ['totp','recovery_code'] }, code: { type: 'string', minLength: 6, maxLength: 64 } } } } }, async (request, reply) => safely(reply, request, async () => {
     if (!originAllowed(request, config, 'admin')) return sendError(reply, request, 403, 'ORIGIN_INVALID', 'Request Origin is not allowed');
     const body = bodyObject(request);
     const browser = readCookie(request, ADMIN_CHALLENGE);
@@ -341,7 +349,7 @@ export function registerIdentityRoutes(app: FastifyInstance, service: IdentitySe
     return reply.code(201).send({ data: setup, requestId: request.id });
   }));
 
-  app.post('/api/v1/admin/auth/mfa/totp/verify', async (request, reply) => safely(reply, request, async () => {
+  app.post('/api/v1/admin/auth/mfa/totp/verify', { schema: { body: { type: 'object', additionalProperties: false, required: ['code'], properties: { code: { type: 'string', pattern: '^[0-9]{6}$' } } } } }, async (request, reply) => safely(reply, request, async () => {
     const body = bodyObject(request);
     const fullCookie = readCookie(request, ADMIN_SESSION);
     if (fullCookie.duplicate) return sendError(reply, request, 401, 'UNAUTHORIZED', 'Session is invalid');
@@ -369,7 +377,7 @@ export function registerIdentityRoutes(app: FastifyInstance, service: IdentitySe
     return reply.code(204).send();
   }));
 
-  app.post('/api/v1/admin/auth/mfa/recovery-codes', async (request, reply) => safely(reply, request, async () => {
+  app.post('/api/v1/admin/auth/mfa/recovery-codes', { schema: { body: { type: 'object', additionalProperties: false, required: ['totpCode','reason'], properties: { totpCode: { type: 'string', pattern: '^[0-9]{6}$' }, reason: { type: 'string', minLength: 8, maxLength: 500 } } } } }, async (request, reply) => safely(reply, request, async () => {
     const session = await requireAdmin(request, reply, service, config, true);
     if (!session) return;
     const body = bodyObject(request);
