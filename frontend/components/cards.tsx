@@ -27,11 +27,15 @@ export function SectionRow({
   children,
   more,
   compact,
+  fadeEdges = true,
+  compactHeader = false,
 }: {
   title?: string
   children: ReactNode
   more?: string
   compact?: boolean
+  fadeEdges?: boolean
+  compactHeader?: boolean
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
@@ -73,7 +77,7 @@ export function SectionRow({
   return (
     <section className={compact ? '' : 'mb-6'}>
       {title ? (
-        <div className="flex min-h-10 items-center justify-between gap-3 mb-4">
+        <div className={`flex min-h-10 items-center justify-between gap-3 ${compactHeader ? "mb-2 sm:mb-4" : "mb-4"}`}>
           <Link
             to={more ?? '#'}
             className="group inline-flex min-w-0 items-center font-black text-white text-base md:text-xl"
@@ -117,17 +121,17 @@ export function SectionRow({
       <div className="relative isolate">
         <div
           ref={scrollRef}
-          className="flex gap-2 overflow-x-auto no-scrollbar pb-1"
+          className="flex snap-x snap-mandatory scroll-smooth gap-2 overflow-x-auto no-scrollbar pb-1"
         >
           {children}
         </div>
-        {canScrollLeft ? (
+        {fadeEdges && canScrollLeft ? (
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-black/90 via-black/55 to-transparent md:w-10"
           />
         ) : null}
-        {canScrollRight ? (
+        {fadeEdges && canScrollRight ? (
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-black/90 via-black/55 to-transparent md:w-10"
@@ -286,56 +290,48 @@ export function PromoAtlasCard({
   )
 }
 
-/* ---------- Promotion card ---------- */
-const LOCAL_PROMOTION_IMAGES: Record<string, string> = {
-  'welcome-casino-package': '/assets/home/welcome-casino-bonus.webp',
-  'welcome-sports-bonus': '/assets/home/welcome-sports-bonus.jpg',
-  'welcome-sports-freebet': '/assets/home/welcome-sports-freebet.jpg',
-  'welcome-crypto-combo': '/assets/home/welcome-crypto-bonus.jpg',
-  'mondays-reload-bonus': '/assets/home/monday-reload-bonus.jpg',
-}
-
+/* ---------- Homepage promotion card matching the reference carousel ---------- */
 export function PromoCard({ promo, className }: { promo: Promotion; className?: string }) {
-  const [imageSource, setImageSource] = useState(LOCAL_PROMOTION_IMAGES[promo.slug] ?? promo.image)
   const [imageFailed, setImageFailed] = useState(false)
 
   return (
     <Link
-      to={`/promotions/${promo.slug}`}
+      to={'/promotions/' + promo.slug}
+      aria-label={'View promotion: ' + promo.tag}
       className={cn(
-        'cb-promo-card group shrink-0 min-w-[260px] overflow-hidden rounded-xl border border-[var(--cb-line)] bg-[var(--cb-card)] transition-colors hover:border-[var(--cb-yellow)]',
+        'group relative flex h-full w-full min-w-0 shrink-0 snap-start flex-col overflow-hidden rounded-[10px] bg-[var(--cb-card)] transition-colors duration-200 hover:bg-[var(--cb-hover)]',
         className,
       )}
     >
-      <div className="relative">
+      <div className="relative h-56 w-full overflow-hidden bg-[#07141c]">
         {!imageFailed ? (
           <img
-            src={imageSource}
+            src={promo.image}
             alt={promo.tag}
             loading="lazy"
             decoding="async"
-            onError={() => {
-              if (imageSource !== promo.image) setImageSource(promo.image)
-              else setImageFailed(true)
-            }}
-            className="aspect-[2.2/1] w-full object-cover"
+            onError={() => setImageFailed(true)}
+            draggable={false}
+            className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover transition-transform duration-200 group-hover:scale-104"
           />
         ) : (
-          <div className="aspect-[2.2/1] w-full bg-[var(--cb-card)]" />
+          <div className="absolute inset-0 h-full w-full bg-[var(--cb-card)]" />
         )}
-        <span className="absolute left-0.5 top-0.5 rounded bg-[var(--cb-yellow)] px-2 py-1 text-[10px] font-bold text-[#00151e] md:text-xs">
+        <span className="absolute left-0 top-0 rounded-br-xl bg-[var(--cb-yellow)] px-3 py-1 text-xs font-semibold text-[#00151e]">
           {promo.tag}
         </span>
       </div>
-      <div className="flex min-h-[62px] items-center justify-between gap-3 px-4 py-2">
-        <p className="text-sm font-bold leading-snug text-white">{promo.title}</p>
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--cb-yellow)] text-[#00151e] transition-transform duration-150 group-hover:translate-x-0.5">
+      <div className="flex flex-1 items-center justify-between space-x-3 p-4">
+        <p className="line-clamp-2 font-bold text-base text-white">{promo.title}</p>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--cb-yellow)] text-[#00151e]">
           <ChevronRight className="h-4 w-4" />
         </span>
       </div>
     </Link>
   )
 }
+
+/* ---------- Promotion card ---------- */
 
 /* ---------- Live / upcoming match card ---------- */
 export function MatchCard({ event, className }: { event: SportsEvent; className?: string }) {
