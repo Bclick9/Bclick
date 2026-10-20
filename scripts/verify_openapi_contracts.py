@@ -207,7 +207,50 @@ def verify_callback_fixtures(spec: dict[str, Any]) -> int:
     return len(fixtures) + 1
 
 
+def verify_guard_negative_canaries() -> int:
+    """Prove each important guard rejects a deliberately malformed miniature input."""
+    try:
+        yaml.load("version: 1\nversion: 2\n", Loader=UniqueKeyLoader)
+    except yaml.YAMLError:
+        pass
+    else:
+        raise AssertionError("duplicate-key canary was not rejected")
+
+    try:
+        pointer({}, "#/missing", "negative-ref-canary")
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("unresolved-reference canary was not rejected")
+
+    duplicate_ids = {"paths": {
+        "/one": {"get": {"operationId": "duplicate"}},
+        "/two": {"get": {"operationId": "duplicate"}},
+    }}
+    try:
+        verify_operations([("negative-operationId-canary", duplicate_ids)])
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("duplicate operationId canary was not rejected")
+
+    duplicate_parameters = {"paths": {
+        "/one": {"get": {"operationId": "uniqueParameterCanary", "parameters": [
+            {"name": "lang", "in": "query"},
+            {"name": "lang", "in": "query"},
+        ]}},
+    }}
+    try:
+        verify_operations([("negative-parameter-canary", duplicate_parameters)])
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("duplicate parameter canary was not rejected")
+    return 4
+
+
 def main() -> int:
+    canaries = verify_guard_negative_canaries()
     base = load_spec(BASE)
     callback = load_spec(CALLBACK)
     base_name, callback_name = str(BASE.relative_to(ROOT)), str(CALLBACK.relative_to(ROOT))
@@ -216,6 +259,7 @@ def main() -> int:
     op_count = verify_operations([(base_name, base), (callback_name, callback)])
     error_count = verify_error_fixtures(base)
     callback_fixture_count = verify_callback_fixtures(callback)
+    print(f"PASS: {canaries} negative canaries for duplicate keys, unresolved refs, operationIds and parameters")
     print(f"PASS: duplicate-key-safe YAML parse ({base_name}; {callback_name})")
     print(f"PASS: resolved {base_refs + callback_refs} internal $refs")
     print(f"PASS: {op_count} unique operationIds and per-scope parameter names")
