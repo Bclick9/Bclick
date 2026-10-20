@@ -5968,8 +5968,7 @@ export interface operations {
             204: {
                 headers: {
                     [name: string]: unknown;
-                
-                    "Set-Cookie": components["headers"]["AdminSessionCookie"];};
+                };
                 content?: never;
             };
             400: components["responses"]["ValidationError"];
