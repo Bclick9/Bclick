@@ -1,0 +1,111 @@
+import { randomUUID } from 'node:crypto';
+
+import Fastify, { type FastifyInstance } from 'fastify';
+
+export interface DatabaseProbe {
+  query(sql: string): Promise<unknown>;
+}
+
+export interface BuildAppOptions {
+  database: DatabaseProbe | null;
+  logLevel?: string;
+}
+
+const healthResponseSchema = {
+  type: 'object',
+  required: ['status'],
+  properties: {
+    status: { type: 'string', enum: ['ok', 'not_ready'] },
+  },
+  additionalProperties: false,
+};
+
+const requestIdPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+
+function requestIdFromHeader(header: unknown): string {
+  if (typeof header === 'string' && requestIdPattern.test(header)) {
+    return header;
+  }
+  return randomUUID();
+}
+
+export function buildApp(options: BuildAppOptions): FastifyInstance {
+  const app = Fastify({
+    logger: {
+      level: options.logLevel ?? 'info',
+      serializers: {
+        req(request: {
+          method?: string;
+          url?: string;
+          hostname?: string;
+          ip?: string;
+        }) {
+          // Never put query strings (which may carry provider tokens) in logs.
+          const path = request.url?.split('?', 1)[0] || '/';
+          return {
+            method: request.method,
+            url: path,
+            hostname: request.hostname,
+            remoteAddress: request.ip,
+          };
+        },
+      },
+      redact: {
+        paths: [
+          'req.headers.authorization',
+          'req.headers.cookie',
+          'req.headers["x-api-key"]',
+          'req.headers["x-callback-token"]',
+        ],
+        censor: '[REDACTED]',
+      },
+    },
+    genReqId(request) {
+      return requestIdFromHeader(request.headers['x-request-id']);
+    },
+  });
+
+  app.addHook('onRequest', async (request, reply) => {
+    reply.header('X-Request-Id', request.id);
+  });
+
+  app.get(
+    '/api/v1/health/live',
+    {
+      schema: {
+        response: {
+          200: healthResponseSchema,
+        },
+      },
+    },
+    async () => ({ status: 'ok' }),
+  );
+
+  app.get(
+    '/api/v1/health/ready',
+    {
+      schema: {
+        response: {
+          200: healthResponseSchema,
+          503: healthResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      try {
+        if (!options.database) {
+          throw new Error('Database probe is not configured');
+        }
+        await options.database.query('SELECT 1');
+        return { status: 'ok' };
+      } catch {
+        // Only a safe state is returned; database diagnostics never go to clients.
+        app.log.warn({ requestId: request.id }, 'Readiness check failed');
+        reply.code(503);
+        return { status: 'not_ready' };
+      }
+    },
+  );
+
+  return app;
+}
