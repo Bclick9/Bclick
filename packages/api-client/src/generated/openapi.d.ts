@@ -4859,7 +4859,7 @@ export interface components {
         AcceptLanguage: string;
         /** @description Same key + same payload replays outcome; different payload returns 409. */
         IdempotencyKey: string;
-        /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+        /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
         XRequestId: string;
         /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
         IfMatch: string;
@@ -4920,7 +4920,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -4944,7 +4944,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -4969,7 +4969,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -5001,7 +5001,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -5032,7 +5032,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -5057,7 +5057,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -5082,7 +5082,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -5112,7 +5112,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -5143,7 +5143,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -5168,7 +5168,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -5203,7 +5203,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -5227,7 +5227,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -5265,7 +5265,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -5293,7 +5293,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -5331,7 +5331,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -5358,7 +5358,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -5396,7 +5396,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -5435,7 +5435,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -5463,7 +5463,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -5495,7 +5495,7 @@ export interface operations {
                 page?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -5520,7 +5520,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -5547,7 +5547,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -5574,7 +5574,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -5611,7 +5611,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -5663,7 +5663,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -5707,7 +5707,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -5732,7 +5732,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -5766,7 +5766,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Standard language-negotiation header parsed against the published CMS locale allowlist. Lower priority than explicit lang and an authenticated player's saved preference; never use raw header content as a filesystem path or SQL fragment. */
                 "Accept-Language"?: components["parameters"]["AcceptLanguage"];
@@ -5798,7 +5798,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Standard language-negotiation header parsed against the published CMS locale allowlist. Lower priority than explicit lang and an authenticated player's saved preference; never use raw header content as a filesystem path or SQL fragment. */
                 "Accept-Language"?: components["parameters"]["AcceptLanguage"];
@@ -5827,7 +5827,7 @@ export interface operations {
                 lang?: components["parameters"]["ContentLanguage"];
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Standard language-negotiation header parsed against the published CMS locale allowlist. Lower priority than explicit lang and an authenticated player's saved preference; never use raw header content as a filesystem path or SQL fragment. */
                 "Accept-Language"?: components["parameters"]["AcceptLanguage"];
@@ -5856,7 +5856,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -5889,7 +5889,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -5921,7 +5921,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -5950,7 +5950,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -5981,7 +5981,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -6014,7 +6014,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -6039,7 +6039,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -6066,7 +6066,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -6133,7 +6133,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -6171,7 +6171,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -6218,7 +6218,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -6271,7 +6271,7 @@ export interface operations {
                 cursor?: string | null;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -6299,7 +6299,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -6488,7 +6488,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -6510,7 +6510,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -6541,7 +6541,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -6575,7 +6575,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -6605,7 +6605,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -6638,7 +6638,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -6671,7 +6671,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -6700,7 +6700,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -6730,7 +6730,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Standard language-negotiation header parsed against the published CMS locale allowlist. Lower priority than explicit lang and an authenticated player's saved preference; never use raw header content as a filesystem path or SQL fragment. */
                 "Accept-Language"?: components["parameters"]["AcceptLanguage"];
@@ -6760,7 +6760,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -6790,7 +6790,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Standard language-negotiation header parsed against the published CMS locale allowlist. Lower priority than explicit lang and an authenticated player's saved preference; never use raw header content as a filesystem path or SQL fragment. */
                 "Accept-Language"?: components["parameters"]["AcceptLanguage"];
@@ -6822,7 +6822,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Standard language-negotiation header parsed against the published CMS locale allowlist. Lower priority than explicit lang and an authenticated player's saved preference; never use raw header content as a filesystem path or SQL fragment. */
                 "Accept-Language"?: components["parameters"]["AcceptLanguage"];
@@ -6854,7 +6854,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Standard language-negotiation header parsed against the published CMS locale allowlist. Lower priority than explicit lang and an authenticated player's saved preference; never use raw header content as a filesystem path or SQL fragment. */
                 "Accept-Language"?: components["parameters"]["AcceptLanguage"];
@@ -6886,7 +6886,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -6913,7 +6913,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -6947,7 +6947,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -6978,7 +6978,7 @@ export interface operations {
             header: {
                 /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
                 "If-Match": components["parameters"]["IfMatch"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -7025,7 +7025,7 @@ export interface operations {
                 "If-Match": components["parameters"]["IfMatch"];
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -7066,7 +7066,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -7118,7 +7118,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -7155,7 +7155,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
                 "If-Match": components["parameters"]["IfMatch"];
@@ -7216,7 +7216,7 @@ export interface operations {
                 cursor?: string | null;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -7247,7 +7247,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -7328,7 +7328,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -7448,7 +7448,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -7567,7 +7567,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -7686,7 +7686,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -7807,7 +7807,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -7927,7 +7927,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -8048,7 +8048,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -8169,7 +8169,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -8288,7 +8288,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -8408,7 +8408,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -8528,7 +8528,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -8597,7 +8597,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -8625,7 +8625,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -8661,7 +8661,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -8690,7 +8690,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -8720,7 +8720,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 "If-None-Match"?: string;
             };
@@ -8765,7 +8765,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
                 "If-Match": components["parameters"]["IfMatch"];
@@ -8819,7 +8819,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
                 "If-Match": components["parameters"]["IfMatch"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -8862,7 +8862,7 @@ export interface operations {
                 page?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -8888,7 +8888,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -8916,7 +8916,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -8938,7 +8938,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -8966,7 +8966,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 "If-None-Match"?: string;
             };
@@ -9009,7 +9009,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -9039,7 +9039,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -9065,7 +9065,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -9102,7 +9102,7 @@ export interface operations {
                 cursor?: string | null;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -9128,7 +9128,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -9166,7 +9166,7 @@ export interface operations {
                 cursor?: string | null;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -9192,7 +9192,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -9230,7 +9230,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -9256,7 +9256,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -9290,7 +9290,7 @@ export interface operations {
                 pageSize?: number;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Standard language-negotiation header parsed against the published CMS locale allowlist. Lower priority than explicit lang and an authenticated player's saved preference; never use raw header content as a filesystem path or SQL fragment. */
                 "Accept-Language"?: components["parameters"]["AcceptLanguage"];
@@ -9374,7 +9374,7 @@ export interface operations {
             header: {
                 /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
                 "If-Match": components["parameters"]["IfMatch"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -9427,7 +9427,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -9471,7 +9471,7 @@ export interface operations {
                 direction?: "deposit" | "withdrawal";
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -9499,7 +9499,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -9571,7 +9571,7 @@ export interface operations {
                 cursor?: string;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -9597,7 +9597,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -9628,7 +9628,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -9664,7 +9664,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -9698,7 +9698,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -9732,7 +9732,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -9781,7 +9781,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -9816,7 +9816,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
                 "If-Match": components["parameters"]["IfMatch"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -9856,7 +9856,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -9885,7 +9885,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -9920,7 +9920,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
                 "If-Match": components["parameters"]["IfMatch"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -9963,7 +9963,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -9997,7 +9997,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
                 "If-Match": components["parameters"]["IfMatch"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -10038,7 +10038,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -10077,7 +10077,7 @@ export interface operations {
                 cursor?: string;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -10104,7 +10104,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -10143,7 +10143,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -10175,7 +10175,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
                 "If-Match": components["parameters"]["IfMatch"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -10219,7 +10219,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
                 "If-Match": components["parameters"]["IfMatch"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -10263,7 +10263,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
                 "If-Match": components["parameters"]["IfMatch"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -10304,7 +10304,7 @@ export interface operations {
                 proofId: string;
             };
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -10333,7 +10333,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -10360,7 +10360,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -10391,7 +10391,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -10417,7 +10417,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -10455,7 +10455,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -10478,7 +10478,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -10506,7 +10506,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -10543,7 +10543,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -10574,7 +10574,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -10598,7 +10598,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -10621,7 +10621,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -10653,7 +10653,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -10682,7 +10682,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -10709,7 +10709,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -10738,7 +10738,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -10768,7 +10768,7 @@ export interface operations {
                 "If-Match": components["parameters"]["IfMatch"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -10805,7 +10805,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -10837,7 +10837,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -10863,7 +10863,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -10890,7 +10890,7 @@ export interface operations {
                 "If-Match": components["parameters"]["IfMatch"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -10933,7 +10933,7 @@ export interface operations {
                 "If-Match": components["parameters"]["IfMatch"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -10970,7 +10970,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -10998,7 +10998,7 @@ export interface operations {
                 "If-Match": components["parameters"]["IfMatch"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -11039,7 +11039,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -11060,7 +11060,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -11085,7 +11085,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -11108,7 +11108,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -11140,7 +11140,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -11166,7 +11166,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
                 "If-Match": components["parameters"]["IfMatch"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -11207,7 +11207,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
                 "If-Match": components["parameters"]["IfMatch"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -11244,7 +11244,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -11268,7 +11268,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
@@ -11295,7 +11295,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -11323,7 +11323,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -11350,7 +11350,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -11374,7 +11374,7 @@ export interface operations {
             header: {
                 /** @description Same key + same payload replays outcome; different payload returns 409. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Optional client correlation ID; validated for length/characters and replaced if invalid/absent. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
                 /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the signed __Host-bclick_csrf cookie and be bound to the current server session. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
