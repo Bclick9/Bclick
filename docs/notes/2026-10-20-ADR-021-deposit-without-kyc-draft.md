@@ -1,7 +1,7 @@
 # ADR-021 Draft — Threshold-Based Deposits Without Full KYC
 
 **Date:** 2026-10-20  
-**Status:** DRAFT v2 — awaiting Project Owner approval; Legal/Compliance review is mandatory before any deposit enablement.  
+**Status:** Project Owner-approved target design (2026-10-20); Legal/Compliance review is mandatory before any deposit enablement.  
 **Decision owners:** Project Owner, Legal/Compliance and Finance.  
 **Related:** [Phase 4 Addendum v2](./2026-10-20-phase4-addendum-v2.md) · [ADR-022 draft](./2026-10-20-ADR-022-kyc-lock-deposit-override-draft.md)
 
@@ -98,7 +98,7 @@ If Legal rejects the model in a jurisdiction, that jurisdiction must remain disa
 
 ## 8. Approval record
 
-- [ ] Project Owner approves threshold-based eligibility as the target design.
+- [x] Project Owner approves threshold-based eligibility as the target design (2026-10-20).
 - [ ] Legal/Compliance grants written approval per intended launch jurisdiction.
 - [ ] Finance approves threshold values, currencies, time windows and aggregation.
 - [ ] Product/Compliance approves Level 2 bonus and withdrawal policy.
