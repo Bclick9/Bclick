@@ -53,6 +53,10 @@ jobs:
           /tmp/openapi-contract-venv/bin/pip install --disable-pip-version-check -r scripts/contract-requirements.txt
       - name: Verify duplicate keys, references, operation IDs, parameters and response fixtures
         run: /tmp/openapi-contract-venv/bin/python scripts/verify_openapi_contracts.py
+      - name: Report source revision for diagnostic run
+        run: |
+          echo "Ref: $GITHUB_REF"
+          echo "SHA: $GITHUB_SHA"
       - name: Lint canonical API contracts
         run: pnpm api:lint
       - name: Regenerate the typed client from OpenAPI
