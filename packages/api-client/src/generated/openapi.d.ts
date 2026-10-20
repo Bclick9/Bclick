@@ -4901,7 +4901,7 @@ export interface components {
         SessionCookie: string;
         /** @description Opaque entity version for conditional updates. */
         ETag: string;
-        /** @description Server correlation identifier. */
+        /** @description Server-generated or validated correlation identifier. */
         XRequestId: string;
         /** @description Logout revokes the server-side session and clears __Host-bclick_session (Secure; HttpOnly; Path=/; Max-Age=0) and __Host-bclick_csrf (Secure; Path=/; Max-Age=0) with Set-Cookie headers. */
         ExpiredSessionCookie: string;
