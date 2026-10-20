@@ -52,11 +52,11 @@ Additional GitHub artifacts:
 
 ### Static / CI checks
 
-- OpenAPI 3.1 parsing and lint: passed on the updated specification in the runs preceding the latest generated-client formatting correction.
-- The static contract guard, including the new CSRF name/lifecycle/collision checks: passed in the initial run `39448361249` and again in `39449790248`.
-- API types, tests, PostgreSQL migration and existing Health-contract job: passed in `39448361249`, `39449790248`, and `39449985230`.
-- Application builds passed on the CSRF documentation/contract commits [39448360840](https://github.com/Bclick9/Bclick/actions/runs/39448360840) and [39450745256](https://github.com/Bclick9/Bclick/actions/runs/39450745256). These builds do not test runtime authentication/CSRF behavior. The latest OpenAPI/generated-client drift workflow is being re-run after aligning the generated declaration; see [API workflow run 39450975081](https://github.com/Bclick9/Bclick/actions/runs/39450975081).
-- The generated-client drift step initially failed because the committed TOTP 204 response header type did not match the exact output order from `openapi-typescript`. It has been realigned with the generated output; commit `c36cbb7941806e796137c472c5faef037a61c4f5` is being checked by [API workflow run 39450975081](https://github.com/Bclick9/Bclick/actions/runs/39450975081). The final result below must be updated from the completed run before this note is considered accepted.
+- OpenAPI 3.1 lint: **passed** in [API workflow run 39450975081](https://github.com/Bclick9/Bclick/actions/runs/39450975081).
+- Static contract guard, including the new CSRF name/lifecycle/collision canary: **passed** in [API workflow run 39450975081](https://github.com/Bclick9/Bclick/actions/runs/39450975081).
+- Generated-client drift check: **passed** in [API workflow run 39450975081](https://github.com/Bclick9/Bclick/actions/runs/39450975081) after the declaration was synchronized to the exact `openapi-typescript` output at commit `c36cbb7941806e796137c472c5faef037a61c4f5`.
+- API types, tests, PostgreSQL migration, API startup and existing Health-route contract checks: **passed** in [API workflow run 39450975081](https://github.com/Bclick9/Bclick/actions/runs/39450975081).
+- Application builds: **passed** in [run 39450975053](https://github.com/Bclick9/Bclick/actions/runs/39450975053).
 
 Static checks prove contract shape and generated-client reproducibility only. They do not execute authentication handlers.
 
