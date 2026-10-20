@@ -1,5 +1,5 @@
 export type WorkspaceMode = 'backoffice' | 'cms'
-export type PageKey = 'overview' | 'users' | 'bonuses' | 'transactions' | 'reports' | 'settings' | 'cms-banners' | 'cms-promotions' | 'cms-pages' | 'cms-skin-games' | 'cms-categories' | 'cms-providers'
+export type PageKey = 'overview' | 'users' | 'bonuses' | 'transactions' | 'deposits' | 'withdrawals' | 'reports' | 'settings' | 'cms-banners' | 'cms-promotions' | 'cms-pages' | 'cms-skin-games' | 'cms-categories' | 'cms-providers'
 export type Status = 'Active' | 'Paused' | 'Scheduled' | 'Suspended' | 'Completed' | 'Pending' | 'Failed'
 export type UserRow = { id: string; name: string; email: string; country: string; joined: string; balance: string; status: 'Active' | 'Suspended'; tier: 'VIP' | 'Gold' | 'Standard' }
 export type BonusWizardForm = {
