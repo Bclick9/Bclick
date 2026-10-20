@@ -1,0 +1,4 @@
+# Pinned static OpenAPI contract guard dependencies.
+PyYAML==6.0.3
+jsonschema==4.26.0
+schemathesis==4.32.1
