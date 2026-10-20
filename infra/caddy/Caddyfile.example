@@ -1,0 +1,12 @@
+# Example reverse-proxy entrypoint only; replace SITE_HOST and review TLS/host policy
+# with Security/Ops before staging or production use.
+{$SITE_HOST} {
+  encode zstd gzip
+
+  @api path /api/*
+  reverse_proxy @api api:3000
+
+  handle {
+    respond "The API skeleton does not yet configure static storefront or Backoffice serving." 404
+  }
+}
