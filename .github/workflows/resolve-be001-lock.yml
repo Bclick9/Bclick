@@ -1,0 +1,52 @@
+name: Temporary BE-001 lockfile resolver
+
+on:
+  push:
+    branches: [feature/BE-001-api-skeleton]
+    paths:
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - 'server/package.json'
+      - 'packages/**/package.json'
+      - 'docs/planning/openapi.yaml'
+      - '.github/workflows/resolve-be001-lock.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  resolve-workspace-lock:
+    if: github.ref == 'refs/heads/feature/BE-001-api-skeleton'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out task branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Resolve the workspace lockfile
+        run: pnpm install --lockfile-only --no-frozen-lockfile
+      - name: Generate the canonical OpenAPI TypeScript declarations
+        run: |
+          mkdir -p packages/api-client/src/generated
+          pnpm api:client:generate
+      - name: Commit the generated lockfile and client
+        run: |
+          git add pnpm-lock.yaml packages/api-client/src/generated/openapi.d.ts
+          if git diff --cached --quiet; then
+            echo "No lockfile or generated-client changes to commit."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore(api): resolve workspace lockfile and generated client"
+            git push origin "HEAD:${{ github.ref_name }}"
+          fi
