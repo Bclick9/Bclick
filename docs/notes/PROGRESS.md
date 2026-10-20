@@ -10,7 +10,7 @@ Updated: 2026-10-20
 - **Phase 1 audit:** [`2026-10-20-IR-002-repository-audit.md`](./2026-10-20-IR-002-repository-audit.md).
 - **Phase 2 review:** [`2026-10-20-IR-003-phase-2-architecture-review.md`](./2026-10-20-IR-003-phase-2-architecture-review.md).
 - **Phase 3 implementation note:** [`2026-10-20-BE-001-api-skeleton.md`](./2026-10-20-BE-001-api-skeleton.md).
-- **Verification run:** [GitHub Actions run 39420950279](https://github.com/Bclick9/Bclick/actions/runs/39420950279) succeeded on code commit `645d167ae53317cf91acf06412ea7a999dac5f6f`. The later commit only adds the implementation note; no application code changed after the tested code commit.
+- **Verification runs:** [39423227939](https://github.com/Bclick9/Bclick/actions/runs/39423227939) passed after the `X-Request-Id` schema/runtime/test/client reconciliation. Run [39423555201](https://github.com/Bclick9/Bclick/actions/runs/39423555201) checks the follow-up explicit Redocly rules; final status is tracked on the PR. Earlier run 39420950279 covered the original API skeleton implementation.
 - **Implementation status:** No authentication/session lifecycle, wallet ledger, payments, CMS media upload or provider adapter/callback/launch routes were added. No deployment or real-money operation performed.
 
 ## Completed
@@ -19,8 +19,9 @@ Updated: 2026-10-20
 - **IR-002:** Audited the repository tree, workspace manifests, current UI boundaries and existing CI definitions.
 - **IR-003:** Recorded a recommended Phase 2 technical architecture/data-model baseline and the owner decisions/evidence that remain open.
 - **BE-001:** Added the separate Fastify `server/` workspace and health/readiness, validated config, PostgreSQL pool probe, redacted request logging, request IDs, exact `packages/money` primitives, shared config package, generated OpenAPI client, PostgreSQL Compose, migration wiring, CI, Caddy example and backup/restore runbooks.
-- **BE-001 verification:** Both CI jobs succeeded on the tested code commit: OpenAPI lint/generated-client drift, workspace typecheck, config/money/server unit tests, API build, PostgreSQL migration, health startup, and Schemathesis Health checks.
+- **BE-001 verification:** Both CI jobs passed on run 39423227939: OpenAPI lint/generated-client drift, workspace typecheck, config/money/server unit tests, API build, PostgreSQL migration, health startup, and Schemathesis Health checks with negative-data rejection enabled. The current head additionally makes structural/reference/operationId/parameter rules explicit and is being checked by run 39423555201.
 - Aligned Backoffice workflow to pnpm 10.4.1; generated `pnpm-lock.yaml` and the committed API-client declarations with a temporary branch-only workflow, then removed that temporary workflow after use.
+- Recorded [Phase 0.5 security/API gate status](./2026-10-20-PHASE-0-5-security-gates.md), separating verified contract work from owner/vendor/evidence gates that remain open.
 
 ## Findings and gates
 
@@ -34,6 +35,6 @@ Updated: 2026-10-20
 ## Next
 
 - Review the Phase 3 draft PR against the Phase 2 review branch; do not merge to `main` without owner review.
-- Verify the request-ID reconciliation with the updated CI run; continue closing remaining Phase 0.5 P0 security/API gates with required evidence and approvals.
+- Verify the explicit Redocly static-guard rules in the latest CI run, then add runtime 400/401/403/422 contract cases as the corresponding handlers are implemented; continue closing remaining Phase 0.5 P0 gates with required evidence and owner approvals.
 - Provision isolated staging and off-host encrypted backup/WAL storage, then execute the real restore drill and record measured RPO/RTO and alerts before claiming recovery readiness.
 - Continue in roadmap order; do not add auth, wallet, payment or provider behavior until its contract/security prerequisites are satisfied.
