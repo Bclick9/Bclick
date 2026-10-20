@@ -20,7 +20,7 @@ This clarification records the number of initial accounts and the current develo
 - **Q-002:** The one-time bootstrap procedure, mandatory MFA, challenge/enrollment binding, recovery codes and reset lifecycle remain pending.
 - **Q-003:** CSRF cookie namespaces, allowed-origin topology, session binding, rotation and negative-test policy remain pending.
 
-The API/Auth and Security owners must record explicit decisions on [Issue #55](https://github.com/Bclick9/Bclick/issues/55); the implementation gate remains closed until required approvals and contract/tests are recorded. No admin login/session/MFA/CSRF handler is authorized by this note.
+The Project Owner recorded decisions for Q-001 and Q-002 and accepted the Q-003 CSRF policy on 2026-10-20 in [Issue #55](https://github.com/Bclick9/Bclick/issues/55). This context note remains non-authoritative; the implementation gate stays closed until the Phase 4 plan is approved and the contract/test PR resolves the schema and CSRF cookie namespace issues. No auth handler is authorized by this note.
 
 ## Local-to-VPS boundary
 
@@ -32,4 +32,4 @@ Until the later deployment gate is met:
 
 ## Next authorized step
 
-Resolve and record Q-001–Q-003 decisions in Issue #55. After approval, update the OpenAPI contract and acceptance fixtures as necessary, obtain a green contract/owner-approval PR, and only then implement the bootstrap and admin authentication lifecycle in roadmap order. The static Q-020 checks and the staging restore drill remain separately tracked; this note closes neither.
+Review and approve `2026-10-20-phase4-plan.md`. After plan approval, reconcile OpenAPI and contract fixtures (especially conditional enrollment cookies, challenge binding and CSRF namespace), regenerate the client, obtain a green contract/test PR, and only then implement the authentication lifecycle. Q-020 remains open pending runtime coverage of implemented routes; Q-011 remains P0/Open under the controlled local-development exception and is not closed by this note.
