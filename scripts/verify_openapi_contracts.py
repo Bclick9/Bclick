@@ -7,6 +7,7 @@ This is not a substitute for runtime tests of routes that are not implemented.
 """
 from __future__ import annotations
 
+import copy
 import sys
 from pathlib import Path
 from typing import Any
@@ -207,6 +208,120 @@ def verify_callback_fixtures(spec: dict[str, Any]) -> int:
     return len(fixtures) + 1
 
 
+
+def _assert_csrf_cookie_policy(spec: dict[str, Any]) -> int:
+    """Validate the normative per-context CSRF cookie names and lifecycle in OpenAPI."""
+    policy = spec.get("x-csrf-policy")
+    assert isinstance(policy, dict), "x-csrf-policy extension must be a mapping"
+    cookies = policy.get("cookies")
+    assert isinstance(cookies, dict), "x-csrf-policy.cookies must be a mapping"
+
+    expected = {
+        "player": "__Host-bclick_player_csrf",
+        "admin": "__Host-bclick_admin_csrf",
+        "enrollment": "__Host-bclick_admin_enrollment_csrf",
+    }
+    assert set(cookies) == set(expected), "CSRF cookie contexts must be exactly player/admin/enrollment"
+    names = [cookies[context].get("name") for context in expected]
+    assert len(set(names)) == 3, "CSRF cookie names must be unique across security contexts"
+    checks = 3
+
+    for context, name in expected.items():
+        entry = cookies[context]
+        assert entry.get("name") == name, f"{context}: incorrect CSRF cookie name"
+        assert isinstance(entry.get("issuedOn"), str) and entry["issuedOn"], f"{context}: missing issue lifecycle"
+        assert isinstance(entry.get("rotateOn"), list) and entry["rotateOn"], f"{context}: missing rotation lifecycle"
+        assert isinstance(entry.get("deletedOn"), list) and entry["deletedOn"], f"{context}: missing deletion lifecycle"
+        attrs = str(entry.get("attributes", "")).lower()
+        for required in ("secure", "samesite=strict", "path=/", "no domain", "javascript-readable", "not httponly"):
+            assert required in attrs, f"{context}: missing required cookie attribute {required!r}"
+        checks += 5
+
+    mechanism = str(policy.get("mechanism", "")).lower()
+    origin = str(policy.get("origin", "")).lower()
+    rotation = str(policy.get("rotation", "")).lower()
+    assert "host-based, not port-based" in mechanism, "policy must document host/port cookie scope"
+    assert "secure" in mechanism and "path=/" in mechanism and "no domain" in mechanism, (
+        "__Host- cookie requirements must be explicit"
+    )
+    assert "exact" in origin and "no wildcard" in origin, "strict exact Origin allowlist must be explicit"
+    assert "logout in one context must not clear another" in rotation, "logout isolation must be explicit"
+    checks += 4
+
+    token_param = str(spec["components"]["parameters"]["CsrfToken"].get("description", ""))
+    for name in expected.values():
+        assert name in token_param, f"CsrfToken parameter omits context cookie {name}"
+        checks += 1
+
+    header_expectations = {
+        "SessionCookie": "__Host-bclick_player_csrf",
+        "AdminSessionCookie": "__Host-bclick_admin_csrf",
+        "AdminEnrollmentCookie": "__Host-bclick_admin_enrollment_csrf",
+        "ExpiredSessionCookie": "__Host-bclick_player_csrf",
+        "ExpiredAdminSessionCookie": "__Host-bclick_admin_csrf",
+    }
+    for header_name, cookie_name in header_expectations.items():
+        description = str(spec["components"]["headers"][header_name].get("description", ""))
+        assert cookie_name in description, f"{header_name}: missing context cookie {cookie_name}"
+        checks += 1
+
+    enrollment_header = str(spec["components"]["headers"]["AdminEnrollmentCookie"].get("description", ""))
+    assert "enrollment_required" in enrollment_header, "enrollment cookies must be conditional on enrollment_required"
+    assert "expires" in enrollment_header.lower() or "10 minutes" in enrollment_header.lower(), (
+        "enrollment cookie expiry must be documented"
+    )
+    totp_verify = spec["paths"]["/api/v1/admin/auth/mfa/totp/verify"]["post"]["responses"]["204"]
+    assert totp_verify.get("headers", {}).get("Set-Cookie", {}).get("$ref") == (
+        "#/components/headers/AdminSessionCookie"
+    ), "TOTP enrollment verification must exchange enrollment CSRF for full admin session/CSRF cookies"
+    checks += 3
+
+    # Fail if any old shared CSRF name remains anywhere in the OpenAPI contract.
+    def collect_strings(value: Any):
+        if isinstance(value, str):
+            yield value
+        elif isinstance(value, dict):
+            for key, child in value.items():
+                yield from collect_strings(key)
+                yield from collect_strings(child)
+        elif isinstance(value, list):
+            for child in value:
+                yield from collect_strings(child)
+
+    all_text = "\n".join(collect_strings(spec))
+    assert "__Host-bclick_csrf" not in all_text, "stale shared CSRF cookie name remains in OpenAPI"
+    checks += 1
+
+    # Negative canary: the guard must reject a deliberate cross-context name collision.
+    malformed = copy.deepcopy(spec)
+    malformed["x-csrf-policy"]["cookies"]["admin"]["name"] = expected["player"]
+    try:
+        _assert_csrf_cookie_policy_core(malformed, check_legacy_name=False)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("cross-context CSRF cookie collision canary was not rejected")
+    checks += 1
+    return checks
+
+
+def _assert_csrf_cookie_policy_core(spec: dict[str, Any], check_legacy_name: bool = True) -> None:
+    """Minimal reusable invariants for the collision negative canary."""
+    cookies = spec["x-csrf-policy"]["cookies"]
+    names = [cookies[name]["name"] for name in ("player", "admin", "enrollment")]
+    assert len(set(names)) == 3, "CSRF cookie names must be unique across security contexts"
+    if check_legacy_name:
+        assert "__Host-bclick_csrf" not in str(spec), "stale shared CSRF cookie name remains"
+
+
+def verify_csrf_cookie_policy(spec: dict[str, Any]) -> int:
+    """Run static CSRF contract checks; these are not runtime route tests."""
+    # The core check is separate so the canary tests the invariant without mutating source data.
+    checks = _assert_csrf_cookie_policy(spec)
+    print(f"PASS: {checks} CSRF cookie-name, lifecycle, __Host-, Origin and collision contract checks")
+    return checks
+
+
 def verify_guard_negative_canaries() -> int:
     """Prove each important guard rejects a deliberately malformed miniature input."""
     try:
@@ -259,12 +374,14 @@ def main() -> int:
     op_count = verify_operations([(base_name, base), (callback_name, callback)])
     error_count = verify_error_fixtures(base)
     callback_fixture_count = verify_callback_fixtures(callback)
+    csrf_check_count = verify_csrf_cookie_policy(base)
     print(f"PASS: {canaries} negative canaries for duplicate keys, unresolved refs, operationIds and parameters")
     print(f"PASS: duplicate-key-safe YAML parse ({base_name}; {callback_name})")
     print(f"PASS: resolved {base_refs + callback_refs} internal $refs")
     print(f"PASS: {op_count} unique operationIds and per-scope parameter names")
     print(f"PASS: {error_count} standardized 400/401/403/422 contract fixtures")
     print(f"PASS: {callback_fixture_count} Aggregator callback response fixtures")
+    print(f"PASS: {csrf_check_count} context-specific CSRF contract checks (static only; no auth routes exercised)")
     print("NOTE: static contract fixtures do not prove runtime behavior for unimplemented routes")
     return 0
 
