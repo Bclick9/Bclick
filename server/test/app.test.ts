@@ -12,7 +12,7 @@ test('liveness is public, minimal, and includes a server request ID', async () =
 
     assert.equal(response.statusCode, 200);
     assert.deepEqual(response.json(), { status: 'ok' });
-    assert.match(String(response.headers['x-request-id']), /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/);
+    assert.match(String(response.headers['x-request-id']), /^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/);
   } finally {
     await app.close();
   }
@@ -32,14 +32,23 @@ test('valid client request IDs are preserved and invalid IDs are replaced', asyn
     });
     assert.equal(valid.headers['x-request-id'], 'integration-test:health-01');
 
-    const invalid = await app.inject({
+    const shortestValid = await app.inject({
       method: 'GET',
       url: '/api/v1/health/live',
-      headers: { 'x-request-id': 'bad id with spaces' },
+      headers: { 'x-request-id': 'Abcdef12' },
     });
-    assert.equal(invalid.statusCode, 200);
-    assert.notEqual(invalid.headers['x-request-id'], 'bad id with spaces');
-    assert.match(String(invalid.headers['x-request-id']), /^[0-9a-f-]{36}$/i);
+    assert.equal(shortestValid.headers['x-request-id'], 'Abcdef12');
+
+    for (const invalidId of ['bad id with spaces', 'short', '_leading-invalid', 'x'.repeat(129)]) {
+      const invalid = await app.inject({
+        method: 'GET',
+        url: '/api/v1/health/live',
+        headers: { 'x-request-id': invalidId },
+      });
+      assert.equal(invalid.statusCode, 200);
+      assert.notEqual(invalid.headers['x-request-id'], invalidId);
+      assert.match(String(invalid.headers['x-request-id']), /^[0-9a-f-]{36}$/i);
+    }
   } finally {
     await app.close();
   }
