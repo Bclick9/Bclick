@@ -29,6 +29,7 @@ export function SectionRow({
   compact,
   fadeEdges = true,
   compactHeader = false,
+  snapScroll = false,
 }: {
   title?: string
   children: ReactNode
@@ -121,7 +122,7 @@ export function SectionRow({
       <div className="relative isolate">
         <div
           ref={scrollRef}
-          className="flex snap-x snap-mandatory scroll-smooth gap-2 overflow-x-auto no-scrollbar pb-1"
+          className={`flex gap-2 overflow-x-auto no-scrollbar pb-1 ${snapScroll ? "snap-x snap-mandatory scroll-smooth" : ""}`}
         >
           {children}
         </div>
