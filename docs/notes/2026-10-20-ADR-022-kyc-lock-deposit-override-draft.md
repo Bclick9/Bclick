@@ -113,7 +113,7 @@ Use the standard error envelope and request ID. If the authoritative count query
 
 The repository currently has no KYC override endpoint or canonical `players` table. The guard must be unit-tested before the migration gate, then wired into the actual mutation service/route before any such endpoint can be enabled. The helper alone does not make a route operational; Q-020 runtime acceptance remains mandatory.
 
-## 6. Database integrity, audit and operations
+## 7. Database integrity, audit and operations
 
 - Use a CHECK constraint restricting the override to NULL, `require` or `waive`; `none` is never stored.
 - Enforce referential integrity for requester and approver IDs.
