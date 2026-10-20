@@ -72,8 +72,10 @@ paths:
       tags: [Authentication]
       security: []
       summary: Register a player account
-      description: Rate-limited; jurisdiction/age/eligibility policy must be enforced server-side. Does not 
-        fund the wallet.
+      description: >-
+        Registration requires server-side CAPTCHA verification, an IP-based limit of 5 registration attempts per hour,
+        supported-jurisdiction checks, date-of-birth age >= 18 validation, and affirmative terms/age acknowledgements.
+        Successful registration activates the player without required email verification and does not fund the wallet.
       operationId: registerPlayer
       requestBody:
         required: true
@@ -82,7 +84,7 @@ paths:
             schema: {$ref: '#/components/schemas/RegisterRequest'}
       responses:
         '201':
-          description: Account created; a verification challenge may still be required.
+          description: Account created and active after server-side validation. Email verification is optional and is not required for initial activation.
           headers:
             Set-Cookie: {$ref: '#/components/headers/SessionCookie'}
             X-Request-Id:
@@ -153,7 +155,9 @@ paths:
       tags: [Authentication]
       security: []
       summary: Request a password reset
-      description: Use account-enumeration-safe generic response and rate limits.
+      description: >-
+        Use account-enumeration-safe generic responses. Enforce a limit of 3 password-reset requests per normalized email per hour,
+        with bounded retry responses; store only a hash of single-use reset tokens and never log them.
       requestBody:
         required: true
         content:
@@ -5823,11 +5827,50 @@ components:
         requestId: {type: string}
     PlayerSummary:
       type: object
-      required: [id, status, verificationStatus, settlementCurrency]
+      required: [id, status, emailVerificationStatus, kycTier, kycLock, settlementCurrency]
       properties:
         id: {type: string, format: uuid}
-        status: {type: string, enum: [active, suspended, closed, pending]}
-        verificationStatus: {type: string, enum: [pending, verified, rejected, expired, not_required]}
+        status:
+          type: string
+          enum: [active, suspended, closed, pending]
+          description: New registrations are active after successful server-side eligibility validation.
+        emailVerificationStatus:
+          type: string
+          enum: [not_required, pending, verified, rejected, expired]
+          default: not_required
+          description: Email-verification lifecycle only. This field is not KYC status and does not determine the player's KYC tier.
+        kycTier:
+          type: string
+          enum: [none, basic, verified, enhanced]
+          default: none
+          description: >-
+            Server-controlled KYC tier. none=Level 0, basic=Level 1, verified=Level 2 (ID, address and source of funds),
+            enhanced=Level 3. The value verified here is not emailVerificationStatus=verified.
+        kycStatus:
+          type: string
+          enum: [not_started, submitted, in_review, additional_information_required, verified, rejected, expired]
+          description: Optional detailed status for the current kyc_verifications lifecycle; omit when no detailed verification status is available.
+        kycLock:
+          type: boolean
+          default: false
+          description: Administrative KYC lock. If true and kycTier is below Level 2 (verified), all deposits are blocked and no override bypasses this lock.
+        depositKycOverride:
+          type: [string, 'null']
+          enum: [require, waive, null]
+          default: null
+          description: Null means no override; require imposes at least Level 2 KYC; waive is valid only within its approved scope and expiry/dual-approval rules.
+        depositKycOverrideExpiresAt:
+          type: [string, 'null']
+          format: date-time
+          default: null
+          description: >-
+            Future timestamp means temporary waiver. Null expiry with depositKycOverride=waive means permanent waiver and requires dual approval by distinct admin principals.
+        depositKycOverrideReason:
+          type: [string, 'null']
+          description: Safe current override reason/summary. Do not include internal investigation secrets.
+        depositKycLockReason:
+          type: [string, 'null']
+          description: Safe reason/summary for the administrative KYC lock; do not include internal investigation secrets.
         settlementCurrency: {$ref: '#/components/schemas/CurrencyCode', description: Immutable product settlement currency selected at registration; does not follow preferredDisplayCurrency.}
         displayName: {type: string}
         email: {type: string, format: email}
@@ -5844,14 +5887,46 @@ components:
     RegisterRequest:
       type: object
       additionalProperties: false
-      required: [email, password, countryCode, settlementCurrency]
+      required: [email, password, countryCode, settlementCurrency, dateOfBirth, acceptTerms, acceptAgeConfirmation, preferredLanguage, captchaToken]
       properties:
         email: {type: string, format: email, maxLength: 254}
         password: {type: string, minLength: 12, maxLength: 1024, format: password, writeOnly: true}
         countryCode: {type: string, pattern: '^[A-Z]{2}$', description: Registration country; validated against the server's supported-jurisdiction and compliance policy.}
         settlementCurrency: {$ref: '#/components/schemas/CurrencyCode', description: Required product settlement currency. Immutable under the one-currency-per-player policy; do not infer it from display currency.}
-        language: {$ref: '#/components/schemas/LanguageCode', description: 'Saved preferred player language; defaults
-            to en.'}
+        dateOfBirth:
+          type: string
+          format: date
+          description: >-
+            Required date-only value. The server validates the real calendar date, rejects future dates and requires age >= 18 at registration; client validation is not authoritative.
+        acceptTerms:
+          type: boolean
+          const: true
+          description: Must be true. The server stores the acceptance timestamp and active terms version.
+        acceptAgeConfirmation:
+          type: boolean
+          const: true
+          description: Must be true. The server stores the acknowledgement timestamp and policy version; this does not replace server-side DOB/age validation.
+        preferredLanguage:
+          $ref: '#/components/schemas/LanguageCode'
+          description: >-
+            Required saved language selected at registration; clients should preselect en by default. The server also defaults persisted preference to en where a default is applicable.
+          default: en
+        username:
+          type: [string, 'null']
+          maxLength: 64
+          default: null
+          description: Optional username. Normalize on the server, enforce uniqueness atomically and reject reserved/system names.
+        phoneNumber:
+          type: [string, 'null']
+          pattern: '^\\+[1-9][0-9]{1,14}$'
+          default: null
+          description: Optional phone number in E.164 format. Supplying it does not mean the phone number is verified.
+        captchaToken:
+          type: string
+          minLength: 1
+          maxLength: 4096
+          writeOnly: true
+          description: Required CAPTCHA response token, verified server-to-server using the configured provider. Never log this token.
         preferredDisplayCurrency:
           allOf:
             - $ref: '#/components/schemas/CurrencyCode'
@@ -7908,7 +7983,7 @@ components:
           required:
             - playerId
             - status
-            - verificationStatus
+            - emailVerificationStatus
             - balancesAsOf
           properties:
             playerId:
@@ -7921,14 +7996,14 @@ components:
                 - suspended
                 - closed
                 - pending
-            verificationStatus:
+            emailVerificationStatus:
               type: string
               enum:
+                - not_required
                 - pending
                 - verified
                 - rejected
                 - expired
-                - not_required
             countryCode:
               type:
                 - string
