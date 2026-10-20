@@ -15,7 +15,7 @@ The Project Owner approved three distinct, host-only CSRF cookie names:
 - Full admin session: `__Host-bclick_admin_csrf`
 - Restricted admin enrollment: `__Host-bclick_admin_enrollment_csrf`
 
-This resolves cookie overwriting when player and Backoffice pages are on different ports of the same `localhost` host and avoids relying on an undocumented production subdomain assumption. Cookie scope is host-based, not port-based. The three names remain the default in production even if separate subdomains are later selected; production host/path topology remains an explicit deployment decision and is not assumed here.
+This resolves cookie overwriting when player and Backoffice pages are on different ports of the same `localhost` host and avoids relying on an undocumented production subdomain assumption. Cookie scope is host-based, not port-based. Production topology must be explicitly chosen before deployment: (a) if player and admin use the same host, separate names are required in production to avoid collisions between independent security contexts; (b) if player and admin use separate subdomains, the host-only cookies are already isolated by host, so separate names provide defense-in-depth and clearer context naming, while remaining useful for shared-host/port localhost development. The final production topology is not selected yet; until it is, use the conservative shared-host assumption. Keep all three names in either option.
 
 The security contract remains signed session-bound double-submit CSRF + an exactly matching `X-CSRF-Token` header + strict per-environment exact-Origin validation. SameSite is defense-in-depth only.
 
