@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-20  
 **Branch:** `feature/BE-001-api-skeleton`  
-**Status:** Project Owner decisions recorded on 2026-10-20: Q-001 and Q-002 Accepted; Q-003 policy Accepted, with cookie-namespace compatibility requiring contract reconciliation before implementation.  
+**Status:** Project Owner decisions recorded on 2026-10-20: Q-001 and Q-002 Accepted; Q-003 Accepted with amendment (separate player/admin/enrollment CSRF cookies). Contract docs and OpenAPI mirror are aligned; static CI is green; runtime auth/CSRF tests remain pending because handlers are not implemented.  
 **Decision issue:** [#55](https://github.com/Bclick9/Bclick/issues/55)
 
 This note records the read-back of the current contracts and the Project Owner's explicit decision. Project Owner Bclick9 acts as API/Auth lead and Security lead for the current single-person team; Frontend/Platform is not a separate approver at this stage. The policy decisions are accepted, but implementation is still blocked until the contract mismatches described here are reconciled and the contract/test PR passes CI.
@@ -69,7 +69,7 @@ The owner approved three distinct CSRF cookie names: `__Host-bclick_player_csrf`
 ### Acceptance evidence required
 Negative tests for missing cookie/header, mismatch, invalid signature, expiry, wrong session/version, malformed/duplicate cookie values, absent/untrusted Origin, plus positive same-origin unsafe method, rotation/logout/revocation, and denial of enrollment-cookie access to Backoffice reads/mutations.
 
-**Implementation gate:** Project Owner policy approval is recorded. No CSRF middleware or cookie-authenticated mutation handler may be implemented until the shared-host cookie namespace conflict is resolved in OpenAPI and browser-negative-test fixtures and the contract/test PR is green.
+**Implementation gate:** The shared-host cookie namespace conflict is resolved in the planning contracts and OpenAPI mirror, and static OpenAPI/generated-client/contract-guard CI passed in [run 39450975081](https://github.com/Bclick9/Bclick/actions/runs/39450975081). The Project Owner must review/approve the amendment note before any CSRF middleware or auth route is written. The runtime negative tests below remain mandatory before the relevant implementation PR can merge.
 
 ## Decisions / owners
 
@@ -79,4 +79,4 @@ Negative tests for missing cookie/header, mismatch, invalid signature, expiry, w
 | Q-002 MFA, recovery, reset and bootstrap lifecycle | Project Owner Bclick9 (acting API/Auth + Security) | **Accepted 2026-10-20; contract/test alignment pending** |
 | Q-003 CSRF/session binding and Origin policy | Project Owner Bclick9 (acting API/Auth + Security) | **Accepted with amendment 2026-10-20; distinct cookie names/lifecycle recorded; runtime auth tests pending** |
 
-**Current gate status:** Q-003 cookie names/lifecycle are aligned in the shared planning contracts and GitHub OpenAPI mirror; the amendment note and static CI result are being finalized. Issue #55 remains open until the contract/generated-client/static guard run is green and the required runtime tests are added with actual handlers. No authentication or sensitive cookie-auth implementation has started.
+**Current gate status:** Q-003 cookie names/lifecycle are aligned in all five shared planning files and the GitHub OpenAPI mirror; static OpenAPI lint, generated-client drift, CSRF lifecycle/collision guard and existing API/Health checks passed in [run 39450975081](https://github.com/Bclick9/Bclick/actions/runs/39450975081). Issue #55 remains open for Q-001/Q-002 handler acceptance and runtime security tests as handlers are implemented. No authentication or sensitive cookie-auth implementation has started.
