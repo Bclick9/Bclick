@@ -5918,7 +5918,7 @@ components:
           description: Optional username. Normalize on the server, enforce uniqueness atomically and reject reserved/system names.
         phoneNumber:
           type: [string, 'null']
-          pattern: '^\+[1-9][0-9]{1,14}
+          pattern: '^\+[1-9][0-9]{1,14}$'
           default: null
           description: Optional phone number in E.164 format. Supplying it does not mean the phone number is verified.
         captchaToken:
