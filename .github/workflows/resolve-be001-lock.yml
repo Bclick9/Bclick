@@ -35,6 +35,8 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - name: Resolve the workspace lockfile
         run: pnpm install --lockfile-only --no-frozen-lockfile
+      - name: Install the resolved workspace
+        run: pnpm install --frozen-lockfile
       - name: Generate the canonical OpenAPI TypeScript declarations
         run: |
           mkdir -p packages/api-client/src/generated
