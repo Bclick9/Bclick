@@ -112,11 +112,10 @@ jobs:
       - name: Run Schemathesis against implemented Health operations
         run: |
           python3 -m venv /tmp/schemathesis-venv
-          /tmp/schemathesis-venv/bin/pip install --disable-pip-version-check "schemathesis>=4,<5"
+          /tmp/schemathesis-venv/bin/pip install --disable-pip-version-check "schemathesis==4.32.1"
           /tmp/schemathesis-venv/bin/schemathesis run docs/planning/openapi.yaml \
             --url http://127.0.0.1:3000 \
             --include-tag Health \
-            --validate-schema=true \
             --checks all \
             --max-examples 25 \
             --warnings off
