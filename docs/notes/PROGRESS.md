@@ -4,34 +4,36 @@ Updated: 2026-10-20
 
 ## Current state
 
-- **Current task:** IR-003 — Phase 2 architecture and data-model review.
-- **Roadmap position:** Phase 1 audit recorded; Phase 2 technical review completed with recommended baseline; formal Tech Lead sign-off remains pending. Phase 0.5 still has P0 contract gates to close or keep feature-specifically disabled.
-- **Branch:** `feature/IR-003-phase2-architecture-review` (continues the IR-001 and IR-002 review trail).
-- **Initial planning review:** [`00-initial-review.md`](./00-initial-review.md).
+- **Current task:** BE-001 — Phase 3 API skeleton / environments / CI foundation.
+- **Roadmap position:** Phase 1 repository audit recorded; Phase 2 architecture/data-model review recorded with owner sign-off still pending; Phase 3 skeleton slice implemented. Phase 0.5 P0 contracts and staging restore acceptance remain open.
+- **Current branch:** `feature/BE-001-api-skeleton`.
 - **Phase 1 audit:** [`2026-10-20-IR-002-repository-audit.md`](./2026-10-20-IR-002-repository-audit.md).
 - **Phase 2 review:** [`2026-10-20-IR-003-phase-2-architecture-review.md`](./2026-10-20-IR-003-phase-2-architecture-review.md).
-- **Implementation status:** Documentation-only architecture review. No application code, migrations, provider adapters, OpenAPI, ADR or open-question register changed.
-- **Application tests/builds:** Not run. Source/planning review only.
-
-## Findings and gates
-
-1. The provided planning bundle is present in the shared ChatGPT Library under `/docs/planning/`. GitHub `main` still lacks a mirrored `docs/planning/` copy; that is a traceability gap, not missing source documentation.
-2. `frontend/` is the player-facing React/Vite UI. `backend/` is the Backoffice/CMS React/Vite UI prototype, not an API server. The actual API is to be introduced as a separate `server/` workspace.
-3. The proposed technical baseline is a TypeScript/Fastify modular monolith with PostgreSQL, reviewed SQL migrations, OpenAPI-first REST, server-side opaque sessions, DB-enforced immutable double-entry accounting, and off-host encrypted backups. Detailed recommendations and invariants are in the Phase 2 review note.
-4. ADRs remain proposed until the Tech Lead formally accepts them. This review recommends a coherent baseline but does not falsely record an approval/signature by the owner.
-5. Q-001..Q-005, Q-010, Q-013 and Q-020 remain Phase 0.5 P0 contract gates unless the specified evidence is completed or the affected capability remains disabled. Q-006..Q-009, Q-011, Q-015..Q-017 and Q-023..Q-025 also keep their feature/payment/launch restrictions.
-6. Exact retention/legal-hold schedule, licensing/jurisdiction, provider-agent contents, per-provider TND precision, Aggregator payload integrity/retry semantics, payment/USDT model and actual deployment costs must not be invented or silently treated as closed.
-7. Existing CI builds the two UIs but does not yet provide the planned required API contract/test gates; the two UI workflows configure different pnpm versions and need to be harmonized during the approved Phase 3 work.
+- **Phase 3 implementation note:** [`2026-10-20-BE-001-api-skeleton.md`](./2026-10-20-BE-001-api-skeleton.md).
+- **Verification run:** [GitHub Actions run 39420950279](https://github.com/Bclick9/Bclick/actions/runs/39420950279) succeeded on code commit `645d167ae53317cf91acf06412ea7a999dac5f6f`. The later commit only adds the implementation note; no application code changed after the tested code commit.
+- **Implementation status:** No authentication/session lifecycle, wallet ledger, payments, CMS media upload or provider adapter/callback/launch routes were added. No deployment or real-money operation performed.
 
 ## Completed
 
-- **IR-001:** Reviewed the supplied planning packages and both OpenAPI 3.1 contracts; created the initial review note.
-- **IR-002:** Audited repository tree, workspace manifests, CI workflows and UI/data entry points; documented existing workspace boundaries and Phase 3 prerequisites.
-- **IR-003:** Cross-reviewed ADRs, system design/data model, API contracts, security, operations/cost, roadmap, domain specifications, payments/settlement and open questions. Recorded recommended decisions, ledger/schema invariants, unresolved owners/evidence and a scoped first coding task after gate approval.
+- **IR-001:** Reviewed the supplied planning bundle and both OpenAPI 3.1 contracts; created the initial review note.
+- **IR-002:** Audited the repository tree, workspace manifests, current UI boundaries and existing CI definitions.
+- **IR-003:** Recorded a recommended Phase 2 technical architecture/data-model baseline and the owner decisions/evidence that remain open.
+- **BE-001:** Added the separate Fastify `server/` workspace and health/readiness, validated config, PostgreSQL pool probe, redacted request logging, request IDs, exact `packages/money` primitives, shared config package, generated OpenAPI client, PostgreSQL Compose, migration wiring, CI, Caddy example and backup/restore runbooks.
+- **BE-001 verification:** Both CI jobs succeeded on the tested code commit: OpenAPI lint/generated-client drift, workspace typecheck, config/money/server unit tests, API build, PostgreSQL migration, health startup, and Schemathesis Health checks.
+- Aligned Backoffice workflow to pnpm 10.4.1; generated `pnpm-lock.yaml` and the committed API-client declarations with a temporary branch-only workflow, then removed that temporary workflow after use.
+
+## Findings and gates
+
+1. The supplied 15 planning files remain the source of truth in the shared Library; the two OpenAPI files are mirrored under GitHub `docs/planning/` for contract linting and generation. The remaining planning Markdown is not copied into GitHub `main`.
+2. The current `server/migrations/1792497600000_api_skeleton_baseline.sql` is intentionally a no-op migration to verify ordered migration tooling only. No production/domain tables have been created.
+3. Schemathesis found an inconsistency in the source-planning `X-Request-Id` rule: invalid IDs are documented to be replaced, but the schema defines a restrictive pattern. App behavior follows the documented replace rule and unit tests cover it. CI temporarily excludes only the negative-data-rejection check while testing the implemented Health operations; this is not closure of Q-020 or Phase 0.5. Reconcile the schema/semantics in Phase 0.5, then remove the exclusion.
+4. **Restore drill NOT RUN.** No staging VPS/off-host backup storage, encryption-key recovery, base backup/WAL set or independent archive monitoring was provisioned. Measured RPO/RTO are unavailable; repository runbook is guidance, not evidence.
+5. BigBang/WinHouse agent-spec evidence, Aggregator Q-007/Q-008 and per-provider TND Q-009 remain open; those routes are still absent from the skeleton. Q-001..Q-005, Q-010, Q-013, Q-020 and the other listed payment/compliance gates remain open or feature-specifically disabled.
+6. Phase 2 review recommended the architecture; it has not been falsely marked as a Tech Lead signature. This implementation branch remains unmerged.
 
 ## Next
 
-- Tech Lead must accept the technical baseline in the IR-003 note or specify changes. Named owners and confirmed dates are required for remaining decisions; role labels and proposed dates in the source register are not confirmed assignments.
-- Verify Phase 0.5 contract-hardening exit status and explicitly preserve hard-disabled boundaries before dependent implementation.
-- After the architecture gate is accepted, first actual coding phase is Phase 3 / **BE-001**: separate `server/` skeleton, Fastify health/readiness, validated config, PostgreSQL Compose + reviewed migrations, structured request IDs/redacted logging, harmonized and expanded CI, package foundations, and measured staging restore drill.
-- No production endpoints, wallet posting, payments, CMS upload or provider callbacks are to be enabled by the Phase 3 skeleton alone. Do not rename `backend/`.
+- Review the Phase 3 draft PR against the Phase 2 review branch; do not merge to `main` without owner review.
+- Reconcile the `X-Request-Id` source contract in Phase 0.5 and remove the temporary Schemathesis negative-data-rejection exclusion when the canonical contract is consistent.
+- Provision isolated staging and off-host encrypted backup/WAL storage, then execute the real restore drill and record measured RPO/RTO and alerts before claiming recovery readiness.
+- Continue in roadmap order; do not add auth, wallet, payment or provider behavior until its contract/security prerequisites are satisfied.
