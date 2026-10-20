@@ -1,7 +1,7 @@
 # ADR-022 Draft — KYC Lock and Deposit Override Controls
 
 **Date:** 2026-10-20  
-**Status:** DRAFT v2 — awaiting Project Owner approval; no schema/API implementation is authorized.  
+**Status:** Project Owner-approved policy (2026-10-20); no KYC override endpoint may be enabled until server-side enforcement and route-level acceptance tests are complete.  
 **Decision owners:** Project Owner and Security/API; Legal/Compliance and Finance consulted for policy scope.  
 **Related:** [Phase 4 Addendum v2](./2026-10-20-phase4-addendum-v2.md) · [ADR-021 draft](./2026-10-20-ADR-021-deposit-without-kyc-draft.md)
 
@@ -146,9 +146,9 @@ Q-011 remains P0/Open and blocks deployment. Q-015 blocks launch/deposits pendin
 
 ## 10. Approval record
 
-- [ ] Project Owner approves the `kyc_lock` absolute-precedence algorithm.
-- [ ] Project Owner approves nullable override semantics and removal of `none`.
-- [ ] Project Owner confirms the 30-day maximum for temporary waivers.
+- [x] Project Owner approves the `kyc_lock` absolute-precedence algorithm (2026-10-20).
+- [x] Project Owner approves nullable override semantics and removal of `none` (2026-10-20).
+- [x] Project Owner confirms the 30-day maximum for temporary waivers (2026-10-20).
 - [ ] Security/API approves distinct-principal dual control for permanent waiver.
 - [ ] Legal/Compliance approves the contexts in which waiver is allowed.
 - [ ] Operations approves expiry alerts and periodic review ownership.
