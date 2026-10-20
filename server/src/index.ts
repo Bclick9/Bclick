@@ -3,9 +3,13 @@ import { Pool } from 'pg';
 import { parseServerConfig } from '@bclick/config';
 
 import { buildApp } from './app.js';
+import { parseIdentityConfig } from './identity/config.js';
+import { PgIdentityRepository } from './identity/repository.js';
+import { IdentityService } from './identity/service.js';
 
 async function main(): Promise<void> {
   const config = parseServerConfig(process.env);
+  const identityConfig = parseIdentityConfig(process.env, config.nodeEnv);
   const pool = new Pool({
     connectionString: config.databaseUrl,
     max: config.dbPoolMax,
@@ -14,9 +18,12 @@ async function main(): Promise<void> {
     application_name: 'bclick-api',
   });
 
+  const identity = identityConfig ? new IdentityService(new PgIdentityRepository(pool), identityConfig) : null;
   const app = buildApp({
     database: pool,
     logLevel: config.logLevel,
+    identity,
+    identityConfig,
   });
 
   app.addHook('onClose', async () => {

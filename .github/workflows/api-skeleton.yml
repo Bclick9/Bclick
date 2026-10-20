@@ -89,16 +89,27 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - name: Install locked workspace
         run: pnpm install --frozen-lockfile
-      - name: Typecheck shared packages and API
-        run: pnpm api:typecheck
-      - name: Run config, money and API tests
-        run: pnpm api:test
-      - name: Build the API
-        run: pnpm --filter @bclick/server build
       - name: Verify ordered migrations against PostgreSQL
         env:
           DATABASE_URL: postgresql://bclick_ci:bclick_ci_password@127.0.0.1:5432/bclick_ci
         run: pnpm --filter @bclick/server migrate:up
+      - name: Typecheck shared packages and API
+        run: pnpm api:typecheck
+      - name: Run config, money and API tests
+        env:
+          NODE_ENV: test
+          HOST: 127.0.0.1
+          DATABASE_URL: postgresql://bclick_ci:bclick_ci_password@127.0.0.1:5432/bclick_ci
+          BCLICK_IDENTITY_ENABLED: true
+          BCLICK_SESSION_HASH_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          BCLICK_CSRF_SIGNING_KEY: fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210
+          BCLICK_TOTP_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+          BCLICK_PLAYER_ALLOWED_ORIGINS: https://localhost:5173
+          BCLICK_ADMIN_ALLOWED_ORIGINS: https://localhost:5174
+          BCLICK_LOCAL_MAIL_SINK_PATH: /tmp/bclick-identity-test-mail.jsonl
+        run: pnpm api:test
+      - name: Build the API
+        run: pnpm --filter @bclick/server build
       - name: Start the API for health contract tests
         env:
           NODE_ENV: test

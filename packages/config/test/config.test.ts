@@ -50,3 +50,10 @@ test('rejects invalid ports, pool sizes, environments, and log levels', () => {
     /LOG_LEVEL must be/,
   );
 });
+
+
+test('binds local development to loopback and rejects public bind addresses', () => {
+  const config = parseServerConfig({ ...validEnvironment, NODE_ENV: 'development', HOST: undefined });
+  assert.equal(config.host, '127.0.0.1');
+  assert.throws(() => parseServerConfig({ ...validEnvironment, HOST: '0.0.0.0' }), /loopback address/);
+});

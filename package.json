@@ -13,7 +13,8 @@
     "api:typecheck": "pnpm --filter @bclick/config build && pnpm --filter @bclick/config typecheck && pnpm --filter @bclick/money typecheck && pnpm --filter @bclick/api-client typecheck && pnpm --filter @bclick/server typecheck",
     "api:lint": "redocly lint docs/planning/openapi.yaml && redocly lint docs/planning/openapi-aggregator-callbacks.yaml",
     "api:client:generate": "pnpm --filter @bclick/api-client generate",
-    "api:client:typecheck": "pnpm --filter @bclick/api-client typecheck"
+    "api:client:typecheck": "pnpm --filter @bclick/api-client typecheck",
+    "api:admin:bootstrap": "pnpm --filter @bclick/config build && pnpm --filter @bclick/server admin:bootstrap"
   },
   "devDependencies": {
     "@redocly/cli": "2.64.1",

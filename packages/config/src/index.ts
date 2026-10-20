@@ -94,9 +94,12 @@ export function parseServerConfig(env: EnvironmentInput): ServerConfig {
     throw new Error('LOG_LEVEL must be trace, debug, info, warn, error, fatal, or silent');
   }
 
-  const host = (env.HOST ?? '0.0.0.0').trim();
+  const host = (env.HOST ?? '127.0.0.1').trim();
   if (!host || /[\r\n]/.test(host)) {
     throw new Error('HOST must be a non-empty hostname or IP address');
+  }
+  if ((rawEnvironment === 'development' || rawEnvironment === 'test') && !['127.0.0.1', 'localhost', '::1'].includes(host)) {
+    throw new Error('Local API development/test must bind to a loopback address');
   }
 
   return {

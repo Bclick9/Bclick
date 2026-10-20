@@ -2,6 +2,10 @@ import { randomUUID } from 'node:crypto';
 
 import Fastify from 'fastify';
 
+import { registerIdentityRoutes } from './identity/routes.js';
+import type { IdentityConfig } from './identity/config.js';
+import { IdentityService } from './identity/service.js';
+
 export interface DatabaseProbe {
   query(sql: string): Promise<unknown>;
 }
@@ -9,6 +13,8 @@ export interface DatabaseProbe {
 export interface BuildAppOptions {
   database: DatabaseProbe | null;
   logLevel?: string;
+  identity?: IdentityService | null;
+  identityConfig?: IdentityConfig | null;
 }
 
 const healthResponseSchema = {
@@ -136,6 +142,10 @@ export function buildApp(options: BuildAppOptions) {
       message: 'Route not found',
     });
   });
+
+  if (options.identity && options.identityConfig) {
+    registerIdentityRoutes(app, options.identity, options.identityConfig);
+  }
 
   return app;
 }
