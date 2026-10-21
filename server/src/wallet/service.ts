@@ -53,7 +53,11 @@ function parseCursor(cursor: string | undefined): StatementCursor | null {
     if (typeof record.id !== 'string' || !UUID_PATTERN.test(record.id)) throw new Error('Invalid cursor ID');
     if (typeof record.postedAt !== 'string') throw new Error('Invalid cursor timestamp');
     const date = new Date(record.postedAt);
-    if (!Number.isFinite(date.getTime()) || date.toISOString() !== record.postedAt) throw new Error('Invalid cursor timestamp');
+    const microsecondUtc = /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$/.test(record.postedAt);
+    const millisecondTimestamp = record.postedAt.replace(/(\\.\\d{3})\\d{3}Z$/, '$1Z');
+    if (!microsecondUtc || !Number.isFinite(date.getTime()) || date.toISOString() !== millisecondTimestamp) {
+      throw new Error('Invalid cursor timestamp');
+    }
     return { postedAt: record.postedAt, id: record.id };
   } catch {
     throw new WalletFault(400, 'VALIDATION_ERROR', 'Statement cursor is invalid');
@@ -64,13 +68,14 @@ function encodeCursor(value: StatementCursor): string {
   return Buffer.from(JSON.stringify(value), 'utf8').toString('base64url');
 }
 
-function parseBoundary(value: string | undefined, label: string): Date | null {
+function parseBoundary(value: string | undefined, label: string): string | null {
   if (value === undefined) return null;
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) {
     throw new WalletFault(400, 'VALIDATION_ERROR', label + ' must be a valid date-time');
   }
-  return date;
+  // Keep the caller's offset and fractional-second precision for PostgreSQL.
+  return value;
 }
 
 export class WalletReadService {
@@ -130,7 +135,7 @@ export class WalletReadService {
     this.assertPlayerCurrency(settlementCurrency, options.currency);
     const from = parseBoundary(options.from, 'from');
     const to = parseBoundary(options.to, 'to');
-    if (from && to && from.getTime() >= to.getTime()) {
+    if (from && to && Date.parse(from) >= Date.parse(to)) {
       throw new WalletFault(400, 'VALIDATION_ERROR', 'from must be earlier than the exclusive to boundary');
     }
     const cursor = parseCursor(options.cursor);
@@ -155,7 +160,9 @@ export class WalletReadService {
          GROUP BY jt.id,jt.movement_type,jt.reference,jt.source_id,jt.posted_at,c.code,c.decimal_places
         HAVING sum(le.amount_minor) <> 0
       )
-      SELECT id,movement_type,reference,posted_at,currency,decimal_places,amount_minor
+      SELECT id,movement_type,reference,posted_at,
+             to_char(posted_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_posted_at,
+             currency,decimal_places,amount_minor
         FROM movements
        WHERE ($5::timestamptz IS NULL OR (posted_at,id) < ($5::timestamptz,$6::uuid))
        ORDER BY posted_at DESC,id DESC
@@ -163,8 +170,8 @@ export class WalletReadService {
     `, [
       playerId,
       options.currency,
-      from?.toISOString() ?? null,
-      to?.toISOString() ?? null,
+      from,
+      to,
       cursor?.postedAt ?? null,
       cursor?.id ?? null,
       options.limit + 1,
@@ -184,7 +191,7 @@ export class WalletReadService {
     }));
     const last = selected[selected.length - 1];
     const nextCursor = hasMore && last
-      ? encodeCursor({ postedAt: new Date(String(last.posted_at)).toISOString(), id: String(last.id) })
+      ? encodeCursor({ postedAt: String(last.cursor_posted_at), id: String(last.id) })
       : null;
     return {
       data,
