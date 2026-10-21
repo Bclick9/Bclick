@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 export interface Player {
   id: string
@@ -13,6 +13,11 @@ export interface Player {
 }
 
 export type AuthApiStatus = 'checking' | 'online' | 'offline' | 'identity-disabled'
+
+export interface PlayerProfileUpdate {
+  displayName?: string
+  language?: string
+}
 
 export interface RegisterInput {
   email: string
@@ -39,11 +44,14 @@ interface AuthContextValue {
   apiStatus: AuthApiStatus
   login: (email: string, password: string) => Promise<Player>
   register: (input: RegisterInput) => Promise<Player>
+  refreshPlayerProfile: () => Promise<Player>
+  updatePlayerProfile: (input: PlayerProfileUpdate) => Promise<Player>
   logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 const AUTH_URL = '/api/v1/auth'
+const PLAYER_PROFILE_URL = '/api/v1/player/profile'
 
 async function readEnvelope(response: Response): Promise<ApiEnvelope | null> {
   return response.json().catch(() => null) as Promise<ApiEnvelope | null>
@@ -170,6 +178,90 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ...(input.preferredDisplayCurrency ? { preferredDisplayCurrency: input.preferredDisplayCurrency } : {}),
   })
 
+  const refreshPlayerProfile = useCallback(async (): Promise<Player> => {
+    let response: Response
+    try {
+      response = await fetch(PLAYER_PROFILE_URL, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      })
+    } catch {
+      setApiStatus('offline')
+      throw connectionError()
+    }
+
+    const payload = await readEnvelope(response)
+    if (response.status === 401) {
+      setPlayer(null)
+      setApiStatus('online')
+      throw new Error('Your player session is missing or expired. Please log in again.')
+    }
+    if (response.status === 404) {
+      setApiStatus('identity-disabled')
+      throw new Error('The player profile API is not available in this environment.')
+    }
+    setApiStatus('online')
+    if (!response.ok) throw new Error(responseMessage(payload, response.status))
+    if (!payload?.data?.player) throw new Error('The API did not return a player profile.')
+    setPlayer(payload.data.player)
+    return payload.data.player
+  }, [])
+
+  const updatePlayerProfile = useCallback(async (input: PlayerProfileUpdate): Promise<Player> => {
+    const updates: Record<string, string> = {}
+    if (typeof input.displayName === 'string') updates.displayName = input.displayName.trim()
+    if (typeof input.language === 'string') updates.language = input.language.trim()
+    if (Object.keys(updates).length === 0) {
+      throw new Error('Change a profile field before saving.')
+    }
+
+    if (updates.displayName !== undefined && (updates.displayName.length < 1 || updates.displayName.length > 80)) {
+      throw new Error('Display name must contain between 1 and 80 characters.')
+    }
+    if (updates.language !== undefined && (updates.language.length < 2 || updates.language.length > 12)) {
+      throw new Error('Language must contain between 2 and 12 characters.')
+    }
+
+    const csrfToken = readCookie('__Host-bclick_player_csrf')
+    if (!csrfToken) {
+      throw new Error('The player CSRF cookie is missing. Refresh the page or log in again, then retry.')
+    }
+
+    let response: Response
+    try {
+      response = await fetch(PLAYER_PROFILE_URL, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify(updates),
+      })
+    } catch {
+      setApiStatus('offline')
+      throw connectionError()
+    }
+
+    const payload = await readEnvelope(response)
+    if (response.status === 401) {
+      setPlayer(null)
+      setApiStatus('online')
+      throw new Error('Your player session is missing or expired. Please log in again.')
+    }
+    if (response.status === 404) {
+      setApiStatus('identity-disabled')
+      throw new Error('The player profile API is not available in this environment.')
+    }
+    setApiStatus('online')
+    if (!response.ok) throw new Error(responseMessage(payload, response.status))
+    if (!payload?.data?.player) throw new Error('The API did not return the updated player profile.')
+    setPlayer(payload.data.player)
+    return payload.data.player
+  }, [])
+
   const logout = async () => {
     const csrfToken = readCookie('__Host-bclick_player_csrf')
     if (!csrfToken) throw new Error('The player CSRF cookie is missing. Refresh the page and try again.')
@@ -199,8 +291,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const value = useMemo<AuthContextValue>(() => ({
-    player, isLoading, apiStatus, login, register, logout,
-  }), [player, isLoading, apiStatus])
+    player, isLoading, apiStatus, login, register, refreshPlayerProfile, updatePlayerProfile, logout,
+  }), [player, isLoading, apiStatus, refreshPlayerProfile, updatePlayerProfile])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
