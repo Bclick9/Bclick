@@ -1,0 +1,173 @@
+name: Identity Migration 001 on Neon (owner-approved, one migration only)
+
+run-name: Identity Migration 001 on Neon · run ${{ github.run_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_confirmation:
+        description: "Type exactly: copabet365-neondb-frankfurt"
+        required: true
+        type: string
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/identity-migration-001-neon.yml'
+      - 'server/scripts/identity-migration-001-neon-gate.mjs'
+      - 'server/migrations/**'
+      - 'server/package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+  push:
+    branches:
+      - 'ops/identity-migration-001-neon-workflow'
+    paths:
+      - '.github/workflows/identity-migration-001-neon.yml'
+      - 'server/scripts/identity-migration-001-neon-gate.mjs'
+      - 'server/migrations/**'
+      - 'server/package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: neon-identity-migration-001
+  cancel-in-progress: false
+
+jobs:
+  ci-rehearsal:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    name: Validate pre/postflight against disposable PostgreSQL only
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_DB: bclick_ci
+          POSTGRES_USER: bclick_ci
+          POSTGRES_PASSWORD: bclick_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bclick_ci -d bclick_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://bclick_ci:bclick_ci_password@127.0.0.1:5432/bclick_ci
+      BCLICK_M001_TARGET: ci-disposable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install locked workspace
+        run: pnpm install --frozen-lockfile
+      - name: Require the exact approved Migration 001 and migration inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git hash-object server/migrations/1792584000000_identity_domain_migration_001.sql)"
+          expected="dde5b276dd1220dba5107d7989b6c1378ead101a"
+          [[ "$actual" == "$expected" ]] || { echo "Migration 001 blob hash mismatch; refusing." >&2; exit 1; }
+          mapfile -t actual_migrations < <(git ls-files 'server/migrations/*.sql' | sed 's#server/migrations/##' | sort)
+          expected_migrations=(
+            "1792497600000_api_skeleton_baseline.sql"
+            "1792512000000_identity_sessions.sql"
+            "1792584000000_identity_domain_migration_001.sql"
+          )
+          diff -u <(printf '%s\n' "${expected_migrations[@]}") <(printf '%s\n' "${actual_migrations[@]}")
+      - name: Create exact two-migration baseline in disposable PostgreSQL
+        env:
+          DATABASE_URL: postgresql://bclick_ci:bclick_ci_password@127.0.0.1:5432/bclick_ci
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bclick-approved-baseline-migrations
+          cp server/migrations/1792497600000_api_skeleton_baseline.sql /tmp/bclick-approved-baseline-migrations/
+          cp server/migrations/1792512000000_identity_sessions.sql /tmp/bclick-approved-baseline-migrations/
+          cd server
+          pnpm exec node-pg-migrate up --migrations-dir /tmp/bclick-approved-baseline-migrations --database-url-var DATABASE_URL
+      - name: Run read-only preflight gate
+        env:
+          DATABASE_URL: postgresql://bclick_ci:bclick_ci_password@127.0.0.1:5432/bclick_ci
+          BCLICK_M001_TARGET: ci-disposable
+          BCLICK_M001_PHASE: pre
+        run: pnpm --filter @bclick/server exec node scripts/identity-migration-001-neon-gate.mjs
+      - name: Apply exactly one migration on disposable PostgreSQL
+        env:
+          DATABASE_URL: postgresql://bclick_ci:bclick_ci_password@127.0.0.1:5432/bclick_ci
+        run: pnpm --filter @bclick/server exec node-pg-migrate up --count 1 --migrations-dir ./migrations --database-url-var DATABASE_URL
+      - name: Run read-only postflight gate
+        env:
+          DATABASE_URL: postgresql://bclick_ci:bclick_ci_password@127.0.0.1:5432/bclick_ci
+          BCLICK_M001_TARGET: ci-disposable
+          BCLICK_M001_PHASE: post
+        run: pnpm --filter @bclick/server exec node scripts/identity-migration-001-neon-gate.mjs
+
+  neon:
+    if: github.event_name == 'workflow_dispatch'
+    name: Guarded Migration 001 apply and postflight on Neon
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Reuses the existing Neon write environment so its repository protection
+    # rules apply. Confirm required reviewers are configured before dispatch.
+    environment: neon-baseline-setup
+    steps:
+      - name: Require main branch and exact owner target confirmation
+        shell: bash
+        env:
+          TARGET_CONFIRMATION: ${{ inputs.target_confirmation }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == "refs/heads/main" ]] || { echo "Refusing: workflow must run from main." >&2; exit 1; }
+          [[ "$TARGET_CONFIRMATION" == "copabet365-neondb-frankfurt" ]] || { echo "Refusing: exact target confirmation did not match." >&2; exit 1; }
+          echo "Owner target confirmation accepted. No database credential was read or printed."
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Require exact approved Migration 001 and migration inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git hash-object server/migrations/1792584000000_identity_domain_migration_001.sql)"
+          expected="dde5b276dd1220dba5107d7989b6c1378ead101a"
+          [[ "$actual" == "$expected" ]] || { echo "Migration 001 blob hash mismatch; refusing." >&2; exit 1; }
+          mapfile -t actual_migrations < <(git ls-files 'server/migrations/*.sql' | sed 's#server/migrations/##' | sort)
+          expected_migrations=(
+            "1792497600000_api_skeleton_baseline.sql"
+            "1792512000000_identity_sessions.sql"
+            "1792584000000_identity_domain_migration_001.sql"
+          )
+          diff -u <(printf '%s\n' "${expected_migrations[@]}") <(printf '%s\n' "${actual_migrations[@]}")
+      - name: Install locked workspace
+        run: pnpm install --frozen-lockfile
+      - name: Read-only Neon preflight (fail closed)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BCLICK_M001_TARGET: copabet365-neondb-frankfurt
+          BCLICK_M001_PHASE: pre
+        run: pnpm --filter @bclick/server exec node scripts/identity-migration-001-neon-gate.mjs
+      - name: Apply exactly Migration 001 (one migration only)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm --filter @bclick/server exec node-pg-migrate up --count 1 --migrations-dir ./migrations --database-url-var DATABASE_URL
+      - name: Read-only Neon postflight (fail closed on mismatch)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BCLICK_M001_TARGET: copabet365-neondb-frankfurt
+          BCLICK_M001_PHASE: post
+        run: pnpm --filter @bclick/server exec node scripts/identity-migration-001-neon-gate.mjs
