@@ -183,6 +183,7 @@ async function assertPostMigration() {
     'players_date_of_birth_adult_check',
     'players_terms_acceptance_pair_check',
     'players_age_confirmation_pair_check',
+    'players_username_normalization_check',
     'players_phone_number_e164_check',
     'players_kyc_tier_check',
     'players_deposit_kyc_override_check',
@@ -224,6 +225,9 @@ async function assertPostMigration() {
       randomUUID(), 'm001-dup-phone@example.test', exactDob,
       'm001-user-phone', 'm001-user-phone', '+15555550100',
     ], '23505', 'Partial unique phone index');
+    await expectSqlState(client,
+      "UPDATE public.players SET username_normalized='not-the-username' WHERE id=$1",
+      [playerId], '23514', 'Username and normalized username must match');
     await expectSqlState(client, insertPlayer, [
       randomUUID(), 'm001-underage@example.test', await exactEighteenthBirthday(client, true),
       'm001-underage', 'm001-underage', '+15555550102',
