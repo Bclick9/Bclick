@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
@@ -73,6 +74,50 @@ test('checked-in identity migrations apply cleanly to an isolated PostgreSQL 18 
       'SELECT last_value::text, is_called FROM public.player_public_number_seq',
     );
     assert.deepEqual(playerNumberSequence.rows[0], { last_value: '99999999', is_called: true });
+
+    // Rehearse the exact legacy state produced by the earlier local Migration 004.
+    // Migration 005 must rebase that contiguous sequence without dropping player data.
+    const legacyPlayerId = randomUUID();
+    await pool.query(`
+      INSERT INTO public.players
+        (id,email,email_normalized,password_hash,display_name,country_code,settlement_currency,
+         language,preferred_language,preferred_display_currency,status,verification_status,email_verification_status,
+         date_of_birth,terms_accepted_at,terms_version,age_confirmation_at,age_policy_version,
+         username,username_normalized,phone_number_e164,created_at,updated_at)
+      VALUES
+        ($1,'migration-005-test@example.test','migration-005-test@example.test','test-hash',
+         'Migration Test','TN','TND','en','en',NULL,'pending','pending','pending',
+         '1990-01-01',now(),'test-terms-v1',now(),'test-age-v1','Migration.Test','migration.test',
+         NULL,now(),now())
+    `, [legacyPlayerId]);
+    await pool.query('UPDATE public.players SET player_number=436222976 WHERE id=$1', [legacyPlayerId]);
+    await pool.query("SELECT setval('public.player_public_number_seq',436222976,true)");
+    await pool.query("DELETE FROM public.pgmigrations WHERE name='1792929600000_player_public_number_reconcile_005'");
+
+    await runner({
+      databaseUrl: connectionString,
+      dir: fileURLToPath(new URL('../migrations', import.meta.url)),
+      direction: 'up',
+      migrationsTable: 'pgmigrations',
+      count: 1,
+      log: () => undefined,
+    });
+
+    const rebasedPlayer = await pool.query<{ player_number: string }>(
+      'SELECT player_number::text AS player_number FROM public.players WHERE id=$1',
+      [legacyPlayerId],
+    );
+    assert.equal(rebasedPlayer.rows[0]?.player_number, '100000000');
+
+    const rebasedSequence = await pool.query<{ last_value: string; is_called: boolean }>(
+      'SELECT last_value::text, is_called FROM public.player_public_number_seq',
+    );
+    assert.deepEqual(rebasedSequence.rows[0], { last_value: '100000000', is_called: true });
+
+    const finalMigrationHistory = await pool.query<{ count: string }>(
+      'SELECT count(*)::text AS count FROM public.pgmigrations',
+    );
+    assert.equal(finalMigrationHistory.rows[0]?.count, '7');
   } finally {
     await pool.end();
     await container.stop();
