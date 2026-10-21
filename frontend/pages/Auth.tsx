@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import {
-  BadgeHelp, Check, ChevronDown, Chrome, Circle, Eye, EyeOff, Gift,
+  BadgeHelp, CalendarDays, Check, ChevronDown, Chrome, Circle, Eye, EyeOff, Gift,
   LockKeyhole, Mail, MoreHorizontal, Phone, Send, ShieldCheck, Sparkles,
   WalletCards, X, type LucideIcon,
 } from 'lucide-react'
@@ -82,30 +83,64 @@ function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initial
   const [mode, setMode] = useState<AuthMode>(initialMode)
   const [showPassword, setShowPassword] = useState(false)
   const [showPromo, setShowPromo] = useState(false)
-  const [termsAccepted, setTermsAccepted] = useState(true)
+  const [termsAccepted, setTermsAccepted] = useState(false)
+  const [ageConfirmed, setAgeConfirmed] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [phone, setPhone] = useState('')
   const [promoCode, setPromoCode] = useState('')
+  const [dateOfBirth, setDateOfBirth] = useState('')
+  const [countryCode, setCountryCode] = useState('TN')
+  const [settlementCurrency, setSettlementCurrency] = useState<'TND' | 'EUR' | 'USD'>('TND')
+  const [preferredLanguage, setPreferredLanguage] = useState('en')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const { login, register, apiStatus, isLoading: authLoading } = useAuth()
 
   useEffect(() => {
-    if (!modal) setMode(location.pathname === '/register' ? 'signup' : 'login')
+    setMode(modal ? initialMode : (location.pathname === '/register' ? 'signup' : 'login'))
     setShowPassword(false)
-  }, [location.pathname, modal])
+    setSubmitError('')
+  }, [location.pathname, modal, initialMode])
 
   const changeMode = (next: AuthMode) => {
     setMode(next)
     setShowPassword(false)
-    if (!modal) navigate(next === 'login' ? '/account' : '/register', { replace: true })
+    setSubmitError('')
+    if (!modal) navigate(next === 'login' ? '/login' : '/register', { replace: true })
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-
-    // The login UI is a prototype, so continue to the account page without real authentication.
-    if (mode === 'login') {
+    setSubmitError('')
+    setIsSubmitting(true)
+    try {
+      if (mode === 'login') {
+        await login(email, password)
+      } else {
+        if (!termsAccepted || !ageConfirmed) throw new Error('Please confirm the age requirement and accept the terms to continue.')
+        if (!dateOfBirth) throw new Error('Date of birth is required.')
+        if (phone.trim() && !/^\+[1-9][0-9]{1,14}$/.test(phone.trim())) {
+          throw new Error('Enter the phone number in international format, for example +21612345678.')
+        }
+        await register({
+          email,
+          password,
+          countryCode,
+          settlementCurrency,
+          dateOfBirth,
+          acceptTerms: true,
+          acceptAgeConfirmation: true,
+          preferredLanguage,
+          ...(phone.trim() ? { phoneNumber: phone.trim() } : {}),
+        })
+      }
       onClose?.()
       navigate('/account')
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Authentication failed. Please try again.')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -168,8 +203,21 @@ function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initial
             <p className="mt-1 text-xs leading-relaxed text-[#91a6b5]">
               {mode === 'login'
                 ? 'Enter your details to continue.'
-                : 'Join CampeonBet and get ready to play.'}
+                : 'Create a player account with your details.'}
             </p>
+            {apiStatus === 'online' ? <p role="status" className="mt-2 text-xs font-semibold text-emerald-300">Connected to the local Bclick API</p> : null}
+            {apiStatus === 'checking' || authLoading ? <p role="status" className="mt-2 text-xs text-[#91a6b5]">Checking API session…</p> : null}
+            {apiStatus === 'offline' ? (
+              <p role="alert" className="mt-2 rounded-lg border border-rose-400/30 bg-rose-500/10 p-3 text-xs leading-relaxed text-rose-200">
+                API is offline. Start the backend with <code>pnpm api:dev</code> and check the database configuration.
+              </p>
+            ) : null}
+            {apiStatus === 'identity-disabled' ? (
+              <p role="alert" className="mt-2 rounded-lg border border-amber-400/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-100">
+                API is reachable, but Identity routes are not enabled. Set <code>BCLICK_IDENTITY_ENABLED=true</code> and restart the API.
+              </p>
+            ) : null}
+            {submitError ? <p role="alert" className="mt-3 rounded-lg border border-rose-400/30 bg-rose-500/10 p-3 text-sm leading-relaxed text-rose-200">{submitError}</p> : null}
           </div>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
@@ -182,6 +230,7 @@ function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initial
               placeholder="Enter your email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
+              required
             />
 
             <AuthField
@@ -193,6 +242,9 @@ function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initial
               placeholder="Enter your password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
+              minLength={mode === 'signup' ? 12 : 1}
+              maxLength={1024}
+              required
               trailing={
                 <button
                   type="button"
@@ -217,6 +269,38 @@ function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initial
                   value={phone}
                   onChange={(event) => setPhone(event.target.value)}
                 />
+
+                <AuthField
+                  label="Date of birth"
+                  icon={CalendarDays}
+                  type="date"
+                  name="dateOfBirth"
+                  autoComplete="bday"
+                  value={dateOfBirth}
+                  onChange={(event) => setDateOfBirth(event.target.value)}
+                  required
+                />
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block min-w-0 space-y-1.5">
+                    <span className="block text-sm font-semibold text-[#dbe4ec]">Country</span>
+                    <select name="countryCode" value={countryCode} onChange={(event) => setCountryCode(event.target.value)} required className="h-12 w-full rounded-xl border border-[var(--cb-line)] bg-[#0a1b26] px-3 text-sm text-white outline-none focus:border-[var(--cb-yellow)]">
+                      <option value="TN">Tunisia</option><option value="FR">France</option><option value="GB">United Kingdom</option><option value="US">United States</option><option value="DE">Germany</option><option value="IT">Italy</option><option value="ES">Spain</option>
+                    </select>
+                  </label>
+                  <label className="block min-w-0 space-y-1.5">
+                    <span className="block text-sm font-semibold text-[#dbe4ec]">Account currency</span>
+                    <select name="settlementCurrency" value={settlementCurrency} onChange={(event) => setSettlementCurrency(event.target.value as 'TND' | 'EUR' | 'USD')} required className="h-12 w-full rounded-xl border border-[var(--cb-line)] bg-[#0a1b26] px-3 text-sm text-white outline-none focus:border-[var(--cb-yellow)]">
+                      <option value="TND">TND — Tunisian dinar</option><option value="EUR">EUR — Euro</option><option value="USD">USD — US dollar</option>
+                    </select>
+                  </label>
+                  <label className="block min-w-0 space-y-1.5 sm:col-span-2">
+                    <span className="block text-sm font-semibold text-[#dbe4ec]">Language</span>
+                    <select name="preferredLanguage" value={preferredLanguage} onChange={(event) => setPreferredLanguage(event.target.value)} className="h-12 w-full rounded-xl border border-[var(--cb-line)] bg-[#0a1b26] px-3 text-sm text-white outline-none focus:border-[var(--cb-yellow)]">
+                      <option value="en">English</option><option value="fr">Français</option><option value="ar">العربية</option>
+                    </select>
+                  </label>
+                </div>
 
                 <div>
                   <button
@@ -245,14 +329,13 @@ function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initial
                 </div>
 
                 <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-[var(--cb-line)] bg-[#0a1b26] p-3">
-                  <input
-                    type="checkbox"
-                    checked={termsAccepted}
-                    onChange={(event) => setTermsAccepted(event.target.checked)}
-                    className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--cb-yellow)]"
-                  />
+                  <input type="checkbox" checked={ageConfirmed} onChange={(event) => setAgeConfirmed(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--cb-yellow)]" />
+                  <span className="text-xs leading-relaxed text-[#a8bac6]">I confirm that I am at least 18 years old.</span>
+                </label>
+                <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-[var(--cb-line)] bg-[#0a1b26] p-3">
+                  <input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--cb-yellow)]" />
                   <span className="text-xs leading-relaxed text-[#a8bac6]">
-                    I confirm that I am 18 years old and have read the{' '}
+                    I have read and accept the{' '}
                     <Link to="/info/terms" className="font-semibold text-white underline underline-offset-2">Terms of Service</Link>
                     {' '}and{' '}
                     <Link to="/info/privacy" className="font-semibold text-white underline underline-offset-2">Privacy Policy</Link>.
@@ -261,10 +344,10 @@ function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initial
 
                 <button
                   type="submit"
-                  disabled={!termsAccepted}
+                  disabled={!termsAccepted || !ageConfirmed || isSubmitting || authLoading}
                   className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--cb-yellow)] px-4 text-sm font-extrabold text-[#00151e] transition-all hover:brightness-105 active:scale-[0.995] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <Check className="h-4 w-4" strokeWidth={2.5} /> Create Account
+                  <Check className="h-4 w-4" strokeWidth={2.5} /> {isSubmitting ? 'Creating account…' : 'Create Account'}
                 </button>
               </>
             ) : (
@@ -276,9 +359,10 @@ function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initial
                 </div>
                 <button
                   type="submit"
-                  className="flex h-12 w-full items-center justify-center rounded-xl bg-[var(--cb-yellow)] px-4 text-sm font-extrabold text-[#00151e] transition-all hover:brightness-105 active:scale-[0.995]"
+                  disabled={isSubmitting || authLoading}
+                  className="flex h-12 w-full items-center justify-center rounded-xl bg-[var(--cb-yellow)] px-4 text-sm font-extrabold text-[#00151e] transition-all hover:brightness-105 active:scale-[0.995] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Login
+                  {isSubmitting ? 'Signing in…' : 'Login'}
                 </button>
               </>
             )}
@@ -305,7 +389,7 @@ function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initial
           </div>
 
           <p className="mt-5 text-center text-[10px] leading-relaxed text-[#718795]">
-            Prototype UI only. No login, registration, wallet or social sign-in action is connected.
+            Player login and registration use the local Bclick API. Social sign-in and promo codes are not connected yet.
           </p>
         </div>
       </section>
@@ -313,6 +397,14 @@ function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initial
   )
 }
 
+
+export function LoginPage() {
+  return <AuthScreen initialMode="login" />
+}
+
+export function RegisterPage() {
+  return <AuthScreen initialMode="signup" />
+}
 
 export interface AuthModalProps {
   open: boolean
