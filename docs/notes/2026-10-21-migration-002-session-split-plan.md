@@ -119,7 +119,16 @@ No live DB, Neon connection, Neon Plugin write, or DATABASE_URL secret is involv
 
 ## 7. CI execution evidence
 
-**Pending actual GitHub Actions execution.** This section will be updated with the workflow Run ID, job ID, exact pass markers, and any errors after CI has completed. The plan itself is not evidence of a passed rehearsal.
+The actual CI rehearsal completed successfully on 2026-10-21. The authoritative execution record is [Migration 002 CI Rehearsal Results NOTE](./2026-10-21-migration-002-ci-rehearsal-results.md).
+
+- **Run:** [39592634948](https://github.com/Bclick9/Bclick/actions/runs/39592634948)
+- **Job:** [119197272325](https://github.com/Bclick9/Bclick/actions/runs/39592634948/job/119197272325)
+- **Tested code commit:** `08b15a6725e2cd6697b983d275d2b48e7213c239`
+- **Conclusion:** `completed / success`
+- **Key results:** `MIGRATION_002_POSTCHECK=PASS`; `MIGRATION_002_MFA_GUARD=PASS`; `MIGRATION_002_ROLLBACK_GUARD=REFUSED_WITHOUT_DATA_LOSS`; `MIGRATION_002_ROLLBACK_POSTCHECK=PASS`; clean re-apply followed by a second `MIGRATION_002_POSTCHECK=PASS`.
+- **Additional checks:** Migration 001's isolated rehearsal, Migration 001 CI gates, API tests/type checks, OpenAPI lint/generated client, and storefront/dashboard build all passed. The manual Neon job was skipped for the PR event as expected.
+
+The tested CI database was a disposable local PostgreSQL 18.6 service only. This evidence does not authorize Migration 002 on Neon.
 
 ## 8. Known risks and limits
 
