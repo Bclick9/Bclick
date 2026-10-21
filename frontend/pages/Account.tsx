@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { AccountLayout } from '../components/AccountPanel'
 import { cn } from '../lib/shadcn/utils'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth, type PlayerGender } from '../contexts/AuthContext'
 
 type Section = {
   title: string
@@ -74,6 +74,14 @@ export default function AccountPage() {
   const [profileError, setProfileError] = useState('')
   const [profileNotice, setProfileNotice] = useState('')
   const [displayName, setDisplayName] = useState(player?.displayName ?? '')
+  const [firstName, setFirstName] = useState(player?.firstName ?? '')
+  const [lastName, setLastName] = useState(player?.lastName ?? '')
+  const [gender, setGender] = useState<PlayerGender | ''>(player?.gender ?? '')
+  const [countryCode, setCountryCode] = useState(player?.countryCode ?? 'TN')
+  const [city, setCity] = useState(player?.city ?? '')
+  const [address, setAddress] = useState(player?.address ?? '')
+  const [phoneNumber, setPhoneNumber] = useState(player?.phoneNumber ?? '')
+  const [postalCode, setPostalCode] = useState(player?.postalCode ?? '')
   const [language, setLanguage] = useState(player?.language ?? 'en')
   const [saved, setSaved] = useState(false)
   const [oldPassword, setOldPassword] = useState('')
@@ -93,6 +101,14 @@ export default function AccountPage() {
       .then((freshPlayer) => {
         if (!active) return
         setDisplayName(freshPlayer.displayName ?? '')
+        setFirstName(freshPlayer.firstName ?? '')
+        setLastName(freshPlayer.lastName ?? '')
+        setGender(freshPlayer.gender ?? '')
+        setCountryCode(freshPlayer.countryCode || 'TN')
+        setCity(freshPlayer.city ?? '')
+        setAddress(freshPlayer.address ?? '')
+        setPhoneNumber(freshPlayer.phoneNumber ?? '')
+        setPostalCode(freshPlayer.postalCode ?? '')
         setLanguage(freshPlayer.language || 'en')
       })
       .catch((error: unknown) => {
@@ -112,8 +128,27 @@ export default function AccountPage() {
     setProfileNotice('')
     setProfileSaving(true)
     try {
-      const updatedPlayer = await updatePlayerProfile({ displayName, language })
+      const updatedPlayer = await updatePlayerProfile({
+        displayName,
+        language,
+        firstName,
+        lastName,
+        gender: gender || null,
+        countryCode,
+        city,
+        address,
+        phoneNumber,
+        postalCode,
+      })
       setDisplayName(updatedPlayer.displayName)
+      setFirstName(updatedPlayer.firstName ?? '')
+      setLastName(updatedPlayer.lastName ?? '')
+      setGender(updatedPlayer.gender ?? '')
+      setCountryCode(updatedPlayer.countryCode || 'TN')
+      setCity(updatedPlayer.city ?? '')
+      setAddress(updatedPlayer.address ?? '')
+      setPhoneNumber(updatedPlayer.phoneNumber ?? '')
+      setPostalCode(updatedPlayer.postalCode ?? '')
       setLanguage(updatedPlayer.language || 'en')
       setProfileNotice('Your profile changes have been saved.')
     } catch (error) {
@@ -150,7 +185,7 @@ export default function AccountPage() {
                 </span>
                 <div className="min-w-0">
                   <p className="text-xs text-[var(--cb-light-muted)]">Verification status</p>
-                  <p className="mt-1 truncate text-sm font-bold text-[var(--cb-light-text)]">KYC unverified</p>
+                  <p className="mt-1 truncate text-sm font-bold text-[var(--cb-light-text)]">{statusLabel(player?.verificationStatus)}</p>
                 </div>
               </div>
               <div className="border border-[var(--cb-light-border)] bg-white p-4">
@@ -217,61 +252,112 @@ export default function AccountPage() {
         {sectionKey === 'personal-info' || sectionKey === 'profile' ? (
           <form onSubmit={handleProfileSubmit} className="grid gap-x-6 gap-y-4 md:grid-cols-2" aria-busy={profileLoading || profileSaving}>
             <div className="min-w-0 space-y-1">
-              <label htmlFor="account-display-name" className="block truncate text-xs text-[var(--cb-light-muted)]">Display name</label>
-              <input
-                id="account-display-name"
-                name="displayName"
-                type="text"
-                autoComplete="nickname"
-                value={displayName}
+              <label htmlFor="account-display-name" className="block text-xs text-[var(--cb-light-muted)]">Display name</label>
+              <input id="account-display-name" name="displayName" type="text" autoComplete="nickname" value={displayName}
                 onChange={(event) => { setDisplayName(event.target.value); setProfileNotice('') }}
-                minLength={1}
-                maxLength={80}
-                required
-                disabled={profileLoading || profileSaving}
-                className="block w-full border border-[var(--cb-light-border)] bg-white px-4 py-2.5 text-sm text-[var(--cb-light-text)] outline-none focus:border-[var(--cb-yellow)] disabled:opacity-60"
-              />
+                minLength={1} maxLength={80} required disabled={profileLoading || profileSaving}
+                className="block w-full border border-[var(--cb-light-border)] bg-white px-4 py-2.5 text-sm text-[var(--cb-light-text)] outline-none focus:border-[var(--cb-yellow)] disabled:opacity-60" />
+              <p className="text-[11px] text-[var(--cb-light-muted)]">Shown on your account. It is not your player ID.</p>
             </div>
             <ReadOnlyField label="Email" value={player?.email ?? '—'} />
-            <ReadOnlyField label="Country" value={countryLabel(player?.countryCode)} />
-            <ReadOnlyField label="Account currency" value={player?.settlementCurrency ?? '—'} />
             <div className="min-w-0 space-y-1">
-              <label htmlFor="account-language" className="block truncate text-xs text-[var(--cb-light-muted)]">Language</label>
-              <select
-                id="account-language"
-                name="language"
-                value={language}
-                onChange={(event) => { setLanguage(event.target.value); setProfileNotice('') }}
+              <label htmlFor="account-first-name" className="block text-xs text-[var(--cb-light-muted)]">First name</label>
+              <input id="account-first-name" name="firstName" autoComplete="given-name" type="text" value={firstName}
+                onChange={(event) => { setFirstName(event.target.value); setProfileNotice('') }}
+                maxLength={100} disabled={profileLoading || profileSaving}
+                className="block w-full border border-[var(--cb-light-border)] bg-white px-4 py-2.5 text-sm text-[var(--cb-light-text)] outline-none focus:border-[var(--cb-yellow)] disabled:opacity-60" />
+            </div>
+            <div className="min-w-0 space-y-1">
+              <label htmlFor="account-last-name" className="block text-xs text-[var(--cb-light-muted)]">Last name</label>
+              <input id="account-last-name" name="lastName" autoComplete="family-name" type="text" value={lastName}
+                onChange={(event) => { setLastName(event.target.value); setProfileNotice('') }}
+                maxLength={100} disabled={profileLoading || profileSaving}
+                className="block w-full border border-[var(--cb-light-border)] bg-white px-4 py-2.5 text-sm text-[var(--cb-light-text)] outline-none focus:border-[var(--cb-yellow)] disabled:opacity-60" />
+            </div>
+            <div className="min-w-0 space-y-1">
+              <label htmlFor="account-gender" className="block text-xs text-[var(--cb-light-muted)]">Gender</label>
+              <select id="account-gender" name="gender" value={gender}
+                onChange={(event) => { setGender(event.target.value as PlayerGender | ''); setProfileNotice('') }}
                 disabled={profileLoading || profileSaving}
-                className="block w-full border border-[var(--cb-light-border)] bg-white px-4 py-2.5 text-sm text-[var(--cb-light-text)] outline-none focus:border-[var(--cb-yellow)] disabled:opacity-60"
-              >
-                {!['en', 'fr', 'ar'].includes(language) ? <option value={language}>{language}</option> : null}
-                <option value="en">English</option>
-                <option value="fr">Français</option>
-                <option value="ar">العربية</option>
+                className="block w-full border border-[var(--cb-light-border)] bg-white px-4 py-2.5 text-sm text-[var(--cb-light-text)] outline-none focus:border-[var(--cb-yellow)] disabled:opacity-60">
+                <option value="">Prefer not to say / Not specified</option>
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+                <option value="other">Other</option>
+                <option value="prefer_not_to_say">Prefer not to say</option>
               </select>
             </div>
-            <ReadOnlyField label="Account status" value={statusLabel(player?.status)} />
-            <ReadOnlyField label="Verification status" value={statusLabel(player?.verificationStatus)} />
-            {profileLoading ? (
-              <p className="text-xs text-[var(--cb-light-muted)] md:col-span-2" role="status">Loading your profile from Bclick API…</p>
-            ) : null}
-            {profileError ? (
-              <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800 md:col-span-2" role="alert">{profileError}</p>
-            ) : null}
-            {profileNotice ? (
-              <p className="rounded border border-green-200 bg-green-50 p-3 text-sm text-green-800 md:col-span-2" role="status">{profileNotice}</p>
-            ) : null}
+            <div className="min-w-0 space-y-1">
+              <label htmlFor="account-country" className="block text-xs text-[var(--cb-light-muted)]">Country</label>
+              <select id="account-country" name="countryCode" value={countryCode}
+                onChange={(event) => { setCountryCode(event.target.value); setProfileNotice('') }}
+                disabled={profileLoading || profileSaving}
+                className="block w-full border border-[var(--cb-light-border)] bg-white px-4 py-2.5 text-sm text-[var(--cb-light-text)] outline-none focus:border-[var(--cb-yellow)] disabled:opacity-60">
+                {[
+                  ['TN', 'Tunisia'], ['DZ', 'Algeria'], ['MA', 'Morocco'], ['LY', 'Libya'], ['EG', 'Egypt'],
+                  ['FR', 'France'], ['DE', 'Germany'], ['GB', 'United Kingdom'], ['IT', 'Italy'], ['ES', 'Spain'],
+                  ['PT', 'Portugal'], ['US', 'United States'], ['CA', 'Canada'], ['TR', 'Türkiye'],
+                  ['SA', 'Saudi Arabia'], ['AE', 'United Arab Emirates'],
+                ].map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+                {!['TN','DZ','MA','LY','EG','FR','DE','GB','IT','ES','PT','US','CA','TR','SA','AE'].includes(countryCode)
+                  ? <option value={countryCode}>{countryCode}</option> : null}
+              </select>
+            </div>
+            <div className="min-w-0 space-y-1">
+              <label htmlFor="account-city" className="block text-xs text-[var(--cb-light-muted)]">City</label>
+              <input id="account-city" name="city" autoComplete="address-level2" type="text" value={city}
+                onChange={(event) => { setCity(event.target.value); setProfileNotice('') }}
+                maxLength={120} disabled={profileLoading || profileSaving}
+                className="block w-full border border-[var(--cb-light-border)] bg-white px-4 py-2.5 text-sm text-[var(--cb-light-text)] outline-none focus:border-[var(--cb-yellow)] disabled:opacity-60" />
+            </div>
+            <div className="min-w-0 space-y-1 md:col-span-2">
+              <label htmlFor="account-address" className="block text-xs text-[var(--cb-light-muted)]">Address</label>
+              <input id="account-address" name="address" autoComplete="street-address" type="text" value={address}
+                onChange={(event) => { setAddress(event.target.value); setProfileNotice('') }}
+                maxLength={250} disabled={profileLoading || profileSaving}
+                className="block w-full border border-[var(--cb-light-border)] bg-white px-4 py-2.5 text-sm text-[var(--cb-light-text)] outline-none focus:border-[var(--cb-yellow)] disabled:opacity-60" />
+            </div>
+            <div className="min-w-0 space-y-1">
+              <label htmlFor="account-phone" className="block text-xs text-[var(--cb-light-muted)]">Phone number</label>
+              <input id="account-phone" name="phoneNumber" autoComplete="tel" type="tel" inputMode="tel" value={phoneNumber}
+                onChange={(event) => { setPhoneNumber(event.target.value); setProfileNotice('') }}
+                maxLength={16} disabled={profileLoading || profileSaving}
+                placeholder="+21612345678"
+                className="block w-full border border-[var(--cb-light-border)] bg-white px-4 py-2.5 text-sm text-[var(--cb-light-text)] outline-none focus:border-[var(--cb-yellow)] disabled:opacity-60" />
+              <p className="text-[11px] text-[var(--cb-light-muted)]">Use international format, e.g. +21612345678.</p>
+            </div>
+            <div className="min-w-0 space-y-1">
+              <label htmlFor="account-postal-code" className="block text-xs text-[var(--cb-light-muted)]">Postal code</label>
+              <input id="account-postal-code" name="postalCode" autoComplete="postal-code" type="text" value={postalCode}
+                onChange={(event) => { setPostalCode(event.target.value); setProfileNotice('') }}
+                maxLength={20} disabled={profileLoading || profileSaving}
+                className="block w-full border border-[var(--cb-light-border)] bg-white px-4 py-2.5 text-sm text-[var(--cb-light-text)] outline-none focus:border-[var(--cb-yellow)] disabled:opacity-60" />
+            </div>
+            <div className="min-w-0 space-y-1">
+              <label htmlFor="account-currency" className="block text-xs text-[var(--cb-light-muted)]">Account currency</label>
+              <input id="account-currency" value={player?.settlementCurrency ?? '—'} disabled readOnly
+                className="block w-full border border-[var(--cb-light-border)] bg-white px-4 py-2.5 text-sm text-[var(--cb-light-text)] outline-none disabled:opacity-70" />
+            </div>
+            <div className="min-w-0 space-y-1">
+              <label htmlFor="account-language" className="block text-xs text-[var(--cb-light-muted)]">Language</label>
+              <select id="account-language" name="language" value={language}
+                onChange={(event) => { setLanguage(event.target.value); setProfileNotice('') }}
+                disabled={profileLoading || profileSaving}
+                className="block w-full border border-[var(--cb-light-border)] bg-white px-4 py-2.5 text-sm text-[var(--cb-light-text)] outline-none focus:border-[var(--cb-yellow)] disabled:opacity-60">
+                {!['en', 'fr', 'ar'].includes(language) ? <option value={language}>{language}</option> : null}
+                <option value="en">English</option><option value="fr">Français</option><option value="ar">العربية</option>
+              </select>
+            </div>
+            {profileLoading ? <p className="text-xs text-[var(--cb-light-muted)] md:col-span-2" role="status">Loading your profile from Bclick API…</p> : null}
+            {profileError ? <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800 md:col-span-2" role="alert">{profileError}</p> : null}
+            {profileNotice ? <p className="rounded border border-green-200 bg-green-50 p-3 text-sm text-green-800 md:col-span-2" role="status">{profileNotice}</p> : null}
             <div className="flex flex-col gap-3 py-2 md:col-span-2">
-              <button
-                type="submit"
-                disabled={profileLoading || profileSaving || !displayName.trim()}
-                className="relative w-fit border border-[var(--cb-yellow)] bg-[var(--cb-yellow)] px-5 py-2.5 text-sm font-bold uppercase text-[#071722] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-              >
+              <button type="submit" disabled={profileLoading || profileSaving || !displayName.trim()}
+                className="relative w-fit border border-[var(--cb-yellow)] bg-[var(--cb-yellow)] px-5 py-2.5 text-sm font-bold uppercase text-[#071722] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60">
                 {profileSaving ? 'Saving…' : 'Save profile'}
               </button>
               <p className="text-xs leading-relaxed text-[var(--cb-light-muted)]">
-                Display name and language are saved to your player account. Fields not yet supported by the profile API, such as address, phone, date of birth display, and notification preferences, are not editable here.
+                Display name is your public account label. First name, last name, gender, country, city, address, phone number, postal code, and language are saved to your player profile.
               </p>
             </div>
           </form>
