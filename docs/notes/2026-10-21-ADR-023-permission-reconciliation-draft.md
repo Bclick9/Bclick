@@ -1,7 +1,7 @@
 # ADR-023 Draft — Permission Registry Reconciliation
 
 **Date:** 2026-10-21  
-**Status:** DRAFT — direction conditionally accepted; four controls added; explicit approval of this amended ADR still required  
+**Status:** DIRECTION + MIGRATION A DESIGN APPROVED (2026-10-21); execution awaits local inventory and Migration Strategy approval. Migration B and migration 001 are NOT approved.  
 **Decision ID:** NOTE-ADR-023  
 **Parent decision:** Identity Legacy Option A — Adopt + Extend (accepted by Project Owner)  
 **Related investigation:** [Identity Legacy Investigation](./2026-10-21-identity-legacy-investigation.md)  
@@ -10,13 +10,13 @@
 
 ## 1. Decision requested
 
-Approve a **new additive canonical permission seed of all 36 permission codes** in the approved 04-api-contracts.md set, while leaving the existing migration and its original five permission rows untouched.
+The Project Owner approved the **direction and Migration A design only** on 2026-10-21: add all 36 canonical permission codes and link them to the existing `project-admin` role, leaving the old migration and all five legacy permission rows and existing links untouched. This amended note records the five required clarifications. The approval is not permission to implement or run Migration A yet.
 
 Do **not** seed only 31 new codes. The five existing seed codes have **zero exact-code overlap** with the 36-code canonical set. “36 canonical minus 5 old” is therefore not a valid reconciliation calculation.
 
 The five old rows can remain as legacy catalog data for migration/history compatibility, but they must not be required by new canonical routes. A new migration may update role-to-permission assignments; it must not edit or replay the old migration file. Before any role-link cleanup, inspect the target local database for non-default/custom assignments and stop for review if unexpected state is present.
 
-**No code or database change is authorized by this draft.** The Project Owner must approve this ADR before any permission-reconciliation migration is written.
+**Implementation remains blocked** until the local DB inventory note is populated with actual local query results and approved, and a separate Migration Strategy note detailing up/down migrations, provenance, rollback, and runtime tests is approved. Migration B is not approved; migration 001 is not approved. No local DB count may be inferred from the migration source or CI.
 
 ## 2. Current facts
 
@@ -40,9 +40,11 @@ The exact identifiers from the immutable migration are:
 | `admin.security.audit.read` | Read security audit records | `audit.read` | Closest candidate, but the event scope must be compared with the canonical audit contract before mapping a consumer. The codes are not aliases. |
 | `admin.security.manage` | Manage administrator identity security | No single equivalent; closest are `admin.users.write`, `admin.roles.write`, `admin.mfa.manage` | Legacy code bundles several administrative capabilities. Do not map it to only `admin.mfa.manage` or any single canonical code. New handlers must use the exact capability required by their contract. |
 
-**Code-use scan (2026-10-21):** the repository tree was enumerated from `main`, and all 73 tracked `.ts`/`.tsx` files under `server/`, `frontend/`, and `backend/` were scanned for all five exact legacy strings plus the requested patterns `identity\.` and `identity:`. No exact legacy permission string was found in those TypeScript/TSX files; therefore, there are no matching legacy-code file/line references to update in that scan. The `identity\.` pattern had no matches. The only `identity:` match was `server/test/identity.test.ts:84`, where `identity: service` is a property passed to `buildApp` in test setup, not a permission code. The actual legacy codes are seeded in `server/migrations/1792512000000_identity_sessions.sql`; that SQL file is outside the requested TS/TSX grep scope and must remain untouched.
+**Code-use scan (2026-10-21):** the repository tree was enumerated from `main`, and all 73 tracked `.ts`/`.tsx` files under `server/`, `frontend/`, and `backend/` were scanned for all five exact legacy strings plus the patterns `identity\.` and `identity:`. No exact legacy permission string was found in those TypeScript/TSX files. The `identity\.` pattern had no matches. The only `identity:` match was `server/test/identity.test.ts:84`: `identity: service` is a property passed to `buildApp` in test setup, not a permission code. The actual permission rows are seeded in `server/migrations/1792512000000_identity_sessions.sql`; that old migration must remain untouched.
 
-This is a tracked-remote-source scan, not proof about untracked/ignored files in a developer's local checkout. Before a future removal migration, rerun the owner-requested PowerShell/grep check against the actual local checkout and review any extra hits. No legacy aliases are proposed: retain the five catalog rows for history, use canonical codes for new authorization, and stop for review if any real consumer is discovered.
+This is a tracked-remote-source scan, not proof about untracked/ignored files in a developer's local checkout. Before a future removal migration, rerun the owner-requested search against the actual local checkout and review any extra hits. No legacy aliases are proposed: retain the five catalog rows for history, use canonical codes for new authorization, and stop for review if any real consumer is discovered.
+
+**Specific behavior of `admin.session.read`:** this code is present in the legacy SQL seed but has no use in the scanned TypeScript/TSX source. In `server/src/identity/routes.ts`, `GET /api/v1/admin/session` resolves the current admin's session, requires an active admin and completed MFA, and returns that same admin's ID/email/display name/status plus their roles, permissions, MFA method and session timestamps. The route does not check `admin.session.read` as a permission guard. It is a self-session endpoint, not an admin-directory management route and not both. There is no one-to-one canonical replacement among the 36 codes: do not alias it to `admin.users.read`. Keep the legacy catalog row and link intact in Migration A; defer link removal to Migration B after the required checks. If a future contract introduces a distinct self-session permission, that is a separate contract/ADR decision.
 
 
 ## 3. Exact canonical permission set — 36 codes
@@ -85,7 +87,7 @@ The approved Initial permission set contains these 36 exact, case-sensitive code
 5. A permission code may be retained as catalog/history data without being an alias. Do not introduce alias behavior implicitly. Any future route must use the exact canonical permission required by its API contract.
 6. Both operations must be idempotent. Existing canonical codes with the expected metadata may be reused; conflicting metadata must fail closed. Rollback must know which rows and links this migration actually created, so it cannot accidentally remove pre-existing local data.
 
-This explicitly separates addition from removal. Neither operation is authorized by the current conditional approval; both remain gated by the amended ADR, local database inventory, and a separately approved Migration Strategy note.
+This explicitly separates addition from removal. **Migration A's design is approved, but implementation is gated** by the actual local database inventory and a separately approved Migration Strategy note. Migration B remains unapproved and requires its own readiness gate and review.
 
 
 ## 5. Why all 36 are proposed for project-admin
@@ -128,7 +130,7 @@ The migration/test PR must prove against PostgreSQL:
 
 ## 7. Additive migration requirements (future work; not authorized now)
 
-After this ADR is approved, the later migration strategy may include a new permission-seed/reconciliation migration with these invariants:
+After the local database inventory note is populated and approved and the Migration Strategy note is separately approved, Migration A may be implemented under these invariants:
 
 - **No edit** to 1792512000000_identity_sessions.sql; no rewriting migration history.
 - Insert the exact 36 canonical permission codes, with non-empty descriptions aligned to the approved contract/route semantics.
@@ -163,7 +165,7 @@ Review all matches rather than mechanically replacing strings. No code changes a
 
 The current schema names are `identity_players`, `identity_admins`, `identity_admin_roles`, `identity_admin_permissions`, `identity_admin_role_permissions`, and `identity_admin_account_roles`. Do not substitute generic `players`, `admin_users`, `roles`, or `role_permissions` unless the local database inspection proves its schema is different.
 
-**Result state for this ADR revision: NOT RUN — pending explicit approval of the amended ADR.** No local database URL/connection was used, and no row counts are inferred from CI or migration DDL. After amended ADR approval, run the following read-only inventory against the developer's local database only, capture the timestamp/environment, and attach the actual results to the investigation note/ADR before drafting Migration Strategy.
+**Result state: NOT RUN — the developer's local database is not accessible through the GitHub repository connection.** The direction and Migration A design are approved, so this is the next required evidence-gathering step. No local DB URL/connection was used, and no row counts are inferred from CI or migration DDL. Run this read-only inventory against the developer's local database only, record timestamp/environment, and attach actual outputs to the separate Investigation NOTE before drafting Migration Strategy.
 
 ```sql
 SELECT COUNT(*) AS player_count FROM identity_players;
@@ -234,6 +236,25 @@ COMMIT
 
 The implementation must use the actual unique constraint on `identity_admin_permissions(code)` and the composite primary key on `identity_admin_role_permissions(role_id, permission_id)`. Existing identical records must not cause failure; metadata conflicts must abort the whole transaction. The journal mechanism/schema must be defined and reviewed in the Migration Strategy note so that rollback can distinguish new rows/links from records that predated the migration. Migration A must not unlink the five legacy permissions; that is a separate Migration B.
 
+### 8.4 Migration B readiness criteria
+
+Migration B may be proposed for implementation only after **all** of the following are evidenced and the Migration Strategy note is approved:
+
+1. The local DB Investigation NOTE has real output for counts and inventories of `identity_players`, `identity_admins`, `identity_admin_roles`, `identity_admin_account_roles`, `identity_admin_permissions`, and `identity_admin_role_permissions`; every role code and each role's permission mapping is known. Any non-`project-admin` role is preserved, and no legacy link for another role is removed without a separate decision.
+2. Repeat a local working-tree scan (including physically present untracked/ignored files) and review every result. Suggested PowerShell:
+   ```powershell
+   Get-ChildItem server,frontend,backend -Recurse -File -Include *.ts,*.tsx |
+     Select-String -Pattern 'admin\.session\.read|admin\.players\.read|admin\.players\.write|admin\.security\.audit\.read|admin\.security\.manage'
+   Get-ChildItem server,frontend,backend -Recurse -File -Include *.ts,*.tsx |
+     Select-String -Pattern 'identity\.|identity:'
+   ```
+   Also inspect API contracts/specs and the focused files `server/src/identity/routes.ts`, `server/src/identity/service.ts`, `server/test/identity.test.ts`, and any UI/session consumers reported by the scan. Each true hit must have a documented disposition: retain the old link pending a decision, or update to an exactly equivalent canonical permission under its own tested change. False positives must be identified by file and line. Do not mass-replace or create a blanket alias.
+3. Migration A acceptance tests pass against local PostgreSQL: existing admin login + MFA still works; `GET /api/v1/admin/session` returns 200 and `project-admin`; effective permissions are exactly the 36 canonical codes plus the five legacy codes (41 distinct entries) expected for this transition; rows and legacy links are unchanged; re-applying the additive seed creates no duplicates.
+4. There are no unresolved consumers of the five legacy codes on the role/link being changed. If any role other than `project-admin` exists, B leaves its account assignments and links unchanged unless that role is explicitly covered by a separate approved decision.
+5. A disposable local DB rollback drill proves B's down path can restore only legacy links recorded as removed, without changing pre-existing admins, IDs, password hashes, MFA settings, live local sessions, players, role rows, or canonical mappings.
+
+**Safe-to-start B** means all five evidence items are attached to the Investigation/Strategy notes, all legacy-code hits are classified, the owner approves the specific B up/down plan, and runtime + rollback tests pass. A clean source scan alone is not enough. If any result is unclear, B stays blocked and the old links remain.
+
 ### 8.4 Rollback and login-continuity plan
 
 The current `identity_admin_permissions` table has columns `id`, `code`, and `description`; it has **no `status` column**. Therefore `status='inactive'` is not a safe available option unless a separate schema change is explicitly designed and approved. Do not silently add it as part of this permission reconciliation.
@@ -270,4 +291,4 @@ Fixed gates remain unchanged:
 
 This is permission reconciliation under the previously accepted top-level Identity decision **Option A — Adopt + Extend**; it does not reopen that schema-direction decision.
 
-**Approval state: CONDITIONAL DIRECTION ACCEPTED; AMENDED ADR APPROVAL PENDING.** This draft is not an implementation authorization. Do not inspect/change a local database before the amended ADR is approved, write either permission migration, rename any identity_* table, or proceed to migration 001. After explicit approval of this amended ADR, perform the local-only database inventory and attach actual results; then write the separate Migration Strategy note and await its approval. Only after those gates may migration 001 be planned.
+**Approval state (2026-10-21): DIRECTION + MIGRATION A DESIGN APPROVED.** Local DB inspection is now the next step. This ADR does not authorize Migration A implementation until actual local inventory results are captured and the Migration Strategy note is separately approved. Migration B and migration 001 are not approved. Do not rename any `identity_*` table or edit/delete the old migration.
