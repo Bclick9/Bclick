@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search } from 'lucide-react'
+import { Search, UserRound } from 'lucide-react'
 import { WireframeFlag } from './Sidebar'
 import { SearchDialog } from './SearchDialog'
 import { AuthModal } from '../pages/Auth'
@@ -42,6 +42,7 @@ function AuthActions({ compact = false }: { compact?: boolean }) {
   const [searchOpen, setSearchOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null)
   const [logoutError, setLogoutError] = useState('')
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const { player, isLoading, logout } = useAuth()
   const closeAuth = useCallback(() => setAuthMode(null), [])
   const handleLogout = async () => {
@@ -77,26 +78,42 @@ function AuthActions({ compact = false }: { compact?: boolean }) {
           {isLoading ? (
             <span className="px-2 text-xs text-[#91a6b5]" role="status">Checking session…</span>
           ) : player ? (
-            <>
-              <Link
-                to="/account"
-                className={compact
-                  ? 'inline-flex max-w-28 items-center justify-center truncate rounded-[10px] border border-[var(--cb-line)] px-3 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[var(--cb-hover)]'
-                  : 'inline-flex max-w-44 items-center justify-center truncate rounded-[10px] border border-[var(--cb-line)] px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[var(--cb-hover)] lg:text-sm'}
-                title={player.email}
-              >
-                {player.displayName || 'My Account'}
-              </Link>
+            <div className="relative">
               <button
                 type="button"
-                onClick={() => void handleLogout()}
+                onClick={() => setAccountMenuOpen((open) => !open)}
+                aria-haspopup="menu"
+                aria-expanded={accountMenuOpen}
+                aria-label="Player account and demo balance"
+                title="Demo balance only — wallet is not connected"
                 className={compact
-                  ? 'inline-flex items-center justify-center rounded-[10px] border border-[var(--cb-line)] px-3 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[var(--cb-hover)]'
-                  : 'inline-flex items-center justify-center rounded-[10px] border border-[var(--cb-line)] px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[var(--cb-hover)] lg:text-sm'}
+                  ? 'relative inline-flex items-center justify-center gap-2 rounded-[10px] border border-[var(--cb-line)] px-2.5 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[var(--cb-hover)]'
+                  : 'relative inline-flex items-center justify-center gap-2 rounded-[10px] border border-[var(--cb-line)] px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[var(--cb-hover)] lg:text-sm'}
               >
-                Log out
+                <span className="relative inline-flex">
+                  <UserRound className="h-4 w-4 lg:h-5 lg:w-5" aria-hidden="true" />
+                  <span aria-hidden="true" className="absolute -right-2 -top-1.5 h-4 w-4 rounded-full bg-[var(--cb-yellow)] text-[10px] leading-4 text-[#071722]">1</span>
+                </span>
+                <span className="whitespace-nowrap">€0.00</span>
               </button>
-            </>
+              {accountMenuOpen ? (
+                <div role="menu" aria-label="Player account menu" className="absolute right-0 top-full z-[130] mt-2 w-56 rounded-xl border border-[var(--cb-line)] bg-[#0c1d28] p-2 shadow-xl">
+                  <Link to="/account" role="menuitem" onClick={() => setAccountMenuOpen(false)}
+                    className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--cb-hover)]">
+                    My account
+                  </Link>
+                  <Link to="/account/personal-info" role="menuitem" onClick={() => setAccountMenuOpen(false)}
+                    className="block rounded-lg px-3 py-2.5 text-sm text-[#aebfca] transition-colors hover:bg-[var(--cb-hover)] hover:text-white">
+                    Personal information
+                  </Link>
+                  <p className="px-3 py-2 text-[11px] leading-relaxed text-[#91a6b5]">Demo balance only. The wallet is not connected.</p>
+                  <button type="button" role="menuitem" onClick={() => { setAccountMenuOpen(false); void handleLogout() }}
+                    className="block w-full rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-white transition-colors hover:bg-[var(--cb-hover)]">
+                    Log out
+                  </button>
+                </div>
+              ) : null}
+            </div>
           ) : (
             <>
               <button

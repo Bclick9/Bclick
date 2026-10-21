@@ -4,6 +4,7 @@ import {
   User2, ChevronDown, ChevronUp, BadgeCheck, Gift, Wallet, History, Copy,
 } from 'lucide-react'
 import { cn } from '../lib/shadcn/utils'
+import { useAuth } from '../contexts/AuthContext'
 
 /* Account side panel recreated from the reference deposit screenshot — light
    content surface, avatar chip, KYC notice, balances, expandable menu groups. */
@@ -54,17 +55,29 @@ const GROUPS = [
 
 export function AccountPanel() {
   const { pathname } = useLocation()
+  const { player } = useAuth()
   const [open, setOpen] = useState<string[]>(['profile', 'wallet'])
   const [copiedUserId, setCopiedUserId] = useState(false)
 
   const copyUserId = async () => {
+    if (!player?.id) return
     try {
-      await navigator.clipboard.writeText('436222976')
+      await navigator.clipboard.writeText(player.playerNumber)
       setCopiedUserId(true)
     } catch {
       setCopiedUserId(false)
     }
   }
+
+  const verificationLabel = player?.verificationStatus === 'verified'
+    ? 'Verified'
+    : player?.verificationStatus === 'rejected'
+      ? 'Verification rejected'
+      : player?.verificationStatus === 'expired'
+        ? 'Verification expired'
+        : player?.verificationStatus === 'not_required'
+          ? 'Verification not required'
+          : 'KYC unverified'
 
   const toggle = (key: string) =>
     setOpen((o) => (o.includes(key) ? o.filter((k) => k !== key) : [...o, key]))
@@ -77,12 +90,12 @@ export function AccountPanel() {
         </span>
         <div className="Account-nameAndIdStyles flex min-w-0 flex-1 flex-col justify-center gap-1">
           <div className="firstAndLastName">
-            <span className="large block truncate text-base leading-5 font-bold text-[var(--cb-light-text)]">mrbelhaj</span>
+            <span className="large block truncate text-base leading-5 font-bold text-[var(--cb-light-text)]">{player?.displayName || player?.email || "Player"}</span>
           </div>
           <div className="userId mt-0 flex min-w-0 items-center gap-1 text-xs text-[var(--cb-light-muted)]">
             <span className="shrink-0">ID:</span>
             <span className="Copy-Text-copyTextStyles inline-flex min-w-0 items-center gap-1">
-              <span className="truncate font-semibold text-[var(--cb-light-text)]">436222976</span>
+              <span className="truncate font-semibold text-[var(--cb-light-text)]" title={player?.playerNumber}>{player?.playerNumber ?? "—"}</span>
               <button
                 type="button"
                 onClick={copyUserId}
@@ -98,16 +111,16 @@ export function AccountPanel() {
       </div>
       <div className="flex items-center gap-2 bg-[#fdf5dc] rounded-md px-3 py-2 mb-4">
         <BadgeCheck className="w-4 h-4 text-[var(--cb-yellow-dark)]" />
-        <span className="text-xs font-semibold text-[var(--cb-yellow-dark)]">KYC unverified</span>
+        <span className="text-xs font-semibold text-[var(--cb-yellow-dark)]">{verificationLabel}</span>
       </div>
 
       <div className="grid grid-cols-2 rounded-md border border-[var(--cb-light-border)] bg-white overflow-hidden mb-6">
         <div className="p-3 text-center">
-          <p className="text-xs text-[var(--cb-light-muted)]">Real balance</p>
-          <p className="text-base font-bold text-[var(--cb-light-text)]">€0.00</p>
+          <p className="text-xs text-[var(--cb-light-muted)]">Balance (demo)</p>
+          <p className="text-sm font-bold text-[var(--cb-light-text)]">Not connected</p>
         </div>
         <div className="p-3 text-center">
-          <p className="text-xs text-[var(--cb-light-muted)]">Bonus balance</p>
+          <p className="text-xs text-[var(--cb-light-muted)]">Bonus balance (demo)</p>
           <p className="text-base font-bold text-[var(--cb-light-text)]">€0.00</p>
         </div>
       </div>

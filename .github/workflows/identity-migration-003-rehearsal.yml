@@ -82,6 +82,19 @@ jobs:
           pnpm exec node-pg-migrate up --migrations-dir /tmp/bclick-m003-prior-migrations --database-url-var DATABASE_URL
           echo "MIGRATION_003_PRIOR_BASELINE=PASS"
 
+      - name: Prepare exact five-migration directory for Migration 003 apply and rollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bclick-m003-only-migrations
+          cp server/migrations/1792497600000_api_skeleton_baseline.sql /tmp/bclick-m003-only-migrations/
+          cp server/migrations/1792512000000_identity_sessions.sql /tmp/bclick-m003-only-migrations/
+          cp server/migrations/1792584000000_identity_domain_migration_001.sql /tmp/bclick-m003-only-migrations/
+          cp server/migrations/1792670400000_identity_sessions_split_002.sql /tmp/bclick-m003-only-migrations/
+          cp server/migrations/1792756800000_identity_player_credentials_003.sql /tmp/bclick-m003-only-migrations/
+          actual_count="$(find /tmp/bclick-m003-only-migrations -maxdepth 1 -name '*.sql' | wc -l | tr -d ' ')"
+          [[ "$actual_count" == "5" ]] || { echo "Refusing: expected exactly five migration files for Migration 003 rehearsal." >&2; exit 1; }
+
       - name: Run Migration 003 preflight gate against the empty disposable baseline
         env:
           BCLICK_M003_TARGET: ci-disposable
@@ -94,7 +107,7 @@ jobs:
       - name: Apply exactly Migration 003 on disposable PostgreSQL
         run: |
           cd server
-          pnpm exec node-pg-migrate up --count 1 --migrations-dir ./migrations --database-url-var DATABASE_URL
+          pnpm exec node-pg-migrate up --count 1 --migrations-dir /tmp/bclick-m003-only-migrations --database-url-var DATABASE_URL
 
       - name: Verify credential/profile backfill, v2 alias, KYC invariants, and source preservation
         run: pnpm --filter @bclick/server exec node scripts/identity-migration-003-rehearsal.mjs post-up
@@ -107,7 +120,7 @@ jobs:
         run: |
           set -euo pipefail
           log=/tmp/bclick-m003-down-guard.log
-          if pnpm --filter @bclick/server exec node-pg-migrate down --count 1 --migrations-dir ./migrations --database-url-var DATABASE_URL >"$log" 2>&1; then
+          if pnpm --filter @bclick/server exec node-pg-migrate down --count 1 --migrations-dir /tmp/bclick-m003-only-migrations --database-url-var DATABASE_URL >"$log" 2>&1; then
             cat "$log"
             echo "Migration 003 Down unexpectedly succeeded with a mismatched credential mirror." >&2
             exit 1
@@ -143,7 +156,7 @@ jobs:
       - name: Roll back exactly Migration 003 on disposable PostgreSQL
         run: |
           cd server
-          pnpm exec node-pg-migrate down --count 1 --migrations-dir ./migrations --database-url-var DATABASE_URL
+          pnpm exec node-pg-migrate down --count 1 --migrations-dir /tmp/bclick-m003-only-migrations --database-url-var DATABASE_URL
 
       - name: Verify rollback removed only exact mirrors and preserved all legacy source rows/hashes
         run: pnpm --filter @bclick/server exec node scripts/identity-migration-003-rehearsal.mjs post-down
@@ -151,7 +164,7 @@ jobs:
       - name: Re-apply exactly Migration 003 after clean rollback
         run: |
           cd server
-          pnpm exec node-pg-migrate up --count 1 --migrations-dir ./migrations --database-url-var DATABASE_URL
+          pnpm exec node-pg-migrate up --count 1 --migrations-dir /tmp/bclick-m003-only-migrations --database-url-var DATABASE_URL
 
       - name: Verify re-application is clean and complete
         run: pnpm --filter @bclick/server exec node scripts/identity-migration-003-rehearsal.mjs post-up

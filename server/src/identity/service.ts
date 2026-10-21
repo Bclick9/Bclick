@@ -100,7 +100,7 @@ export class IdentityService {
     acceptTerms: boolean;
     acceptAgeConfirmation: boolean;
     preferredLanguage: string;
-    username?: string | null | undefined;
+    username: string;
     phoneNumber?: string | null | undefined;
     preferredDisplayCurrency?: string | undefined;
   }, requestId: string, remoteAddress: string): Promise<{ player: Record<string, unknown>; session: IssuedSession }> {
@@ -116,11 +116,11 @@ export class IdentityService {
       throw new IdentityFault(422, 'DATE_OF_BIRTH_INVALID', 'Date of birth must be a valid calendar date');
     }
 
-    const username = input.username == null ? null : input.username.trim();
-    if (username !== null && (username.length < 1 || username.length > 64)) {
-      throw new IdentityFault(422, 'USERNAME_INVALID', 'Username must contain between 1 and 64 characters');
+    const username = input.username.trim();
+    if (!/^[A-Za-z0-9._-]{3,32}$/.test(username)) {
+      throw new IdentityFault(422, 'USERNAME_INVALID', 'Username must be 3–32 characters using letters, numbers, dots, underscores, or hyphens');
     }
-    const usernameNormalized = username === null ? null : username.toLowerCase();
+    const usernameNormalized = username.toLowerCase();
     const phoneNumber = input.phoneNumber == null ? null : input.phoneNumber.trim();
     if (phoneNumber !== null && !/^\+[1-9][0-9]{1,14}$/.test(phoneNumber)) {
       throw new IdentityFault(422, 'PHONE_INVALID', 'Phone number must use E.164 format');
@@ -151,13 +151,25 @@ export class IdentityService {
            username,username_normalized,phone_number_e164,created_at,updated_at)
           VALUES ($1,$2,$2,$3,$4,$5,$6,$7,$7,$8,'pending','pending','pending',
                   $9,now(),$10,now(),$11,$12,$13,$14,now(),now())
-          RETURNING id,email,display_name,country_code,settlement_currency,language,preferred_language,
-                    preferred_display_currency,status,verification_status,email_verification_status,created_at`,
+          RETURNING id,email,player_number,username,display_name,first_name,last_name,gender,country_code,city,address,
+                    phone_number_e164,postal_code,settlement_currency,language,preferred_language,
+                    preferred_display_currency,status,verification_status,email_verification_status,created_at,updated_at`,
         [
           id, email, passwordHash, name, input.countryCode, input.settlementCurrency,
           input.preferredLanguage, input.preferredDisplayCurrency ?? null, input.dateOfBirth,
           this.config.termsVersion, this.config.agePolicyVersion, username, usernameNormalized, phoneNumber,
         ]);
+        const insertedPlayer = inserted.rows[0] as Record<string, unknown>;
+        await tx.query(`INSERT INTO player_profiles (player_id,display_name,created_at,updated_at)
+          VALUES ($1,$2,$3,$4)
+          ON CONFLICT (player_id) DO UPDATE SET display_name=EXCLUDED.display_name,created_at=EXCLUDED.created_at,updated_at=EXCLUDED.updated_at`,
+        [id, name, insertedPlayer.created_at, insertedPlayer.updated_at]);
+        await tx.query(`INSERT INTO player_credentials
+          (player_id,kind,identifier,identifier_norm,password_hash,password_changed_at,created_at,updated_at)
+          VALUES ($1,'email_password',$2,$2,$3,NULL,$4,$4)
+          ON CONFLICT (player_id,kind) DO UPDATE SET
+            identifier=EXCLUDED.identifier,identifier_norm=EXCLUDED.identifier_norm,password_hash=EXCLUDED.password_hash,updated_at=EXCLUDED.updated_at`,
+        [id, email, passwordHash, insertedPlayer.created_at]);
         const session = await this.createSession(tx, 'player', id, false);
         tokenForMail = opaqueToken();
         await tx.query(`INSERT INTO player_one_time_tokens
@@ -168,10 +180,13 @@ export class IdentityService {
         return { player: inserted.rows[0] as Record<string, unknown>, session };
       });
     } catch (error) {
+      const constraint = (error as { constraint?: unknown }).constraint;
+      if (String((error as { code?: unknown }).code) === '23505' && constraint === 'players_username_normalized_uidx') {
+        throw new IdentityFault(409, 'USERNAME_TAKEN', 'This username is already in use');
+      }
       if (String((error as { code?: unknown }).code) === '23505') {
         throw new IdentityFault(409, 'CONFLICT', 'An account with these details already exists');
       }
-      const constraint = (error as { constraint?: unknown }).constraint;
       if (constraint === 'players_date_of_birth_adult_check') {
         throw new IdentityFault(422, 'AGE_REQUIREMENT_NOT_MET', 'Players must be at least 18 years old to register');
       }
@@ -181,20 +196,25 @@ export class IdentityService {
     return created;
   }
 
-  async loginPlayer(emailInput: string, password: string, requestId: string, remoteAddress: string): Promise<{ player: Record<string, unknown>; session: IssuedSession }> {
-    const email = normalizeEmail(emailInput);
-    const permitted = await this.allowAttempt('player-login-email', email, 900, 5)
+  async loginPlayer(identifierInput: string, password: string, requestId: string, remoteAddress: string): Promise<{ player: Record<string, unknown>; session: IssuedSession }> {
+    const identifier = identifierInput.trim();
+    const isEmail = identifier.includes('@');
+    const normalizedIdentifier = isEmail ? normalizeEmail(identifier) : identifier.toLowerCase();
+    const rateLimitScope = isEmail ? 'player-login-email' : 'player-login-username';
+    const permitted = await this.allowAttempt(rateLimitScope, normalizedIdentifier, 900, 5)
       && await this.allowAttempt('player-login-ip', remoteAddress, 900, 20);
-    const result = await this.repository.query<DbRow>(`SELECT id,email,display_name,password_hash,status,verification_status,settlement_currency,language,preferred_display_currency
-      FROM players WHERE email_normalized=$1`, [email]);
+    const lookupColumn = isEmail ? 'email_normalized' : 'username_normalized';
+    const result = await this.repository.query<DbRow>(`SELECT id,email,username,player_number,display_name,first_name,last_name,gender,country_code,city,address,
+        phone_number_e164,postal_code,password_hash,status,verification_status,settlement_currency,language,preferred_display_currency
+      FROM players WHERE ${lookupColumn}=$1`, [normalizedIdentifier]);
     const row = result.rows[0];
     const passwordOkay = await verifyPassword(password, String(row?.password_hash ?? DUMMY_HASH));
     if (!permitted) throw new IdentityFault(429, 'RATE_LIMITED', 'Too many login attempts');
     if (!row || !passwordOkay || ['suspended','closed'].includes(String(row.status))) {
       await this.repository.query(`INSERT INTO audit_events(id,action,actor_type,outcome,request_id,metadata,created_at)
         VALUES ($1,'player.login','system','denied',$2,$3::jsonb,now())`,
-      [randomUUID(), requestId, JSON.stringify({ emailHash: this.hash(email) })]);
-      throw new IdentityFault(401, 'UNAUTHORIZED', 'Email or password is incorrect');
+      [randomUUID(), requestId, JSON.stringify({ identifierHash: this.hash(normalizedIdentifier), identifierType: isEmail ? 'email' : 'username' })]);
+      throw new IdentityFault(401, 'UNAUTHORIZED', 'Username/email or password is incorrect');
     }
     const session = await this.repository.transaction(async (tx) => {
       const issued = await this.createSession(tx, 'player', String(row.id), false);
@@ -221,7 +241,8 @@ export class IdentityService {
       expiresAt: new Date(String(row.expires_at)).toISOString(), mfaVerified: Boolean(row.mfa_verified),
     } as const;
     if (type === 'player') {
-      const found = await this.repository.query<DbRow>(`SELECT id,email,display_name,country_code,settlement_currency,language,preferred_display_currency,status,verification_status,created_at
+      const found = await this.repository.query<DbRow>(`SELECT id,email,player_number,username,display_name,first_name,last_name,gender,country_code,city,address,
+          phone_number_e164,postal_code,settlement_currency,language,preferred_display_currency,status,verification_status,created_at,updated_at
         FROM players WHERE id=$1`, [String(row.principal_id)]);
       const player = found.rows[0];
       return player ? { ...base, type, status: String(player.status), player: player as Record<string, unknown> } : null;
@@ -257,13 +278,131 @@ export class IdentityService {
     return this.verifyCsrf(session.type === 'player' ? 'player' : 'admin', session.id, session.version, token);
   }
 
-  async updatePlayerProfile(session: AuthSession, input: { displayName?: string | undefined; language?: string | undefined }): Promise<Record<string, unknown>> {
+  async updatePlayerProfile(session: AuthSession, input: {
+    displayName?: string | undefined;
+    language?: string | undefined;
+    firstName?: string | null | undefined;
+    lastName?: string | null | undefined;
+    gender?: 'female' | 'male' | 'other' | 'prefer_not_to_say' | null | undefined;
+    countryCode?: string | undefined;
+    city?: string | null | undefined;
+    address?: string | null | undefined;
+    phoneNumber?: string | null | undefined;
+    postalCode?: string | null | undefined;
+    username?: string | undefined;
+  }, requestId: string): Promise<Record<string, unknown>> {
     if (session.type !== 'player') throw new IdentityFault(403, 'FORBIDDEN', 'Player context required');
-    const result = await this.repository.query<DbRow>(`UPDATE players SET display_name=COALESCE($2,display_name),language=COALESCE($3,language),preferred_language=COALESCE($3,preferred_language),updated_at=now()
-      WHERE id=$1 RETURNING id,email,display_name,country_code,settlement_currency,language,preferred_display_currency,status,verification_status,created_at`,
-    [session.principalId, input.displayName ?? null, input.language ?? null]);
-    if (!result.rows[0]) throw new IdentityFault(404, 'NOT_FOUND', 'Player not found');
-    return result.rows[0] as Record<string, unknown>;
+
+    type PatchField = { name: string; column: string; value: string | null; normalizedValue?: string };
+    const patch: PatchField[] = [];
+    const has = (key: string) => Object.prototype.hasOwnProperty.call(input, key);
+    const optionalText = (value: string | null | undefined, maxLength: number, label: string): string | null => {
+      if (value == null) return null;
+      const normalized = value.trim();
+      if (normalized.length === 0) return null;
+      if (normalized.length > maxLength) {
+        throw new IdentityFault(422, 'PROFILE_FIELD_INVALID', label + ' is too long');
+      }
+      return normalized;
+    };
+
+    if (input.username !== undefined) {
+      const value = input.username.trim();
+      if (!/^[A-Za-z0-9._-]{3,32}$/.test(value)) {
+        throw new IdentityFault(422, 'USERNAME_INVALID', 'Username must be 3–32 characters using letters, numbers, dots, underscores, or hyphens');
+      }
+      patch.push({ name: 'username', column: 'username', value, normalizedValue: value.toLowerCase() });
+    }
+    if (input.displayName !== undefined) {
+      const value = input.displayName.trim();
+      if (value.length < 1 || value.length > 80) {
+        throw new IdentityFault(422, 'PROFILE_FIELD_INVALID', 'Display name must contain between 1 and 80 characters');
+      }
+      patch.push({ name: 'displayName', column: 'display_name', value });
+    }
+    if (input.language !== undefined) {
+      const value = input.language.trim();
+      if (value.length < 2 || value.length > 12) {
+        throw new IdentityFault(422, 'PROFILE_FIELD_INVALID', 'Language must contain between 2 and 12 characters');
+      }
+      patch.push({ name: 'language', column: 'language', value });
+    }
+    if (has('firstName')) patch.push({ name: 'firstName', column: 'first_name', value: optionalText(input.firstName, 100, 'First name') });
+    if (has('lastName')) patch.push({ name: 'lastName', column: 'last_name', value: optionalText(input.lastName, 100, 'Last name') });
+    if (has('gender')) {
+      const value = input.gender ?? null;
+      if (value !== null && !['female', 'male', 'other', 'prefer_not_to_say'].includes(value)) {
+        throw new IdentityFault(422, 'PROFILE_FIELD_INVALID', 'Gender selection is invalid');
+      }
+      patch.push({ name: 'gender', column: 'gender', value });
+    }
+    if (input.countryCode !== undefined) {
+      const value = input.countryCode.trim().toUpperCase();
+      if (!/^[A-Z]{2}$/.test(value)) {
+        throw new IdentityFault(422, 'PROFILE_FIELD_INVALID', 'Country must be a two-letter ISO country code');
+      }
+      patch.push({ name: 'countryCode', column: 'country_code', value });
+    }
+    if (has('city')) patch.push({ name: 'city', column: 'city', value: optionalText(input.city, 120, 'City') });
+    if (has('address')) patch.push({ name: 'address', column: 'address', value: optionalText(input.address, 250, 'Address') });
+    if (has('phoneNumber')) {
+      const value = optionalText(input.phoneNumber, 16, 'Phone number');
+      if (value !== null && !/^\+[1-9][0-9]{1,14}$/.test(value)) {
+        throw new IdentityFault(422, 'PHONE_INVALID', 'Phone number must use international E.164 format, for example +21612345678');
+      }
+      patch.push({ name: 'phoneNumber', column: 'phone_number_e164', value });
+    }
+    if (has('postalCode')) patch.push({ name: 'postalCode', column: 'postal_code', value: optionalText(input.postalCode, 20, 'Postal code') });
+    if (patch.length === 0) throw new IdentityFault(400, 'VALIDATION_ERROR', 'At least one profile field is required');
+
+    try {
+      return await this.repository.transaction(async (tx) => {
+      if (input.username !== undefined) {
+        const existing = await tx.query<DbRow>('SELECT username FROM players WHERE id=$1 FOR UPDATE', [session.principalId]);
+        if (!existing.rows[0]) throw new IdentityFault(404, 'NOT_FOUND', 'Player not found');
+        if (existing.rows[0].username != null) {
+          throw new IdentityFault(409, 'USERNAME_IMMUTABLE', 'Username can only be set once and cannot be changed afterwards');
+        }
+      }
+      const values: unknown[] = [session.principalId];
+      const assignments: string[] = [];
+      for (const field of patch) {
+        values.push(field.value);
+        const placeholder = String.fromCharCode(36) + values.length;
+        assignments.push(field.column + '=' + placeholder);
+        if (field.normalizedValue !== undefined) {
+          values.push(field.normalizedValue);
+          assignments.push('username_normalized=' + String.fromCharCode(36) + values.length);
+        }
+        if (field.name === 'language') assignments.push('preferred_language=' + placeholder);
+      }
+      const result = await tx.query<DbRow>(`UPDATE players
+        SET ${assignments.join(',')},updated_at=now()
+        WHERE id=$1
+        RETURNING id,email,player_number,username,display_name,first_name,last_name,gender,country_code,city,address,
+          phone_number_e164,postal_code,settlement_currency,language,preferred_display_currency,status,verification_status,created_at,updated_at`,
+      values);
+      const player = result.rows[0];
+      if (!player) throw new IdentityFault(404, 'NOT_FOUND', 'Player not found');
+
+      // Keep the currently active legacy source/mirror pair aligned until a
+      // separately reviewed player_profiles read/write cutover is approved.
+      await tx.query(`INSERT INTO player_profiles (player_id,display_name,created_at,updated_at)
+        VALUES ($1,$2,$3,$4)
+        ON CONFLICT (player_id) DO UPDATE SET display_name=EXCLUDED.display_name,created_at=EXCLUDED.created_at,updated_at=EXCLUDED.updated_at`,
+      [String(player.id), String(player.display_name), player.created_at, player.updated_at]);
+
+      await this.audit(tx, 'player.profile.update', 'player', session.principalId, 'player', session.principalId,
+        'success', requestId, { changedFields: patch.map((field) => field.name) });
+      return player as Record<string, unknown>;
+      });
+    } catch (error) {
+      const constraint = (error as { constraint?: unknown }).constraint;
+      if (String((error as { code?: unknown }).code) === '23505' && constraint === 'players_username_normalized_uidx') {
+        throw new IdentityFault(409, 'USERNAME_TAKEN', 'This username is already in use');
+      }
+      throw error;
+    }
   }
 
   async beginAdminLogin(emailInput: string, password: string, requestId: string, remoteAddress: string): Promise<{
@@ -449,6 +588,8 @@ export class IdentityService {
       const row = record.rows[0];
       if (!row) throw new IdentityFault(400, 'VALIDATION_ERROR', 'Password reset token is invalid or expired');
       await tx.query('UPDATE players SET password_hash=$2,updated_at=now() WHERE id=$1', [String(row.principal_id), passwordHash]);
+      await tx.query(`UPDATE player_credentials SET password_hash=$2,password_changed_at=now(),updated_at=now()
+        WHERE player_id=$1 AND kind='email_password'`, [String(row.principal_id), passwordHash]);
       await tx.query('UPDATE player_one_time_tokens SET consumed_at=now() WHERE id=$1', [String(row.id)]);
       await tx.query('UPDATE player_sessions SET revoked_at=now() WHERE player_id=$1 AND revoked_at IS NULL', [String(row.principal_id)]);
     });

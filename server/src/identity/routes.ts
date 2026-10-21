@@ -75,9 +75,18 @@ function playerResponse(player: Record<string, unknown>, requestId: string): Rec
     data: {
       player: {
         id: player.id,
+        playerNumber: player.player_number,
+        username: player.username ?? null,
         email: player.email,
         displayName: player.display_name,
+        firstName: player.first_name ?? null,
+        lastName: player.last_name ?? null,
+        gender: player.gender ?? null,
         countryCode: player.country_code,
+        city: player.city ?? null,
+        address: player.address ?? null,
+        phoneNumber: player.phone_number_e164 ?? null,
+        postalCode: player.postal_code ?? null,
         settlementCurrency: player.settlement_currency,
         preferredDisplayCurrency: player.preferred_display_currency,
         language: player.language,
@@ -88,6 +97,7 @@ function playerResponse(player: Record<string, unknown>, requestId: string): Rec
     requestId,
   };
 }
+
 function fullAdminResponse(session: AuthSession, requestId: string): Record<string, unknown> {
   const admin = session.admin ?? {};
   return {
@@ -218,7 +228,7 @@ export function registerIdentityRoutes(app: FastifyInstance, service: IdentitySe
       body: {
         type: 'object',
         additionalProperties: false,
-        required: ['email', 'password', 'countryCode', 'settlementCurrency', 'dateOfBirth', 'acceptTerms', 'acceptAgeConfirmation', 'preferredLanguage'],
+        required: ['email', 'username', 'password', 'countryCode', 'settlementCurrency', 'dateOfBirth', 'acceptTerms', 'acceptAgeConfirmation', 'preferredLanguage'],
         properties: {
           email: { type: 'string', format: 'email', maxLength: 254 },
           password: { type: 'string', minLength: 12, maxLength: 1024 },
@@ -228,7 +238,7 @@ export function registerIdentityRoutes(app: FastifyInstance, service: IdentitySe
           acceptTerms: { type: 'boolean', const: true },
           acceptAgeConfirmation: { type: 'boolean', const: true },
           preferredLanguage: { type: 'string', pattern: '^[a-z]{2}$', minLength: 2, maxLength: 2 },
-          username: { type: ['string', 'null'], minLength: 1, maxLength: 64 },
+          username: { type: 'string', minLength: 3, maxLength: 32, pattern: '^[A-Za-z0-9._-]{3,32}$' },
           phoneNumber: { type: ['string', 'null'], pattern: '^\\+[1-9][0-9]{1,14}$' },
           preferredDisplayCurrency: { type: 'string', enum: ['TND', 'EUR', 'USD'] },
         },
@@ -246,17 +256,18 @@ export function registerIdentityRoutes(app: FastifyInstance, service: IdentitySe
       acceptTerms: body.acceptTerms === true,
       acceptAgeConfirmation: body.acceptAgeConfirmation === true,
       preferredLanguage: String(body.preferredLanguage),
-      username: body.username == null ? null : String(body.username),
+      username: String(body.username),
       phoneNumber: body.phoneNumber == null ? null : String(body.phoneNumber),
       preferredDisplayCurrency: body.preferredDisplayCurrency ? String(body.preferredDisplayCurrency) : undefined,
     }, request.id, request.ip);
     setCookies(reply, issuePlayerCookies(result.session));
     return reply.code(201).send(playerResponse(result.player, request.id));
   }));
-  app.post('/api/v1/auth/login', { schema: { body: { type: 'object', additionalProperties: false, required: ['email','password'], properties: { email: { type: 'string', format: 'email', maxLength: 254 }, password: { type: 'string', minLength: 1, maxLength: 1024 } } } } }, async (request, reply) => safely(reply, request, async () => {
+  app.post('/api/v1/auth/login', { schema: { body: { type: 'object', additionalProperties: false, required: ['password'], properties: { identifier: { type: 'string', minLength: 1, maxLength: 254 }, email: { type: 'string', minLength: 1, maxLength: 254 }, password: { type: 'string', minLength: 1, maxLength: 1024 } }, oneOf: [{ required: ['identifier'] }, { required: ['email'] }] } } }, async (request, reply) => safely(reply, request, async () => {
     if (!originAllowed(request, config, 'player')) return sendError(reply, request, 403, 'ORIGIN_INVALID', 'Request Origin is not allowed');
     const body = bodyObject(request);
-    const result = await service.loginPlayer(String(body.email), String(body.password), request.id, request.ip);
+    const identifier = typeof body.identifier === 'string' ? body.identifier : String(body.email);
+    const result = await service.loginPlayer(identifier, String(body.password), request.id, request.ip);
     setCookies(reply, issuePlayerCookies(result.session));
     return reply.code(200).send(playerResponse(result.player, request.id));
   }));
@@ -285,17 +296,52 @@ export function registerIdentityRoutes(app: FastifyInstance, service: IdentitySe
     schema: {
       body: {
         type: 'object', additionalProperties: false, minProperties: 1,
-        properties: { displayName: { type: 'string', minLength: 1, maxLength: 80 }, language: { type: 'string', minLength: 2, maxLength: 12 } },
+        properties: {
+          displayName: { type: 'string', minLength: 1, maxLength: 80 },
+          language: { type: 'string', minLength: 2, maxLength: 12 },
+          username: { type: 'string', minLength: 3, maxLength: 32, pattern: '^[A-Za-z0-9._-]{3,32}$' },
+          firstName: { anyOf: [{ type: 'string', maxLength: 100 }, { type: 'null' }] },
+          lastName: { anyOf: [{ type: 'string', maxLength: 100 }, { type: 'null' }] },
+          gender: { anyOf: [{ type: 'string', enum: ['female', 'male', 'other', 'prefer_not_to_say'] }, { type: 'null' }] },
+          countryCode: { type: 'string', minLength: 2, maxLength: 2, pattern: '^[A-Za-z]{2}$' },
+          city: { anyOf: [{ type: 'string', maxLength: 120 }, { type: 'null' }] },
+          address: { anyOf: [{ type: 'string', maxLength: 250 }, { type: 'null' }] },
+          phoneNumber: { anyOf: [{ type: 'string', maxLength: 16, pattern: '^\\+[1-9][0-9]{1,14}$' }, { type: 'null' }] },
+          postalCode: { anyOf: [{ type: 'string', maxLength: 20 }, { type: 'null' }] },
+        },
       },
     },
   }, async (request, reply) => safely(reply, request, async () => {
     const session = await requirePlayer(request, reply, service, config, true);
     if (!session) return;
     const body = bodyObject(request);
-    const player = await service.updatePlayerProfile(session, {
-      displayName: typeof body.displayName === 'string' ? body.displayName : undefined,
-      language: typeof body.language === 'string' ? body.language : undefined,
-    });
+    const input: {
+      username?: string;
+      displayName?: string;
+      language?: string;
+      firstName?: string | null;
+      lastName?: string | null;
+      gender?: 'female' | 'male' | 'other' | 'prefer_not_to_say' | null;
+      countryCode?: string;
+      city?: string | null;
+      address?: string | null;
+      phoneNumber?: string | null;
+      postalCode?: string | null;
+    } = {};
+    if (typeof body.username === 'string') input.username = body.username;
+    if (typeof body.displayName === 'string') input.displayName = body.displayName;
+    if (typeof body.language === 'string') input.language = body.language;
+    if ('firstName' in body) input.firstName = body.firstName === null ? null : String(body.firstName);
+    if ('lastName' in body) input.lastName = body.lastName === null ? null : String(body.lastName);
+    if ('gender' in body) {
+      input.gender = body.gender === null ? null : String(body.gender) as 'female' | 'male' | 'other' | 'prefer_not_to_say';
+    }
+    if (typeof body.countryCode === 'string') input.countryCode = body.countryCode;
+    if ('city' in body) input.city = body.city === null ? null : String(body.city);
+    if ('address' in body) input.address = body.address === null ? null : String(body.address);
+    if ('phoneNumber' in body) input.phoneNumber = body.phoneNumber === null ? null : String(body.phoneNumber);
+    if ('postalCode' in body) input.postalCode = body.postalCode === null ? null : String(body.postalCode);
+    const player = await service.updatePlayerProfile(session, input, request.id);
     return reply.code(200).send(playerResponse(player, request.id));
   }));
 
