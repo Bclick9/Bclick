@@ -15,8 +15,8 @@ const databaseName = decodeURIComponent(parsedUrl.pathname.replace(/^\/+/, '').s
 if (!['127.0.0.1', 'localhost', '::1'].includes(parsedUrl.hostname) || databaseName !== 'bclick_ci') {
   throw new Error('Refusing to run: Migration 003 rehearsal must use localhost database bclick_ci only.');
 }
-if (!['seed', 'post-up', 'post-down', 'cleanup-fixtures'].includes(phase)) {
-  throw new Error('Usage: node identity-migration-003-rehearsal.mjs <seed|post-up|post-down|cleanup-fixtures>');
+if (!['seed', 'post-up', 'poison-credential', 'assert-down-guarded', 'post-down', 'cleanup-fixtures'].includes(phase)) {
+  throw new Error('Usage: node identity-migration-003-rehearsal.mjs <seed|post-up|poison-credential|assert-down-guarded|post-down|cleanup-fixtures>');
 }
 
 const pool = new Pool({ connectionString: databaseUrl, max: 2 });
@@ -252,6 +252,78 @@ async function postUp() {
   console.log('MIGRATION_003_POSTCHECK=PASS');
 }
 
+
+async function poisonCredentialMirror() {
+  await assertHistory(fullMigrations);
+  await assertMirrorData(fixtures.length);
+
+  const updated = await pool.query(
+    "UPDATE public.player_credentials SET password_hash = password_hash || $1 " +
+      "WHERE player_id = $2 AND kind = 'email_password' RETURNING player_id",
+    ['.m003-down-guard-probe', fixtures[0].id],
+  );
+  assert.equal(updated.rowCount, 1, 'Expected to modify exactly one synthetic credential mirror');
+
+  const observed = await pool.query(
+    "SELECT p.password_hash IS NOT DISTINCT FROM pc.password_hash AS hashes_match, " +
+      "p.password_hash = $1 AS source_hash_preserved " +
+      "FROM public.players p JOIN public.player_credentials pc " +
+      "ON pc.player_id = p.id AND pc.kind = 'email_password' " +
+      "WHERE p.id = $2",
+    [fixtures[0].hash, fixtures[0].id],
+  );
+  assert.deepEqual(observed.rows, [{ hashes_match: false, source_hash_preserved: true }],
+    'Guard probe must alter only the mirror and preserve the legacy source hash');
+  console.log(JSON.stringify({
+    phase: 'poison-credential',
+    target: 'ci-disposable',
+    alteredSyntheticCredentialMirrors: 1,
+    legacySourceHashPreserved: true,
+  }, null, 2));
+  console.log('MIGRATION_003_ROLLBACK_GUARD_MUTATION=PASS');
+}
+
+async function assertDownGuarded() {
+  await assertHistory(fullMigrations);
+  const names = await tableNames();
+  assert.ok(names.has('player_profiles'), 'Failed Down unexpectedly removed player_profiles');
+  assert.ok(names.has('player_credentials'), 'Failed Down unexpectedly removed player_credentials');
+  await assertKycAndV2Columns(true);
+  await assertReferenceTuple(fixtures.length);
+
+  const observed = await pool.query(
+    "SELECT p.id, p.password_hash IS NOT DISTINCT FROM pc.password_hash AS hashes_match, " +
+      "p.password_hash = $1 AS source_hash_preserved " +
+      "FROM public.players p JOIN public.player_credentials pc " +
+      "ON pc.player_id = p.id AND pc.kind = 'email_password' " +
+      "WHERE p.id = ANY($2::uuid[]) ORDER BY p.id",
+    [fixtures[0].hash, fixtures.map((fixture) => fixture.id)],
+  );
+  assert.equal(observed.rows.length, fixtures.length, 'Both credential fixtures must remain after refused Down');
+  assert.deepEqual(observed.rows.map((row) => row.hashes_match), [false, true],
+    'A refused Down must preserve the changed mirror for investigation and not partially drop the schema');
+  assert.ok(observed.rows.every((row) => row.source_hash_preserved),
+    'The legacy source password hashes must remain untouched');
+
+  const restored = await pool.query(
+    "UPDATE public.player_credentials pc SET password_hash = p.password_hash " +
+      "FROM public.players p WHERE pc.player_id = p.id AND pc.kind = 'email_password' " +
+      "AND p.id = $1 AND pc.password_hash = p.password_hash || $2 RETURNING pc.player_id",
+    [fixtures[0].id, '.m003-down-guard-probe'],
+  );
+  assert.equal(restored.rowCount, 1, 'Expected to restore only the intentionally altered synthetic mirror');
+  await assertMirrorData(fixtures.length);
+  console.log(JSON.stringify({
+    phase: 'assert-down-guarded',
+    migrationHistoryCount: fullMigrations.length,
+    migrationStillAppliedAfterRefusedDown: true,
+    newTablesPreservedAfterRefusedDown: true,
+    legacySourceHashPreserved: true,
+    syntheticMirrorRestored: true,
+  }, null, 2));
+  console.log('MIGRATION_003_ROLLBACK_GUARD_REFUSAL=PASS');
+}
+
 async function postDown() {
   await assertHistory(previousMigrations);
   const names = await tableNames();
@@ -314,6 +386,8 @@ async function cleanupFixtures() {
 try {
   if (phase === 'seed') await seedFixtures();
   else if (phase === 'post-up') await postUp();
+  else if (phase === 'poison-credential') await poisonCredentialMirror();
+  else if (phase === 'assert-down-guarded') await assertDownGuarded();
   else if (phase === 'post-down') await postDown();
   else await cleanupFixtures();
 } finally {
