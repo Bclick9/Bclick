@@ -9,7 +9,7 @@ pnpm --filter @bclick/server migrate:up
 
 The identity schema is managed by the ordered SQL migrations in this directory. Migration 004 adds a separate sequence-backed public player number and editable personal-profile columns to the existing `players` table. The UUID `players.id` remains the internal primary key and foreign-key target; UI/support-facing player IDs use `player_number`.
 
-The first public player number is `436222976`, following the concrete product example. That example is **nine digits**, so generated IDs continue upward from that value and naturally gain digits as the sequence grows. Existing players are assigned numbers deterministically in creation order during Migration 004.
+The first public player number is `100000000` (nine digits). IDs increase by one without wrapping; after `999999999`, the next ID is `1000000000` (ten digits). Existing players are assigned numbers deterministically in creation order during Migration 004.
 
 Migration 004 also reconciles the existing Migration 003 profile and credential compatibility mirrors for accounts that were created after Migration 003. The active identity service still treats `players` as the source of truth. Keep those mirrors synchronized until a separately reviewed read/write cutover is approved.
 
