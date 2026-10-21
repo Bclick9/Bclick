@@ -107,6 +107,8 @@ jobs:
           BCLICK_PLAYER_ALLOWED_ORIGINS: https://localhost:5173
           BCLICK_ADMIN_ALLOWED_ORIGINS: https://localhost:5174
           BCLICK_LOCAL_MAIL_SINK_PATH: /tmp/bclick-identity-test-mail.jsonl
+          BCLICK_TERMS_VERSION: ci-terms-v1
+          BCLICK_AGE_POLICY_VERSION: ci-age-policy-v1
         run: pnpm api:test
       - name: Build the API
         run: pnpm --filter @bclick/server build
