@@ -40,15 +40,6 @@ function ReadOnlyField({ label, value, wide = false }: { label: string; value: s
   )
 }
 
-function countryLabel(code?: string): string {
-  if (!code) return '—'
-  const countries: Record<string, string> = {
-    TN: 'Tunisia', FR: 'France', GB: 'United Kingdom', US: 'United States',
-    DE: 'Germany', IT: 'Italy', ES: 'Spain',
-  }
-  return countries[code] ?? code
-}
-
 function statusLabel(value?: string): string {
   if (!value) return '—'
   return value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
