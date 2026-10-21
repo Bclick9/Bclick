@@ -96,11 +96,11 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
 
   try {
     await pool.query(
-      'INSERT INTO identity_admins(id,email,email_normalized,display_name,password_hash,status,mfa_enabled,created_at,updated_at) VALUES ($1,$2,$2,$3,$4,$5,FALSE,now(),now())',
+      'INSERT INTO admin_users(id,email,email_normalized,display_name,password_hash,status,mfa_enabled,created_at,updated_at) VALUES ($1,$2,$2,$3,$4,$5,FALSE,now(),now())',
       [adminId, adminEmail, 'Test Project Admin', await hashPassword(adminPassword), 'active'],
     );
     await pool.query(
-      "INSERT INTO identity_admin_account_roles(admin_id,role_id) SELECT $1,id FROM identity_admin_roles WHERE code='project-admin'",
+      "INSERT INTO admin_role_assignments(admin_id,role_id) SELECT $1,id FROM roles WHERE code='project-admin'",
       [adminId],
     );
 
@@ -262,13 +262,13 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
   } finally {
     await app.close();
     if (playerId[0]) {
-      await pool.query("DELETE FROM identity_security_audit_events WHERE actor_id=$1 OR subject_id=$1 OR actor_id=$2 OR subject_id=$2", [adminId, playerId[0]]).catch(() => undefined);
-      await pool.query("DELETE FROM identity_sessions WHERE (principal_type='admin' AND principal_id=$1) OR (principal_type='player' AND principal_id=$2)", [adminId, playerId[0]]).catch(() => undefined);
-      await pool.query('DELETE FROM identity_admins WHERE id=$1', [adminId]).catch(() => undefined);
-      await pool.query('DELETE FROM identity_players WHERE id=$1', [playerId[0]]).catch(() => undefined);
+      await pool.query("DELETE FROM audit_events WHERE actor_id=$1 OR subject_id=$1 OR actor_id=$2 OR subject_id=$2", [adminId, playerId[0]]).catch(() => undefined);
+      await pool.query("DELETE FROM auth_sessions WHERE (principal_type='admin' AND principal_id=$1) OR (principal_type='player' AND principal_id=$2)", [adminId, playerId[0]]).catch(() => undefined);
+      await pool.query('DELETE FROM admin_users WHERE id=$1', [adminId]).catch(() => undefined);
+      await pool.query('DELETE FROM players WHERE id=$1', [playerId[0]]).catch(() => undefined);
     } else {
-      await pool.query("DELETE FROM identity_security_audit_events WHERE actor_id=$1 OR subject_id=$1", [adminId]).catch(() => undefined);
-      await pool.query('DELETE FROM identity_admins WHERE id=$1', [adminId]).catch(() => undefined);
+      await pool.query("DELETE FROM audit_events WHERE actor_id=$1 OR subject_id=$1", [adminId]).catch(() => undefined);
+      await pool.query('DELETE FROM admin_users WHERE id=$1', [adminId]).catch(() => undefined);
     }
     await pool.end();
   }
