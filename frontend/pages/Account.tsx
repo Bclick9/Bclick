@@ -51,7 +51,7 @@ function countryLabel(code?: string): string {
 
 function statusLabel(value?: string): string {
   if (!value) return '—'
-  return value.replace(/_/g, ' ').replace(/\\b\\w/g, (letter) => letter.toUpperCase())
+  return value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
 export default function AccountPage() {
@@ -153,11 +153,11 @@ export default function AccountPage() {
                 </div>
               </div>
               <div className="border border-[var(--cb-light-border)] bg-white p-4">
-                <p className="text-xs text-[var(--cb-light-muted)]">Real balance</p>
-                <p className="mt-1 text-xl font-bold text-[var(--cb-light-text)]">€0.00</p>
+                <p className="text-xs text-[var(--cb-light-muted)]">Balance (demo)</p>
+                <p className="mt-1 text-sm font-bold text-[var(--cb-light-text)]">Not connected</p>
               </div>
               <div className="border border-[var(--cb-light-border)] bg-white p-4">
-                <p className="text-xs text-[var(--cb-light-muted)]">Bonus balance</p>
+                <p className="text-xs text-[var(--cb-light-muted)]">Bonus balance (demo)</p>
                 <p className="mt-1 text-xl font-bold text-[var(--cb-light-text)]">€0.00</p>
               </div>
             </section>
