@@ -2,7 +2,7 @@
 
 **NOTE ID:** NOTE-MIGRATION-002-SESSION-SPLIT-PLAN-2026-10-21  
 **Date:** 2026-10-21  
-**Status:** **PLANNING / CI REHEARSAL PROPOSAL ONLY — Neon execution not authorized**  
+**Status:** **CI REHEARSAL PASS — Project Owner review required; Neon execution not authorized**  
 **Scope:** Design and disposable CI rehearsal for replacing the mixed auth_sessions table with player_sessions and admin_sessions.  
 **Fixed gates:** Migration 002 on Neon requires this NOTE plus successful CI evidence and separate explicit Project Owner approval. Migration B remains prohibited. Q-020, Q-011, Q-015, Q-009 remain unchanged; Q-011 remains P0/Open.
 
@@ -98,14 +98,14 @@ This rollback deliberately refuses to collapse populated session tables into a p
 
 ## 6. CI rehearsal test plan
 
-Workflow proposal:
+Workflow exercised successfully by CI:
 
 - .github/workflows/identity-migration-002-rehearsal.yml
 - Script: server/scripts/identity-migration-002-rehearsal.mjs
 
 Only GitHub Actions' disposable PostgreSQL 18.6 service is used. The workflow sets a localhost bclick_ci DATABASE_URL and a ci-disposable marker; it has no Neon secrets/environment and cannot target Neon by design.
 
-Expected ordered steps:
+Executed ordered steps:
 
 1. Apply all reviewed migration files to the fresh disposable database.
 2. Assert the migration history has four records; player_sessions and admin_sessions exist; auth_sessions is absent; both split tables have expected columns, FKs, indexes and zero rows; the reference tuple remains 0/0/1/5/0/5; five legacy permissions and three currencies/precision rows remain intact.
