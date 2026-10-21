@@ -4,9 +4,9 @@ import {
   createHash,
   createHmac,
   randomBytes,
-  scrypt,
   timingSafeEqual,
 } from 'node:crypto';
+import argon2 from 'argon2';
 
 export function normalizeEmail(email: string): string {
   return email.trim().normalize('NFKC').toLowerCase();
@@ -21,36 +21,34 @@ export function tokenHash(token: string, keyHex?: string): string {
   return createHash('sha256').update(token, 'utf8').digest('hex');
 }
 
-function deriveScrypt(password: string, salt: Buffer, length: number): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    scrypt(password, salt, length, { N: 16_384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 }, (error, derived) => {
-      if (error) reject(error);
-      else resolve(derived as Buffer);
-    });
-  });
-}
+const PASSWORD_HASH_OPTIONS = {
+  type: argon2.argon2id,
+  memoryCost: 19_456,
+  timeCost: 2,
+  parallelism: 1,
+} as const;
 
+/**
+ * Password hashes use Argon2id. The encoded hash carries its parameters, so
+ * verification uses the parameters stored in the hash rather than trusting
+ * request-supplied values.
+ */
 export async function hashPassword(password: string): Promise<string> {
-  // Local Phase 4 implementation only. Production startup is blocked until the
-  // agreed Argon2id provider is pinned and wired through the workspace lockfile.
-  const salt = randomBytes(16);
-  const key = await deriveScrypt(password, salt, 64);
-  return 'scrypt$16384$8$1$' + salt.toString('base64url') + '$' + key.toString('base64url');
+  return argon2.hash(password, PASSWORD_HASH_OPTIONS);
 }
 
 export async function verifyPassword(password: string, encoded: string): Promise<boolean> {
-  const parts = encoded.split('$');
-  if (parts.length !== 6 || parts[0] !== 'scrypt' || parts[1] !== '16384' || parts[2] !== '8' || parts[3] !== '1') {
-    const derived = await deriveScrypt(password, Buffer.alloc(16), 64);
-    return timingSafeEqual(derived, Buffer.alloc(64)) && false;
+  // Keep the missing-user path expensive as well, so an absent account does
+  // not bypass the normal password-hashing cost.
+  if (!encoded.startsWith('$argon2id$')) {
+    await argon2.hash(password, PASSWORD_HASH_OPTIONS);
+    return false;
   }
   try {
-    const salt = Buffer.from(parts[4]!, 'base64url');
-    const expected = Buffer.from(parts[5]!, 'base64url');
-    if (salt.length !== 16 || expected.length !== 64) return false;
-    const actual = await deriveScrypt(password, salt, 64);
-    return timingSafeEqual(actual, expected);
+    return await argon2.verify(encoded, password);
   } catch {
+    // Treat corrupt or unsupported hashes as a failed login, not a server error.
+    await argon2.hash(password, PASSWORD_HASH_OPTIONS);
     return false;
   }
 }
