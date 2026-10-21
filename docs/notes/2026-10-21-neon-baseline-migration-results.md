@@ -2,7 +2,7 @@
 
 **NOTE ID:** NOTE-NEON-BASELINE-RESULTS-2026-10-21  
 **Date:** 2026-10-21  
-**Status:** **Project-Owner-reported PASS; runtime audit identifiers still need to be attached**  
+**Status:** **VERIFIED PASS from GitHub Actions run logs; awaiting Project Owner NOTE review**  
 **Target declared by the Project Owner:** Neon project `copabet365`, Frankfurt (`eu-central-1`), database `neondb`, PostgreSQL `18.6`  
 **Scope:** Only the two existing baseline migrations. This NOTE does not authorize Migration 001.
 
@@ -103,21 +103,74 @@ The five legacy permissions were reported present and retained:
 
 All five were reported linked to `project-admin`. The number of existing canonical permissions from the 36-code inventory was reported as **0**. No administrator account was created, and no sessions were present.
 
-## 5. Runtime audit evidence — outstanding attachment
+## 5. Runtime audit evidence — verified
 
-The Project Owner's result message did not include the exact GitHub Actions **Run ID**, **run URL**, or the **Commit SHA that ran the baseline job**.
+The Project Owner supplied the exact job URL, and the GitHub Actions run and job logs were independently retrieved and inspected while preparing this NOTE.
 
-I queried the available GitHub Actions run inventory while preparing this NOTE. The matching workflow run exposed to that query was PR validation run [39582405868](https://github.com/Bclick9/Bclick/actions/runs/39582405868), whose event was `pull_request`; its write job was skipped. I did **not** treat that PR-validation run as proof of the Neon baseline execution. At the time of preparation, the available run list did not return a `workflow_dispatch` execution for this workflow.
+- **Workflow run:** [Run #39584194467](https://github.com/Bclick9/Bclick/actions/runs/39584194467)
+- **Job:** [Guarded baseline migrations and verification](https://github.com/Bclick9/Bclick/actions/runs/39584194467/job/119168922726)
+- **Run ID:** `39584194467`
+- **Job ID:** `119168922726`
+- **Event:** `workflow_dispatch` (manual run)
+- **Branch:** `main`
+- **Workflow run number:** 3
+- **Attempt:** 1
+- **Executed Commit SHA:** `f3d5d84beeb359b6108e583b10cc656ebf136b82`
+- **Target confirmation:** `copabet365-neondb-frankfurt`
+- **Run status/conclusion:** `completed / success`
+- **Time:** 2026-10-21 10:23:08Z to 10:24:09Z
 
-This is an evidence gap, not a claim that the Project Owner's reported database result is false. Before this evidence package is marked fully reconciled, attach or identify the actual manual workflow run and confirm:
-- GitHub Actions run ID and URL.
-- Commit SHA that the workflow executed.
-- Preflight output and success status.
-- The migration step's successful completion.
-- Postflight output and success status.
-- Confirmation that there were no errors or retries affecting the result.
+The recorded job steps show:
+1. Main-branch and explicit target confirmation: **success**.
+2. Locked workspace install: **success**.
+3. Read-only Neon precheck: **success**, ending with `NEON_BASELINE_PRECHECK=PASS`.
+4. Existing migration runner: **success**; logs list only `1792497600000_api_skeleton_baseline` and `1792512000000_identity_sessions`.
+5. Read-only Neon postcheck: **success**, ending with `NEON_BASELINE_POSTCHECK=PASS`.
 
-Do not fabricate an ID or substitute the PR-validation run for the actual database-write run.
+### Verified preflight output
+
+| Check | Observed |
+|---|---|
+| Target marker | `copabet365-neondb-frankfurt` |
+| Database | `neondb` |
+| Region marker | `eu-central-1` (verified by workflow gate) |
+| PostgreSQL | `18.6 (fd34222)` |
+| Migration history table before run | Absent |
+| Pre-existing `identity_*` tables | None |
+| Destination-name collisions | None |
+| Migration blob locks | Both exact reviewed IDs matched |
+| Gate mutations | None |
+
+The reference tuple was deliberately not measured before the baseline because the relevant tables did not exist.
+
+### Verified postflight output
+
+The workflow log records `NEON_BASELINE_POSTCHECK=PASS` and these values:
+
+- Reference tuple, order **players / admins / roles / role-permission links / admin-role links / permissions**: `0 / 0 / 1 / 5 / 0 / 5`.
+- All 12 expected `identity_*` tables exist.
+- Destination-name collisions: none.
+- Role inventory: exactly `project-admin` / `Project Administrator`.
+- Permission inventory: exactly the five legacy codes:
+  `admin.players.read`, `admin.players.write`, `admin.security.audit.read`, `admin.security.manage`, `admin.session.read`.
+- Role-permission mapping: all five legacy codes are linked to `project-admin`.
+- Existing canonical permission codes from the 36-code list: none.
+- Sessions: 0; session principal types: empty; unknown principal types: 0.
+- Orphan player sessions: 0; orphan admin sessions: 0.
+- Admin account created: `false`.
+- Wallet/payment migrations included: `false`.
+- Applied migration history: exactly `1792497600000_api_skeleton_baseline` and `1792512000000_identity_sessions`.
+
+### Warnings observed
+
+The run succeeded and no workflow step errors were present in the retrieved job log. Non-blocking warnings were emitted:
+- `pg-connection-string` warns that the existing SSL mode aliases currently behave as `verify-full` and suggests making the mode explicit in a future change.
+- Node deprecation warnings were emitted for transitive tooling and GitHub actions noting the Node.js 20-to-24 runtime transition.
+- pnpm reported the existing ignored `esbuild` build script warning.
+
+No value of `DATABASE_URL`, connection password, or database hostname was included in the safe pre/postcheck output. **This NOTE does not change the secret or alter SSL configuration**; the warning is recorded for a separately reviewed change if desired.
+
+These log records close the previously noted evidence gap. This note now distinguishes the actual successful manual database run from the earlier PR validation run where the write job had been skipped.
 
 ## 6. Side effects, recovery and explicit non-actions
 
