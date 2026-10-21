@@ -193,6 +193,12 @@ ALTER TABLE public.players
     CHECK (username_normalized IS NULL OR
       (length(btrim(username_normalized)) BETWEEN 1 AND 64
        AND username_normalized = lower(btrim(username_normalized)))),
+  ADD CONSTRAINT players_username_normalization_check
+    CHECK (
+      (username IS NULL AND username_normalized IS NULL)
+      OR (username IS NOT NULL AND username_normalized IS NOT NULL
+          AND username_normalized = lower(btrim(username)))
+    ),
   ADD CONSTRAINT players_phone_number_e164_check
     CHECK (phone_number_e164 IS NULL OR (left(phone_number_e164, 1) = '+' AND substring(phone_number_e164 from 2) ~ '^[1-9][0-9]{0,14}$')),
   ADD CONSTRAINT players_email_verification_status_check
@@ -287,6 +293,7 @@ ALTER TABLE public.players
   DROP CONSTRAINT players_username_pair_check,
   DROP CONSTRAINT players_username_nonempty_check,
   DROP CONSTRAINT players_username_normalized_nonempty_check,
+  DROP CONSTRAINT players_username_normalization_check,
   DROP CONSTRAINT players_phone_number_e164_check,
   DROP CONSTRAINT players_email_verification_status_check,
   DROP CONSTRAINT players_kyc_tier_check,
