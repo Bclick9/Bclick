@@ -55,10 +55,15 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - name: Install locked workspace
         run: pnpm install --frozen-lockfile
-      - name: Build the disposable CI target using existing migrations only
+      - name: Build the disposable CI target using the two approved baseline migrations only
         env:
           DATABASE_URL: postgresql://bclick_ci:bclick_ci_password@127.0.0.1:5432/bclick_ci
-        run: pnpm --filter @bclick/server migrate:up
+        run: |
+          mkdir -p /tmp/bclick-approved-baseline-migrations
+          cp server/migrations/1792497600000_api_skeleton_baseline.sql /tmp/bclick-approved-baseline-migrations/
+          cp server/migrations/1792512000000_identity_sessions.sql /tmp/bclick-approved-baseline-migrations/
+          cd server
+          pnpm exec node-pg-migrate up --migrations-dir /tmp/bclick-approved-baseline-migrations --database-url-var DATABASE_URL
       - name: Run mandatory pre-Migration-001 gate (read-only)
         env:
           DATABASE_URL: postgresql://bclick_ci:bclick_ci_password@127.0.0.1:5432/bclick_ci
