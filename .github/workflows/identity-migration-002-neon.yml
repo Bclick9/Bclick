@@ -111,8 +111,20 @@ jobs:
           BCLICK_M002_TARGET: ci-disposable
           BCLICK_M002_PHASE: pre
         run: pnpm --filter @bclick/server exec node scripts/identity-migration-002-neon-gate.mjs
+      - name: Prepare a Migration 002-only runner inventory for disposable CI
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bclick-m002-only-migrations
+          cp server/migrations/1792497600000_api_skeleton_baseline.sql /tmp/bclick-m002-only-migrations/
+          cp server/migrations/1792512000000_identity_sessions.sql /tmp/bclick-m002-only-migrations/
+          cp server/migrations/1792584000000_identity_domain_migration_001.sql /tmp/bclick-m002-only-migrations/
+          cp server/migrations/1792670400000_identity_sessions_split_002.sql /tmp/bclick-m002-only-migrations/
+          actual_count="$(find /tmp/bclick-m002-only-migrations -maxdepth 1 -name '*.sql' | wc -l | tr -d ' ')"
+          [[ "$actual_count" == "4" ]] || { echo "Refusing: expected exactly four migration files for the M002 disposable checkpoint." >&2; exit 1; }
+
       - name: Apply exactly Migration 002 on disposable PostgreSQL
-        run: pnpm --filter @bclick/server exec node-pg-migrate up --count 1 --migrations-dir ./migrations --database-url-var DATABASE_URL
+        run: pnpm --filter @bclick/server exec node-pg-migrate up --count 1 --migrations-dir /tmp/bclick-m002-only-migrations --database-url-var DATABASE_URL
       - name: Run read-only Migration 002 postflight against disposable PostgreSQL
         env:
           BCLICK_M002_TARGET: ci-disposable
