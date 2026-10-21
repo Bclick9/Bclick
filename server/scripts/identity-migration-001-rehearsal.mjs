@@ -219,7 +219,7 @@ async function assertPostMigration() {
 
     await expectSqlState(client, insertPlayer, [
       randomUUID(), 'm001-dup-user@example.test', exactDob,
-      'another-user', 'm001-user-' + playerId, '+15555550101',
+      'm001-user-' + playerId, 'm001-user-' + playerId, '+15555550101',
     ], '23505', 'Partial unique username index');
     await expectSqlState(client, insertPlayer, [
       randomUUID(), 'm001-dup-phone@example.test', exactDob,
