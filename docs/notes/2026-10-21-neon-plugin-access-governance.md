@@ -2,7 +2,7 @@
 
 **NOTE ID:** NOTE-NEON-PLUGIN-ACCESS-GOVERNANCE  
 **Date:** 2026-10-21  
-**Status:** **PROPOSED — Project Owner approval required before baseline setup or database-changing actions**  
+**Status:** **APPROVED by Project Owner on 2026-10-21**  
 **Scope:** Existing Neon project `copabet365`, repository secret `DATABASE_URL`, GitHub Actions migration execution, and any Neon database connector/plugin exposed in ChatGPT.
 
 ## 1. Purpose
@@ -97,7 +97,7 @@ After both baselines succeed, run the same read-only preflight against Neon and 
 ## 7. Approval record
 
 - Password rotation and GitHub `DATABASE_URL` update: **reported complete by Project Owner on 2026-10-21; not independently verified here**.
-- This Governance NOTE: **awaiting Project Owner review; not approved yet**.
+- This Governance NOTE: **approved by Project Owner; PR #68 merged to main at commit `24e283539f521e00aaf06725b276cd15aed0d02d`**.
 - Baseline migrations on Neon: **approved in principle by Project Owner, but execution remains gated on approval of this NOTE and a reviewed GitHub Actions write workflow**.
 - Neon read-only preflight: **BLOCKED because the baseline schema is absent**; no writes were performed.
 - Migration 001: **not created or executed; separate explicit approval required**.
