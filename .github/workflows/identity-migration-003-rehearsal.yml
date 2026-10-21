@@ -91,8 +91,8 @@ jobs:
       - name: Verify credential/profile backfill, v2 alias, KYC invariants, and source preservation
         run: pnpm --filter @bclick/server exec node scripts/identity-migration-003-rehearsal.mjs post-up
 
-      - name: Type-check server including registration contract tests
-        run: pnpm --filter @bclick/server typecheck
+      - name: Type-check shared workspace packages and server
+        run: pnpm api:typecheck
 
       - name: Run full identity/API suite including missing DOB, terms, and age-confirmation rejection
         env:
