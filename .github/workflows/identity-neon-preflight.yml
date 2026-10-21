@@ -10,6 +10,8 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
+  issues: write
 
 concurrency:
   group: neon-migration-001-preflight
@@ -22,6 +24,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: pnpm/action-setup@v4
         with:
@@ -37,7 +41,91 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run read-only pre-Migration-001 gate on configured Neon target
+        id: preflight
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           BCLICK_PREFLIGHT_TARGET: neon-copabet365
-        run: pnpm --filter @bclick/server exec tsx scripts/identity-pre-migration-gate.ts
+        shell: bash
+        run: |
+          set +e
+          pnpm --filter @bclick/server exec tsx scripts/identity-pre-migration-gate.ts > preflight.log 2>&1
+          gate_exit=$?
+          cat preflight.log
+
+          {
+            echo "exit_code=$gate_exit"
+            echo "report<<PREFLIGHT_REPORT_EOF"
+            awk '
+              /^IDENTITY_MIGRATION_001_PREFLIGHT=/ { capture=1; print; next }
+              /^PREFLIGHT_GATE=/ { capture=0; print; next }
+              /^MIGRATION_001_EXECUTED=/ { print; next }
+              capture { print }
+            ' preflight.log
+            echo "PREFLIGHT_REPORT_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          exit "$gate_exit"
+
+      - name: Publish safe preflight result to this PR
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          PREFLIGHT_EXIT_CODE: ${{ steps.preflight.outputs.exit_code }}
+          PREFLIGHT_REPORT: ${{ steps.preflight.outputs.report }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const branch = 'ops/neon-migration-001-preflight';
+            const marker = '<!-- neon-migration-001-preflight-result -->';
+            const exitCode = process.env.PREFLIGHT_EXIT_CODE;
+            const report = process.env.PREFLIGHT_REPORT || 'No structured report was produced. Check the workflow log.';
+            const status = exitCode === '0' ? 'PASS' : 'BLOCKED / FAILED';
+            const body = [
+              marker,
+              '### Neon Migration 001 — read-only preflight result',
+              '',
+              '**Gate:** ' + status,
+              '',
+              '\`\`\`text',
+              report,
+              '\`\`\`',
+              '',
+              'This run did not apply migrations or change schema/data. The connection string and endpoint hostname are never included in the report.',
+            ].join('\n');
+
+            const prs = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open',
+              head: owner + ':' + branch,
+              per_page: 100,
+            });
+            if (prs.data.length === 0) {
+              core.setFailed('No open preflight PR found; report remains in the workflow log.');
+              return;
+            }
+
+            const prNumber = prs.data[0].number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number: prNumber,
+              per_page: 100,
+            });
+            const existing = comments.find((comment) => comment.body && comment.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: prNumber,
+                body,
+              });
+            }
