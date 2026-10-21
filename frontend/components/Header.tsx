@@ -4,6 +4,7 @@ import { Search } from 'lucide-react'
 import { WireframeFlag } from './Sidebar'
 import { SearchDialog } from './SearchDialog'
 import { AuthModal } from '../pages/Auth'
+import { useAuth } from '../contexts/AuthContext'
 
 function Logo({ compact = false }: { compact?: boolean }) {
   const [logoFailed, setLogoFailed] = useState(false)
@@ -40,7 +41,17 @@ function Logo({ compact = false }: { compact?: boolean }) {
 function AuthActions({ compact = false }: { compact?: boolean }) {
   const [searchOpen, setSearchOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null)
+  const [logoutError, setLogoutError] = useState('')
+  const { player, isLoading, logout } = useAuth()
   const closeAuth = useCallback(() => setAuthMode(null), [])
+  const handleLogout = async () => {
+    setLogoutError('')
+    try {
+      await logout()
+    } catch (error) {
+      setLogoutError(error instanceof Error ? error.message : 'Could not log out. Please try again.')
+    }
+  }
 
   useEffect(() => {
     const openSearchDialog = () => setSearchOpen(true)
@@ -62,28 +73,56 @@ function AuthActions({ compact = false }: { compact?: boolean }) {
           <Search className={compact ? 'h-5 w-5' : 'size-4 lg:size-5'} />
         </button>
 
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={() => setAuthMode('login')}
-            aria-haspopup="dialog"
-            className={compact
-              ? 'inline-flex items-center justify-center rounded-[10px] border border-[var(--cb-line)] px-3 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[var(--cb-hover)] outline-none'
-              : 'inline-flex items-center justify-center rounded-[10px] border border-[var(--cb-line)] px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[var(--cb-hover)] outline-none lg:text-sm'}
-          >
-            Login
-          </button>
-          <button
-            type="button"
-            onClick={() => setAuthMode('signup')}
-            aria-haspopup="dialog"
-            className={compact
-              ? 'inline-flex items-center justify-center rounded-[10px] border border-[var(--cb-yellow)] bg-[var(--cb-yellow)] px-3 py-2.5 text-xs font-bold text-[#00151e] transition-colors hover:brightness-105 outline-none'
-              : 'inline-flex items-center justify-center rounded-[10px] border border-[var(--cb-yellow)] bg-[var(--cb-yellow)] px-4 py-2.5 text-xs font-bold text-[#00151e] transition-colors hover:brightness-105 outline-none lg:text-sm'}
-          >
-            Register
-          </button>
+        <div className="flex items-center gap-2">
+          {isLoading ? (
+            <span className="px-2 text-xs text-[#91a6b5]" role="status">Checking session…</span>
+          ) : player ? (
+            <>
+              <Link
+                to="/account"
+                className={compact
+                  ? 'inline-flex max-w-28 items-center justify-center truncate rounded-[10px] border border-[var(--cb-line)] px-3 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[var(--cb-hover)]'
+                  : 'inline-flex max-w-44 items-center justify-center truncate rounded-[10px] border border-[var(--cb-line)] px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[var(--cb-hover)] lg:text-sm'}
+                title={player.email}
+              >
+                {player.displayName || 'My Account'}
+              </Link>
+              <button
+                type="button"
+                onClick={() => void handleLogout()}
+                className={compact
+                  ? 'inline-flex items-center justify-center rounded-[10px] border border-[var(--cb-line)] px-3 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[var(--cb-hover)]'
+                  : 'inline-flex items-center justify-center rounded-[10px] border border-[var(--cb-line)] px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[var(--cb-hover)] lg:text-sm'}
+              >
+                Log out
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setAuthMode('login')}
+                aria-haspopup="dialog"
+                className={compact
+                  ? 'inline-flex items-center justify-center rounded-[10px] border border-[var(--cb-line)] px-3 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[var(--cb-hover)] outline-none'
+                  : 'inline-flex items-center justify-center rounded-[10px] border border-[var(--cb-line)] px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[var(--cb-hover)] outline-none lg:text-sm'}
+              >
+                Login
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthMode('signup')}
+                aria-haspopup="dialog"
+                className={compact
+                  ? 'inline-flex items-center justify-center rounded-[10px] border border-[var(--cb-yellow)] bg-[var(--cb-yellow)] px-3 py-2.5 text-xs font-bold text-[#00151e] transition-colors hover:brightness-105 outline-none'
+                  : 'inline-flex items-center justify-center rounded-[10px] border border-[var(--cb-yellow)] bg-[var(--cb-yellow)] px-4 py-2.5 text-xs font-bold text-[#00151e] transition-colors hover:brightness-105 outline-none lg:text-sm'}
+              >
+                Register
+              </button>
+            </>
+          )}
         </div>
+        {logoutError ? <p role="alert" className="absolute right-4 top-full mt-1 max-w-sm rounded bg-rose-950 px-3 py-2 text-xs text-rose-200">{logoutError}</p> : null}
       </div>
 
       <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
