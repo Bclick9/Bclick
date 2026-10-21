@@ -8,7 +8,7 @@
 **Related source of truth:** Approved Planning Library 04-api-contracts.md — “Initial permission set (registry is additive and must be synchronized with openapi.yaml”.  
 **Scope:** permission catalog/role links only. This ADR does not create or execute a migration and does not change the current seed.
 
-## 1. Decision requested
+## 1. Decision recorded and execution boundaries
 
 The Project Owner approved the **direction and Migration A design only** on 2026-10-21: add all 36 canonical permission codes and link them to the existing `project-admin` role, leaving the old migration and all five legacy permission rows and existing links untouched. This amended note records the five required clarifications. The approval is not permission to implement or run Migration A yet.
 
@@ -255,7 +255,7 @@ Migration B may be proposed for implementation only after **all** of the followi
 
 **Safe-to-start B** means all five evidence items are attached to the Investigation/Strategy notes, all legacy-code hits are classified, the owner approves the specific B up/down plan, and runtime + rollback tests pass. A clean source scan alone is not enough. If any result is unclear, B stays blocked and the old links remain.
 
-### 8.4 Rollback and login-continuity plan
+### 8.5 Rollback and login-continuity plan
 
 The current `identity_admin_permissions` table has columns `id`, `code`, and `description`; it has **no `status` column**. Therefore `status='inactive'` is not a safe available option unless a separate schema change is explicitly designed and approved. Do not silently add it as part of this permission reconciliation.
 
@@ -287,7 +287,7 @@ Fixed gates remain unchanged:
 
 ## 10. Project Owner decision record
 
-**Proposed decision:** Path 3 above — additive migration of all 36 canonical permission codes, preserve the old five historical rows and original migration, explicitly link canonical permissions to project-admin, and reconcile only the default legacy role links after local-state review.
+**Approved direction (Migration A only):** add all 36 canonical permission codes and link them to `project-admin` in an additive-only migration; preserve the original migration, five legacy catalog rows, and their existing links. Migration B is a separately gated removal and is not approved.
 
 This is permission reconciliation under the previously accepted top-level Identity decision **Option A — Adopt + Extend**; it does not reopen that schema-direction decision.
 
