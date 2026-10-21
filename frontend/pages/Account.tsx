@@ -158,7 +158,7 @@ export default function AccountPage() {
               </div>
               <div className="border border-[var(--cb-light-border)] bg-white p-4">
                 <p className="text-xs text-[var(--cb-light-muted)]">Bonus balance (demo)</p>
-                <p className="mt-1 text-xl font-bold text-[var(--cb-light-text)]">€0.00</p>
+                <p className="mt-1 text-sm font-bold text-[var(--cb-light-text)]">Not connected</p>
               </div>
             </section>
 
