@@ -309,16 +309,47 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     const sameOriginProfileUpdate = await appUnderTest.inject({
       method: 'PATCH', url: '/api/v1/player/profile',
       headers: csrfHeaders(playerJar, '__Host-bclick_player_csrf', 'https://localhost:5173'),
-      payload: { displayName: 'Same-origin acceptance update' },
+      payload: {
+        displayName: 'Same-origin acceptance update',
+        firstName: 'Ahmed',
+        lastName: 'Test Player',
+        gender: 'male',
+        countryCode: 'TN',
+        city: 'Tunis',
+        address: 'Avenue Habib Bourguiba',
+        phoneNumber: '+21612345678',
+        postalCode: '1000',
+      },
     });
     assert.equal(sameOriginProfileUpdate.statusCode, 200, sameOriginProfileUpdate.body);
-    assert.equal(sameOriginProfileUpdate.json().data.player.displayName, 'Same-origin acceptance update');
+    const returnedProfile = sameOriginProfileUpdate.json().data.player;
+    assert.equal(returnedProfile.displayName, 'Same-origin acceptance update');
+    assert.equal(returnedProfile.playerNumber, '436222976');
+    assert.match(returnedProfile.playerNumber, /^\\d{9,}$/);
+    assert.equal(returnedProfile.firstName, 'Ahmed');
+    assert.equal(returnedProfile.lastName, 'Test Player');
+    assert.equal(returnedProfile.gender, 'male');
+    assert.equal(returnedProfile.countryCode, 'TN');
+    assert.equal(returnedProfile.city, 'Tunis');
+    assert.equal(returnedProfile.address, 'Avenue Habib Bourguiba');
+    assert.equal(returnedProfile.phoneNumber, '+21612345678');
+    assert.equal(returnedProfile.postalCode, '1000');
 
     const persistedRegistration = await database.query(
-      'SELECT date_of_birth::text AS date_of_birth, terms_accepted_at IS NOT NULL AS terms_accepted, terms_version, age_confirmation_at IS NOT NULL AS age_confirmed, age_policy_version, preferred_language, username, username_normalized, phone_number_e164 FROM players WHERE id=$1',
+      'SELECT player_number::text AS player_number, first_name, last_name, gender, country_code, city, address, phone_number_e164, postal_code, display_name, date_of_birth::text AS date_of_birth, terms_accepted_at IS NOT NULL AS terms_accepted, terms_version, age_confirmation_at IS NOT NULL AS age_confirmed, age_policy_version, preferred_language, username, username_normalized FROM players WHERE id=$1',
       [playerId[0]],
     );
     assert.deepEqual(persistedRegistration.rows[0], {
+      player_number: '436222976',
+      first_name: 'Ahmed',
+      last_name: 'Test Player',
+      gender: 'male',
+      country_code: 'TN',
+      city: 'Tunis',
+      address: 'Avenue Habib Bourguiba',
+      phone_number_e164: '+21612345678',
+      postal_code: '1000',
+      display_name: 'Same-origin acceptance update',
       date_of_birth: '1990-01-01',
       terms_accepted: true,
       terms_version: 'ci-terms-v1',
@@ -327,8 +358,11 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
       preferred_language: 'en',
       username: 'Player.Test',
       username_normalized: 'player.test',
-      phone_number_e164: '+21612345678',
     });
+    const mirroredProfile = await database.query('SELECT display_name FROM player_profiles WHERE player_id=$1', [playerId[0]]);
+    assert.equal(mirroredProfile.rows[0]?.display_name, 'Same-origin acceptance update');
+    const mirroredCredential = await database.query('SELECT identifier_norm FROM player_credentials WHERE player_id=$1 AND kind=$2', [playerId[0], 'email_password']);
+    assert.equal(mirroredCredential.rows[0]?.identifier_norm, playerEmail.toLowerCase());
 
     // Acceptance 1: player CSRF material must not authorize an admin mutation.
     const playerTokenAtAdmin = await appUnderTest.inject({
