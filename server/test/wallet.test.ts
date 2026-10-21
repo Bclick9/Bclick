@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { runner } from 'node-pg-migrate';
-import { Pool, type PoolClient } from 'pg';
+import { Pool } from 'pg';
 
 import { parseIdentityConfig } from '../src/identity/config.js';
 import { PgIdentityRepository } from '../src/identity/repository.js';
@@ -218,7 +218,6 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
     assert.equal(creditedStatement.json().data[0].status, 'posted');
     assert.equal(creditedStatement.json().data[0].reference, 'wallet-ci-credit');
 
-    const oneEntryId = randomUUID();
     await assert.rejects(
       postJournal(pool, {
         movementType: 'wallet_adjustment',
@@ -253,7 +252,7 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
     // A journal is closed at its first commit: entries added in another
     // transaction are not accepted even if their net sum is zero.
     {
-      const client: PoolClient = await pool.connect();
+      const client = await pool.connect();
       try {
         await client.query('BEGIN');
         await client.query(`
