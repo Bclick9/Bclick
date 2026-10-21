@@ -110,6 +110,38 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     });
     assert.equal(blockedOrigin.statusCode, 403, 'untrusted Origin must be denied');
 
+    const consentRejected = await app.inject({
+      method: 'POST', url: '/api/v1/auth/register',
+      headers: { origin: 'https://localhost:5173' },
+      payload: {
+        email: 'consent-' + randomUUID() + '@example.test',
+        password: playerPassword,
+        countryCode: 'TN',
+        settlementCurrency: 'TND',
+        dateOfBirth: '1990-01-01',
+        acceptTerms: false,
+        acceptAgeConfirmation: true,
+        preferredLanguage: 'en',
+      },
+    });
+    assert.equal(consentRejected.statusCode, 400, 'terms acceptance must be explicitly true');
+
+    const underageRejected = await app.inject({
+      method: 'POST', url: '/api/v1/auth/register',
+      headers: { origin: 'https://localhost:5173' },
+      payload: {
+        email: 'underage-' + randomUUID() + '@example.test',
+        password: playerPassword,
+        countryCode: 'TN',
+        settlementCurrency: 'TND',
+        dateOfBirth: '2020-01-01',
+        acceptTerms: true,
+        acceptAgeConfirmation: true,
+        preferredLanguage: 'en',
+      },
+    });
+    assert.equal(underageRejected.statusCode, 422, 'server-side age check must reject underage registration');
+
     const adminPasswordStep = await app.inject({
       method: 'POST', url: '/api/v1/admin/auth/login',
       headers: { origin: 'https://localhost:5174' },
@@ -161,13 +193,29 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     const registered = await app.inject({
       method: 'POST', url: '/api/v1/auth/register',
       headers: { origin: 'https://localhost:5173' },
-      payload: { email: playerEmail, password: playerPassword, countryCode: 'TN', settlementCurrency: 'TND', dateOfBirth: '1990-01-01', acceptTerms: true, acceptAgeConfirmation: true, preferredLanguage: 'en' },
+      payload: { email: playerEmail, password: playerPassword, countryCode: 'TN', settlementCurrency: 'TND', dateOfBirth: '1990-01-01', acceptTerms: true, acceptAgeConfirmation: true, preferredLanguage: 'en', username: ' Player.Test ', phoneNumber: '+21612345678' },
     });
     assert.equal(registered.statusCode, 201, registered.body);
     playerJar = cookieMapFromResponse(registered.headers['set-cookie']);
     playerId.push(String(registered.json().data.player.id));
     assert.ok(playerJar['__Host-bclick_session']);
     assert.ok(playerJar['__Host-bclick_player_csrf']);
+
+    const persistedRegistration = await pool.query(
+      'SELECT date_of_birth::text AS date_of_birth, terms_accepted_at IS NOT NULL AS terms_accepted, terms_version, age_confirmation_at IS NOT NULL AS age_confirmed, age_policy_version, preferred_language, username, username_normalized, phone_number_e164 FROM players WHERE id=$1',
+      [playerId[0]],
+    );
+    assert.deepEqual(persistedRegistration.rows[0], {
+      date_of_birth: '1990-01-01',
+      terms_accepted: true,
+      terms_version: 'ci-terms-v1',
+      age_confirmed: true,
+      age_policy_version: 'ci-age-policy-v1',
+      preferred_language: 'en',
+      username: 'Player.Test',
+      username_normalized: 'player.test',
+      phone_number_e164: '+21612345678',
+    });
 
     // Acceptance 1: player CSRF material must not authorize an admin mutation.
     const playerTokenAtAdmin = await app.inject({
