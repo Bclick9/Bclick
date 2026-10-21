@@ -77,7 +77,7 @@ jobs:
             ["server/migrations/1792756800000_identity_player_credentials_003.sql"]="aa26b9a9888b1f244f14a32272fd7467cfc3876f"
             # M004/M005 are included in this inventory for disposable CI validation only.
             ["server/migrations/1792843200000_player_profile_details_004.sql"]="8b88f9a6ff10033e36b51918d6abb1c7df668abb"
-            ["server/migrations/1792929600000_player_public_number_reconcile_005.sql"]="245082d0172c0a920069ee34538224ca3f5cb705"
+            ["server/migrations/1792929600000_player_public_number_reconcile_005.sql"]="d93aaef8d1fe79e9095ec17e752a2c1ce8027be1"
           )
           for path in "${!expected_blobs[@]}"; do
             actual="$(git hash-object "$path")"
