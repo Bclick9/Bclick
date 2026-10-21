@@ -1,6 +1,6 @@
 name: Neon baseline migrations (owner-approved target)
 
-run-name: Neon baseline setup - ${{ inputs.target_confirmation }} - run ${{ github.run_id }}
+run-name: Neon baseline migration workflow run ${{ github.run_id }}
 
 on:
   workflow_dispatch:
