@@ -1,141 +1,93 @@
-# Local Identity Database Inventory — Evidence Record
+# Identity Database Investigation — CI Inventory Evidence Record
 
-**Date prepared:** 2026-10-21
-**NOTE ID:** NOTE-IDENTITY-DB-2026-10-21
-**Status:** DRAFT — local SQL results are NOT RUN / NOT PROVIDED; this is not yet a completed database investigation
-**Decision reference:** [ADR-023 — Permission Registry Reconciliation](https://github.com/Bclick9/Bclick/blob/main/docs/notes/2026-10-21-ADR-023-permission-reconciliation-draft.md), covered by [PR #62](https://github.com/Bclick9/Bclick/pull/62)
-**Purpose:** capture actual local Identity database state before Migration A is implemented. No migration is created or run by this note.
+**Date:** 2026-10-21  
+**NOTE ID:** NOTE-IDENTITY-DB-2026-10-21  
+**Status:** CI investigation COMPLETE; submitted for Project Owner review. Developer-local database state is not observed by this run.  
+**Selected execution path:** Alternative 3 — PostgreSQL in GitHub Actions.  
+**Decision reference:** [ADR-023 — Permission Registry Reconciliation](https://github.com/Bclick9/Bclick/blob/main/docs/notes/2026-10-21-ADR-023-permission-reconciliation-draft.md), merged via [PR #62](https://github.com/Bclick9/Bclick/pull/62).  
+**Executed evidence:** [GitHub Actions run #39569244094](https://github.com/Bclick9/Bclick/actions/runs/39569244094) — API types, tests, migrations and health contract; completed successfully.
 
-## 1. Executive status
+## 1. What I executed
 
-The repository connector can read committed source and migrations, but it does not provide access to the developer's local PostgreSQL instance. No local connection string was supplied or used. CI or migration source is not a substitute for local inventory; therefore **the actual local row counts and custom data state are unknown**.
+I used the existing API CI job's disposable PostgreSQL service and executed read-only SQL after the ordered migrations had been applied. The investigation queried the six tables required by ADR-023, row counts, every role and its display name, administrator-role assignment counts, role-permission counts and complete mapping, the five legacy permission rows/links, and any existing code from the approved 36-code canonical permission set.
 
-This note is intentionally incomplete until read-only SQL is executed by the project owner against the intended local development database and the outputs are attached here. Do not put database URLs, passwords, player emails, admin emails, password hashes, MFA secrets, recovery codes, or session tokens in the note or PR.
+The runner log emitted a structured `IDENTITY_DB_INVESTIGATION_JSON` report. The successful run's SQL inventory is in [run #39569244094](https://github.com/Bclick9/Bclick/actions/runs/39569244094). PostgreSQL reported version **18.6** and database name **`bclick_ci`**. The workflow applies these migrations in order:
 
-## 2. Required local inventory — current evidence state
+- `1792497600000_api_skeleton_baseline`
+- `1792512000000_identity_sessions`
 
-| Requested fact | Actual local result | State / interpretation |
-|---|---:|---|
-| Players: `identity_players` count | NOT RUN | Must be read from local DB |
-| Admin accounts: `identity_admins` count | NOT RUN | Must be read from local DB |
-| Roles: `identity_admin_roles` count | NOT RUN | Must also list every `code` and `display_name` |
-| Admin-to-role assignments: `identity_admin_account_roles` count | NOT RUN | Must inspect assignment count grouped by role |
-| Permission catalog: `identity_admin_permissions` count | NOT RUN | Must check whether any canonical code already exists |
-| Role-to-permission links: `identity_admin_role_permissions` count | NOT RUN | Must inspect count grouped by role and full mapping |
-| Legacy permission rows and links | NOT RUN locally | Source migration seeds five; local rows/links must be queried |
-| Additional roles besides `project-admin` | UNKNOWN locally | Do not infer from the committed seed |
-| Existing/custom data requiring preservation | UNKNOWN locally | No assumption that the database is empty is permitted |
+The test job completed successfully, including migrations, typecheck, API tests, build, health startup, and Schemathesis health checks. No production credential or external database was used. The report contains only counts and role/permission codes; it does not log account records, emails, password hashes, tokens, or MFA material.
 
-### Source-only baseline (not local DB results)
+## 2. Actual results from the disposable CI database
 
-The committed migration `server/migrations/1792512000000_identity_sessions.sql` declares and seeds one role (`project-admin`), five legacy permission records, and five role-permission links from that role to those records. It does not seed a player or administrator row and does not seed an admin-to-role assignment. The local-only `bootstrapAdmin` code in `server/src/identity/service.ts` inserts an administrator and assigns the existing `project-admin` role, but it may or may not have been run against the developer's database.
+These values are **measured SQL results from this run**, not inferred from the migration file:
 
-These are facts about committed code only. They are **not** evidence that the current local database has one role, five permissions, five links, zero admins, or zero players.
+| Inventory item | CI result |
+|---|---:|
+| `identity_players` rows | **0** |
+| `identity_admins` rows | **0** |
+| `identity_admin_roles` rows | **1** |
+| `identity_admin_account_roles` rows | **0** |
+| `identity_admin_permissions` rows | **5** |
+| `identity_admin_role_permissions` rows | **5** |
 
-## 3. Read-only SQL to run locally
+All six required inventory tables exist:
 
-Run these queries only against the local development database that will be used for Phase 4. Confirm the database/environment in your own SQL client before running them. They are read-only `SELECT` statements.
+- `identity_players`
+- `identity_admins`
+- `identity_admin_roles`
+- `identity_admin_permissions`
+- `identity_admin_account_roles`
+- `identity_admin_role_permissions`
 
-```sql
--- Basic counts requested for this investigation
-SELECT COUNT(*) AS player_count FROM identity_players;
-SELECT COUNT(*) AS admin_count FROM identity_admins;
-SELECT COUNT(*) AS role_count FROM identity_admin_roles;
-SELECT COUNT(*) AS admin_role_assignment_count FROM identity_admin_account_roles;
-SELECT COUNT(*) AS permission_count FROM identity_admin_permissions;
-SELECT COUNT(*) AS role_permission_link_count FROM identity_admin_role_permissions;
+### Role and administrator assignments
 
--- Exact role inventory (does project-admin remain the only role?)
-SELECT code, display_name
-FROM identity_admin_roles
-ORDER BY code;
+| Role code | Display name | Assigned admin accounts | Role-permission links |
+|---|---|---:|---:|
+| `project-admin` | Project Administrator | **0** | **5** |
 
--- Admin assignments grouped by role; counts only, no admin PII
-SELECT r.code AS role_code, COUNT(ar.admin_id)::int AS assigned_admin_count
-FROM identity_admin_roles r
-LEFT JOIN identity_admin_account_roles ar ON ar.role_id = r.id
-GROUP BY r.code
-ORDER BY r.code;
+No other role was present in this newly migrated CI database. The applied migration does not provision a real administrator account or assign an administrator to the role.
 
--- Permission links grouped by role
-SELECT r.code AS role_code, COUNT(rp.permission_id)::int AS permission_link_count
-FROM identity_admin_roles r
-LEFT JOIN identity_admin_role_permissions rp ON rp.role_id = r.id
-GROUP BY r.code
-ORDER BY r.code;
+### Full role-permission mapping observed
 
--- Full current mapping, needed to detect custom/non-default links
-SELECT r.code AS role_code, p.code AS permission_code
-FROM identity_admin_role_permissions rp
-JOIN identity_admin_roles r ON r.id = rp.role_id
-JOIN identity_admin_permissions p ON p.id = rp.permission_id
-ORDER BY r.code, p.code;
+All five existing links belong to `project-admin`:
 
--- Legacy codes and every role currently linked to each
-SELECT p.code, p.description, r.code AS role_code
-FROM identity_admin_permissions p
-LEFT JOIN identity_admin_role_permissions rp ON rp.permission_id = p.id
-LEFT JOIN identity_admin_roles r ON r.id = rp.role_id
-WHERE p.code IN (
-  'admin.session.read',
-  'admin.players.read',
-  'admin.players.write',
-  'admin.security.audit.read',
-  'admin.security.manage'
-)
-ORDER BY p.code, r.code;
+| Legacy permission code | Description from database | Linked role |
+|---|---|---|
+| `admin.players.read` | Read player administration records | `project-admin` |
+| `admin.players.write` | Change permitted player account fields | `project-admin` |
+| `admin.security.audit.read` | Read security audit records | `project-admin` |
+| `admin.security.manage` | Manage administrator identity security | `project-admin` |
+| `admin.session.read` | Read the authenticated administrator session | `project-admin` |
 
--- Existing canonical codes (must be checked before any additive insert)
-SELECT code, description
-FROM identity_admin_permissions
-WHERE code IN (
-  'players.read', 'players.status.write', 'players.profile.sensitive.read',
-  'wallet.read', 'wallet.adjust.request', 'wallet.adjust.approve', 'wallet.status.manage',
-  'kyc.review', 'kyc.documents.read', 'rg.case.read', 'rg.case.manage',
-  'payments.review', 'payments.approve', 'payments.execute', 'payments.methods.manage',
-  'payments.reconcile', 'payments.audit', 'reports.read', 'reports.export',
-  'catalog.read', 'catalog.sync', 'cms.write', 'cms.approve', 'cms.publish',
-  'cms.media.write', 'bonuses.manage', 'bonuses.grant', 'bonuses.grant.approve',
-  'admin.users.read', 'admin.users.write', 'admin.roles.read', 'admin.roles.write',
-  'admin.mfa.manage', 'audit.read', 'ops.read', 'ops.provider.replay'
-)
-ORDER BY code;
-```
+### Existing canonical permissions
 
-If a required table does not exist, stop and record the exact error. Do not create a table or run a migration to make the inventory queries pass.
+The query checked all 36 approved canonical codes from ADR-023. **Zero canonical codes were already present** in this freshly migrated CI database. The catalog currently consists of the five legacy rows above; there is no exact-code overlap with the canonical set.
 
-## 4. Data and state that must be preserved
+## 3. Findings and implications
 
-Before Migration A, record the observed counts and role mappings. The migration plan must preserve:
+1. The current migration chain runs on PostgreSQL 18.6 in CI, creates the required Identity tables, and succeeds before the API tests.
+2. In a fresh database, the seed baseline is one role, five legacy permissions and five links. It creates neither player/admin accounts nor an admin-to-role assignment.
+3. The five legacy permission records are all linked to `project-admin`. Migration A must keep those rows and links untouched while adding all **36** canonical permissions and their approved `project-admin` links. The clean CI starting-state total after such an additive step would be 41 catalog rows and 41 links for `project-admin`, assuming the same clean seed baseline; that is a forecast from the observed baseline, not a migration executed by this investigation.
+4. The canonical result in CI supports the existing ADR-023 decision that adding only 31 codes would be incorrect. All 36 canonical codes must be considered independently from the five legacy identifiers.
+5. These results establish the behavior of the repository's committed migration chain against a clean PostgreSQL database. They do **not** prove that any separate developer-local database is empty or has the same role mappings.
 
-- Every existing player and admin account row and its primary key; do not reset accounts or passwords.
-- Admin status, password hashes, MFA enabled state and encrypted/pending TOTP material, enrollment/challenge/recovery-code state, and all existing admin sessions.
-- All existing player sessions, verification tokens, security audit events, and other Identity rows.
-- Existing role identities (IDs), role codes/display names, admin-to-role assignments, and every custom or non-default role-permission link.
-- All five legacy permission catalog rows and their descriptions, and their existing links during Migration A.
-- All permission rows and links that pre-date Migration A, including a canonical code that may already exist in the local catalog.
+## 4. Explicit boundary: CI is not the developer-local database
 
-Migration A may add the 36 canonical catalog records and links to `project-admin` only. It must not update links on other roles. If existing canonical records have conflicting descriptions, stop for explicit review rather than overwriting them. Migration B (removing legacy links) is not approved and must not be included in Migration A.
+I chose the Project Owner's proposed **GitHub Actions DB** alternative and ran the queries myself. The CI database is disposable and is created from scratch by this workflow. Its zero player/admin counts and lack of custom roles cannot be attributed to a local database that was not connected.
 
-## 5. Output needed to complete this NOTE
+To protect any existing local state, the Migration Strategy must require a target-database preflight and fail closed before mutation if the real migration target has missing/extra tables, unexpected roles, pre-existing canonical codes with conflicting metadata, or unexpected links. Migration A must remain additive and preserve all pre-existing account rows, role identities, assignments, custom mappings, and all five legacy rows/links. This CI report does not authorize running a migration against an uninspected target. Migration B must remain separately gated by local-state and consumer evidence.
 
-Attach these items to the note/PR once read-only queries have run:
+The selected CI path lets us complete the investigation of the **repository-defined fresh-database baseline** without asking the Project Owner to set up PostgreSQL or run SQL. It cannot retrieve private local data by design; no such data has been guessed or fabricated.
 
-1. Date/time and confirmation that the target was the local development database (do not include host, URL, or credentials).
-2. The six count results in Section 2.
-3. The role code/display-name list, assignment counts by role, permission-link counts by role, and complete role-permission mapping.
-4. The five legacy codes' actual rows/links and any existing canonical codes returned by the final query.
-5. A short preservation assessment: whether any role besides `project-admin` exists; whether the local mapping differs from the seed baseline; whether custom assignments/data require a change to Migration A's implementation plan.
+## 5. Gate status and next sequence
 
-Use counts and role/permission codes only. Do not export or attach emails, password hashes, MFA secrets, tokens, or raw account rows.
+- **This CI investigation:** complete; results and successful run are recorded above.
+- **Project Owner review:** pending for this completed evidence NOTE.
+- **Migration Strategy NOTE:** prepare only after approval of this investigation NOTE. It must specify idempotency, provenance, up/down behavior, fail-closed target preflight, and PostgreSQL runtime/rollback tests.
+- **Migration A:** not implemented or run; still requires the separately approved Migration Strategy and all its target preflight checks.
+- **Migration B:** not approved; keep all legacy links intact until its separate readiness criteria are satisfied.
+- **Migration 001:** not approved and must not be created before the Migration Strategy NOTE is approved.
+- **Fixed gates remain unchanged:** Q-020 open; Q-011 P0/no deployment; Q-015 open/no launch or real deposits; Q-009 blocks TND provider routing; Phase 4 remains local-development/test only; estimate remains 23–30 days.
 
-## 6. Gates and next sequence
-
-- **Current gate:** local SQL output is missing. No actual counts are claimed by this NOTE.
-- After actual results are attached, update this NOTE with the findings and wait for Project Owner approval of the completed NOTE.
-- Only after that approval, prepare the separate Migration Strategy NOTE with detailed up/down paths, idempotency/provenance implementation, and PostgreSQL runtime + rollback tests; wait for its approval.
-- Only after Migration Strategy approval may Migration A implementation begin.
-- Migration B remains separately unapproved and must meet the ADR-023 readiness criteria after local inventory and Migration A tests.
-- `migration 001` remains unapproved until the same Migration Strategy gate is passed.
-
-Fixed gates remain: Q-020 open; Q-011 P0; Q-015 open; Q-009 blocks TND provider routing; Phase 4 local-only; the working estimate remains 23–30 days.
+No migration, seed, schema, production configuration, wallet, payment, or provider-routing changes were made as part of this investigation.
