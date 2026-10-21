@@ -2,10 +2,15 @@
 
 Schema changes are explicit, ordered, reviewed and run with `node-pg-migrate`:
 
-```sh
-DATABASE_URL='postgres://…' pnpm --filter @bclick/server migrate:up
+```powershell
+$env:DATABASE_URL = 'postgresql://bclick_dev:local_only_change_me@127.0.0.1:5432/bclick'
+pnpm --filter @bclick/server migrate:up
 ```
 
-The first application-domain migration is intentionally not included in the skeleton. The reviewed planning data model still has owner decisions around retention/legal hold, role/permission details and cross-document consistency; adding illustrative tables here would falsely turn open decisions into schema. Keep this directory in place and add the first migration only after its scope is approved.
+The identity schema is managed by the ordered SQL migrations in this directory. Migration 004 adds a separate sequence-backed public player number and editable personal-profile columns to the existing `players` table. The UUID `players.id` remains the internal primary key and foreign-key target; UI/support-facing player IDs use `player_number`.
 
-Use migration files supported by the pinned `node-pg-migrate` version, preferably SQL migrations with explicit Up/Down markers for auditable DDL. Do not enable automatic schema sync at server startup. Test new migrations against an empty database and a restored staging copy before deployment. A rollback must not delete posted ledger history; financial corrections are append-only compensating journals.
+The first public player number is `436222976`, following the concrete product example. That example is **nine digits**, so generated IDs continue upward from that value and naturally gain digits as the sequence grows. Existing players are assigned numbers deterministically in creation order during Migration 004.
+
+Migration 004 also reconciles the existing Migration 003 profile and credential compatibility mirrors for accounts that were created after Migration 003. The active identity service still treats `players` as the source of truth. Keep those mirrors synchronized until a separately reviewed read/write cutover is approved.
+
+Do not run local development migrations against Neon or another shared/prod database. Review the target connection carefully and test schema changes against a disposable database before approving them. Do not enable automatic schema sync at server startup. Rollbacks must fail closed rather than silently dropping public player identifiers or saved personal profile information.
