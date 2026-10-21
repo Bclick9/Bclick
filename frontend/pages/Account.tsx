@@ -68,6 +68,7 @@ export default function AccountPage() {
     : sectionKey === 'overview'
       ? { title: 'Account overview', subtitle: 'Manage your profile and account services from one place.' }
       : (SECTIONS[sectionKey] ?? SECTIONS['personal-info']!)
+  const shouldLoadProfile = isAccountHome || sectionKey === 'personal-info' || sectionKey === 'profile'
   const [profileLoading, setProfileLoading] = useState(true)
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileError, setProfileError] = useState('')
@@ -82,7 +83,7 @@ export default function AccountPage() {
   useEffect(() => {
     let active = true
     setProfileError('')
-    if (!player) {
+    if (!player || !shouldLoadProfile) {
       setProfileLoading(false)
       return () => { active = false }
     }
@@ -103,7 +104,7 @@ export default function AccountPage() {
       })
 
     return () => { active = false }
-  }, [player?.id, refreshPlayerProfile])
+  }, [player?.id, refreshPlayerProfile, shouldLoadProfile])
 
   const handleProfileSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
