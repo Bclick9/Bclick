@@ -68,7 +68,7 @@ The approved Initial permission set contains these 36 exact, case-sensitive code
 
 ### Path 1 — Add 31 rows to reach a count of 36
 
-**Reject.** This arithmetic assumes the five old identifiers represent five canonical permissions. They do not. The resulting catalog would have 41 rows but only 31 of the 36 canonical permission codes, leaving the API permission registry incomplete.
+**Reject.** This arithmetic assumes the five old identifiers represent five canonical permissions. They do not. The resulting catalog would have 36 rows total (the five legacy rows plus 31 new canonical rows) but only 31 of the 36 canonical permission codes, leaving five canonical codes missing and the API permission registry incomplete.
 
 ### Path 2 — Replace or rewrite the legacy seed with the 36 canonical rows
 
@@ -198,7 +198,7 @@ WHERE p.code IN (
 ORDER BY p.code, r.code;
 ```
 
-If the expected tables do not exist or the schema differs, stop and document that result; do not create them to make these queries pass. Any additional role besides `project-admin`, any unexpected account assignment, existing canonical code, or non-default link must be understood before migration design. Do not remove any legacy link from another role. This ADR includes no live inventory statistics because they have not been collected.
+If the expected tables do not exist or the schema differs, stop and document that result; do not create them to make these queries pass. Any additional role besides `project-admin`, any unexpected account assignment, existing canonical code, or non-default link must be understood before migration design. Roles other than `project-admin` must retain their current links by default: inserting catalog rows does not grant those permissions to another role unless role-permission links are explicitly added. Migration A must not add canonical links to any other role. Unexpected/custom roles or assignments must be reviewed individually before a later removal decision. Do not remove any legacy link from another role. This ADR includes no live inventory statistics because they have not been collected.
 
 ### 8.3 Idempotent additive migration — required pseudo-code only
 
