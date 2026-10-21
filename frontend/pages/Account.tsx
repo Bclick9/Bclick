@@ -64,6 +64,7 @@ export default function AccountPage() {
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileError, setProfileError] = useState('')
   const [profileNotice, setProfileNotice] = useState('')
+  const [username, setUsername] = useState(player?.username ?? '')
   const [displayName, setDisplayName] = useState(player?.displayName ?? '')
   const [firstName, setFirstName] = useState(player?.firstName ?? '')
   const [lastName, setLastName] = useState(player?.lastName ?? '')
@@ -91,6 +92,7 @@ export default function AccountPage() {
     void refreshPlayerProfile()
       .then((freshPlayer) => {
         if (!active) return
+        setUsername(freshPlayer.username ?? '')
         setDisplayName(freshPlayer.displayName ?? '')
         setFirstName(freshPlayer.firstName ?? '')
         setLastName(freshPlayer.lastName ?? '')
@@ -120,6 +122,7 @@ export default function AccountPage() {
     setProfileSaving(true)
     try {
       const updatedPlayer = await updatePlayerProfile({
+        ...(!player?.username && username.trim() ? { username: username.trim() } : {}),
         displayName,
         language,
         firstName,
@@ -131,6 +134,7 @@ export default function AccountPage() {
         phoneNumber,
         postalCode,
       })
+      setUsername(updatedPlayer.username ?? '')
       setDisplayName(updatedPlayer.displayName)
       setFirstName(updatedPlayer.firstName ?? '')
       setLastName(updatedPlayer.lastName ?? '')
@@ -242,6 +246,20 @@ export default function AccountPage() {
 
         {sectionKey === 'personal-info' || sectionKey === 'profile' ? (
           <form onSubmit={handleProfileSubmit} className="grid gap-x-6 gap-y-4 md:grid-cols-2" aria-busy={profileLoading || profileSaving}>
+            {player?.username ? (
+              <ReadOnlyField label="Username (login)" value={player.username} />
+            ) : (
+              <div className="min-w-0 space-y-1">
+                <label htmlFor="account-username" className="block text-xs text-[var(--cb-light-muted)]">Username (login)</label>
+                <input id="account-username" name="username" type="text" autoComplete="username" value={username}
+                  onChange={(event) => { setUsername(event.target.value); setProfileNotice('') }}
+                  minLength={3} maxLength={32} pattern="[A-Za-z0-9._-]{3,32}"
+                  disabled={profileLoading || profileSaving}
+                  placeholder="Choose a username"
+                  className="block w-full border border-[var(--cb-light-border)] bg-white px-4 py-2.5 text-sm text-[var(--cb-light-text)] outline-none focus:border-[var(--cb-yellow)] disabled:opacity-60" />
+                <p className="text-[11px] text-[var(--cb-light-muted)]">Set it to sign in with a username. After it is set, it cannot be changed. Existing accounts can still sign in using email until then.</p>
+              </div>
+            )}
             <div className="min-w-0 space-y-1">
               <label htmlFor="account-display-name" className="block text-xs text-[var(--cb-light-muted)]">Display name</label>
               <input id="account-display-name" name="displayName" type="text" autoComplete="nickname" value={displayName}
