@@ -1,7 +1,7 @@
 -- Up Migration
--- Migration 005: reconcile public player numbers created by the earlier local
+-- Migration 005: reconcile local public player numbers created by the earlier
 -- version of Migration 004 with the approved starting value of 100000000.
--- This preserves relative account order and refuses any unrecognized numbering state.
+-- Preserve account order; gaps from deleted test accounts must not block a safe rebase.
 DO $m005_reconcile$
 DECLARE
   observed_migrations text[];
@@ -9,6 +9,8 @@ DECLARE
   min_number bigint;
   max_number bigint;
   distinct_numbers bigint;
+  sequence_last_value bigint;
+  sequence_is_called boolean;
 BEGIN
   SELECT array_agg(name::text ORDER BY name)
     INTO observed_migrations
@@ -30,19 +32,31 @@ BEGIN
     RAISE EXCEPTION 'Migration 005 stopped: players table or public player-number sequence is missing';
   END IF;
 
+  SELECT last_value, is_called
+    INTO sequence_last_value, sequence_is_called
+    FROM public.player_public_number_seq;
+
   SELECT count(*), min(player_number), max(player_number), count(DISTINCT player_number)
     INTO player_count, min_number, max_number, distinct_numbers
     FROM public.players;
 
   IF player_count = 0 THEN
-    -- setval(..., true) makes the next nextval return 100000000.
+    -- Migration 004 creates an empty sequence just below the approved start.
+    -- Do not reset a sequence that had already issued numbers to now-deleted players.
+    IF sequence_last_value <> 99999999 OR NOT sequence_is_called THEN
+      RAISE EXCEPTION 'Migration 005 stopped: no players exist but the public ID sequence is not in the pristine empty state (last_value %, is_called %)',
+        sequence_last_value, sequence_is_called;
+    END IF;
     PERFORM setval('public.player_public_number_seq', 99999999::bigint, true);
-  ELSIF min_number = 436222976
-        AND max_number - min_number + 1 = player_count
-        AND distinct_numbers = player_count THEN
-    -- Local databases that already applied the pre-change Migration 004 have
-    -- IDs beginning at 436222976. Renumber only this exact contiguous state,
-    -- preserving each account's relative public-ID order.
+
+  ELSIF min_number >= 436222976
+        AND distinct_numbers = player_count
+        AND sequence_is_called
+        AND sequence_last_value >= max_number THEN
+    -- Legacy local databases used a sequence starting at 436222976. Deleted
+    -- accounts can leave gaps, so require a unique legacy-range set that is
+    -- covered by its own sequence, not a contiguous min/max span.
+    -- Compact remaining legacy IDs in their previous relative order.
     WITH ordered_players AS (
       SELECT id, 99999999::bigint + row_number() OVER (ORDER BY player_number, id) AS corrected_number
         FROM public.players
@@ -57,36 +71,46 @@ BEGIN
       (SELECT max(player_number) FROM public.players),
       true
     );
-  ELSIF min_number = 100000000
-        AND max_number - min_number + 1 = player_count
-        AND distinct_numbers = player_count THEN
-    -- Fresh databases already using the approved start need no renumbering.
+
+  ELSIF min_number >= 100000000
+        AND distinct_numbers = player_count
+        AND sequence_is_called
+        AND sequence_last_value >= max_number THEN
+    -- IDs already in the approved namespace are never renumbered. Keep the
+    -- sequence at or above its prior high-water mark so deleted IDs are not reused.
     PERFORM setval(
       'public.player_public_number_seq',
-      (SELECT max(player_number) FROM public.players),
+      GREATEST(sequence_last_value, max_number),
       true
     );
+
   ELSE
-    RAISE EXCEPTION 'Migration 005 stopped: public player IDs are not the exact contiguous legacy or approved sequence; count %, min %, max %, distinct %',
-      player_count, min_number, max_number, distinct_numbers;
+    RAISE EXCEPTION 'Migration 005 stopped: public IDs and sequence are not a recognized legacy or approved state; count %, min %, max %, distinct %, sequence last_value %, is_called %',
+      player_count, min_number, max_number, distinct_numbers, sequence_last_value, sequence_is_called;
   END IF;
 
   SELECT count(*), min(player_number), max(player_number), count(DISTINCT player_number)
     INTO player_count, min_number, max_number, distinct_numbers
     FROM public.players;
 
+  SELECT last_value, is_called
+    INTO sequence_last_value, sequence_is_called
+    FROM public.player_public_number_seq;
+
   IF player_count > 0
-     AND (min_number <> 100000000
-          OR max_number <> 99999999::bigint + player_count
-          OR distinct_numbers <> player_count) THEN
-    RAISE EXCEPTION 'Migration 005 stopped: public player ID postcondition failed';
+     AND (min_number < 100000000
+          OR distinct_numbers <> player_count
+          OR NOT sequence_is_called
+          OR sequence_last_value < max_number) THEN
+    RAISE EXCEPTION 'Migration 005 stopped: public player ID postcondition failed (count %, min %, max %, distinct %, sequence last_value %, is_called %)',
+      player_count, min_number, max_number, distinct_numbers, sequence_last_value, sequence_is_called;
   END IF;
 END
 $m005_reconcile$;
 
 -- Down Migration
 -- Deliberately refuse rollback: public player numbers are identifiers that may
--- already have been shown to users. Use a separately reviewed forward migration.
+-- already have been shown to players. Use a separately reviewed forward migration.
 DO $m005_no_unsafe_rollback$
 BEGIN
   RAISE EXCEPTION 'Migration 005 rollback refused: preserve public player IDs; use a reviewed forward migration';
