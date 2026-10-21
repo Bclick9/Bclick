@@ -1,7 +1,8 @@
 /** @jsxRuntime automatic */
 
-import { Routes, Route, Navigate, Link, useParams } from 'react-router-dom'
+import { Routes, Route, Navigate, Link, Outlet, useLocation, useParams } from 'react-router-dom'
 import { Layout } from './components/Layout'
+import { useAuth } from './contexts/AuthContext'
 import Home from './pages/Home'
 import { CasinoCategory, CasinoIndex, Providers, ProviderPage } from './pages/Casino'
 import CasinoPlay from './pages/CasinoPlay'
@@ -31,6 +32,51 @@ function NotFound() {
   )
 }
 
+/**
+ * Client-side presentation guard for private player areas.
+ * Every private API endpoint must still enforce its own server-side session checks.
+ */
+function RequirePlayerSession() {
+  const { player, isLoading, apiStatus } = useAuth()
+  const location = useLocation()
+
+  if (isLoading || apiStatus === 'checking') {
+    return (
+      <div className="mx-auto flex min-h-[40vh] max-w-xl items-center justify-center px-4 text-sm text-[#aebfca]" role="status">
+        Checking your account session…
+      </div>
+    )
+  }
+
+  if (apiStatus === 'offline' || apiStatus === 'identity-disabled') {
+    return (
+      <section className="mx-auto my-10 max-w-xl rounded-2xl border border-[var(--cb-line)] bg-[#0c1d28] p-6 text-center">
+        <h1 className="text-lg font-extrabold text-white">Account unavailable</h1>
+        <p className="mt-2 text-sm leading-relaxed text-[#aebfca]" role="alert">
+          {apiStatus === 'offline'
+            ? 'We could not verify your session because the Bclick API is unavailable. Your private account pages remain locked.'
+            : 'Player authentication is not enabled. Your private account pages remain locked.'}
+        </p>
+        <Link to="/login" className="mt-5 inline-flex h-10 items-center rounded-lg bg-[var(--cb-yellow)] px-5 text-sm font-bold text-[#00151e]">
+          Go to Login
+        </Link>
+      </section>
+    )
+  }
+
+  if (!player) {
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: location.pathname + location.search }}
+      />
+    )
+  }
+
+  return <Outlet />
+}
+
 export default function App() {
   return (
     <Routes>
@@ -49,7 +95,6 @@ export default function App() {
         <Route path="live-casino" element={<LiveCasino />} />
         <Route path="sports" element={<Sports />} />
         <Route path="sports/live" element={<Sports />} />
-        <Route path="sports/my-bets" element={<Sports />} />
         <Route path="sports/favorites" element={<Sports />} />
         <Route path="sports/search" element={<Sports />} />
         <Route path="sports/:category" element={<SportsCategory />} />
@@ -65,26 +110,31 @@ export default function App() {
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterPage />} />
         <Route path="signup" element={<Navigate to="/register" replace />} />
-        <Route path="account" element={<AccountPage />} />
-        <Route path="account/bonuses-available" element={<Navigate to="/account/bonuses" replace />} />
-        <Route path="account/bonuses-active" element={<Navigate to="/account/bonuses" replace />} />
-        <Route path="account/bonuses-closed" element={<Navigate to="/account/bonuses" replace />} />
-        <Route path="account/bonuses" element={<AccountPage />} />
-        <Route path="account/bonuses/:bonusTab" element={<AccountPage />} />
-        <Route path="account/account-statement" element={<Navigate to="/account/betslips" replace />} />
-        <Route path="account/profit-and-loss" element={<Navigate to="/account/betslips" replace />} />
-        <Route path="account/wallet/:tab" element={<WalletRouter />} />
-        <Route path="account/betslips/:betId" element={<AccountPage />} />
+
+        {/* Player account and personal betting history must not render without a valid session. */}
+        <Route element={<RequirePlayerSession />}>
+          <Route path="sports/my-bets" element={<Sports />} />
+          <Route path="account" element={<AccountPage />} />
+          <Route path="account/bonuses-available" element={<Navigate to="/account/bonuses" replace />} />
+          <Route path="account/bonuses-active" element={<Navigate to="/account/bonuses" replace />} />
+          <Route path="account/bonuses-closed" element={<Navigate to="/account/bonuses" replace />} />
+          <Route path="account/bonuses" element={<AccountPage />} />
+          <Route path="account/bonuses/:bonusTab" element={<AccountPage />} />
+          <Route path="account/account-statement" element={<Navigate to="/account/betslips" replace />} />
+          <Route path="account/profit-and-loss" element={<Navigate to="/account/betslips" replace />} />
+          <Route path="account/wallet/:tab" element={<WalletRouter />} />
+          <Route path="account/betslips/:betId" element={<AccountPage />} />
+          <Route path="account/:section" element={<AccountPage />} />
+        </Route>
+
         <Route path="wallet" element={<Navigate to="/account/wallet/deposit" replace />} />
         <Route path="wallet/:tab" element={<LegacyWalletRedirect />} />
-        <Route path="account/:section" element={<AccountPage />} />
         <Route path="info/:slug" element={<Info />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
   )
 }
-
 
 function LegacyWalletRedirect() {
   const { tab = 'deposit' } = useParams()
