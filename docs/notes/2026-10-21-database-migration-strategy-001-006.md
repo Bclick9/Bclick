@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-21  
 **NOTE ID:** NOTE-DB-MIGRATION-STRATEGY-001-006  
-**Status:** DRAFT FOR PROJECT OWNER APPROVAL — no numbered migration or ADR-023 Migration A/B is authorized by this note alone  
+**Status:** APPROVED FOR PLANNING — no numbered migration or ADR-023 Migration A/B is authorized by this note alone  
 **Investigation dependency:** [Approved CI Identity Database Investigation NOTE](https://github.com/Bclick9/Bclick/blob/main/docs/notes/2026-10-21-local-identity-db-inventory.md) — approved by Project Owner; measured evidence from [GitHub Actions run #39569244094](https://github.com/Bclick9/Bclick/actions/runs/39569244094).  
 **RBAC dependency:** [ADR-023 — Permission Registry Reconciliation](https://github.com/Bclick9/Bclick/blob/main/docs/notes/2026-10-21-ADR-023-permission-reconciliation-draft.md), merged in PR #62.  
 **Execution boundary:** planning and review only. No migration SQL in this note has been applied to any target database.
@@ -419,7 +419,7 @@ If any migration down path cannot preserve post-cutover writes safely, document 
 ## 16. Approval record (pending)
 
 - Investigation NOTE #64: approved by Project Owner; the completed note was merged to `main`.
-- Migration Strategy NOTE: **awaiting Project Owner approval**.
+- Migration Strategy NOTE: **approved by Project Owner; PR #65 merged to main**.
 - Migration 001: **not implemented; separate explicit approval and target gate required**.
 - Migration A / Migration 005: **not implemented; requires strategy approval and separate explicit owner authorization**.
 - Migration B: **blocked** by the five criteria in ADR-023.
