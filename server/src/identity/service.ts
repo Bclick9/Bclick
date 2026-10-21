@@ -77,10 +77,17 @@ export class IdentityService {
     const version = 1;
     const now = new Date();
     const expires = new Date(now.getTime() + (type === 'player' ? 30 * 86400_000 : 8 * 3600_000));
-    await tx.query(`INSERT INTO auth_sessions
-      (id, principal_type, principal_id, token_hash, session_version, created_at, authenticated_at, expires_at, mfa_verified)
-      VALUES ($1,$2,$3,$4,$5,$6,$6,$7,$8)`,
-    [id, type, principalId, this.hash(token), version, now, expires, mfaVerified]);
+    if (type === 'player') {
+      await tx.query(`INSERT INTO player_sessions
+        (id, player_id, token_hash, session_version, created_at, authenticated_at, expires_at)
+        VALUES ($1,$2,$3,$4,$5,$5,$6)`,
+      [id, principalId, this.hash(token), version, now, expires]);
+    } else {
+      await tx.query(`INSERT INTO admin_sessions
+        (id, admin_id, token_hash, session_version, created_at, authenticated_at, expires_at, mfa_verified)
+        VALUES ($1,$2,$3,$4,$5,$5,$6,$7)`,
+      [id, principalId, this.hash(token), version, now, expires, mfaVerified]);
+    }
     return { id, token, csrf: this.createCsrf(type === 'player' ? 'player' : 'admin', id, version), expiresAt: expires.toISOString(), version };
   }
 
@@ -199,9 +206,13 @@ export class IdentityService {
 
   async resolveSession(type: 'player' | 'admin', rawToken: string | undefined): Promise<AuthSession | null> {
     if (!rawToken || rawToken.length < 32 || rawToken.length > 200) return null;
-    const result = await this.repository.query<DbRow>(`SELECT id,principal_type,principal_id,session_version,authenticated_at,expires_at,revoked_at,mfa_verified
-      FROM auth_sessions WHERE token_hash=$1 AND principal_type=$2 AND revoked_at IS NULL AND expires_at>now()`,
-    [this.hash(rawToken), type]);
+    const result = type === 'player'
+      ? await this.repository.query<DbRow>(`SELECT id,player_id AS principal_id,session_version,authenticated_at,expires_at,revoked_at,false AS mfa_verified
+        FROM player_sessions WHERE token_hash=$1 AND revoked_at IS NULL AND expires_at>now()`,
+      [this.hash(rawToken)])
+      : await this.repository.query<DbRow>(`SELECT id,admin_id AS principal_id,session_version,authenticated_at,expires_at,revoked_at,mfa_verified
+        FROM admin_sessions WHERE token_hash=$1 AND revoked_at IS NULL AND expires_at>now()`,
+      [this.hash(rawToken)]);
     const row = result.rows[0];
     if (!row) return null;
     const base = {
@@ -233,7 +244,11 @@ export class IdentityService {
 
   async revokeSession(session: AuthSession, requestId: string): Promise<void> {
     await this.repository.transaction(async (tx) => {
-      await tx.query('UPDATE auth_sessions SET revoked_at=now() WHERE id=$1 AND revoked_at IS NULL', [session.id]);
+      if (session.type === 'player') {
+        await tx.query('UPDATE player_sessions SET revoked_at=now() WHERE id=$1 AND revoked_at IS NULL', [session.id]);
+      } else {
+        await tx.query('UPDATE admin_sessions SET revoked_at=now() WHERE id=$1 AND revoked_at IS NULL', [session.id]);
+      }
       await this.audit(tx, session.type + '.logout', session.type, session.principalId, session.type, session.principalId, 'success', requestId);
     });
   }
@@ -435,7 +450,7 @@ export class IdentityService {
       if (!row) throw new IdentityFault(400, 'VALIDATION_ERROR', 'Password reset token is invalid or expired');
       await tx.query('UPDATE players SET password_hash=$2,updated_at=now() WHERE id=$1', [String(row.principal_id), passwordHash]);
       await tx.query('UPDATE player_one_time_tokens SET consumed_at=now() WHERE id=$1', [String(row.id)]);
-      await tx.query('UPDATE auth_sessions SET revoked_at=now() WHERE principal_type=$1 AND principal_id=$2 AND revoked_at IS NULL', ['player', String(row.principal_id)]);
+      await tx.query('UPDATE player_sessions SET revoked_at=now() WHERE player_id=$1 AND revoked_at IS NULL', [String(row.principal_id)]);
     });
   }
 
