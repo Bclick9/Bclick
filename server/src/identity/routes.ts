@@ -212,22 +212,47 @@ async function requireEnrollment(
 }
 
 export function registerIdentityRoutes(app: FastifyInstance, service: IdentityService, config: IdentityConfig): void {
-  app.post('/api/v1/auth/register', { config: { rateLimit: false }, schema: { body: { type: 'object', additionalProperties: false, required: ['email','password','countryCode','settlementCurrency'], properties: {
-    email: { type: 'string', format: 'email', maxLength: 254 }, password: { type: 'string', minLength: 12, maxLength: 1024 },
-    countryCode: { type: 'string', pattern: '^[A-Z]{2}$' }, settlementCurrency: { type: 'string', enum: ['TND','EUR','USD'] },
-    language: { type: 'string', minLength: 2, maxLength: 12 }, preferredDisplayCurrency: { type: 'string', enum: ['TND','EUR','USD'] }
-  } } } }, async (request, reply) => safely(reply, request, async () => {
+  app.post('/api/v1/auth/register', {
+    config: { rateLimit: false },
+    schema: {
+      body: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['email', 'password', 'countryCode', 'settlementCurrency', 'dateOfBirth', 'acceptTerms', 'acceptAgeConfirmation', 'preferredLanguage'],
+        properties: {
+          email: { type: 'string', format: 'email', maxLength: 254 },
+          password: { type: 'string', minLength: 12, maxLength: 1024 },
+          countryCode: { type: 'string', pattern: '^[A-Z]{2}$' },
+          settlementCurrency: { type: 'string', enum: ['TND', 'EUR', 'USD'] },
+          dateOfBirth: { type: 'string', format: 'date' },
+          acceptTerms: { type: 'boolean', const: true },
+          acceptAgeConfirmation: { type: 'boolean', const: true },
+          preferredLanguage: { type: 'string', pattern: '^[a-z]{2}$', minLength: 2, maxLength: 2 },
+          username: { type: ['string', 'null'], minLength: 1, maxLength: 64 },
+          phoneNumber: { type: ['string', 'null'], pattern: '^\\+[1-9][0-9]{1,14}$' },
+          preferredDisplayCurrency: { type: 'string', enum: ['TND', 'EUR', 'USD'] },
+        },
+      },
+    },
+  }, async (request, reply) => safely(reply, request, async () => {
     if (!originAllowed(request, config, 'player')) return sendError(reply, request, 403, 'ORIGIN_INVALID', 'Request Origin is not allowed');
     const body = bodyObject(request);
     const result = await service.registerPlayer({
-      email: String(body.email), password: String(body.password), countryCode: String(body.countryCode),
-      settlementCurrency: String(body.settlementCurrency), language: body.language ? String(body.language) : undefined,
+      email: String(body.email),
+      password: String(body.password),
+      countryCode: String(body.countryCode),
+      settlementCurrency: String(body.settlementCurrency),
+      dateOfBirth: String(body.dateOfBirth),
+      acceptTerms: body.acceptTerms === true,
+      acceptAgeConfirmation: body.acceptAgeConfirmation === true,
+      preferredLanguage: String(body.preferredLanguage),
+      username: body.username == null ? null : String(body.username),
+      phoneNumber: body.phoneNumber == null ? null : String(body.phoneNumber),
       preferredDisplayCurrency: body.preferredDisplayCurrency ? String(body.preferredDisplayCurrency) : undefined,
     }, request.id, request.ip);
     setCookies(reply, issuePlayerCookies(result.session));
     return reply.code(201).send(playerResponse(result.player, request.id));
   }));
-
   app.post('/api/v1/auth/login', { schema: { body: { type: 'object', additionalProperties: false, required: ['email','password'], properties: { email: { type: 'string', format: 'email', maxLength: 254 }, password: { type: 'string', minLength: 1, maxLength: 1024 } } } } }, async (request, reply) => safely(reply, request, async () => {
     if (!originAllowed(request, config, 'player')) return sendError(reply, request, 403, 'ORIGIN_INVALID', 'Request Origin is not allowed');
     const body = bodyObject(request);

@@ -96,11 +96,11 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
 
   try {
     await pool.query(
-      'INSERT INTO identity_admins(id,email,email_normalized,display_name,password_hash,status,mfa_enabled,created_at,updated_at) VALUES ($1,$2,$2,$3,$4,$5,FALSE,now(),now())',
+      'INSERT INTO admin_users(id,email,email_normalized,display_name,password_hash,status,mfa_enabled,created_at,updated_at) VALUES ($1,$2,$2,$3,$4,$5,FALSE,now(),now())',
       [adminId, adminEmail, 'Test Project Admin', await hashPassword(adminPassword), 'active'],
     );
     await pool.query(
-      "INSERT INTO identity_admin_account_roles(admin_id,role_id) SELECT $1,id FROM identity_admin_roles WHERE code='project-admin'",
+      "INSERT INTO admin_role_assignments(admin_id,role_id) SELECT $1,id FROM roles WHERE code='project-admin'",
       [adminId],
     );
 
@@ -109,6 +109,38 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
       payload: { email: adminEmail, password: adminPassword },
     });
     assert.equal(blockedOrigin.statusCode, 403, 'untrusted Origin must be denied');
+
+    const consentRejected = await app.inject({
+      method: 'POST', url: '/api/v1/auth/register',
+      headers: { origin: 'https://localhost:5173' },
+      payload: {
+        email: 'consent-' + randomUUID() + '@example.test',
+        password: playerPassword,
+        countryCode: 'TN',
+        settlementCurrency: 'TND',
+        dateOfBirth: '1990-01-01',
+        acceptTerms: false,
+        acceptAgeConfirmation: true,
+        preferredLanguage: 'en',
+      },
+    });
+    assert.equal(consentRejected.statusCode, 400, 'terms acceptance must be explicitly true');
+
+    const underageRejected = await app.inject({
+      method: 'POST', url: '/api/v1/auth/register',
+      headers: { origin: 'https://localhost:5173' },
+      payload: {
+        email: 'underage-' + randomUUID() + '@example.test',
+        password: playerPassword,
+        countryCode: 'TN',
+        settlementCurrency: 'TND',
+        dateOfBirth: '2020-01-01',
+        acceptTerms: true,
+        acceptAgeConfirmation: true,
+        preferredLanguage: 'en',
+      },
+    });
+    assert.equal(underageRejected.statusCode, 422, 'server-side age check must reject underage registration');
 
     const adminPasswordStep = await app.inject({
       method: 'POST', url: '/api/v1/admin/auth/login',
@@ -161,13 +193,29 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     const registered = await app.inject({
       method: 'POST', url: '/api/v1/auth/register',
       headers: { origin: 'https://localhost:5173' },
-      payload: { email: playerEmail, password: playerPassword, countryCode: 'TN', settlementCurrency: 'TND', language: 'en' },
+      payload: { email: playerEmail, password: playerPassword, countryCode: 'TN', settlementCurrency: 'TND', dateOfBirth: '1990-01-01', acceptTerms: true, acceptAgeConfirmation: true, preferredLanguage: 'en', username: ' Player.Test ', phoneNumber: '+21612345678' },
     });
     assert.equal(registered.statusCode, 201, registered.body);
     playerJar = cookieMapFromResponse(registered.headers['set-cookie']);
     playerId.push(String(registered.json().data.player.id));
     assert.ok(playerJar['__Host-bclick_session']);
     assert.ok(playerJar['__Host-bclick_player_csrf']);
+
+    const persistedRegistration = await pool.query(
+      'SELECT date_of_birth::text AS date_of_birth, terms_accepted_at IS NOT NULL AS terms_accepted, terms_version, age_confirmation_at IS NOT NULL AS age_confirmed, age_policy_version, preferred_language, username, username_normalized, phone_number_e164 FROM players WHERE id=$1',
+      [playerId[0]],
+    );
+    assert.deepEqual(persistedRegistration.rows[0], {
+      date_of_birth: '1990-01-01',
+      terms_accepted: true,
+      terms_version: 'ci-terms-v1',
+      age_confirmed: true,
+      age_policy_version: 'ci-age-policy-v1',
+      preferred_language: 'en',
+      username: 'Player.Test',
+      username_normalized: 'player.test',
+      phone_number_e164: '+21612345678',
+    });
 
     // Acceptance 1: player CSRF material must not authorize an admin mutation.
     const playerTokenAtAdmin = await app.inject({
@@ -262,13 +310,13 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
   } finally {
     await app.close();
     if (playerId[0]) {
-      await pool.query("DELETE FROM identity_security_audit_events WHERE actor_id=$1 OR subject_id=$1 OR actor_id=$2 OR subject_id=$2", [adminId, playerId[0]]).catch(() => undefined);
-      await pool.query("DELETE FROM identity_sessions WHERE (principal_type='admin' AND principal_id=$1) OR (principal_type='player' AND principal_id=$2)", [adminId, playerId[0]]).catch(() => undefined);
-      await pool.query('DELETE FROM identity_admins WHERE id=$1', [adminId]).catch(() => undefined);
-      await pool.query('DELETE FROM identity_players WHERE id=$1', [playerId[0]]).catch(() => undefined);
+      await pool.query("DELETE FROM audit_events WHERE actor_id=$1 OR subject_id=$1 OR actor_id=$2 OR subject_id=$2", [adminId, playerId[0]]).catch(() => undefined);
+      await pool.query("DELETE FROM auth_sessions WHERE (principal_type='admin' AND principal_id=$1) OR (principal_type='player' AND principal_id=$2)", [adminId, playerId[0]]).catch(() => undefined);
+      await pool.query('DELETE FROM admin_users WHERE id=$1', [adminId]).catch(() => undefined);
+      await pool.query('DELETE FROM players WHERE id=$1', [playerId[0]]).catch(() => undefined);
     } else {
-      await pool.query("DELETE FROM identity_security_audit_events WHERE actor_id=$1 OR subject_id=$1", [adminId]).catch(() => undefined);
-      await pool.query('DELETE FROM identity_admins WHERE id=$1', [adminId]).catch(() => undefined);
+      await pool.query("DELETE FROM audit_events WHERE actor_id=$1 OR subject_id=$1", [adminId]).catch(() => undefined);
+      await pool.query('DELETE FROM admin_users WHERE id=$1', [adminId]).catch(() => undefined);
     }
     await pool.end();
   }

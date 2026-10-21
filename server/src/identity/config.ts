@@ -8,6 +8,8 @@ export interface IdentityConfig {
   readonly playerOrigins: readonly string[];
   readonly adminOrigins: readonly string[];
   readonly mailSinkPath: string;
+  readonly termsVersion: string;
+  readonly agePolicyVersion: string;
 }
 
 function parseKey(env: Readonly<Record<string, string | undefined>>, key: string): string {
@@ -16,6 +18,14 @@ function parseKey(env: Readonly<Record<string, string | undefined>>, key: string
     throw new Error(key + ' must be a 64-character hex-encoded 32-byte secret');
   }
   return value.toLowerCase();
+}
+
+function parsePolicyVersion(env: Readonly<Record<string, string | undefined>>, key: string): string {
+  const value = env[key]?.trim() ?? '';
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/.test(value)) {
+    throw new Error(key + ' must be a non-empty version identifier (1-64 letters, digits, dot, underscore, colon or hyphen)');
+  }
+  return value;
 }
 
 function parseOrigins(env: Readonly<Record<string, string | undefined>>, key: string): string[] {
@@ -48,5 +58,7 @@ export function parseIdentityConfig(
     playerOrigins: parseOrigins(env, 'BCLICK_PLAYER_ALLOWED_ORIGINS'),
     adminOrigins: parseOrigins(env, 'BCLICK_ADMIN_ALLOWED_ORIGINS'),
     mailSinkPath: env.BCLICK_LOCAL_MAIL_SINK_PATH?.trim() || '.local-mail-sink.jsonl',
+    termsVersion: parsePolicyVersion(env, 'BCLICK_TERMS_VERSION'),
+    agePolicyVersion: parsePolicyVersion(env, 'BCLICK_AGE_POLICY_VERSION'),
   };
 }
