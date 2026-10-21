@@ -101,7 +101,7 @@ export class IdentityService {
     if (input.acceptTerms !== true || input.acceptAgeConfirmation !== true) {
       throw new IdentityFault(422, 'CONSENT_REQUIRED', 'Terms acceptance and age confirmation are required');
     }
-    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(input.dateOfBirth) || input.dateOfBirth.startsWith('0000')) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dateOfBirth) || input.dateOfBirth.startsWith('0000')) {
       throw new IdentityFault(422, 'DATE_OF_BIRTH_INVALID', 'Date of birth must be a valid ISO date');
     }
     const parsedDob = new Date(input.dateOfBirth + 'T00:00:00.000Z');
@@ -115,7 +115,7 @@ export class IdentityService {
     }
     const usernameNormalized = username === null ? null : username.toLowerCase();
     const phoneNumber = input.phoneNumber == null ? null : input.phoneNumber.trim();
-    if (phoneNumber !== null && !/^\\+[1-9][0-9]{1,14}$/.test(phoneNumber)) {
+    if (phoneNumber !== null && !/^\+[1-9][0-9]{1,14}$/.test(phoneNumber)) {
       throw new IdentityFault(422, 'PHONE_INVALID', 'Phone number must use E.164 format');
     }
 
