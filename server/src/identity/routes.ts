@@ -402,7 +402,7 @@ export function registerIdentityRoutes(app: FastifyInstance, service: IdentitySe
     acceptAgeConfirmation: { type: 'boolean', const: true },
     preferredLanguage: { type: 'string', minLength: 2, maxLength: 12 },
     username: { type: ['string', 'null'], minLength: 1, maxLength: 64 },
-    phoneNumber: { type: ['string', 'null'], pattern: '^\\+[1-9][0-9]{1,14}
+    phoneNumber: { type: ['string', 'null'], pattern: '^\\+[1-9][0-9]{1,14}$' },
 
   app.post('/api/v1/auth/login', { schema: { body: { type: 'object', additionalProperties: false, required: ['email','password'], properties: { email: { type: 'string', format: 'email', maxLength: 254 }, password: { type: 'string', minLength: 1, maxLength: 1024 } } } } }, async (request, reply) => safely(reply, request, async () => {
     if (!originAllowed(request, config, 'player')) return sendError(reply, request, 403, 'ORIGIN_INVALID', 'Request Origin is not allowed');
