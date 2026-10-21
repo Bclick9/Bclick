@@ -191,6 +191,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
       headers: { origin: 'https://localhost:5173' },
       payload: {
         email: 'consent-' + randomUUID() + '@example.test',
+        username: 'Consent.Test',
         password: playerPassword,
         countryCode: 'TN',
         settlementCurrency: 'TND',
@@ -207,6 +208,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
       headers: { origin: 'https://localhost:5173' },
       payload: {
         email: 'underage-' + randomUUID() + '@example.test',
+        username: 'Underage.Test',
         password: playerPassword,
         countryCode: 'TN',
         settlementCurrency: 'TND',
@@ -290,6 +292,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
       payload: { email: playerEmail, password: playerPassword, countryCode: 'TN', settlementCurrency: 'TND', dateOfBirth: '1990-01-01', acceptTerms: true, acceptAgeConfirmation: true, preferredLanguage: 'en', username: ' Player.Test ', phoneNumber: '+21612345678' },
     });
     assert.equal(registered.statusCode, 201, registered.body);
+    assert.equal(registered.json().data.player.username, 'Player.Test');
     playerJar = cookieMapFromResponse(registered.headers['set-cookie']);
     playerId.push(String(registered.json().data.player.id));
     assert.ok(playerJar['__Host-bclick_session']);
@@ -304,6 +307,21 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     assert.ok(playerCsrfSetCookie, 'Registration must issue a player CSRF cookie');
     assert.match(playerCsrfSetCookie, /SameSite=Strict/, 'Player CSRF cookie remains SameSite=Strict');
     assert.doesNotMatch(playerCsrfSetCookie, /HttpOnly/, 'Player CSRF cookie must remain JS-readable for double submit');
+
+    const usernameLogin = await appUnderTest.inject({
+      method: 'POST', url: '/api/v1/auth/login',
+      headers: { origin: 'https://localhost:5173' },
+      payload: { identifier: 'PLAYER.TEST', password: playerPassword },
+    });
+    assert.equal(usernameLogin.statusCode, 200, usernameLogin.body);
+    assert.equal(usernameLogin.json().data.player.username, 'Player.Test');
+
+    const legacyEmailLogin = await appUnderTest.inject({
+      method: 'POST', url: '/api/v1/auth/login',
+      headers: { origin: 'https://localhost:5173' },
+      payload: { email: playerEmail, password: playerPassword },
+    });
+    assert.equal(legacyEmailLogin.statusCode, 200, legacyEmailLogin.body);
 
     // Q-003 positive control: valid same-origin player CSRF authorizes the intended mutation.
     const sameOriginProfileUpdate = await appUnderTest.inject({
@@ -370,6 +388,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
       headers: { origin: 'https://localhost:5173' },
       payload: {
         email: 'second-player-' + randomUUID() + '@example.test',
+        username: 'Second.Player',
         password: playerPassword,
         countryCode: 'TN',
         settlementCurrency: 'TND',
@@ -382,6 +401,51 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     assert.equal(secondRegistered.statusCode, 201, secondRegistered.body);
     assert.equal(secondRegistered.json().data.player.playerNumber, '100000001');
     assert.match(secondRegistered.json().data.player.playerNumber, /^\d{9,}$/);
+
+    // Legacy accounts created before usernames became mandatory may still sign in by email.
+    const secondPlayerId = String(secondRegistered.json().data.player.id);
+    await database.query('UPDATE players SET username=NULL, username_normalized=NULL WHERE id=$1', [secondPlayerId]);
+    const secondEmail = String(secondRegistered.json().data.player.email);
+    const legacyAccountLogin = await appUnderTest.inject({
+      method: 'POST', url: '/api/v1/auth/login',
+      headers: { origin: 'https://localhost:5173' },
+      payload: { identifier: secondEmail, password: playerPassword },
+    });
+    assert.equal(legacyAccountLogin.statusCode, 200, legacyAccountLogin.body);
+    const legacyAccountJar = cookieMapFromResponse(legacyAccountLogin.headers['set-cookie']);
+    const setLegacyUsername = await appUnderTest.inject({
+      method: 'PATCH', url: '/api/v1/player/profile',
+      headers: csrfHeaders(legacyAccountJar, '__Host-bclick_player_csrf', 'https://localhost:5173'),
+      payload: { username: 'Legacy.Player' },
+    });
+    assert.equal(setLegacyUsername.statusCode, 200, setLegacyUsername.body);
+    assert.equal(setLegacyUsername.json().data.player.username, 'Legacy.Player');
+
+    const changeUsernameAgain = await appUnderTest.inject({
+      method: 'PATCH', url: '/api/v1/player/profile',
+      headers: csrfHeaders(legacyAccountJar, '__Host-bclick_player_csrf', 'https://localhost:5173'),
+      payload: { username: 'Changed.Player' },
+    });
+    assert.equal(changeUsernameAgain.statusCode, 409);
+    assert.equal(changeUsernameAgain.json().error.code, 'USERNAME_IMMUTABLE');
+
+    const duplicateUsername = await appUnderTest.inject({
+      method: 'POST', url: '/api/v1/auth/register',
+      headers: { origin: 'https://localhost:5173' },
+      payload: {
+        email: 'duplicate-username-' + randomUUID() + '@example.test',
+        username: 'LEGACY.PLAYER',
+        password: playerPassword,
+        countryCode: 'TN',
+        settlementCurrency: 'TND',
+        dateOfBirth: '1991-04-05',
+        acceptTerms: true,
+        acceptAgeConfirmation: true,
+        preferredLanguage: 'en',
+      },
+    });
+    assert.equal(duplicateUsername.statusCode, 409, duplicateUsername.body);
+    assert.equal(duplicateUsername.json().error.code, 'USERNAME_TAKEN');
 
     // Acceptance 1: player CSRF material must not authorize an admin mutation.
     const playerTokenAtAdmin = await appUnderTest.inject({
