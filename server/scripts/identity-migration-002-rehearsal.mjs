@@ -190,6 +190,7 @@ async function installRollbackFixtures() {
   // Prove that a password-only admin session cannot be represented in this table.
   const client = await pool.connect();
   try {
+    await client.query('BEGIN');
     await client.query('SAVEPOINT m002_mfa_guard');
     let observedError;
     try {
@@ -203,6 +204,7 @@ async function installRollbackFixtures() {
     }
     await client.query('ROLLBACK TO SAVEPOINT m002_mfa_guard');
     await client.query('RELEASE SAVEPOINT m002_mfa_guard');
+    await client.query('COMMIT');
     assert.ok(observedError, 'Admin session with mfa_verified=false unexpectedly succeeded');
     assert.equal(observedError.code, '23514', 'Expected MFA check constraint SQLSTATE');
   } finally {
