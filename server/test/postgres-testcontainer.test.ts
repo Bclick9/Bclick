@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
@@ -16,7 +16,7 @@ test('checked-in identity migrations apply cleanly to an isolated PostgreSQL 18 
   try {
     await runner({
       databaseUrl: connectionString,
-      dir: resolve(process.cwd(), 'server/migrations'),
+      dir: fileURLToPath(new URL('../migrations', import.meta.url)),
       direction: 'up',
       migrationsTable: 'pgmigrations',
       log: () => undefined,
