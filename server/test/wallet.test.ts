@@ -135,7 +135,7 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
     assert.equal(registered.statusCode, 201, registered.body);
     const playerId = String(registered.json().data.player.id);
     const cookies = cookiesFrom(registered.headers['set-cookie']);
-    assert.ok(cookies.__Host-bclick_session, 'registration establishes the player session');
+    assert.ok(cookies['__Host-bclick_session'], 'registration establishes the player session');
 
     const emptyWallet = await app.inject({
       method: 'GET',
