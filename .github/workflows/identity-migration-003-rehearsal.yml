@@ -1,0 +1,167 @@
+name: Identity Migration 003 CI rehearsal (disposable PostgreSQL only)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'server/migrations/1792756800000_identity_player_credentials_003.sql'
+      - 'server/scripts/identity-migration-003-rehearsal.mjs'
+      - 'server/test/identity-registration-required-fields.test.ts'
+      - 'server/package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/identity-migration-003-rehearsal.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'server/migrations/1792756800000_identity_player_credentials_003.sql'
+      - 'server/scripts/identity-migration-003-rehearsal.mjs'
+      - 'server/test/identity-registration-required-fields.test.ts'
+      - 'server/package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/identity-migration-003-rehearsal.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: identity-migration-003-rehearsal-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  rehearsal:
+    name: Apply, validate, rollback, and re-apply Migration 003 on disposable PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_DB: bclick_ci
+          POSTGRES_USER: bclick_ci
+          POSTGRES_PASSWORD: bclick_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bclick_ci -d bclick_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://bclick_ci:bclick_ci_password@127.0.0.1:5432/bclick_ci
+      BCLICK_M003_REHEARSAL_TARGET: ci-disposable
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install locked workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: Build exact four-migration pre-M003 baseline on disposable PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bclick-m003-prior-migrations
+          cp server/migrations/1792497600000_api_skeleton_baseline.sql /tmp/bclick-m003-prior-migrations/
+          cp server/migrations/1792512000000_identity_sessions.sql /tmp/bclick-m003-prior-migrations/
+          cp server/migrations/1792584000000_identity_domain_migration_001.sql /tmp/bclick-m003-prior-migrations/
+          cp server/migrations/1792670400000_identity_sessions_split_002.sql /tmp/bclick-m003-prior-migrations/
+          cd server
+          pnpm exec node-pg-migrate up --migrations-dir /tmp/bclick-m003-prior-migrations --database-url-var DATABASE_URL
+          echo "MIGRATION_003_PRIOR_BASELINE=PASS"
+
+      - name: Seed two synthetic player rows to prove exact profile and password-hash backfill
+        run: pnpm --filter @bclick/server exec node scripts/identity-migration-003-rehearsal.mjs seed
+
+      - name: Apply exactly Migration 003 on disposable PostgreSQL
+        run: |
+          cd server
+          pnpm exec node-pg-migrate up --count 1 --migrations-dir ./migrations --database-url-var DATABASE_URL
+
+      - name: Verify credential/profile backfill, v2 alias, KYC invariants, and source preservation
+        run: pnpm --filter @bclick/server exec node scripts/identity-migration-003-rehearsal.mjs post-up
+
+      - name: Create one synthetic credential-mirror mismatch for the Down fail-closed test
+        run: pnpm --filter @bclick/server exec node scripts/identity-migration-003-rehearsal.mjs poison-credential
+
+      - name: Require Migration 003 Down to refuse the mismatched credential mirror
+        shell: bash
+        run: |
+          set -euo pipefail
+          log=/tmp/bclick-m003-down-guard.log
+          if pnpm --filter @bclick/server exec node-pg-migrate down --count 1 --migrations-dir ./migrations --database-url-var DATABASE_URL >"$log" 2>&1; then
+            cat "$log"
+            echo "Migration 003 Down unexpectedly succeeded with a mismatched credential mirror." >&2
+            exit 1
+          fi
+          cat "$log"
+          grep -F "Migration 003 rollback stopped:" "$log" >/dev/null || {
+            echo "Migration 003 Down failed for an unexpected reason; refusing to count this as a guard pass." >&2
+            exit 1
+          }
+          echo "MIGRATION_003_ROLLBACK_GUARD_REFUSAL=PASS"
+
+      - name: Verify refused Down preserved legacy data and schema; restore synthetic mirror
+        run: pnpm --filter @bclick/server exec node scripts/identity-migration-003-rehearsal.mjs assert-down-guarded
+
+      - name: Type-check shared workspace packages and server
+        run: pnpm api:typecheck
+
+      - name: Run full identity/API suite including missing DOB, terms, and age-confirmation rejection
+        env:
+          NODE_ENV: test
+          HOST: 127.0.0.1
+          BCLICK_IDENTITY_ENABLED: 'true'
+          BCLICK_SESSION_HASH_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          BCLICK_CSRF_SIGNING_KEY: fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210
+          BCLICK_TOTP_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+          BCLICK_PLAYER_ALLOWED_ORIGINS: https://localhost:5173
+          BCLICK_ADMIN_ALLOWED_ORIGINS: https://localhost:5174
+          BCLICK_LOCAL_MAIL_SINK_PATH: /tmp/bclick-identity-test-mail.jsonl
+          BCLICK_TERMS_VERSION: ci-terms-v1
+          BCLICK_AGE_POLICY_VERSION: ci-age-policy-v1
+        run: pnpm --filter @bclick/server test
+
+      - name: Roll back exactly Migration 003 on disposable PostgreSQL
+        run: |
+          cd server
+          pnpm exec node-pg-migrate down --count 1 --migrations-dir ./migrations --database-url-var DATABASE_URL
+
+      - name: Verify rollback removed only exact mirrors and preserved all legacy source rows/hashes
+        run: pnpm --filter @bclick/server exec node scripts/identity-migration-003-rehearsal.mjs post-down
+
+      - name: Re-apply exactly Migration 003 after clean rollback
+        run: |
+          cd server
+          pnpm exec node-pg-migrate up --count 1 --migrations-dir ./migrations --database-url-var DATABASE_URL
+
+      - name: Verify re-application is clean and complete
+        run: pnpm --filter @bclick/server exec node scripts/identity-migration-003-rehearsal.mjs post-up
+
+      - name: Re-run identity/API suite against re-applied schema
+        env:
+          NODE_ENV: test
+          HOST: 127.0.0.1
+          BCLICK_IDENTITY_ENABLED: 'true'
+          BCLICK_SESSION_HASH_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          BCLICK_CSRF_SIGNING_KEY: fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210
+          BCLICK_TOTP_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+          BCLICK_PLAYER_ALLOWED_ORIGINS: https://localhost:5173
+          BCLICK_ADMIN_ALLOWED_ORIGINS: https://localhost:5174
+          BCLICK_LOCAL_MAIL_SINK_PATH: /tmp/bclick-identity-test-mail.jsonl
+          BCLICK_TERMS_VERSION: ci-terms-v1
+          BCLICK_AGE_POLICY_VERSION: ci-age-policy-v1
+        run: pnpm --filter @bclick/server test
+
+      - name: Delete only the known disposable fixtures and verify the clean baseline
+        run: pnpm --filter @bclick/server exec node scripts/identity-migration-003-rehearsal.mjs cleanup-fixtures
