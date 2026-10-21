@@ -161,7 +161,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     const registered = await app.inject({
       method: 'POST', url: '/api/v1/auth/register',
       headers: { origin: 'https://localhost:5173' },
-      payload: { email: playerEmail, password: playerPassword, countryCode: 'TN', settlementCurrency: 'TND', language: 'en' },
+      payload: { email: playerEmail, password: playerPassword, countryCode: 'TN', settlementCurrency: 'TND', dateOfBirth: '1990-01-01', acceptTerms: true, acceptAgeConfirmation: true, preferredLanguage: 'en' },
     });
     assert.equal(registered.statusCode, 201, registered.body);
     playerJar = cookieMapFromResponse(registered.headers['set-cookie']);
