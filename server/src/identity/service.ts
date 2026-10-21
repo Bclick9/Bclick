@@ -84,22 +84,73 @@ export class IdentityService {
     return { id, token, csrf: this.createCsrf(type === 'player' ? 'player' : 'admin', id, version), expiresAt: expires.toISOString(), version };
   }
 
-  async registerPlayer(input: { email: string; password: string; countryCode: string; settlementCurrency: string; language?: string | undefined; preferredDisplayCurrency?: string | undefined },
-    requestId: string, remoteAddress: string): Promise<{ player: Record<string, unknown>; session: IssuedSession }> {
+  async registerPlayer(input: {
+    email: string;
+    password: string;
+    countryCode: string;
+    settlementCurrency: string;
+    dateOfBirth: string;
+    acceptTerms: boolean;
+    acceptAgeConfirmation: boolean;
+    preferredLanguage: string;
+    username?: string | null | undefined;
+    phoneNumber?: string | null | undefined;
+    preferredDisplayCurrency?: string | undefined;
+  }, requestId: string, remoteAddress: string): Promise<{ player: Record<string, unknown>; session: IssuedSession }> {
     const email = normalizeEmail(input.email);
-    if (!(await this.allowAttempt('player-register-ip', remoteAddress, 900, 20))) throw new IdentityFault(429, 'RATE_LIMITED', 'Too many registration attempts');
+    if (input.acceptTerms !== true || input.acceptAgeConfirmation !== true) {
+      throw new IdentityFault(422, 'CONSENT_REQUIRED', 'Terms acceptance and age confirmation are required');
+    }
+    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(input.dateOfBirth) || input.dateOfBirth.startsWith('0000')) {
+      throw new IdentityFault(422, 'DATE_OF_BIRTH_INVALID', 'Date of birth must be a valid ISO date');
+    }
+    const parsedDob = new Date(input.dateOfBirth + 'T00:00:00.000Z');
+    if (!Number.isFinite(parsedDob.getTime()) || parsedDob.toISOString().slice(0, 10) !== input.dateOfBirth) {
+      throw new IdentityFault(422, 'DATE_OF_BIRTH_INVALID', 'Date of birth must be a valid calendar date');
+    }
+
+    const username = input.username == null ? null : input.username.trim();
+    if (username !== null && (username.length < 1 || username.length > 64)) {
+      throw new IdentityFault(422, 'USERNAME_INVALID', 'Username must contain between 1 and 64 characters');
+    }
+    const usernameNormalized = username === null ? null : username.toLowerCase();
+    const phoneNumber = input.phoneNumber == null ? null : input.phoneNumber.trim();
+    if (phoneNumber !== null && !/^\\+[1-9][0-9]{1,14}$/.test(phoneNumber)) {
+      throw new IdentityFault(422, 'PHONE_INVALID', 'Phone number must use E.164 format');
+    }
+
+    if (!(await this.allowAttempt('player-register-ip', remoteAddress, 900, 20))) {
+      throw new IdentityFault(429, 'RATE_LIMITED', 'Too many registration attempts');
+    }
     const passwordHash = await hashPassword(input.password);
     let tokenForMail = '';
     let created: { player: Record<string, unknown>; session: IssuedSession };
     try {
       created = await this.repository.transaction(async (tx) => {
+        const ageCheck = await tx.query<DbRow>(
+          "SELECT $1::date <= (((now() AT TIME ZONE 'UTC')::date - INTERVAL '18 years')::date) AS meets_age_requirement",
+          [input.dateOfBirth],
+        );
+        if (ageCheck.rows[0]?.meets_age_requirement !== true) {
+          throw new IdentityFault(422, 'AGE_REQUIREMENT_NOT_MET', 'Players must be at least 18 years old to register');
+        }
+
         const id = randomUUID();
         const name = email.split('@')[0]!.slice(0, 80) || 'Player';
         const inserted = await tx.query<DbRow>(`INSERT INTO players
-          (id,email,email_normalized,password_hash,display_name,country_code,settlement_currency,language,preferred_language,preferred_display_currency,status,verification_status,email_verification_status,created_at,updated_at)
-          VALUES ($1,$2,$2,$3,$4,$5,$6,$7,$7,$8,'pending','pending','pending',now(),now())
-          RETURNING id,email,display_name,country_code,settlement_currency,language,preferred_language,preferred_display_currency,status,verification_status,email_verification_status,created_at`,
-        [id, email, passwordHash, name, input.countryCode, input.settlementCurrency, input.language ?? 'en', input.preferredDisplayCurrency ?? null]);
+          (id,email,email_normalized,password_hash,display_name,country_code,settlement_currency,
+           language,preferred_language,preferred_display_currency,status,verification_status,email_verification_status,
+           date_of_birth,terms_accepted_at,terms_version,age_confirmation_at,age_policy_version,
+           username,username_normalized,phone_number_e164,created_at,updated_at)
+          VALUES ($1,$2,$2,$3,$4,$5,$6,$7,$7,$8,'pending','pending','pending',
+                  $9,now(),$10,now(),$11,$12,$13,$14,now(),now())
+          RETURNING id,email,display_name,country_code,settlement_currency,language,preferred_language,
+                    preferred_display_currency,status,verification_status,email_verification_status,created_at`,
+        [
+          id, email, passwordHash, name, input.countryCode, input.settlementCurrency,
+          input.preferredLanguage, input.preferredDisplayCurrency ?? null, input.dateOfBirth,
+          this.config.termsVersion, this.config.agePolicyVersion, username, usernameNormalized, phoneNumber,
+        ]);
         const session = await this.createSession(tx, 'player', id, false);
         tokenForMail = opaqueToken();
         await tx.query(`INSERT INTO player_one_time_tokens
@@ -110,7 +161,13 @@ export class IdentityService {
         return { player: inserted.rows[0] as Record<string, unknown>, session };
       });
     } catch (error) {
-      if (String((error as { code?: unknown }).code) === '23505') throw new IdentityFault(409, 'CONFLICT', 'An account with these details already exists');
+      if (String((error as { code?: unknown }).code) === '23505') {
+        throw new IdentityFault(409, 'CONFLICT', 'An account with these details already exists');
+      }
+      const constraint = (error as { constraint?: unknown }).constraint;
+      if (constraint === 'players_date_of_birth_adult_check') {
+        throw new IdentityFault(422, 'AGE_REQUIREMENT_NOT_MET', 'Players must be at least 18 years old to register');
+      }
       throw error;
     }
     await this.emitLocalMail('email_verification', email, tokenForMail);
