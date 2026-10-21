@@ -170,9 +170,9 @@ try {
     'Unexpected PostgreSQL major version; expected PostgreSQL 18.');
 
   const migrationTableResult = await pool.query(
-    "SELECT to_regclass('public.pgmigrations') IS NOT NULL AS exists",
+    "SELECT to_regclass('public.pgmigrations') IS NOT NULL AS migration_history_table_exists",
   );
-  const migrationTableExists = migrationTableResult.rows[0].exists;
+  const migrationTableExists = migrationTableResult.rows[0].migration_history_table_exists;
 
   const candidateTableNames = [...sourceTables, ...destinationTables];
   const tableResult = await pool.query(
