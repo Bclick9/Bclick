@@ -146,10 +146,10 @@ function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initial
 
   return (
     <div className={modal
-      ? 'mx-auto flex w-full max-w-5xl items-start justify-center px-0 py-0 md:items-center'
+      ? 'mx-auto flex w-full max-w-5xl items-start justify-center px-0 py-0 md:items-center md:py-5'
       : 'mx-auto flex w-full max-w-5xl items-center justify-center px-3 py-5 sm:px-5 md:min-h-[calc(100vh-64px)] md:py-8'}>
       <section className={modal
-        ? 'relative flex min-h-[100dvh] w-full max-w-[960px] flex-col overflow-hidden bg-[#0c1d28] md:min-h-[610px] md:flex-row md:rounded-2xl md:border md:border-[var(--cb-line)] md:shadow-2xl md:shadow-black/30'
+        ? 'relative flex min-h-[100dvh] w-full max-w-[960px] flex-col overflow-hidden bg-[#0c1d28] md:max-h-[calc(100dvh-2.5rem)] md:min-h-0 md:flex-row md:rounded-2xl md:border md:border-[var(--cb-line)] md:shadow-2xl md:shadow-black/30'
         : 'relative flex w-full max-w-[960px] flex-col overflow-hidden rounded-2xl border border-[var(--cb-line)] bg-[#0c1d28] shadow-2xl shadow-black/20 md:min-h-[610px] md:flex-row'}>
         {modal ? (
           <button
@@ -172,7 +172,7 @@ function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initial
 
         <WelcomeBanner />
 
-        <div className="min-w-0 flex-1 px-4 pb-5 pt-4 sm:px-6 md:px-8 md:pb-7 md:pt-8">
+        <div className={modal ? "min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-5 pt-4 sm:px-6 md:max-h-[calc(100dvh-2.5rem)] md:px-8 md:pb-7 md:pt-8" : "min-w-0 flex-1 px-4 pb-5 pt-4 sm:px-6 md:px-8 md:pb-7 md:pt-8"}>
           <div className="mb-5 grid grid-cols-2 border-b border-[var(--cb-line)]" role="tablist" aria-label="Account access">
             <button
               type="button"
@@ -220,7 +220,7 @@ function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initial
             {submitError ? <p role="alert" className="mt-3 rounded-lg border border-rose-400/30 bg-rose-500/10 p-3 text-sm leading-relaxed text-rose-200">{submitError}</p> : null}
           </div>
 
-          <form className="space-y-4" onSubmit={handleSubmit}>
+          <form data-auth-form-version="2" data-auth-mode={mode} className="space-y-4" onSubmit={handleSubmit}>
             <AuthField
               label="Email"
               icon={Mail}
@@ -437,12 +437,13 @@ export function AuthModal({ open, initialMode, onClose }: AuthModalProps) {
   return createPortal(
     <div
       className="no-scrollbar fixed inset-0 z-[300] h-[100dvh] w-full overflow-y-auto overscroll-contain bg-[#0b1c27] md:flex md:items-center md:justify-center md:bg-black/75 md:p-5"
+      data-auth-modal-mode={initialMode}
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}
     >
-      <AuthScreen initialMode={initialMode} modal onClose={onClose} />
+      <AuthScreen key={initialMode} initialMode={initialMode} modal onClose={onClose} />
     </div>,
     document.body,
   )

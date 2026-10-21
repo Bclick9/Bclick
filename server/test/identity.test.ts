@@ -126,6 +126,30 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     const appUnderTest = buildApp({ database, logLevel: 'silent', identity: service, identityConfig });
     app = appUnderTest;
 
+    // Sensitive player endpoints must fail closed before any session exists.
+    const anonymousProfile = await appUnderTest.inject({
+      method: 'GET', url: '/api/v1/player/profile',
+    });
+    assert.equal(anonymousProfile.statusCode, 401);
+    assert.equal(anonymousProfile.json().error.code, 'UNAUTHORIZED');
+    assert.equal(anonymousProfile.json().data, undefined, 'anonymous profile reads must return no player data');
+
+    const anonymousProfileUpdate = await appUnderTest.inject({
+      method: 'PATCH', url: '/api/v1/player/profile',
+      headers: { origin: 'https://localhost:5173' },
+      payload: { displayName: 'Must not be persisted' },
+    });
+    assert.equal(anonymousProfileUpdate.statusCode, 401);
+    assert.equal(anonymousProfileUpdate.json().error.code, 'UNAUTHORIZED');
+    assert.equal(anonymousProfileUpdate.json().data, undefined, 'anonymous profile mutations must return no player data');
+
+    // Wallet APIs are not implemented yet; an unknown wallet endpoint must not return a public/demo wallet payload.
+    const walletRouteNotImplemented = await appUnderTest.inject({
+      method: 'GET', url: '/api/v1/wallets',
+    });
+    assert.equal(walletRouteNotImplemented.statusCode, 404);
+    assert.equal(walletRouteNotImplemented.json().data, undefined);
+
     await database.query(
       'INSERT INTO admin_users(id,email,email_normalized,display_name,password_hash,status,mfa_enabled,created_at,updated_at) VALUES ($1,$2,$2,$3,$4,$5,FALSE,now(),now())',
       [adminId, adminEmail, 'Test Project Admin', await hashPassword(adminPassword), 'active'],
