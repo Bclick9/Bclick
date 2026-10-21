@@ -229,7 +229,7 @@ async function assertPostMigration() {
       'INSERT INTO public.players',
       '(id,email,email_normalized,password_hash,display_name,country_code,settlement_currency,language,status,verification_status,terms_accepted_at,terms_version)',
       "VALUES ($1,$2,$2,'ci-dummy-hash','Terms fixture','TN','TND','en','pending','pending',now(),NULL)",
-    ].join(' '), [randomUUID(), 'm001-incomplete-terms@example.test'], '23514', 'Terms timestamp/version pair');
+    ].join(' '), [randomUUID(), 'm001-incomplete-terms@example.test'], '23502', 'Terms version is mandatory');
 
     await expectSqlState(client, "UPDATE public.players SET kyc_tier='not-a-tier' WHERE id=$1", [playerId], '23514', 'KYC tier check');
     await expectSqlState(client, "UPDATE public.players SET deposit_kyc_override='waive' WHERE id=$1", [playerId], '23514', 'Permanent waiver requires two distinct admin IDs');
