@@ -83,6 +83,7 @@ jobs:
             "1792497600000_api_skeleton_baseline.sql"
             "1792512000000_identity_sessions.sql"
             "1792584000000_identity_domain_migration_001.sql"
+            "1792670400000_identity_sessions_split_002.sql"
           )
           diff -u <(printf '%s\n' "${expected_migrations[@]}") <(printf '%s\n' "${actual_migrations[@]}")
       - name: Create exact two-migration baseline in disposable PostgreSQL
