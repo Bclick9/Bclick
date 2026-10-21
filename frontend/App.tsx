@@ -16,6 +16,7 @@ import Support from './pages/Support'
 import AccountPage from './pages/Account'
 import { WalletRouter } from './pages/Wallet'
 import Info from './pages/Info'
+import { LoginPage, RegisterPage } from './pages/Auth'
 import './appTheme.css'
 
 function NotFound() {
@@ -61,10 +62,9 @@ export default function App() {
         {/* Legacy standalone search URL now redirects to the site; search is handled by SearchDialog. */}
         <Route path="search" element={<Navigate to="/" replace />} />
         <Route path="support" element={<Support />} />
-        {/* Legacy standalone auth pages are no longer used; auth opens from the header modal. */}
-        <Route path="login" element={<Navigate to="/" replace />} />
-        <Route path="register" element={<Navigate to="/" replace />} />
-        <Route path="signup" element={<Navigate to="/" replace />} />
+        <Route path="login" element={<LoginPage />} />
+        <Route path="register" element={<RegisterPage />} />
+        <Route path="signup" element={<Navigate to="/register" replace />} />
         <Route path="account" element={<AccountPage />} />
         <Route path="account/bonuses-available" element={<Navigate to="/account/bonuses" replace />} />
         <Route path="account/bonuses-active" element={<Navigate to="/account/bonuses" replace />} />
