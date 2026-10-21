@@ -199,7 +199,7 @@ async function preflight() {
   const identity = await pool.query(
     'SELECT current_database() AS database_name, current_setting(\'server_version\') AS server_version, current_schema() AS schema_name',
   );
-  assert.equal(identity.rows[0].database_name, 'neondb');
+  assert.equal(identity.rows[0].database_name, databaseExpected);
   assert.match(identity.rows[0].server_version, /^18\.6\b/, 'Unexpected PostgreSQL version');
   assert.equal(identity.rows[0].schema_name, 'public');
 
@@ -241,7 +241,7 @@ async function postflight() {
   const identity = await pool.query(
     'SELECT current_database() AS database_name, current_setting(\'server_version\') AS server_version, current_schema() AS schema_name',
   );
-  assert.equal(identity.rows[0].database_name, 'neondb');
+  assert.equal(identity.rows[0].database_name, databaseExpected);
   assert.match(identity.rows[0].server_version, /^18\.6\b/, 'Unexpected PostgreSQL version');
   assert.equal(identity.rows[0].schema_name, 'public');
 
