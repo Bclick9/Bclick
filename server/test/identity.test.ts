@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { unlink } from 'node:fs/promises';
+import { randomBytes, randomUUID } from 'node:crypto';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
+import { PostgreSqlContainer } from '@testcontainers/postgresql';
+import { runner } from 'node-pg-migrate';
 import { Pool } from 'pg';
 
 import { parseIdentityConfig } from '../src/identity/config.js';
@@ -73,15 +79,26 @@ function csrfHeaders(jar: Record<string, string>, name: string, origin: string):
 }
 
 test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and logout isolation', {
-  skip: !process.env.DATABASE_URL,
+  timeout: 120_000,
 }, async () => {
-  const databaseUrl = process.env.DATABASE_URL!;
-  const identityConfig = parseIdentityConfig(process.env, 'test');
-  assert.ok(identityConfig, 'CI test environment must explicitly enable local Identity');
-  const pool = new Pool({ connectionString: databaseUrl, max: 4 });
-  const repository = new PgIdentityRepository(pool);
-  const service = new IdentityService(repository, identityConfig);
-  const app = buildApp({ database: pool, logLevel: 'silent', identity: service, identityConfig });
+  const container = await new PostgreSqlContainer('postgres:18-alpine').start();
+  const databaseUrl = container.getConnectionUri();
+  const mailSinkPath = join(tmpdir(), 'bclick-identity-test-' + randomUUID() + '.jsonl');
+  const identityEnvironment = {
+    BCLICK_IDENTITY_ENABLED: 'true',
+    BCLICK_SESSION_HASH_KEY: randomBytes(32).toString('hex'),
+    BCLICK_CSRF_SIGNING_KEY: randomBytes(32).toString('hex'),
+    BCLICK_TOTP_ENCRYPTION_KEY: randomBytes(32).toString('hex'),
+    BCLICK_PLAYER_ALLOWED_ORIGINS: 'https://localhost:5173',
+    BCLICK_ADMIN_ALLOWED_ORIGINS: 'https://localhost:5174',
+    BCLICK_LOCAL_MAIL_SINK_PATH: mailSinkPath,
+    BCLICK_TERMS_VERSION: 'ci-terms-v1',
+    BCLICK_AGE_POLICY_VERSION: 'ci-age-policy-v1',
+  };
+  const identityConfig = parseIdentityConfig(identityEnvironment, 'test');
+  assert.ok(identityConfig, 'test-only Identity configuration must be enabled');
+  let pool: Pool | undefined;
+  let app: ReturnType<typeof buildApp> | undefined;
 
   const adminId = randomUUID();
   const playerId: string[] = [];
@@ -95,22 +112,36 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
   let oldEnrollmentJar: Record<string, string> = {};
 
   try {
-    await pool.query(
+    await runner({
+      databaseUrl,
+      dir: fileURLToPath(new URL('../migrations', import.meta.url)),
+      direction: 'up',
+      migrationsTable: 'pgmigrations',
+      log: () => undefined,
+    });
+    const database = new Pool({ connectionString: databaseUrl, max: 4 });
+    pool = database;
+    const repository = new PgIdentityRepository(database);
+    const service = new IdentityService(repository, identityConfig);
+    const appUnderTest = buildApp({ database, logLevel: 'silent', identity: service, identityConfig });
+    app = appUnderTest;
+
+    await database.query(
       'INSERT INTO admin_users(id,email,email_normalized,display_name,password_hash,status,mfa_enabled,created_at,updated_at) VALUES ($1,$2,$2,$3,$4,$5,FALSE,now(),now())',
       [adminId, adminEmail, 'Test Project Admin', await hashPassword(adminPassword), 'active'],
     );
-    await pool.query(
+    await database.query(
       "INSERT INTO admin_role_assignments(admin_id,role_id) SELECT $1,id FROM roles WHERE code='project-admin'",
       [adminId],
     );
 
-    const blockedOrigin = await app.inject({
+    const blockedOrigin = await appUnderTest.inject({
       method: 'POST', url: '/api/v1/admin/auth/login', headers: { origin: 'https://evil.example' },
       payload: { email: adminEmail, password: adminPassword },
     });
     assert.equal(blockedOrigin.statusCode, 403, 'untrusted Origin must be denied');
 
-    const consentRejected = await app.inject({
+    const consentRejected = await appUnderTest.inject({
       method: 'POST', url: '/api/v1/auth/register',
       headers: { origin: 'https://localhost:5173' },
       payload: {
@@ -126,7 +157,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     });
     assert.equal(consentRejected.statusCode, 400, 'terms acceptance must be explicitly true');
 
-    const underageRejected = await app.inject({
+    const underageRejected = await appUnderTest.inject({
       method: 'POST', url: '/api/v1/auth/register',
       headers: { origin: 'https://localhost:5173' },
       payload: {
@@ -142,7 +173,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     });
     assert.equal(underageRejected.statusCode, 422, 'server-side age check must reject underage registration');
 
-    const adminPasswordStep = await app.inject({
+    const adminPasswordStep = await appUnderTest.inject({
       method: 'POST', url: '/api/v1/admin/auth/login',
       headers: { origin: 'https://localhost:5174' },
       payload: { email: adminEmail, password: adminPassword },
@@ -157,7 +188,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     assert.match(String(adminPasswordStep.headers['set-cookie']), /HttpOnly/);
     oldEnrollmentJar = { ...adminStepJar };
 
-    const setup = await app.inject({
+    const setup = await appUnderTest.inject({
       method: 'POST', url: '/api/v1/admin/auth/mfa/totp/setup',
       headers: csrfHeaders(adminStepJar, '__Host-bclick_admin_enrollment_csrf', 'https://localhost:5174'),
       payload: {},
@@ -168,7 +199,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     assert.match(String(setup.json().data.otpauthUri), /^otpauth:\/\/totp\//);
     assert.ok(!setup.body.includes(adminPassword));
 
-    const enroll = await app.inject({
+    const enroll = await appUnderTest.inject({
       method: 'POST', url: '/api/v1/admin/auth/mfa/totp/verify',
       headers: csrfHeaders(adminStepJar, '__Host-bclick_admin_enrollment_csrf', 'https://localhost:5174'),
       payload: { code: totpCode(totpSecret) },
@@ -191,7 +222,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     assert.equal(activeAdminJar['__Host-bclick_admin_enrollment_csrf'], undefined);
     assert.equal(activeAdminJar['__Host-bclick_admin_challenge'], undefined);
 
-    const adminSession = await app.inject({
+    const adminSession = await appUnderTest.inject({
       method: 'GET', url: '/api/v1/admin/session',
       headers: { cookie: cookieHeader(activeAdminJar) },
     });
@@ -200,7 +231,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     assert.equal(adminSession.json().data.admin.displayName, 'Test Project Admin');
     assert.deepEqual(adminSession.json().data.mfa, { enabled: true, method: 'totp' });
 
-    const registered = await app.inject({
+    const registered = await appUnderTest.inject({
       method: 'POST', url: '/api/v1/auth/register',
       headers: { origin: 'https://localhost:5173' },
       payload: { email: playerEmail, password: playerPassword, countryCode: 'TN', settlementCurrency: 'TND', dateOfBirth: '1990-01-01', acceptTerms: true, acceptAgeConfirmation: true, preferredLanguage: 'en', username: ' Player.Test ', phoneNumber: '+21612345678' },
@@ -221,7 +252,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     assert.match(playerCsrfSetCookie, /SameSite=Strict/, 'Player CSRF cookie remains SameSite=Strict');
     assert.doesNotMatch(playerCsrfSetCookie, /HttpOnly/, 'Player CSRF cookie must remain JS-readable for double submit');
 
-    const persistedRegistration = await pool.query(
+    const persistedRegistration = await database.query(
       'SELECT date_of_birth::text AS date_of_birth, terms_accepted_at IS NOT NULL AS terms_accepted, terms_version, age_confirmation_at IS NOT NULL AS age_confirmed, age_policy_version, preferred_language, username, username_normalized, phone_number_e164 FROM players WHERE id=$1',
       [playerId[0]],
     );
@@ -238,7 +269,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     });
 
     // Acceptance 1: player CSRF material must not authorize an admin mutation.
-    const playerTokenAtAdmin = await app.inject({
+    const playerTokenAtAdmin = await appUnderTest.inject({
       method: 'POST', url: '/api/v1/admin/auth/logout',
       headers: {
         cookie: cookieHeader({
@@ -252,7 +283,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     assert.equal(playerTokenAtAdmin.statusCode, 403);
 
     // Acceptance 2: admin CSRF material must not authorize a player mutation.
-    const adminTokenAtPlayer = await app.inject({
+    const adminTokenAtPlayer = await appUnderTest.inject({
       method: 'PATCH', url: '/api/v1/player/profile',
       headers: {
         cookie: cookieHeader({
@@ -267,7 +298,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     assert.equal(adminTokenAtPlayer.statusCode, 403);
 
     // Acceptance 3: enrollment CSRF cannot authorize a full-admin mutation.
-    const enrollmentTokenAtAdmin = await app.inject({
+    const enrollmentTokenAtAdmin = await appUnderTest.inject({
       method: 'POST', url: '/api/v1/admin/auth/logout',
       headers: {
         cookie: cookieHeader({
@@ -281,7 +312,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     assert.equal(enrollmentTokenAtAdmin.statusCode, 403);
 
     // Acceptance 4: TOTP completion consumes the enrollment challenge and invalidates its old token.
-    const replayedEnrollment = await app.inject({
+    const replayedEnrollment = await appUnderTest.inject({
       method: 'POST', url: '/api/v1/admin/auth/mfa/totp/setup',
       headers: csrfHeaders(oldEnrollmentJar, '__Host-bclick_admin_enrollment_csrf', 'https://localhost:5174'),
       payload: {},
@@ -289,20 +320,20 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     assert.equal(replayedEnrollment.statusCode, 401);
 
     // Acceptance 5: logging out one context does not revoke the other context.
-    const adminLogout = await app.inject({
+    const adminLogout = await appUnderTest.inject({
       method: 'POST', url: '/api/v1/admin/auth/logout',
       headers: csrfHeaders(activeAdminJar, '__Host-bclick_admin_csrf', 'https://localhost:5174'),
     });
     assert.equal(adminLogout.statusCode, 204, adminLogout.body);
     activeAdminJar = cookieMapFromResponse(adminLogout.headers['set-cookie'], activeAdminJar);
 
-    const playerStillActive = await app.inject({
+    const playerStillActive = await appUnderTest.inject({
       method: 'GET', url: '/api/v1/auth/session', headers: { cookie: cookieHeader(playerJar) },
     });
     assert.equal(playerStillActive.statusCode, 200, playerStillActive.body);
 
     // Re-authenticate the admin so the converse can be checked independently.
-    const secondPasswordStep = await app.inject({
+    const secondPasswordStep = await appUnderTest.inject({
       method: 'POST', url: '/api/v1/admin/auth/login',
       headers: { origin: 'https://localhost:5174' },
       payload: { email: adminEmail, password: adminPassword },
@@ -310,7 +341,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     assert.equal(secondPasswordStep.statusCode, 202);
     assert.equal(secondPasswordStep.json().data.status, 'mfa_required');
     let secondAdminJar = cookieMapFromResponse(secondPasswordStep.headers['set-cookie']);
-    const secondMfa = await app.inject({
+    const secondMfa = await appUnderTest.inject({
       method: 'POST', url: '/api/v1/admin/auth/mfa/verify',
       headers: { cookie: cookieHeader(secondAdminJar), origin: 'https://localhost:5174' },
       payload: { challengeId: secondPasswordStep.json().data.challengeId, factor: 'totp', code: totpCode(totpSecret) },
@@ -318,27 +349,34 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     assert.equal(secondMfa.statusCode, 200, secondMfa.body);
     secondAdminJar = cookieMapFromResponse(secondMfa.headers['set-cookie'], secondAdminJar);
 
-    const playerLogout = await app.inject({
+    const playerLogout = await appUnderTest.inject({
       method: 'POST', url: '/api/v1/auth/logout',
       headers: csrfHeaders(playerJar, '__Host-bclick_player_csrf', 'https://localhost:5173'),
     });
     assert.equal(playerLogout.statusCode, 204, playerLogout.body);
-    const adminStillActive = await app.inject({
+    const adminStillActive = await appUnderTest.inject({
       method: 'GET', url: '/api/v1/admin/session', headers: { cookie: cookieHeader(secondAdminJar) },
     });
     assert.equal(adminStillActive.statusCode, 200, adminStillActive.body);
   } finally {
-    await app.close();
-    if (playerId[0]) {
-      await pool.query("DELETE FROM audit_events WHERE actor_id=$1 OR subject_id=$1 OR actor_id=$2 OR subject_id=$2", [adminId, playerId[0]]).catch(() => undefined);
-      await pool.query('DELETE FROM player_sessions WHERE player_id=$1', [playerId[0]]).catch(() => undefined);
-      await pool.query('DELETE FROM admin_sessions WHERE admin_id=$1', [adminId]).catch(() => undefined);
-      await pool.query('DELETE FROM admin_users WHERE id=$1', [adminId]).catch(() => undefined);
-      await pool.query('DELETE FROM players WHERE id=$1', [playerId[0]]).catch(() => undefined);
-    } else {
-      await pool.query("DELETE FROM audit_events WHERE actor_id=$1 OR subject_id=$1", [adminId]).catch(() => undefined);
-      await pool.query('DELETE FROM admin_users WHERE id=$1', [adminId]).catch(() => undefined);
+    try {
+      if (app) await app.close();
+      if (pool) {
+        if (playerId[0]) {
+          await pool.query("DELETE FROM audit_events WHERE actor_id=$1 OR subject_id=$1 OR actor_id=$2 OR subject_id=$2", [adminId, playerId[0]]).catch(() => undefined);
+          await pool.query('DELETE FROM player_sessions WHERE player_id=$1', [playerId[0]]).catch(() => undefined);
+          await pool.query('DELETE FROM admin_sessions WHERE admin_id=$1', [adminId]).catch(() => undefined);
+          await pool.query('DELETE FROM admin_users WHERE id=$1', [adminId]).catch(() => undefined);
+          await pool.query('DELETE FROM players WHERE id=$1', [playerId[0]]).catch(() => undefined);
+        } else {
+          await pool.query("DELETE FROM audit_events WHERE actor_id=$1 OR subject_id=$1", [adminId]).catch(() => undefined);
+          await pool.query('DELETE FROM admin_users WHERE id=$1', [adminId]).catch(() => undefined);
+        }
+        await pool.end();
+      }
+    } finally {
+      await container.stop();
+      await unlink(mailSinkPath).catch(() => undefined);
     }
-    await pool.end();
   }
 });
