@@ -20,6 +20,7 @@ test('checked-in identity migrations apply cleanly to an isolated PostgreSQL 18 
       dir: fileURLToPath(new URL('../migrations', import.meta.url)),
       direction: 'up',
       migrationsTable: 'pgmigrations',
+      count: 7,
       log: () => undefined,
     });
 
@@ -121,6 +122,45 @@ test('checked-in identity migrations apply cleanly to an isolated PostgreSQL 18 
       'SELECT count(*)::text AS count FROM public.pgmigrations',
     );
     assert.equal(finalMigrationHistory.rows[0]?.count, '7');
+
+    // Apply Migration 006 only after the sparse Migration 005 rehearsal above,
+    // because Migration 005 intentionally requires the exact six-migration pre-state.
+    await runner({
+      databaseUrl: connectionString,
+      dir: fileURLToPath(new URL('../migrations', import.meta.url)),
+      direction: 'up',
+      migrationsTable: 'pgmigrations',
+      count: 1,
+      log: () => undefined,
+    });
+
+    const walletSchema = await pool.query<{
+      wallet_accounts: string | null;
+      account_balances: string | null;
+      journal_transactions: string | null;
+      ledger_entries: string | null;
+      migration_count: string;
+      player_account_count: string;
+      missing_projection_count: string;
+    }>(`
+      SELECT
+        to_regclass('public.wallet_accounts')::text AS wallet_accounts,
+        to_regclass('public.account_balances')::text AS account_balances,
+        to_regclass('public.journal_transactions')::text AS journal_transactions,
+        to_regclass('public.ledger_entries')::text AS ledger_entries,
+        (SELECT count(*)::text FROM public.pgmigrations) AS migration_count,
+        (SELECT count(*)::text FROM public.wallet_accounts WHERE player_id IS NOT NULL) AS player_account_count,
+        (SELECT count(*)::text FROM public.wallet_accounts wa LEFT JOIN public.account_balances ab ON ab.wallet_account_id=wa.id WHERE ab.wallet_account_id IS NULL) AS missing_projection_count
+    `);
+    assert.deepEqual(walletSchema.rows[0], {
+      wallet_accounts: 'wallet_accounts',
+      account_balances: 'account_balances',
+      journal_transactions: 'journal_transactions',
+      ledger_entries: 'ledger_entries',
+      migration_count: '8',
+      player_account_count: '4',
+      missing_projection_count: '0',
+    });
   } finally {
     await pool.end();
     await container.stop();
