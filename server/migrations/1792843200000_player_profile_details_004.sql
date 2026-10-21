@@ -53,7 +53,7 @@ END
 $m004_preconditions$;
 
 CREATE SEQUENCE public.player_public_number_seq
-  AS bigint START WITH 436222976 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
+  AS bigint START WITH 100000000 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
 
 ALTER TABLE public.players
   ADD COLUMN player_number bigint,
@@ -65,9 +65,9 @@ ALTER TABLE public.players
   ADD COLUMN postal_code text;
 
 -- Assign deterministic public numbers to existing players in creation order.
--- The concrete example provided by the product owner begins at 436222976 (9 digits).
+-- Public IDs begin at 100000000 (9 digits); after 999999999, the next is 1000000000 (10 digits).
 WITH numbered_players AS (
-  SELECT id, 436222975::bigint + row_number() OVER (ORDER BY created_at, id) AS assigned_number
+  SELECT id, 99999999::bigint + row_number() OVER (ORDER BY created_at, id) AS assigned_number
     FROM public.players
 )
 UPDATE public.players AS p
@@ -77,7 +77,7 @@ UPDATE public.players AS p
 
 SELECT setval(
   'public.player_public_number_seq',
-  COALESCE((SELECT max(player_number) FROM public.players), 436222975::bigint),
+  COALESCE((SELECT max(player_number) FROM public.players), 99999999::bigint),
   true
 );
 
@@ -130,7 +130,7 @@ BEGIN
 
   SELECT count(*) INTO invalid_number_count
     FROM public.players
-   WHERE player_number IS NULL OR player_number < 436222976;
+   WHERE player_number IS NULL OR player_number < 100000000;
   IF invalid_number_count <> 0 THEN
     RAISE EXCEPTION 'Migration 004 stopped: % players have invalid public numbers', invalid_number_count;
   END IF;
