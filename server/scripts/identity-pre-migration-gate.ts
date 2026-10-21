@@ -1,15 +1,37 @@
 import assert from 'node:assert/strict';
 import { Pool } from 'pg';
 
-// Read-only Migration 001 gate for the disposable GitHub Actions PostgreSQL
-// baseline. Deliberately refuses other targets so this CI helper cannot
-// accidentally be repurposed against local, staging, or production databases.
-const expectedTarget = 'ci-disposable';
-if (process.env.BCLICK_PREFLIGHT_TARGET !== expectedTarget) {
-  throw new Error(`Refusing to run: BCLICK_PREFLIGHT_TARGET must be "${expectedTarget}".`);
+// Read-only Migration 001 gate for either the disposable CI reference or the
+// owner-configured Neon verification target. This script never applies migrations.
+const expectedTarget = process.env.BCLICK_PREFLIGHT_TARGET;
+if (!['ci-disposable', 'neon-copabet365'].includes(expectedTarget ?? '')) {
+  throw new Error('Refusing to run: BCLICK_PREFLIGHT_TARGET must be an explicitly allowed target.');
 }
-if (!process.env.DATABASE_URL) {
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
   throw new Error('Refusing to run: DATABASE_URL is required.');
+}
+
+// Avoid ever logging DATABASE_URL or its username/password. For the Neon run,
+// validate the provider domain and Frankfurt region marker before connecting.
+let endpointValidation = {
+  neonHost: expectedTarget === 'ci-disposable' ? 'not-applicable' : false,
+  frankfurtRegion: expectedTarget === 'ci-disposable' ? 'not-applicable' : false,
+};
+if (expectedTarget === 'neon-copabet365') {
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(databaseUrl);
+  } catch {
+    throw new Error('Refusing to run: DATABASE_URL is not a valid URL; value was not logged.');
+  }
+  const neonHost = parsedUrl.hostname.toLowerCase().endsWith('.neon.tech');
+  const frankfurtRegion = parsedUrl.hostname.toLowerCase().includes('eu-central-1');
+  endpointValidation = { neonHost, frankfurtRegion };
+  if (!neonHost || !frankfurtRegion) {
+    console.error('NEON_ENDPOINT_VALIDATION=FAIL ' + JSON.stringify(endpointValidation));
+    throw new Error('Refusing to run: DATABASE_URL hostname did not validate as Neon Frankfurt; URL was not logged.');
+  }
 }
 
 const sourceTables = [
@@ -121,6 +143,31 @@ try {
     (destinationTables as readonly string[]).includes(name),
   ).sort();
 
+  const missingSourceTables = sourceTables.filter((name) => !presentSourceTables.includes(name));
+  const migrationHistoryTableExists = presentTables.includes('pgmigrations');
+  if (missingSourceTables.length > 0 || !migrationHistoryTableExists) {
+    const blockedReport = {
+      resultScope: expectedTarget === 'ci-disposable'
+        ? 'read-only check against this disposable GitHub Actions target only'
+        : 'read-only check using the configured Neon endpoint; project identity depends on the owner-configured DATABASE_URL secret',
+      targetMarker: expectedTarget,
+      endpointValidation,
+      database: connection.rows[0],
+      expectedSourceTables: sourceTables,
+      observedSourceTables: presentSourceTables,
+      missingSourceTables,
+      destinationNameCollisions: presentDestinationTables,
+      migrationHistoryTableExists,
+      referenceTupleOrder: ['players', 'admins', 'roles', 'role_permission_links', 'admin_role_links', 'permissions'],
+      referenceTuple: null,
+      blocker: 'required source schema or pgmigrations table is missing; no baseline migration was run',
+    };
+    console.log('IDENTITY_MIGRATION_001_PREFLIGHT=' + JSON.stringify(blockedReport, null, 2));
+    console.log('PREFLIGHT_GATE=BLOCKED');
+    console.log('MIGRATION_001_EXECUTED=false');
+    throw new Error('Preflight blocked: missing expected source tables or migration history; no schema changes were made.');
+  }
+
   const countsResult = await pool.query<{
     player_count: number;
     admin_count: number;
@@ -208,8 +255,11 @@ try {
   );
 
   const report = {
-    resultScope: 'read-only check against this disposable GitHub Actions target only',
-    targetMarker: process.env.BCLICK_PREFLIGHT_TARGET,
+    resultScope: expectedTarget === 'ci-disposable'
+      ? 'read-only check against this disposable GitHub Actions target only'
+      : 'read-only check using the configured Neon endpoint; project identity depends on the owner-configured DATABASE_URL secret',
+    targetMarker: expectedTarget,
+    endpointValidation,
     database: connection.rows[0],
     expectedPostM001SourceTables: sourceTables,
     observedSourceTables: presentSourceTables,
@@ -247,8 +297,13 @@ try {
 
   // Fail closed unless this is exactly the clean CI reference required by the
   // approved strategy. A mismatch is reported and no migration 001 is run.
-  assert.equal(connection.rows[0]?.database_name, 'bclick_ci');
-  assert.ok(connection.rows[0]?.server_version.startsWith('18.6'));
+  if (expectedTarget === 'ci-disposable') {
+    assert.equal(connection.rows[0]?.database_name, 'bclick_ci');
+    assert.ok(connection.rows[0]?.server_version.startsWith('18.6'));
+  } else {
+    assert.equal(endpointValidation.neonHost, true);
+    assert.equal(endpointValidation.frankfurtRegion, true);
+  }
   assert.deepEqual(presentSourceTables, [...sourceTables].sort(), 'all 12 source tables must exist');
   assert.deepEqual(presentDestinationTables, [], 'destination-name collision detected');
   assert.deepEqual(countsResult.rows[0], {
