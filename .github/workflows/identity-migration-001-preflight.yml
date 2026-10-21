@@ -1,0 +1,56 @@
+name: Identity Migration 001 preflight (CI target only)
+
+on:
+  push:
+    branches:
+      - ops/identity-001-pre-migration-check
+    paths:
+      - 'server/scripts/identity-pre-migration-gate.ts'
+      - 'server/migrations/**'
+      - 'server/package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/identity-migration-001-preflight.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: Read-only Migration 001 verification gate
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_DB: bclick_ci
+          POSTGRES_USER: bclick_ci
+          POSTGRES_PASSWORD: bclick_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bclick_ci -d bclick_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install locked workspace
+        run: pnpm install --frozen-lockfile
+      - name: Build the disposable CI target using existing migrations only
+        env:
+          DATABASE_URL: postgresql://bclick_ci:bclick_ci_password@127.0.0.1:5432/bclick_ci
+        run: pnpm --filter @bclick/server migrate:up
+      - name: Run mandatory pre-Migration-001 gate (read-only)
+        env:
+          DATABASE_URL: postgresql://bclick_ci:bclick_ci_password@127.0.0.1:5432/bclick_ci
+          BCLICK_PREFLIGHT_TARGET: ci-disposable
+        run: pnpm --filter @bclick/server exec tsx scripts/identity-pre-migration-gate.ts
