@@ -10,7 +10,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "test": "tsx --test --test-concurrency=1 test/*.test.ts",
+    "test": "tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "migrate:up": "node-pg-migrate up --migrations-dir ./migrations --database-url-var DATABASE_URL",
     "admin:bootstrap": "tsx src/identity/bootstrap-admin.ts"
