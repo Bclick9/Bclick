@@ -72,7 +72,7 @@ The measured clean-CI reference is based on [Investigation run #39569244094](htt
 | Existing canonical permission codes | 0 of the 36 |
 | Legacy permission codes | all five present, all five linked to `project-admin` |
 
-For the six-number reference tuple, the canonical order used in this NOTE is **players / admins / roles / role-permission links / admin-role links / permission rows = `0 / 0 / 1 / 5 / 0 / 5`**. The role code list must also match exactly. The session query is an additional safety check, not an unmeasured claim drawn from the six-number tuple.
+For the six-number reference tuple, the canonical order used in this NOTE is **players / admins / roles / role-permission links / admin-role links / permission rows = `0 / 0 / 1 / 5 / 0 / 5`**. The role code list must also match exactly. The session query is an additional safety check, not part of the six-number tuple. The previous approved Investigation NOTE did not capture a measured session-row count, so this NOTE does not claim that number as observed evidence. A nonzero session count—or an unknown principal mapping—must stop execution for explicit review.
 
 The reference describes a new database built from current migrations. It does **not** describe any private developer-local database. The Project Owner expressly approved the comparison rule: when a target differs from the reference before Migration 001, stop, document differences, and request a decision before proceeding.
 
