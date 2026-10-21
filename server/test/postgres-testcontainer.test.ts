@@ -67,7 +67,12 @@ test('checked-in identity migrations apply cleanly to an isolated PostgreSQL 18 
     const migrationHistory = await pool.query<{ count: string }>(
       'SELECT count(*)::text AS count FROM public.pgmigrations',
     );
-    assert.equal(migrationHistory.rows[0]?.count, '6');
+    assert.equal(migrationHistory.rows[0]?.count, '7');
+
+    const playerNumberSequence = await pool.query<{ last_value: string; is_called: boolean }>(
+      'SELECT last_value::text, is_called FROM public.player_public_number_seq',
+    );
+    assert.deepEqual(playerNumberSequence.rows[0], { last_value: '99999999', is_called: true });
   } finally {
     await pool.end();
     await container.stop();
