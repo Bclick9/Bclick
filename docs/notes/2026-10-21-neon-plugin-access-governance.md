@@ -98,6 +98,6 @@ After both baselines succeed, run the same read-only preflight against Neon and 
 
 - Password rotation and GitHub `DATABASE_URL` update: **reported complete by Project Owner on 2026-10-21; not independently verified here**.
 - This Governance NOTE: **approved by Project Owner; PR #68 merged to main at commit `24e283539f521e00aaf06725b276cd15aed0d02d`**.
-- Baseline migrations on Neon: **approved in principle by Project Owner, but execution remains gated on approval of this NOTE and a reviewed GitHub Actions write workflow**.
+- Baseline migrations on Neon: **approved in principle by Project Owner; execution remains gated on independent rejection of the old credential and a reviewed GitHub Actions write workflow**.
 - Neon read-only preflight: **BLOCKED because the baseline schema is absent**; no writes were performed.
 - Migration 001: **not created or executed; separate explicit approval required**.
