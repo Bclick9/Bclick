@@ -293,11 +293,12 @@ async function assertDownGuarded() {
 
   const observed = await pool.query(
     "SELECT p.id, p.password_hash IS NOT DISTINCT FROM pc.password_hash AS hashes_match, " +
-      "p.password_hash = $1 AS source_hash_preserved " +
+      "p.password_hash = CASE p.id WHEN $1::uuid THEN $2::text WHEN $3::uuid THEN $4::text END " +
+      "AS source_hash_preserved " +
       "FROM public.players p JOIN public.player_credentials pc " +
       "ON pc.player_id = p.id AND pc.kind = 'email_password' " +
-      "WHERE p.id = ANY($2::uuid[]) ORDER BY p.id",
-    [fixtures[0].hash, fixtures.map((fixture) => fixture.id)],
+      "WHERE p.id = ANY($5::uuid[]) ORDER BY p.id",
+    [fixtures[0].id, fixtures[0].hash, fixtures[1].id, fixtures[1].hash, fixtures.map((fixture) => fixture.id)],
   );
   assert.equal(observed.rows.length, fixtures.length, 'Both credential fixtures must remain after refused Down');
   assert.deepEqual(observed.rows.map((row) => row.hashes_match), [false, true],
