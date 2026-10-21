@@ -37,6 +37,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Check out the actual PR head, not GitHub's synthetic merge ref;
+          # this temporary validation workflow commits generated declarations back to that head.
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: pnpm/action-setup@v4
         with:
           version: 10.4.1
