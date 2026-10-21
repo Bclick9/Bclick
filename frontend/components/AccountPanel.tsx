@@ -116,11 +116,11 @@ export function AccountPanel() {
 
       <div className="grid grid-cols-2 rounded-md border border-[var(--cb-light-border)] bg-white overflow-hidden mb-6">
         <div className="p-3 text-center">
-          <p className="text-xs text-[var(--cb-light-muted)]">Real balance</p>
-          <p className="text-base font-bold text-[var(--cb-light-text)]">€0.00</p>
+          <p className="text-xs text-[var(--cb-light-muted)]">Balance (demo)</p>
+          <p className="text-sm font-bold text-[var(--cb-light-text)]">Not connected</p>
         </div>
         <div className="p-3 text-center">
-          <p className="text-xs text-[var(--cb-light-muted)]">Bonus balance</p>
+          <p className="text-xs text-[var(--cb-light-muted)]">Bonus balance (demo)</p>
           <p className="text-base font-bold text-[var(--cb-light-text)]">€0.00</p>
         </div>
       </div>
