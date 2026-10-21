@@ -381,7 +381,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     });
     assert.equal(secondRegistered.statusCode, 201, secondRegistered.body);
     assert.equal(secondRegistered.json().data.player.playerNumber, '436222977');
-    assert.match(secondRegistered.json().data.player.playerNumber, /^\\d{9,}$/);
+    assert.match(secondRegistered.json().data.player.playerNumber, /^\d{9,}$/);
 
     // Acceptance 1: player CSRF material must not authorize an admin mutation.
     const playerTokenAtAdmin = await appUnderTest.inject({
