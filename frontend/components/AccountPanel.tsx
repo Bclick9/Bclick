@@ -62,7 +62,7 @@ export function AccountPanel() {
   const copyUserId = async () => {
     if (!player?.id) return
     try {
-      await navigator.clipboard.writeText(player.id)
+      await navigator.clipboard.writeText(player.playerNumber)
       setCopiedUserId(true)
     } catch {
       setCopiedUserId(false)
@@ -95,7 +95,7 @@ export function AccountPanel() {
           <div className="userId mt-0 flex min-w-0 items-center gap-1 text-xs text-[var(--cb-light-muted)]">
             <span className="shrink-0">ID:</span>
             <span className="Copy-Text-copyTextStyles inline-flex min-w-0 items-center gap-1">
-              <span className="truncate font-semibold text-[var(--cb-light-text)]" title={player?.id}>{player?.id ? player.id.slice(0, 8) : "—"}</span>
+              <span className="truncate font-semibold text-[var(--cb-light-text)]" title={player?.playerNumber}>{player?.playerNumber ?? "—"}</span>
               <button
                 type="button"
                 onClick={copyUserId}
