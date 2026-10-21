@@ -83,6 +83,7 @@ jobs:
             "1792497600000_api_skeleton_baseline.sql"
             "1792512000000_identity_sessions.sql"
             "1792584000000_identity_domain_migration_001.sql"
+            "1792670400000_identity_sessions_split_002.sql"
           )
           diff -u <(printf '%s\n' "${expected_migrations[@]}") <(printf '%s\n' "${actual_migrations[@]}")
       - name: Create exact two-migration baseline in disposable PostgreSQL
@@ -101,10 +102,18 @@ jobs:
           BCLICK_M001_TARGET: ci-disposable
           BCLICK_M001_PHASE: pre
         run: pnpm --filter @bclick/server exec node scripts/identity-migration-001-neon-gate.mjs
-      - name: Apply exactly one migration on disposable PostgreSQL
+      - name: Prepare a Migration 001-only runner inventory
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bclick-m001-only-migrations
+          cp server/migrations/1792497600000_api_skeleton_baseline.sql /tmp/bclick-m001-only-migrations/
+          cp server/migrations/1792512000000_identity_sessions.sql /tmp/bclick-m001-only-migrations/
+          cp server/migrations/1792584000000_identity_domain_migration_001.sql /tmp/bclick-m001-only-migrations/
+
+      - name: Apply exactly Migration 001 on disposable PostgreSQL
         env:
           DATABASE_URL: postgresql://bclick_ci:bclick_ci_password@127.0.0.1:5432/bclick_ci
-        run: pnpm --filter @bclick/server exec node-pg-migrate up --count 1 --migrations-dir ./migrations --database-url-var DATABASE_URL
+        run: pnpm --filter @bclick/server exec node-pg-migrate up --count 1 --migrations-dir /tmp/bclick-m001-only-migrations --database-url-var DATABASE_URL
       - name: Run read-only postflight gate
         env:
           DATABASE_URL: postgresql://bclick_ci:bclick_ci_password@127.0.0.1:5432/bclick_ci
