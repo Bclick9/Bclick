@@ -325,7 +325,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     const returnedProfile = sameOriginProfileUpdate.json().data.player;
     assert.equal(returnedProfile.displayName, 'Same-origin acceptance update');
     assert.equal(returnedProfile.playerNumber, '436222976');
-    assert.match(returnedProfile.playerNumber, /^\\d{9,}$/);
+    assert.match(returnedProfile.playerNumber, /^\d{9,}$/);
     assert.equal(returnedProfile.firstName, 'Ahmed');
     assert.equal(returnedProfile.lastName, 'Test Player');
     assert.equal(returnedProfile.gender, 'male');
