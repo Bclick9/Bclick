@@ -349,6 +349,8 @@ paths:
           headers:
             X-Request-Id:
               $ref: '#/components/headers/XRequestId'
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/NotFound'}
       parameters:
         - $ref: '#/components/parameters/XRequestId'
@@ -390,6 +392,8 @@ paths:
             X-Request-Id:
               $ref: '#/components/headers/XRequestId'
         '400': {$ref: '#/components/responses/ValidationError'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
       operationId: getWalletsByCurrencyStatement
   /api/v1/wallets/fx-quotes:
     post:
