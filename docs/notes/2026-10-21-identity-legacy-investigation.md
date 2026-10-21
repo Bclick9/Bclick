@@ -307,9 +307,9 @@ I scanned the text source files in current main for the exact identifiers \`iden
 
 | Area | Result |
 |---|---|
-| \`frontend/\` | No exact identifier hits in the 41 tracked path entries; no database access through these table names found |
-| \`backend/\` | No exact identifier hits in the 36 tracked path entries; this remains a UI prototype, not a DB consumer |
-| \`packages/\` | No exact identifier hits in its tracked text files, including the generated API declaration; no package-layer SQL reference found |
+| \`frontend/\` | No exact identifier hits in the 39 tracked text paths; no database access through these table names found |
+| \`backend/\` | No exact identifier hits in the 36 tracked text paths; this remains a UI prototype, not a DB consumer |
+| \`packages/\` | No exact identifier hits in the 11 non-generated tracked text paths or the generated API declaration; no package-layer SQL reference found |
 | \`server/migrations/1792512000000_identity_sessions.sql\` | Table definitions, indexes, internal FK references and drop statements |
 | \`server/src/identity/service.ts\` | Actual application SQL reads/writes the player, admin and session tables (and supporting Identity tables) |
 | \`server/test/identity.test.ts\` | Test admin inserts, session cleanup, and player/admin cleanup |
