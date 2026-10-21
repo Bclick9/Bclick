@@ -96,9 +96,9 @@ export class IdentityService {
         const id = randomUUID();
         const name = email.split('@')[0]!.slice(0, 80) || 'Player';
         const inserted = await tx.query<DbRow>(`INSERT INTO players
-          (id,email,email_normalized,password_hash,display_name,country_code,settlement_currency,language,preferred_display_currency,status,verification_status,created_at,updated_at)
-          VALUES ($1,$2,$2,$3,$4,$5,$6,$7,$8,'pending','pending',now(),now())
-          RETURNING id,email,display_name,country_code,settlement_currency,language,preferred_display_currency,status,verification_status,created_at`,
+          (id,email,email_normalized,password_hash,display_name,country_code,settlement_currency,language,preferred_language,preferred_display_currency,status,verification_status,email_verification_status,created_at,updated_at)
+          VALUES ($1,$2,$2,$3,$4,$5,$6,$7,$7,$8,'pending','pending','pending',now(),now())
+          RETURNING id,email,display_name,country_code,settlement_currency,language,preferred_language,preferred_display_currency,status,verification_status,email_verification_status,created_at`,
         [id, email, passwordHash, name, input.countryCode, input.settlementCurrency, input.language ?? 'en', input.preferredDisplayCurrency ?? null]);
         const session = await this.createSession(tx, 'player', id, false);
         tokenForMail = opaqueToken();
@@ -187,7 +187,7 @@ export class IdentityService {
 
   async updatePlayerProfile(session: AuthSession, input: { displayName?: string | undefined; language?: string | undefined }): Promise<Record<string, unknown>> {
     if (session.type !== 'player') throw new IdentityFault(403, 'FORBIDDEN', 'Player context required');
-    const result = await this.repository.query<DbRow>(`UPDATE players SET display_name=COALESCE($2,display_name),language=COALESCE($3,language),updated_at=now()
+    const result = await this.repository.query<DbRow>(`UPDATE players SET display_name=COALESCE($2,display_name),language=COALESCE($3,language),preferred_language=COALESCE($3,preferred_language),updated_at=now()
       WHERE id=$1 RETURNING id,email,display_name,country_code,settlement_currency,language,preferred_display_currency,status,verification_status,created_at`,
     [session.principalId, input.displayName ?? null, input.language ?? null]);
     if (!result.rows[0]) throw new IdentityFault(404, 'NOT_FOUND', 'Player not found');
@@ -388,7 +388,7 @@ export class IdentityService {
         WHERE token_type='email_verification' AND token_hash=$1 AND consumed_at IS NULL AND expires_at>now() FOR UPDATE`, [this.hash(token)]);
       const row = record.rows[0];
       if (!row) throw new IdentityFault(400, 'VALIDATION_ERROR', 'Verification token is invalid or expired');
-      await tx.query("UPDATE players SET verification_status='verified',updated_at=now() WHERE id=$1", [String(row.principal_id)]);
+      await tx.query("UPDATE players SET verification_status='verified',email_verification_status='verified',updated_at=now() WHERE id=$1", [String(row.principal_id)]);
       await tx.query('UPDATE player_one_time_tokens SET consumed_at=now() WHERE id=$1', [String(row.id)]);
     });
   }
