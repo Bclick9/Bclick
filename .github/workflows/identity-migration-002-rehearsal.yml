@@ -79,14 +79,14 @@ jobs:
           cp server/migrations/1792512000000_identity_sessions.sql "$dir/"
           cp server/migrations/1792584000000_identity_domain_migration_001.sql "$dir/"
           cp server/migrations/1792670400000_identity_sessions_split_002.sql "$dir/"
-          mapfile -t actual < <(find "$dir" -maxdepth 1 -type f -name '*.sql' -printf '%f\\n' | sort)
+          mapfile -t actual < <(find "$dir" -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort)
           expected=(
             "1792497600000_api_skeleton_baseline.sql"
             "1792512000000_identity_sessions.sql"
             "1792584000000_identity_domain_migration_001.sql"
             "1792670400000_identity_sessions_split_002.sql"
           )
-          diff -u <(printf '%s\\n' "${expected[@]}") <(printf '%s\\n' "${actual[@]}")
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${actual[@]}")
 
       - name: Apply the Migration 002-era ordered migrations to disposable PostgreSQL
         run: pnpm --filter @bclick/server exec node-pg-migrate up --migrations-dir /tmp/bclick-m002-rehearsal-migrations --database-url-var DATABASE_URL
