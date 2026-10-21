@@ -91,7 +91,18 @@ jobs:
           diff -u <(printf '%s\n' "${expected_migrations[@]}") <(printf '%s\n' "${actual_migrations[@]}")
 
       - name: Build exact four-migration checkpoint on disposable PostgreSQL
-        run: pnpm --filter @bclick/server exec node-pg-migrate up --count 4 --migrations-dir ./migrations --database-url-var DATABASE_URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bclick-m003-gate-prior-migrations
+          cp server/migrations/1792497600000_api_skeleton_baseline.sql /tmp/bclick-m003-gate-prior-migrations/
+          cp server/migrations/1792512000000_identity_sessions.sql /tmp/bclick-m003-gate-prior-migrations/
+          cp server/migrations/1792584000000_identity_domain_migration_001.sql /tmp/bclick-m003-gate-prior-migrations/
+          cp server/migrations/1792670400000_identity_sessions_split_002.sql /tmp/bclick-m003-gate-prior-migrations/
+          actual_count="$(find /tmp/bclick-m003-gate-prior-migrations -maxdepth 1 -name '*.sql' | wc -l | tr -d ' ')"
+          [[ "$actual_count" == "4" ]] || { echo "Refusing: expected exactly four pre-M003 migration files." >&2; exit 1; }
+          cd server
+          pnpm exec node-pg-migrate up --migrations-dir /tmp/bclick-m003-gate-prior-migrations --database-url-var DATABASE_URL
 
       - name: Run Migration 003 preflight against disposable PostgreSQL
         env:
