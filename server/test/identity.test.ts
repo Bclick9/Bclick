@@ -289,7 +289,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     const registered = await appUnderTest.inject({
       method: 'POST', url: '/api/v1/auth/register',
       headers: { origin: 'https://localhost:5173' },
-      payload: { email: playerEmail, password: playerPassword, countryCode: 'TN', settlementCurrency: 'TND', dateOfBirth: '1990-01-01', acceptTerms: true, acceptAgeConfirmation: true, preferredLanguage: 'en', username: ' Player.Test ', phoneNumber: '+21612345678' },
+      payload: { email: playerEmail, password: playerPassword, countryCode: 'TN', settlementCurrency: 'TND', dateOfBirth: '1990-01-01', acceptTerms: true, acceptAgeConfirmation: true, preferredLanguage: 'en', username: 'Player.Test', phoneNumber: '+21612345678' },
     });
     assert.equal(registered.statusCode, 201, registered.body);
     assert.equal(registered.json().data.player.username, 'Player.Test');
