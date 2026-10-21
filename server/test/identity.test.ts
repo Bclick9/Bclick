@@ -324,7 +324,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     assert.equal(sameOriginProfileUpdate.statusCode, 200, sameOriginProfileUpdate.body);
     const returnedProfile = sameOriginProfileUpdate.json().data.player;
     assert.equal(returnedProfile.displayName, 'Same-origin acceptance update');
-    assert.equal(returnedProfile.playerNumber, '436222976');
+    assert.equal(returnedProfile.playerNumber, '100000000');
     assert.match(returnedProfile.playerNumber, /^\d{9,}$/);
     assert.equal(returnedProfile.firstName, 'Ahmed');
     assert.equal(returnedProfile.lastName, 'Test Player');
@@ -340,7 +340,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
       [playerId[0]],
     );
     assert.deepEqual(persistedRegistration.rows[0], {
-      player_number: '436222976',
+      player_number: '100000000',
       first_name: 'Ahmed',
       last_name: 'Test Player',
       gender: 'male',
@@ -380,7 +380,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
       },
     });
     assert.equal(secondRegistered.statusCode, 201, secondRegistered.body);
-    assert.equal(secondRegistered.json().data.player.playerNumber, '436222977');
+    assert.equal(secondRegistered.json().data.player.playerNumber, '100000001');
     assert.match(secondRegistered.json().data.player.playerNumber, /^\d{9,}$/);
 
     // Acceptance 1: player CSRF material must not authorize an admin mutation.
