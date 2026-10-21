@@ -223,7 +223,11 @@ async function requireEnrollment(
 }
 
 export function registerIdentityRoutes(app: FastifyInstance, service: IdentityService, config: IdentityConfig): void {
-  const walletReadService = new WalletReadService(service.repository);
+  let walletReadService: WalletReadService | undefined;
+  const getWalletReadService = (): WalletReadService => {
+    if (!walletReadService) walletReadService = new WalletReadService(service.repository);
+    return walletReadService;
+  };
   app.post('/api/v1/auth/register', {
     config: { rateLimit: false },
     schema: {
@@ -487,7 +491,7 @@ export function registerIdentityRoutes(app: FastifyInstance, service: IdentitySe
     const session = await requirePlayer(request, reply, service, config, false);
     if (!session) return;
     const params = request.params as { currency: string };
-    const currency = await walletReadService.getBalance(
+    const currency = await getWalletReadService().getBalance(
       session.principalId,
       session.player?.settlement_currency,
       params.currency,
@@ -517,7 +521,7 @@ export function registerIdentityRoutes(app: FastifyInstance, service: IdentitySe
     if (!session) return;
     const params = request.params as { currency: string };
     const query = request.query as { cursor?: string; limit?: number; from?: string; to?: string };
-    const result = await walletReadService.getStatement(
+    const result = await getWalletReadService().getStatement(
       session.principalId,
       session.player?.settlement_currency,
       {
