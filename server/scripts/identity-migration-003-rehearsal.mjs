@@ -218,18 +218,21 @@ async function postUp() {
   assert.ok(!observedCredentialColumns.has('password_plaintext'), 'A plaintext password field must never exist');
 
   const credentialConstraints = await pool.query(
-    "SELECT conname FROM pg_constraint WHERE conrelid='public.player_credentials'::regclass ORDER BY conname",
+    "SELECT conname, contype, pg_get_constraintdef(oid) AS definition " +
+      "FROM pg_constraint WHERE conrelid='public.player_credentials'::regclass ORDER BY conname",
   );
-  const names = new Set(credentialConstraints.rows.map((row) => row.conname));
+  const namedConstraints = new Set(credentialConstraints.rows.map((row) => row.conname));
   for (const name of [
     'player_credentials_player_id_fkey',
-    'player_credentials_kind_check',
-    'player_credentials_identifier_check',
-    'player_credentials_identifier_norm_check',
-    'player_credentials_password_hash_check',
     'player_credentials_player_kind_key',
     'player_credentials_kind_identifier_norm_key',
-  ]) assert.ok(names.has(name), 'Missing player credential constraint ' + name);
+  ]) assert.ok(namedConstraints.has(name), 'Missing player credential constraint ' + name);
+  const checkRows = credentialConstraints.rows.filter((row) => row.contype === 'c');
+  const checkDefinitions = checkRows.map((row) => String(row.definition)).join(' ');
+  assert.ok(checkRows.length >= 4, 'Expected all four player_credentials CHECK constraints');
+  for (const column of ['kind', 'identifier', 'identifier_norm', 'password_hash']) {
+    assert.ok(checkDefinitions.includes(column), 'Missing CHECK definition for player_credentials.' + column);
+  }
 
   console.log(JSON.stringify({
     phase: 'post-up',
