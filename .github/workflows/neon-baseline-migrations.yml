@@ -1,0 +1,122 @@
+name: Neon baseline migrations (owner-approved target)
+
+run-name: Neon baseline migration workflow run ${{ github.run_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_confirmation:
+        description: "Type exactly: copabet365-neondb-frankfurt"
+        required: true
+        type: string
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/neon-baseline-migrations.yml'
+      - 'server/scripts/neon-baseline-migration-gate.mjs'
+      - 'server/migrations/**'
+      - 'server/package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: neon-baseline-migration
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    name: Validate guarded workflow without database access
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install locked workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate baseline gate syntax
+        run: node --check server/scripts/neon-baseline-migration-gate.mjs
+
+  baseline:
+    if: github.event_name == 'workflow_dispatch'
+    name: Guarded baseline migrations and verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: neon-baseline-setup
+    steps:
+      - name: Require main branch and explicit target confirmation
+        shell: bash
+        env:
+          TARGET_CONFIRMATION: ${{ inputs.target_confirmation }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "Refusing to run: this workflow must run from main."
+            exit 1
+          fi
+          if [[ "$TARGET_CONFIRMATION" != "copabet365-neondb-frankfurt" ]]; then
+            echo "Refusing to run: explicit target confirmation did not match."
+            exit 1
+          fi
+          echo "Target confirmation accepted; no credentials were read or printed."
+
+      - name: Record audit identifiers
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Workflow run ID: $GITHUB_RUN_ID"
+          echo "Workflow attempt: $GITHUB_RUN_ATTEMPT"
+          echo "Commit SHA: $GITHUB_SHA"
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Target marker: copabet365-neondb-frankfurt"
+          echo "Approved migration files:"
+          echo "  1792497600000_api_skeleton_baseline.sql"
+          echo "  1792512000000_identity_sessions.sql"
+
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install locked workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: Read-only Neon precheck (fail closed)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BCLICK_NEON_BASELINE_TARGET: copabet365-neondb-frankfurt
+          BCLICK_NEON_BASELINE_PHASE: pre
+        run: pnpm --filter @bclick/server exec node scripts/neon-baseline-migration-gate.mjs
+
+      - name: Apply only the two existing approved baseline migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm --filter @bclick/server migrate:up
+
+      - name: Read-only Neon postcheck (fail closed on mismatch)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BCLICK_NEON_BASELINE_TARGET: copabet365-neondb-frankfurt
+          BCLICK_NEON_BASELINE_PHASE: post
+        run: pnpm --filter @bclick/server exec node scripts/neon-baseline-migration-gate.mjs
