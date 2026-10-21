@@ -6,6 +6,7 @@ export interface Player {
   /** Internal UUID. Use playerNumber for the public account ID shown in the UI. */
   id: string
   playerNumber: string
+  username: string | null
   email: string
   displayName: string
   firstName: string | null
@@ -26,6 +27,8 @@ export interface Player {
 export type AuthApiStatus = 'checking' | 'online' | 'offline' | 'identity-disabled'
 
 export interface PlayerProfileUpdate {
+  /** One-time setup for legacy accounts without a username; cannot be changed afterwards. */
+  username?: string
   displayName?: string
   language?: string
   firstName?: string | null
@@ -40,6 +43,7 @@ export interface PlayerProfileUpdate {
 
 export interface RegisterInput {
   email: string
+  username: string
   password: string
   countryCode: string
   settlementCurrency: 'TND' | 'EUR' | 'USD'
@@ -61,7 +65,7 @@ interface AuthContextValue {
   player: Player | null
   isLoading: boolean
   apiStatus: AuthApiStatus
-  login: (email: string, password: string) => Promise<Player>
+  login: (identifier: string, password: string) => Promise<Player>
   register: (input: RegisterInput) => Promise<Player>
   refreshPlayerProfile: () => Promise<Player>
   updatePlayerProfile: (input: PlayerProfileUpdate) => Promise<Player>
@@ -179,13 +183,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return payload.data.player
   }
 
-  const login = (email: string, password: string) => requestPlayer('/login', {
-    email: email.trim(),
+  const login = (identifier: string, password: string) => requestPlayer('/login', {
+    identifier: identifier.trim(),
     password,
   })
 
   const register = (input: RegisterInput) => requestPlayer('/register', {
     email: input.email.trim(),
+    username: input.username.trim(),
     password: input.password,
     countryCode: input.countryCode,
     settlementCurrency: input.settlementCurrency,
@@ -229,6 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updatePlayerProfile = useCallback(async (input: PlayerProfileUpdate): Promise<Player> => {
     const updates: Record<string, string | null> = {}
+    if (typeof input.username === 'string') updates.username = input.username.trim()
     if (typeof input.displayName === 'string') updates.displayName = input.displayName.trim()
     if (typeof input.language === 'string') updates.language = input.language.trim()
     if ('firstName' in input) updates.firstName = input.firstName?.trim() || null
@@ -241,6 +247,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if ('postalCode' in input) updates.postalCode = input.postalCode?.trim() || null
     if (Object.keys(updates).length === 0) {
       throw new Error('Change a profile field before saving.')
+    }
+    if (typeof updates.username === 'string' && !/^[A-Za-z0-9._-]{3,32}$/.test(updates.username)) {
+      throw new Error('Username must be 3–32 characters using letters, numbers, dots, underscores, or hyphens.')
     }
 
     if (updates.displayName !== undefined && (updates.displayName === null || updates.displayName.length < 1 || updates.displayName.length > 80)) {
