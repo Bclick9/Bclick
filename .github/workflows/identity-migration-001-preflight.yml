@@ -11,6 +11,16 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - '.github/workflows/identity-migration-001-preflight.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'server/scripts/identity-pre-migration-gate.ts'
+      - 'server/migrations/**'
+      - 'server/package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/identity-migration-001-preflight.yml'
 
 permissions:
   contents: read
