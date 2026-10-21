@@ -151,13 +151,25 @@ export class IdentityService {
            username,username_normalized,phone_number_e164,created_at,updated_at)
           VALUES ($1,$2,$2,$3,$4,$5,$6,$7,$7,$8,'pending','pending','pending',
                   $9,now(),$10,now(),$11,$12,$13,$14,now(),now())
-          RETURNING id,email,display_name,country_code,settlement_currency,language,preferred_language,
-                    preferred_display_currency,status,verification_status,email_verification_status,created_at`,
+          RETURNING id,email,player_number,display_name,first_name,last_name,gender,country_code,city,address,
+                    phone_number_e164,postal_code,settlement_currency,language,preferred_language,
+                    preferred_display_currency,status,verification_status,email_verification_status,created_at,updated_at`,
         [
           id, email, passwordHash, name, input.countryCode, input.settlementCurrency,
           input.preferredLanguage, input.preferredDisplayCurrency ?? null, input.dateOfBirth,
           this.config.termsVersion, this.config.agePolicyVersion, username, usernameNormalized, phoneNumber,
         ]);
+        const insertedPlayer = inserted.rows[0] as Record<string, unknown>;
+        await tx.query(`INSERT INTO player_profiles (player_id,display_name,created_at,updated_at)
+          VALUES ($1,$2,$3,$4)
+          ON CONFLICT (player_id) DO UPDATE SET display_name=EXCLUDED.display_name,created_at=EXCLUDED.created_at,updated_at=EXCLUDED.updated_at`,
+        [id, name, insertedPlayer.created_at, insertedPlayer.updated_at]);
+        await tx.query(`INSERT INTO player_credentials
+          (player_id,kind,identifier,identifier_norm,password_hash,password_changed_at,created_at,updated_at)
+          VALUES ($1,'email_password',$2,$2,$3,NULL,$4,$4)
+          ON CONFLICT (player_id,kind) DO UPDATE SET
+            identifier=EXCLUDED.identifier,identifier_norm=EXCLUDED.identifier_norm,password_hash=EXCLUDED.password_hash,updated_at=EXCLUDED.updated_at`,
+        [id, email, passwordHash, insertedPlayer.created_at]);
         const session = await this.createSession(tx, 'player', id, false);
         tokenForMail = opaqueToken();
         await tx.query(`INSERT INTO player_one_time_tokens
@@ -185,7 +197,8 @@ export class IdentityService {
     const email = normalizeEmail(emailInput);
     const permitted = await this.allowAttempt('player-login-email', email, 900, 5)
       && await this.allowAttempt('player-login-ip', remoteAddress, 900, 20);
-    const result = await this.repository.query<DbRow>(`SELECT id,email,display_name,password_hash,status,verification_status,settlement_currency,language,preferred_display_currency
+    const result = await this.repository.query<DbRow>(`SELECT id,email,player_number,display_name,first_name,last_name,gender,country_code,city,address,
+        phone_number_e164,postal_code,password_hash,status,verification_status,settlement_currency,language,preferred_display_currency
       FROM players WHERE email_normalized=$1`, [email]);
     const row = result.rows[0];
     const passwordOkay = await verifyPassword(password, String(row?.password_hash ?? DUMMY_HASH));
@@ -221,7 +234,8 @@ export class IdentityService {
       expiresAt: new Date(String(row.expires_at)).toISOString(), mfaVerified: Boolean(row.mfa_verified),
     } as const;
     if (type === 'player') {
-      const found = await this.repository.query<DbRow>(`SELECT id,email,display_name,country_code,settlement_currency,language,preferred_display_currency,status,verification_status,created_at
+      const found = await this.repository.query<DbRow>(`SELECT id,email,player_number,display_name,first_name,last_name,gender,country_code,city,address,
+          phone_number_e164,postal_code,settlement_currency,language,preferred_display_currency,status,verification_status,created_at,updated_at
         FROM players WHERE id=$1`, [String(row.principal_id)]);
       const player = found.rows[0];
       return player ? { ...base, type, status: String(player.status), player: player as Record<string, unknown> } : null;
@@ -257,13 +271,104 @@ export class IdentityService {
     return this.verifyCsrf(session.type === 'player' ? 'player' : 'admin', session.id, session.version, token);
   }
 
-  async updatePlayerProfile(session: AuthSession, input: { displayName?: string | undefined; language?: string | undefined }): Promise<Record<string, unknown>> {
+  async updatePlayerProfile(session: AuthSession, input: {
+    displayName?: string | undefined;
+    language?: string | undefined;
+    firstName?: string | null | undefined;
+    lastName?: string | null | undefined;
+    gender?: 'female' | 'male' | 'other' | 'prefer_not_to_say' | null | undefined;
+    countryCode?: string | undefined;
+    city?: string | null | undefined;
+    address?: string | null | undefined;
+    phoneNumber?: string | null | undefined;
+    postalCode?: string | null | undefined;
+  }, requestId: string): Promise<Record<string, unknown>> {
     if (session.type !== 'player') throw new IdentityFault(403, 'FORBIDDEN', 'Player context required');
-    const result = await this.repository.query<DbRow>(`UPDATE players SET display_name=COALESCE($2,display_name),language=COALESCE($3,language),preferred_language=COALESCE($3,preferred_language),updated_at=now()
-      WHERE id=$1 RETURNING id,email,display_name,country_code,settlement_currency,language,preferred_display_currency,status,verification_status,created_at`,
-    [session.principalId, input.displayName ?? null, input.language ?? null]);
-    if (!result.rows[0]) throw new IdentityFault(404, 'NOT_FOUND', 'Player not found');
-    return result.rows[0] as Record<string, unknown>;
+
+    type PatchField = { name: string; column: string; value: string | null };
+    const patch: PatchField[] = [];
+    const has = (key: string) => Object.prototype.hasOwnProperty.call(input, key);
+    const optionalText = (value: string | null | undefined, maxLength: number, label: string): string | null => {
+      if (value == null) return null;
+      const normalized = value.trim();
+      if (normalized.length === 0) return null;
+      if (normalized.length > maxLength) {
+        throw new IdentityFault(422, 'PROFILE_FIELD_INVALID', label + ' is too long');
+      }
+      return normalized;
+    };
+
+    if (input.displayName !== undefined) {
+      const value = input.displayName.trim();
+      if (value.length < 1 || value.length > 80) {
+        throw new IdentityFault(422, 'PROFILE_FIELD_INVALID', 'Display name must contain between 1 and 80 characters');
+      }
+      patch.push({ name: 'displayName', column: 'display_name', value });
+    }
+    if (input.language !== undefined) {
+      const value = input.language.trim();
+      if (value.length < 2 || value.length > 12) {
+        throw new IdentityFault(422, 'PROFILE_FIELD_INVALID', 'Language must contain between 2 and 12 characters');
+      }
+      patch.push({ name: 'language', column: 'language', value });
+    }
+    if (has('firstName')) patch.push({ name: 'firstName', column: 'first_name', value: optionalText(input.firstName, 100, 'First name') });
+    if (has('lastName')) patch.push({ name: 'lastName', column: 'last_name', value: optionalText(input.lastName, 100, 'Last name') });
+    if (has('gender')) {
+      const value = input.gender ?? null;
+      if (value !== null && !['female', 'male', 'other', 'prefer_not_to_say'].includes(value)) {
+        throw new IdentityFault(422, 'PROFILE_FIELD_INVALID', 'Gender selection is invalid');
+      }
+      patch.push({ name: 'gender', column: 'gender', value });
+    }
+    if (input.countryCode !== undefined) {
+      const value = input.countryCode.trim().toUpperCase();
+      if (!/^[A-Z]{2}$/.test(value)) {
+        throw new IdentityFault(422, 'PROFILE_FIELD_INVALID', 'Country must be a two-letter ISO country code');
+      }
+      patch.push({ name: 'countryCode', column: 'country_code', value });
+    }
+    if (has('city')) patch.push({ name: 'city', column: 'city', value: optionalText(input.city, 120, 'City') });
+    if (has('address')) patch.push({ name: 'address', column: 'address', value: optionalText(input.address, 250, 'Address') });
+    if (has('phoneNumber')) {
+      const value = optionalText(input.phoneNumber, 16, 'Phone number');
+      if (value !== null && !/^\+[1-9][0-9]{1,14}$/.test(value)) {
+        throw new IdentityFault(422, 'PHONE_INVALID', 'Phone number must use international E.164 format, for example +21612345678');
+      }
+      patch.push({ name: 'phoneNumber', column: 'phone_number_e164', value });
+    }
+    if (has('postalCode')) patch.push({ name: 'postalCode', column: 'postal_code', value: optionalText(input.postalCode, 20, 'Postal code') });
+    if (patch.length === 0) throw new IdentityFault(400, 'VALIDATION_ERROR', 'At least one profile field is required');
+
+    return this.repository.transaction(async (tx) => {
+      const values: unknown[] = [session.principalId];
+      const assignments: string[] = [];
+      for (const field of patch) {
+        values.push(field.value);
+        const placeholder = '$' + values.length;
+        assignments.push(field.column + '=' + placeholder);
+        if (field.name === 'language') assignments.push('preferred_language=' + placeholder);
+      }
+      const result = await tx.query<DbRow>(`UPDATE players
+        SET ${assignments.join(',')},updated_at=now()
+        WHERE id=$1
+        RETURNING id,email,player_number,display_name,first_name,last_name,gender,country_code,city,address,
+          phone_number_e164,postal_code,settlement_currency,language,preferred_display_currency,status,verification_status,created_at,updated_at`,
+      values);
+      const player = result.rows[0];
+      if (!player) throw new IdentityFault(404, 'NOT_FOUND', 'Player not found');
+
+      // Keep the currently active legacy source/mirror pair aligned until a
+      // separately reviewed player_profiles read/write cutover is approved.
+      await tx.query(`INSERT INTO player_profiles (player_id,display_name,created_at,updated_at)
+        VALUES ($1,$2,$3,$4)
+        ON CONFLICT (player_id) DO UPDATE SET display_name=EXCLUDED.display_name,created_at=EXCLUDED.created_at,updated_at=EXCLUDED.updated_at`,
+      [String(player.id), String(player.display_name), player.created_at, player.updated_at]);
+
+      await this.audit(tx, 'player.profile.update', 'player', session.principalId, 'player', session.principalId,
+        'success', requestId, { changedFields: patch.map((field) => field.name) });
+      return player as Record<string, unknown>;
+    });
   }
 
   async beginAdminLogin(emailInput: string, password: string, requestId: string, remoteAddress: string): Promise<{
@@ -449,6 +554,8 @@ export class IdentityService {
       const row = record.rows[0];
       if (!row) throw new IdentityFault(400, 'VALIDATION_ERROR', 'Password reset token is invalid or expired');
       await tx.query('UPDATE players SET password_hash=$2,updated_at=now() WHERE id=$1', [String(row.principal_id), passwordHash]);
+      await tx.query(`UPDATE player_credentials SET password_hash=$2,password_changed_at=now(),updated_at=now()
+        WHERE player_id=$1 AND kind='email_password'`, [String(row.principal_id), passwordHash]);
       await tx.query('UPDATE player_one_time_tokens SET consumed_at=now() WHERE id=$1', [String(row.id)]);
       await tx.query('UPDATE player_sessions SET revoked_at=now() WHERE player_id=$1 AND revoked_at IS NULL', [String(row.principal_id)]);
     });
