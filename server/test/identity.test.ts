@@ -364,6 +364,25 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     const mirroredCredential = await database.query('SELECT identifier_norm FROM player_credentials WHERE player_id=$1 AND kind=$2', [playerId[0], 'email_password']);
     assert.equal(mirroredCredential.rows[0]?.identifier_norm, playerEmail.toLowerCase());
 
+    // The public player number must be globally unique and strictly increment for the next registration.
+    const secondRegistered = await appUnderTest.inject({
+      method: 'POST', url: '/api/v1/auth/register',
+      headers: { origin: 'https://localhost:5173' },
+      payload: {
+        email: 'second-player-' + randomUUID() + '@example.test',
+        password: playerPassword,
+        countryCode: 'TN',
+        settlementCurrency: 'TND',
+        dateOfBirth: '1991-02-03',
+        acceptTerms: true,
+        acceptAgeConfirmation: true,
+        preferredLanguage: 'en',
+      },
+    });
+    assert.equal(secondRegistered.statusCode, 201, secondRegistered.body);
+    assert.equal(secondRegistered.json().data.player.playerNumber, '436222977');
+    assert.match(secondRegistered.json().data.player.playerNumber, /^\\d{9,}$/);
+
     // Acceptance 1: player CSRF material must not authorize an admin mutation.
     const playerTokenAtAdmin = await appUnderTest.inject({
       method: 'POST', url: '/api/v1/admin/auth/logout',
