@@ -315,7 +315,7 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
         ],
       }),
     ]);
-    assert.equal(concurrent.filter((result) => result.status === 'fulfilled').length, 1);
+    assert.equal(concurrent.filter((result) => result.status === 'fulfilled').length, 1, 'concurrent debit results: ' + JSON.stringify(concurrent.map((result) => result.status === 'fulfilled' ? { status: result.status } : { status: result.status, message: String(result.reason), code: (result.reason as { code?: string }).code })));
     assert.equal(concurrent.filter((result) => result.status === 'rejected').length, 1);
     const rejected = concurrent.find((result) => result.status === 'rejected');
     assert.ok(rejected && rejected.status === 'rejected');
