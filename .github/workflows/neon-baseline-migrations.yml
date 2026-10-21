@@ -14,7 +14,8 @@ on:
     paths:
       - '.github/workflows/neon-baseline-migrations.yml'
       - 'server/scripts/neon-baseline-migration-gate.mjs'
-      - 'server/migrations/**'
+      - 'server/migrations/1792497600000_api_skeleton_baseline.sql'
+      - 'server/migrations/1792512000000_identity_sessions.sql'
       - 'server/package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
