@@ -41,13 +41,13 @@ export class IdentityService {
   }
 
   private async allowAttempt(scope: string, subject: string, windowSeconds: number, maximum: number): Promise<boolean> {
-    const result = await this.repository.query<DbRow>(`INSERT INTO identity_rate_limits(scope, subject_hash, window_started_at, attempt_count)
+    const result = await this.repository.query<DbRow>(`INSERT INTO rate_limits(scope, subject_hash, window_started_at, attempt_count)
       VALUES ($1, $2, now(), 1)
       ON CONFLICT(scope, subject_hash) DO UPDATE SET
-        attempt_count = CASE WHEN identity_rate_limits.window_started_at <= now() - make_interval(secs => $3::int)
-          THEN 1 ELSE identity_rate_limits.attempt_count + 1 END,
-        window_started_at = CASE WHEN identity_rate_limits.window_started_at <= now() - make_interval(secs => $3::int)
-          THEN now() ELSE identity_rate_limits.window_started_at END
+        attempt_count = CASE WHEN rate_limits.window_started_at <= now() - make_interval(secs => $3::int)
+          THEN 1 ELSE rate_limits.attempt_count + 1 END,
+        window_started_at = CASE WHEN rate_limits.window_started_at <= now() - make_interval(secs => $3::int)
+          THEN now() ELSE rate_limits.window_started_at END
       RETURNING attempt_count`, [scope, this.hash(subject), windowSeconds]);
     return Number(result.rows[0]?.attempt_count ?? maximum + 1) <= maximum;
   }
@@ -55,7 +55,7 @@ export class IdentityService {
   private async audit(tx: PoolClient, action: string, actorType: 'player' | 'admin' | 'system',
     actorId: string | null, subjectType: string | null, subjectId: string | null,
     outcome: 'success' | 'denied' | 'failure', requestId: string, metadata: Record<string, unknown> = {}): Promise<void> {
-    await tx.query(`INSERT INTO identity_security_audit_events
+    await tx.query(`INSERT INTO audit_events
       (id, action, actor_type, actor_id, subject_type, subject_id, outcome, request_id, metadata, created_at)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,now())`,
     [randomUUID(), action, actorType, actorId, subjectType, subjectId, outcome, requestId, JSON.stringify(metadata)]);
@@ -77,7 +77,7 @@ export class IdentityService {
     const version = 1;
     const now = new Date();
     const expires = new Date(now.getTime() + (type === 'player' ? 30 * 86400_000 : 8 * 3600_000));
-    await tx.query(`INSERT INTO identity_sessions
+    await tx.query(`INSERT INTO auth_sessions
       (id, principal_type, principal_id, token_hash, session_version, created_at, authenticated_at, expires_at, mfa_verified)
       VALUES ($1,$2,$3,$4,$5,$6,$6,$7,$8)`,
     [id, type, principalId, this.hash(token), version, now, expires, mfaVerified]);
@@ -95,14 +95,14 @@ export class IdentityService {
       created = await this.repository.transaction(async (tx) => {
         const id = randomUUID();
         const name = email.split('@')[0]!.slice(0, 80) || 'Player';
-        const inserted = await tx.query<DbRow>(`INSERT INTO identity_players
+        const inserted = await tx.query<DbRow>(`INSERT INTO players
           (id,email,email_normalized,password_hash,display_name,country_code,settlement_currency,language,preferred_display_currency,status,verification_status,created_at,updated_at)
           VALUES ($1,$2,$2,$3,$4,$5,$6,$7,$8,'pending','pending',now(),now())
           RETURNING id,email,display_name,country_code,settlement_currency,language,preferred_display_currency,status,verification_status,created_at`,
         [id, email, passwordHash, name, input.countryCode, input.settlementCurrency, input.language ?? 'en', input.preferredDisplayCurrency ?? null]);
         const session = await this.createSession(tx, 'player', id, false);
         tokenForMail = opaqueToken();
-        await tx.query(`INSERT INTO identity_one_time_tokens
+        await tx.query(`INSERT INTO player_one_time_tokens
           (id,principal_type,principal_id,token_type,token_hash,expires_at,created_at)
           VALUES ($1,'player',$2,'email_verification',$3,now()+interval '24 hours',now())`,
         [randomUUID(), id, this.hash(tokenForMail)]);
@@ -122,12 +122,12 @@ export class IdentityService {
     const permitted = await this.allowAttempt('player-login-email', email, 900, 5)
       && await this.allowAttempt('player-login-ip', remoteAddress, 900, 20);
     const result = await this.repository.query<DbRow>(`SELECT id,email,display_name,password_hash,status,verification_status,settlement_currency,language,preferred_display_currency
-      FROM identity_players WHERE email_normalized=$1`, [email]);
+      FROM players WHERE email_normalized=$1`, [email]);
     const row = result.rows[0];
     const passwordOkay = await verifyPassword(password, String(row?.password_hash ?? DUMMY_HASH));
     if (!permitted) throw new IdentityFault(429, 'RATE_LIMITED', 'Too many login attempts');
     if (!row || !passwordOkay || ['suspended','closed'].includes(String(row.status))) {
-      await this.repository.query(`INSERT INTO identity_security_audit_events(id,action,actor_type,outcome,request_id,metadata,created_at)
+      await this.repository.query(`INSERT INTO audit_events(id,action,actor_type,outcome,request_id,metadata,created_at)
         VALUES ($1,'player.login','system','denied',$2,$3::jsonb,now())`,
       [randomUUID(), requestId, JSON.stringify({ emailHash: this.hash(email) })]);
       throw new IdentityFault(401, 'UNAUTHORIZED', 'Email or password is incorrect');
@@ -143,7 +143,7 @@ export class IdentityService {
   async resolveSession(type: 'player' | 'admin', rawToken: string | undefined): Promise<AuthSession | null> {
     if (!rawToken || rawToken.length < 32 || rawToken.length > 200) return null;
     const result = await this.repository.query<DbRow>(`SELECT id,principal_type,principal_id,session_version,authenticated_at,expires_at,revoked_at,mfa_verified
-      FROM identity_sessions WHERE token_hash=$1 AND principal_type=$2 AND revoked_at IS NULL AND expires_at>now()`,
+      FROM auth_sessions WHERE token_hash=$1 AND principal_type=$2 AND revoked_at IS NULL AND expires_at>now()`,
     [this.hash(rawToken), type]);
     const row = result.rows[0];
     if (!row) return null;
@@ -154,18 +154,18 @@ export class IdentityService {
     } as const;
     if (type === 'player') {
       const found = await this.repository.query<DbRow>(`SELECT id,email,display_name,country_code,settlement_currency,language,preferred_display_currency,status,verification_status,created_at
-        FROM identity_players WHERE id=$1`, [String(row.principal_id)]);
+        FROM players WHERE id=$1`, [String(row.principal_id)]);
       const player = found.rows[0];
       return player ? { ...base, type, status: String(player.status), player: player as Record<string, unknown> } : null;
     }
     const found = await this.repository.query<DbRow>(`SELECT id,email,display_name,status,mfa_enabled
-      FROM identity_admins WHERE id=$1`, [String(row.principal_id)]);
+      FROM admin_users WHERE id=$1`, [String(row.principal_id)]);
     const admin = found.rows[0];
     if (!admin) return null;
     const permissionResult = await this.repository.query<DbRow>(`SELECT DISTINCT r.code AS role_code,p.code AS permission_code
-      FROM identity_admin_account_roles ar JOIN identity_admin_roles r ON r.id=ar.role_id
-      LEFT JOIN identity_admin_role_permissions rp ON rp.role_id=r.id
-      LEFT JOIN identity_admin_permissions p ON p.id=rp.permission_id
+      FROM admin_role_assignments ar JOIN roles r ON r.id=ar.role_id
+      LEFT JOIN role_permissions rp ON rp.role_id=r.id
+      LEFT JOIN permissions p ON p.id=rp.permission_id
       WHERE ar.admin_id=$1 ORDER BY r.code,p.code`, [String(admin.id)]);
     return {
       ...base, type, status: String(admin.status), admin: admin as Record<string, unknown>,
@@ -176,7 +176,7 @@ export class IdentityService {
 
   async revokeSession(session: AuthSession, requestId: string): Promise<void> {
     await this.repository.transaction(async (tx) => {
-      await tx.query('UPDATE identity_sessions SET revoked_at=now() WHERE id=$1 AND revoked_at IS NULL', [session.id]);
+      await tx.query('UPDATE auth_sessions SET revoked_at=now() WHERE id=$1 AND revoked_at IS NULL', [session.id]);
       await this.audit(tx, session.type + '.logout', session.type, session.principalId, session.type, session.principalId, 'success', requestId);
     });
   }
@@ -187,7 +187,7 @@ export class IdentityService {
 
   async updatePlayerProfile(session: AuthSession, input: { displayName?: string | undefined; language?: string | undefined }): Promise<Record<string, unknown>> {
     if (session.type !== 'player') throw new IdentityFault(403, 'FORBIDDEN', 'Player context required');
-    const result = await this.repository.query<DbRow>(`UPDATE identity_players SET display_name=COALESCE($2,display_name),language=COALESCE($3,language),updated_at=now()
+    const result = await this.repository.query<DbRow>(`UPDATE players SET display_name=COALESCE($2,display_name),language=COALESCE($3,language),updated_at=now()
       WHERE id=$1 RETURNING id,email,display_name,country_code,settlement_currency,language,preferred_display_currency,status,verification_status,created_at`,
     [session.principalId, input.displayName ?? null, input.language ?? null]);
     if (!result.rows[0]) throw new IdentityFault(404, 'NOT_FOUND', 'Player not found');
@@ -201,7 +201,7 @@ export class IdentityService {
     const email = normalizeEmail(emailInput);
     const allowed = await this.allowAttempt('admin-login-email', email, 900, 5)
       && await this.allowAttempt('admin-login-ip', remoteAddress, 900, 20);
-    const result = await this.repository.query<DbRow>(`SELECT id,email_normalized,password_hash,status,mfa_enabled FROM identity_admins WHERE email_normalized=$1`, [email]);
+    const result = await this.repository.query<DbRow>(`SELECT id,email_normalized,password_hash,status,mfa_enabled FROM admin_users WHERE email_normalized=$1`, [email]);
     const admin = result.rows[0];
     const passwordOkay = await verifyPassword(password, String(admin?.password_hash ?? DUMMY_HASH));
     if (!allowed) throw new IdentityFault(429, 'RATE_LIMITED', 'Too many login attempts');
@@ -212,7 +212,7 @@ export class IdentityService {
     const enrollmentToken = status === 'enrollment_required' ? opaqueToken() : undefined;
     const expiresAt = new Date(Date.now() + 5 * 60_000);
     await this.repository.transaction(async (tx) => {
-      await tx.query(`INSERT INTO identity_admin_auth_challenges
+      await tx.query(`INSERT INTO admin_mfa_challenges
         (id,admin_id,status,browser_token_hash,enrollment_token_hash,expires_at,attempt_count,max_attempts,created_at)
         VALUES ($1,$2,$3,$4,$5,$6,0,5,now())`,
       [challengeId, String(admin.id), status, this.hash(browserToken), enrollmentToken ? this.hash(enrollmentToken) : null, expiresAt]);
@@ -224,7 +224,7 @@ export class IdentityService {
 
   async findEnrollment(browserToken: string | undefined, enrollmentToken: string | undefined): Promise<{ id: string; adminId: string; version: number } | null> {
     if (!browserToken || !enrollmentToken) return null;
-    const result = await this.repository.query<DbRow>(`SELECT id,admin_id FROM identity_admin_auth_challenges
+    const result = await this.repository.query<DbRow>(`SELECT id,admin_id FROM admin_mfa_challenges
       WHERE browser_token_hash=$1 AND enrollment_token_hash=$2 AND status='enrollment_required'
         AND consumed_at IS NULL AND expires_at>now() AND attempt_count<max_attempts`,
     [this.hash(browserToken), this.hash(enrollmentToken)]);
@@ -238,34 +238,34 @@ export class IdentityService {
     if (!browserToken) throw new IdentityFault(401, 'UNAUTHORIZED', 'Authentication challenge is invalid or expired');
     const outcome = await this.repository.transaction(async (tx) => {
       const challengeResult = await tx.query<DbRow>(`SELECT id,admin_id,status,browser_token_hash,expires_at,attempt_count,max_attempts,consumed_at
-        FROM identity_admin_auth_challenges WHERE id=$1 FOR UPDATE`, [input.challengeId]);
+        FROM admin_mfa_challenges WHERE id=$1 FOR UPDATE`, [input.challengeId]);
       const challenge = challengeResult.rows[0];
       if (!challenge || challenge.consumed_at || new Date(String(challenge.expires_at)).getTime() <= Date.now()
         || Number(challenge.attempt_count) >= Number(challenge.max_attempts) || challenge.status !== 'mfa_required'
         || this.hash(browserToken) !== String(challenge.browser_token_hash)) return { error: true as const };
-      const adminResult = await tx.query<DbRow>(`SELECT id,status,totp_secret_encrypted,mfa_enabled FROM identity_admins WHERE id=$1 FOR UPDATE`, [String(challenge.admin_id)]);
+      const adminResult = await tx.query<DbRow>(`SELECT id,status,totp_secret_encrypted,mfa_enabled FROM admin_users WHERE id=$1 FOR UPDATE`, [String(challenge.admin_id)]);
       const admin = adminResult.rows[0];
       if (!admin || admin.status !== 'active' || admin.mfa_enabled !== true || !admin.totp_secret_encrypted) return { error: true as const };
       let valid = false;
       if (input.factor === 'totp') {
         try { valid = verifyTotp(decryptSecret(String(admin.totp_secret_encrypted), this.config.totpEncryptionKey), input.code); } catch { valid = false; }
       } else {
-        const codes = await tx.query<DbRow>(`SELECT id,code_hash FROM identity_admin_recovery_codes WHERE admin_id=$1 AND consumed_at IS NULL FOR UPDATE`, [String(admin.id)]);
+        const codes = await tx.query<DbRow>(`SELECT id,code_hash FROM admin_mfa_recovery_codes WHERE admin_id=$1 AND consumed_at IS NULL FOR UPDATE`, [String(admin.id)]);
         for (const row of codes.rows) {
           if (await verifyPassword(input.code, String(row.code_hash))) {
-            await tx.query('UPDATE identity_admin_recovery_codes SET consumed_at=now() WHERE id=$1 AND consumed_at IS NULL', [String(row.id)]);
+            await tx.query('UPDATE admin_mfa_recovery_codes SET consumed_at=now() WHERE id=$1 AND consumed_at IS NULL', [String(row.id)]);
             valid = true;
             break;
           }
         }
       }
       if (!valid) {
-        await tx.query('UPDATE identity_admin_auth_challenges SET attempt_count=attempt_count+1 WHERE id=$1', [String(challenge.id)]);
+        await tx.query('UPDATE admin_mfa_challenges SET attempt_count=attempt_count+1 WHERE id=$1', [String(challenge.id)]);
         await this.audit(tx, 'admin.login.mfa', 'admin', String(admin.id), 'admin', String(admin.id), 'denied', requestId, { factor: input.factor });
         return { error: true as const };
       }
-      await tx.query('UPDATE identity_admin_auth_challenges SET consumed_at=now() WHERE id=$1 AND consumed_at IS NULL', [String(challenge.id)]);
-      await tx.query('UPDATE identity_admin_auth_challenges SET consumed_at=now() WHERE admin_id=$1 AND consumed_at IS NULL', [String(admin.id)]);
+      await tx.query('UPDATE admin_mfa_challenges SET consumed_at=now() WHERE id=$1 AND consumed_at IS NULL', [String(challenge.id)]);
+      await tx.query('UPDATE admin_mfa_challenges SET consumed_at=now() WHERE admin_id=$1 AND consumed_at IS NULL', [String(admin.id)]);
       const session = await this.createSession(tx, 'admin', String(admin.id), true);
       await this.audit(tx, 'admin.login.mfa', 'admin', String(admin.id), 'admin', String(admin.id), 'success', requestId, { factor: input.factor });
       return { session };
@@ -278,15 +278,15 @@ export class IdentityService {
     if (!enrollment && !session) throw new IdentityFault(401, 'UNAUTHORIZED', 'Authentication is required');
     if (session && (session.type !== 'admin' || session.status !== 'active')) throw new IdentityFault(403, 'FORBIDDEN', 'Active administrator required');
     const adminId = enrollment?.adminId ?? session!.principalId;
-    const adminResult = await this.repository.query<DbRow>('SELECT id,email,mfa_enabled FROM identity_admins WHERE id=$1', [adminId]);
+    const adminResult = await this.repository.query<DbRow>('SELECT id,email,mfa_enabled FROM admin_users WHERE id=$1', [adminId]);
     const admin = adminResult.rows[0];
     if (!admin || admin.mfa_enabled === true) throw new IdentityFault(409, 'CONFLICT', 'MFA is already enrolled or unavailable');
     const secret = base32Encode(randomBytes(20));
     const encrypted = encryptSecret(secret, this.config.totpEncryptionKey);
     const expiresAt = new Date(Date.now() + 10 * 60_000);
-    await this.repository.query(`UPDATE identity_admins SET totp_pending_secret_encrypted=$2,totp_pending_challenge_id=$3,totp_pending_expires_at=$4,updated_at=now()
+    await this.repository.query(`UPDATE admin_users SET totp_pending_secret_encrypted=$2,totp_pending_challenge_id=$3,totp_pending_expires_at=$4,updated_at=now()
       WHERE id=$1`, [adminId, encrypted, enrollment?.id ?? null, expiresAt]);
-    await this.repository.query(`INSERT INTO identity_security_audit_events
+    await this.repository.query(`INSERT INTO audit_events
       (id,action,actor_type,actor_id,subject_type,subject_id,outcome,request_id,metadata,created_at)
       VALUES ($1,'admin.mfa.totp.setup','admin',$2,'admin',$2,'success',$3,'{}'::jsonb,now())`,
     [randomUUID(), adminId, requestId]);
@@ -304,7 +304,7 @@ export class IdentityService {
     const adminId = enrollment?.adminId ?? session!.principalId;
     const outcome = await this.repository.transaction(async (tx) => {
       const adminResult = await tx.query<DbRow>(`SELECT id,status,mfa_enabled,totp_pending_secret_encrypted,totp_pending_challenge_id,totp_pending_expires_at
-        FROM identity_admins WHERE id=$1 FOR UPDATE`, [adminId]);
+        FROM admin_users WHERE id=$1 FOR UPDATE`, [adminId]);
       const admin = adminResult.rows[0];
       if (!admin || admin.status !== 'active' || admin.mfa_enabled === true || !admin.totp_pending_secret_encrypted
         || new Date(String(admin.totp_pending_expires_at)).getTime() <= Date.now()
@@ -317,17 +317,17 @@ export class IdentityService {
       }
       if (enrollment) {
         if (!browserToken || !enrollmentToken) return { error: true as const };
-        const challenge = await tx.query<DbRow>(`SELECT id FROM identity_admin_auth_challenges WHERE id=$1 AND admin_id=$2
+        const challenge = await tx.query<DbRow>(`SELECT id FROM admin_mfa_challenges WHERE id=$1 AND admin_id=$2
           AND status='enrollment_required' AND browser_token_hash=$3 AND enrollment_token_hash=$4
           AND consumed_at IS NULL AND expires_at>now() AND attempt_count<max_attempts FOR UPDATE`,
         [enrollment.id, adminId, this.hash(browserToken), this.hash(enrollmentToken)]);
         if (!challenge.rows[0]) return { error: true as const };
       }
-      await tx.query(`UPDATE identity_admins SET totp_secret_encrypted=totp_pending_secret_encrypted,
+      await tx.query(`UPDATE admin_users SET totp_secret_encrypted=totp_pending_secret_encrypted,
         totp_pending_secret_encrypted=NULL,totp_pending_challenge_id=NULL,totp_pending_expires_at=NULL,mfa_enabled=TRUE,updated_at=now()
         WHERE id=$1`, [adminId]);
       if (enrollment) {
-        await tx.query('UPDATE identity_admin_auth_challenges SET consumed_at=now() WHERE id=$1', [enrollment.id]);
+        await tx.query('UPDATE admin_mfa_challenges SET consumed_at=now() WHERE id=$1', [enrollment.id]);
         const issued = await this.createSession(tx, 'admin', adminId, true);
         await this.audit(tx, 'admin.mfa.totp.verify', 'admin', adminId, 'admin', adminId, 'success', requestId, { completedEnrollment: true });
         return { session: issued };
@@ -341,7 +341,7 @@ export class IdentityService {
 
   async regenerateRecoveryCodes(session: AuthSession, totpCode: string, reason: string, requestId: string): Promise<{ codes: string[]; createdAt: string }> {
     if (session.type !== 'admin' || session.status !== 'active' || !session.mfaVerified) throw new IdentityFault(403, 'FORBIDDEN', 'Active full administrator session required');
-    const result = await this.repository.query<DbRow>('SELECT totp_secret_encrypted FROM identity_admins WHERE id=$1 AND mfa_enabled=TRUE', [session.principalId]);
+    const result = await this.repository.query<DbRow>('SELECT totp_secret_encrypted FROM admin_users WHERE id=$1 AND mfa_enabled=TRUE', [session.principalId]);
     if (!result.rows[0]?.totp_secret_encrypted
       || !verifyTotp(decryptSecret(String(result.rows[0].totp_secret_encrypted), this.config.totpEncryptionKey), totpCode)) {
       throw new IdentityFault(401, 'UNAUTHORIZED', 'Step-up authentication failed');
@@ -350,8 +350,8 @@ export class IdentityService {
     const hashes: string[] = [];
     for (const code of codes) hashes.push(await hashPassword(code));
     await this.repository.transaction(async (tx) => {
-      await tx.query('UPDATE identity_admin_recovery_codes SET consumed_at=COALESCE(consumed_at,now()) WHERE admin_id=$1', [session.principalId]);
-      for (const hash of hashes) await tx.query('INSERT INTO identity_admin_recovery_codes(id,admin_id,code_hash,created_at) VALUES ($1,$2,$3,now())', [randomUUID(), session.principalId, hash]);
+      await tx.query('UPDATE admin_mfa_recovery_codes SET consumed_at=COALESCE(consumed_at,now()) WHERE admin_id=$1', [session.principalId]);
+      for (const hash of hashes) await tx.query('INSERT INTO admin_mfa_recovery_codes(id,admin_id,code_hash,created_at) VALUES ($1,$2,$3,now())', [randomUUID(), session.principalId, hash]);
       await this.audit(tx, 'admin.mfa.recovery_codes.regenerate', 'admin', session.principalId, 'admin', session.principalId, 'success', requestId, { count: codes.length, reasonLength: reason.length });
     });
     return { codes, createdAt: new Date().toISOString() };
@@ -360,11 +360,11 @@ export class IdentityService {
   async requestPasswordReset(emailInput: string, remoteAddress: string): Promise<void> {
     if (!(await this.allowAttempt('password-reset-ip', remoteAddress, 900, 20))) throw new IdentityFault(429, 'RATE_LIMITED', 'Too many password reset requests');
     const email = normalizeEmail(emailInput);
-    const result = await this.repository.query<DbRow>('SELECT id,email FROM identity_players WHERE email_normalized=$1', [email]);
+    const result = await this.repository.query<DbRow>('SELECT id,email FROM players WHERE email_normalized=$1', [email]);
     const player = result.rows[0];
     if (!player) return;
     const token = opaqueToken();
-    await this.repository.query(`INSERT INTO identity_one_time_tokens(id,principal_type,principal_id,token_type,token_hash,expires_at,created_at)
+    await this.repository.query(`INSERT INTO player_one_time_tokens(id,principal_type,principal_id,token_type,token_hash,expires_at,created_at)
       VALUES ($1,'player',$2,'password_reset',$3,now()+interval '30 minutes',now())`, [randomUUID(), String(player.id), this.hash(token)]);
     await this.emitLocalMail('password_reset', String(player.email), token);
   }
@@ -372,34 +372,34 @@ export class IdentityService {
   async confirmPasswordReset(token: string, newPassword: string): Promise<void> {
     const passwordHash = await hashPassword(newPassword);
     await this.repository.transaction(async (tx) => {
-      const record = await tx.query<DbRow>(`SELECT id,principal_id FROM identity_one_time_tokens
+      const record = await tx.query<DbRow>(`SELECT id,principal_id FROM player_one_time_tokens
         WHERE token_type='password_reset' AND token_hash=$1 AND consumed_at IS NULL AND expires_at>now() FOR UPDATE`, [this.hash(token)]);
       const row = record.rows[0];
       if (!row) throw new IdentityFault(400, 'VALIDATION_ERROR', 'Password reset token is invalid or expired');
-      await tx.query('UPDATE identity_players SET password_hash=$2,updated_at=now() WHERE id=$1', [String(row.principal_id), passwordHash]);
-      await tx.query('UPDATE identity_one_time_tokens SET consumed_at=now() WHERE id=$1', [String(row.id)]);
-      await tx.query('UPDATE identity_sessions SET revoked_at=now() WHERE principal_type=$1 AND principal_id=$2 AND revoked_at IS NULL', ['player', String(row.principal_id)]);
+      await tx.query('UPDATE players SET password_hash=$2,updated_at=now() WHERE id=$1', [String(row.principal_id), passwordHash]);
+      await tx.query('UPDATE player_one_time_tokens SET consumed_at=now() WHERE id=$1', [String(row.id)]);
+      await tx.query('UPDATE auth_sessions SET revoked_at=now() WHERE principal_type=$1 AND principal_id=$2 AND revoked_at IS NULL', ['player', String(row.principal_id)]);
     });
   }
 
   async confirmEmailVerification(token: string): Promise<void> {
     await this.repository.transaction(async (tx) => {
-      const record = await tx.query<DbRow>(`SELECT id,principal_id FROM identity_one_time_tokens
+      const record = await tx.query<DbRow>(`SELECT id,principal_id FROM player_one_time_tokens
         WHERE token_type='email_verification' AND token_hash=$1 AND consumed_at IS NULL AND expires_at>now() FOR UPDATE`, [this.hash(token)]);
       const row = record.rows[0];
       if (!row) throw new IdentityFault(400, 'VALIDATION_ERROR', 'Verification token is invalid or expired');
-      await tx.query("UPDATE identity_players SET verification_status='verified',updated_at=now() WHERE id=$1", [String(row.principal_id)]);
-      await tx.query('UPDATE identity_one_time_tokens SET consumed_at=now() WHERE id=$1', [String(row.id)]);
+      await tx.query("UPDATE players SET verification_status='verified',updated_at=now() WHERE id=$1", [String(row.principal_id)]);
+      await tx.query('UPDATE player_one_time_tokens SET consumed_at=now() WHERE id=$1', [String(row.id)]);
     });
   }
 
   async requestEmailVerification(session: AuthSession): Promise<void> {
     if (session.type !== 'player') throw new IdentityFault(403, 'FORBIDDEN', 'Player context required');
-    const result = await this.repository.query<DbRow>('SELECT id,email,verification_status FROM identity_players WHERE id=$1', [session.principalId]);
+    const result = await this.repository.query<DbRow>('SELECT id,email,verification_status FROM players WHERE id=$1', [session.principalId]);
     const player = result.rows[0];
     if (!player || player.verification_status === 'verified') return;
     const token = opaqueToken();
-    await this.repository.query(`INSERT INTO identity_one_time_tokens(id,principal_type,principal_id,token_type,token_hash,expires_at,created_at)
+    await this.repository.query(`INSERT INTO player_one_time_tokens(id,principal_type,principal_id,token_type,token_hash,expires_at,created_at)
       VALUES ($1,'player',$2,'email_verification',$3,now()+interval '24 hours',now())`, [randomUUID(), String(player.id), this.hash(token)]);
     await this.emitLocalMail('email_verification', String(player.email), token);
   }
@@ -412,13 +412,13 @@ export class IdentityService {
     }
     const passwordHash = await hashPassword(input.password);
     await this.repository.transaction(async (tx) => {
-      const count = await tx.query<DbRow>('SELECT count(*)::int AS count FROM identity_admins');
+      const count = await tx.query<DbRow>('SELECT count(*)::int AS count FROM admin_users');
       if (Number(count.rows[0]?.count ?? 0) !== 0) throw new Error('Admin bootstrap is one-time and an admin already exists');
       const id = randomUUID();
-      await tx.query(`INSERT INTO identity_admins(id,email,email_normalized,display_name,password_hash,status,mfa_enabled,created_at,updated_at)
+      await tx.query(`INSERT INTO admin_users(id,email,email_normalized,display_name,password_hash,status,mfa_enabled,created_at,updated_at)
         VALUES ($1,$2,$2,$3,$4,'active',FALSE,now(),now())`, [id, email, input.displayName.trim(), passwordHash]);
-      await tx.query(`INSERT INTO identity_admin_account_roles(admin_id,role_id)
-        SELECT $1,id FROM identity_admin_roles WHERE code='project-admin'`, [id]);
+      await tx.query(`INSERT INTO admin_role_assignments(admin_id,role_id)
+        SELECT $1,id FROM roles WHERE code='project-admin'`, [id]);
       await this.audit(tx, 'admin.bootstrap', 'system', null, 'admin', id, 'success', randomUUID(), { oneTime: true });
     });
   }
