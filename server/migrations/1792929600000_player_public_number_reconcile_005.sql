@@ -49,7 +49,7 @@ BEGIN
     END IF;
     PERFORM setval('public.player_public_number_seq', 99999999::bigint, true);
 
-  ELSIF min_number >= 436222976
+  ELSIF min_number = 436222976
         AND distinct_numbers = player_count
         AND sequence_is_called
         AND sequence_last_value >= max_number THEN
