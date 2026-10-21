@@ -1,0 +1,73 @@
+name: Wallet Migration 006 CI rehearsal (disposable PostgreSQL only)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'server/migrations/1793016000000_wallet_ledger_foundation_006.sql'
+      - 'server/src/wallet/**'
+      - 'server/src/identity/routes.ts'
+      - 'server/src/identity/service.ts'
+      - 'server/test/wallet.test.ts'
+      - 'server/test/postgres-testcontainer.test.ts'
+      - 'server/package.json'
+      - 'docs/planning/openapi.yaml'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/wallet-migration-006-rehearsal.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'server/migrations/1793016000000_wallet_ledger_foundation_006.sql'
+      - 'server/src/wallet/**'
+      - 'server/src/identity/routes.ts'
+      - 'server/src/identity/service.ts'
+      - 'server/test/wallet.test.ts'
+      - 'server/test/postgres-testcontainer.test.ts'
+      - 'server/package.json'
+      - 'docs/planning/openapi.yaml'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/wallet-migration-006-rehearsal.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wallet-migration-006-rehearsal-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  rehearsal:
+    name: Apply schema and test ledger invariants on disposable PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install locked workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck API
+        run: |
+          pnpm --filter @bclick/config build
+          pnpm --filter @bclick/server typecheck
+
+      - name: Rehearse wallet Migration 006 and posting invariants
+        run: pnpm --filter @bclick/server exec tsx --test test/wallet.test.ts
+
+      - name: Rehearse ordered migration history and Migration 005 compatibility
+        run: pnpm --filter @bclick/server exec tsx --test test/postgres-testcontainer.test.ts
+
+      - name: Lint canonical OpenAPI contracts
+        run: pnpm api:lint
