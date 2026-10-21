@@ -35,6 +35,7 @@ test('registration rejects missing date of birth, terms acceptance, and age conf
 
   const validPayload: Record<string, unknown> = {
     email: 'm003-required-fields@example.test',
+    username: 'm003-required',
     password: 'CI-Only-Strong-Password-123!',
     countryCode: 'TN',
     settlementCurrency: 'TND',
