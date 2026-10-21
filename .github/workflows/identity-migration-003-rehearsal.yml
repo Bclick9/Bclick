@@ -6,6 +6,7 @@ on:
     paths:
       - 'server/migrations/1792756800000_identity_player_credentials_003.sql'
       - 'server/scripts/identity-migration-003-rehearsal.mjs'
+      - 'server/scripts/identity-migration-003-neon-gate.mjs'
       - 'server/test/identity-registration-required-fields.test.ts'
       - 'server/package.json'
       - 'pnpm-lock.yaml'
@@ -16,6 +17,7 @@ on:
     paths:
       - 'server/migrations/1792756800000_identity_player_credentials_003.sql'
       - 'server/scripts/identity-migration-003-rehearsal.mjs'
+      - 'server/scripts/identity-migration-003-neon-gate.mjs'
       - 'server/test/identity-registration-required-fields.test.ts'
       - 'server/package.json'
       - 'pnpm-lock.yaml'
@@ -79,6 +81,12 @@ jobs:
           cd server
           pnpm exec node-pg-migrate up --migrations-dir /tmp/bclick-m003-prior-migrations --database-url-var DATABASE_URL
           echo "MIGRATION_003_PRIOR_BASELINE=PASS"
+
+      - name: Run Migration 003 preflight gate against the empty disposable baseline
+        env:
+          BCLICK_M003_TARGET: ci-disposable
+          BCLICK_M003_PHASE: pre
+        run: pnpm --filter @bclick/server exec node scripts/identity-migration-003-neon-gate.mjs
 
       - name: Seed two synthetic player rows to prove exact profile and password-hash backfill
         run: pnpm --filter @bclick/server exec node scripts/identity-migration-003-rehearsal.mjs seed
@@ -165,3 +173,9 @@ jobs:
 
       - name: Delete only the known disposable fixtures and verify the clean baseline
         run: pnpm --filter @bclick/server exec node scripts/identity-migration-003-rehearsal.mjs cleanup-fixtures
+
+      - name: Run Migration 003 postflight gate against the restored zero-player state
+        env:
+          BCLICK_M003_TARGET: ci-disposable
+          BCLICK_M003_PHASE: post
+        run: pnpm --filter @bclick/server exec node scripts/identity-migration-003-neon-gate.mjs
