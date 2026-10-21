@@ -522,10 +522,10 @@ export function registerIdentityRoutes(app: FastifyInstance, service: IdentitySe
       session.player?.settlement_currency,
       {
         currency: params.currency,
-        cursor: query.cursor,
         limit: query.limit ?? 25,
-        from: query.from,
-        to: query.to,
+        ...(query.cursor !== undefined ? { cursor: query.cursor } : {}),
+        ...(query.from !== undefined ? { from: query.from } : {}),
+        ...(query.to !== undefined ? { to: query.to } : {}),
       },
       request.id,
     );
