@@ -170,6 +170,15 @@ export class IdentityService {
           ON CONFLICT (player_id,kind) DO UPDATE SET
             identifier=EXCLUDED.identifier,identifier_norm=EXCLUDED.identifier_norm,password_hash=EXCLUDED.password_hash,updated_at=EXCLUDED.updated_at`,
         [id, email, passwordHash, insertedPlayer.created_at]);
+        // Provision empty wallets in the immutable settlement currency. This creates
+        // no funds: a balance can only change through a separately validated journal.
+        await tx.query(`INSERT INTO wallet_accounts
+          (owner_type,owner_id,player_id,account_code,currency_code,account_kind,status)
+          VALUES
+            ('player',$1,$1,'available',$2,'player-available','active'),
+            ('player',$1,$1,'held',$2,'held','active')
+          ON CONFLICT (owner_type,owner_id,account_code,currency_code) DO NOTHING`,
+        [id, input.settlementCurrency]);
         const session = await this.createSession(tx, 'player', id, false);
         tokenForMail = opaqueToken();
         await tx.query(`INSERT INTO player_one_time_tokens
