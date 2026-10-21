@@ -166,10 +166,14 @@ async function assertPostMigration() {
     'deposit_kyc_override_approved_by', 'deposit_kyc_override_set_at',
   ];
   const columns = await pool.query(
-    "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='players' ORDER BY column_name",
+    "SELECT column_name, is_nullable FROM information_schema.columns WHERE table_schema='public' AND table_name='players' ORDER BY column_name",
   );
   const observedColumns = new Set(columns.rows.map((row) => row.column_name));
   for (const column of expectedColumns) assert.ok(observedColumns.has(column), 'Missing players.' + column);
+  const observedColumnNullability = new Map(columns.rows.map((row) => [row.column_name, row.is_nullable]));
+  for (const column of ['date_of_birth','terms_accepted_at','terms_version','age_confirmation_at','age_policy_version']) {
+    assert.equal(observedColumnNullability.get(column), 'NO', 'Required v2 column must be NOT NULL: ' + column);
+  }
 
   const constraints = await pool.query(
     "SELECT conname FROM pg_constraint WHERE conrelid='public.players'::regclass ORDER BY conname",
@@ -227,8 +231,8 @@ async function assertPostMigration() {
 
     await expectSqlState(client, [
       'INSERT INTO public.players',
-      '(id,email,email_normalized,password_hash,display_name,country_code,settlement_currency,language,status,verification_status,terms_accepted_at,terms_version)',
-      "VALUES ($1,$2,$2,'ci-dummy-hash','Terms fixture','TN','TND','en','pending','pending',now(),NULL)",
+      '(id,email,email_normalized,password_hash,display_name,country_code,settlement_currency,language,preferred_language,status,verification_status,email_verification_status,date_of_birth,terms_accepted_at,terms_version,age_confirmation_at,age_policy_version)',
+      "VALUES ($1,$2,$2,'ci-dummy-hash','Terms fixture','TN','TND','en','en','pending','pending','pending',(CURRENT_DATE - INTERVAL '18 years')::date,now(),NULL,now(),'ci-age-policy-v1')",
     ].join(' '), [randomUUID(), 'm001-incomplete-terms@example.test'], '23502', 'Terms version is mandatory');
 
     await expectSqlState(client, "UPDATE public.players SET kyc_tier='not-a-tier' WHERE id=$1", [playerId], '23514', 'KYC tier check');
