@@ -46,6 +46,8 @@ Before the migration runner receives `DATABASE_URL`, the pre-check confirms:
 
 If any item fails, the job exits before running a migration. The pre-check correctly describes the six-count reference as **not measurable before the baseline**; absent tables are not reported as zero-count tables.
 
+The workflow can verify the connection's database name, PostgreSQL major version and Frankfurt region without printing the hostname. SQL metadata alone does not prove the Neon project slug. The binding of this repository's existing `DATABASE_URL` secret to project `copabet365` therefore remains part of the Project Owner's secret-management responsibility; this workflow does not read or reveal the secret value. Confirm that the already-configured secret still points to `copabet365` before manually invoking the workflow.
+
 ## 4. Migration and post-check
 
 The write step runs the repository's existing command `pnpm --filter @bclick/server migrate:up` through GitHub Actions. The checked-in migration inventory guard ensures this can apply only the two approved baseline files. No Neon Plugin writes, Neon CLI, `.env.local` edits, `neon.ts` edits, or shell-local database writes are part of the path.
