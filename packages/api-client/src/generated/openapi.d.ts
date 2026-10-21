@@ -49,7 +49,7 @@ export interface paths {
         put?: never;
         /**
          * Register a player account
-         * @description Rate-limited; jurisdiction/age/eligibility policy must be enforced server-side. Does not fund the wallet.
+         * @description Registration requires server-side CAPTCHA verification, an IP-based limit of 5 registration attempts per hour, supported-jurisdiction checks, date-of-birth age >= 18 validation, and affirmative terms/age acknowledgements. Successful registration activates the player without required email verification and does not fund the wallet.
          */
         post: operations["registerPlayer"];
         delete?: never;
@@ -120,7 +120,7 @@ export interface paths {
         put?: never;
         /**
          * Request a password reset
-         * @description Use account-enumeration-safe generic response and rate limits.
+         * @description Use account-enumeration-safe generic responses. Enforce a limit of 3 password-reset requests per normalized email per hour, with bounded retry responses; store only a hash of single-use reset tokens and never log them.
          */
         post: operations["postAuthPasswordResetRequest"];
         delete?: never;
@@ -3067,10 +3067,49 @@ export interface components {
         PlayerSummary: {
             /** Format: uuid */
             id: string;
-            /** @enum {string} */
+            /**
+             * @description New registrations are active after successful server-side eligibility validation.
+             * @enum {string}
+             */
             status: "active" | "suspended" | "closed" | "pending";
-            /** @enum {string} */
-            verificationStatus: "pending" | "verified" | "rejected" | "expired" | "not_required";
+            /**
+             * @description Email-verification lifecycle only. This field is not KYC status and does not determine the player's KYC tier.
+             * @default not_required
+             * @enum {string}
+             */
+            emailVerificationStatus: "not_required" | "pending" | "verified" | "rejected" | "expired";
+            /**
+             * @description Server-controlled KYC tier. none=Level 0, basic=Level 1, verified=Level 2 (ID, address and source of funds), enhanced=Level 3. The value verified here is not emailVerificationStatus=verified.
+             * @default none
+             * @enum {string}
+             */
+            kycTier: "none" | "basic" | "verified" | "enhanced";
+            /**
+             * @description Optional detailed status for the current kyc_verifications lifecycle; omit when no detailed verification status is available.
+             * @enum {string}
+             */
+            kycStatus?: "not_started" | "submitted" | "in_review" | "additional_information_required" | "verified" | "rejected" | "expired";
+            /**
+             * @description Administrative KYC lock. If true and kycTier is below Level 2 (verified), all deposits are blocked and no override bypasses this lock.
+             * @default false
+             */
+            kycLock: boolean;
+            /**
+             * @description Null means no override; require imposes at least Level 2 KYC; waive is valid only within its approved scope and expiry/dual-approval rules.
+             * @default null
+             * @enum {string|null}
+             */
+            depositKycOverride: "require" | "waive" | null;
+            /**
+             * Format: date-time
+             * @description Future timestamp means temporary waiver. Null expiry with depositKycOverride=waive means permanent waiver and requires dual approval by distinct admin principals.
+             * @default null
+             */
+            depositKycOverrideExpiresAt: string | null;
+            /** @description Safe current override reason/summary. Do not include internal investigation secrets. */
+            depositKycOverrideReason?: string | null;
+            /** @description Safe reason/summary for the administrative KYC lock; do not include internal investigation secrets. */
+            depositKycLockReason?: string | null;
             /** @description Immutable product settlement currency selected at registration; does not follow preferredDisplayCurrency. */
             settlementCurrency: components["schemas"]["CurrencyCode"];
             displayName?: string;
@@ -3092,8 +3131,38 @@ export interface components {
             countryCode: string;
             /** @description Required product settlement currency. Immutable under the one-currency-per-player policy; do not infer it from display currency. */
             settlementCurrency: components["schemas"]["CurrencyCode"];
-            /** @description Saved preferred player language; defaults to en. */
-            language?: components["schemas"]["LanguageCode"];
+            /**
+             * Format: date
+             * @description Required date-only value. The server validates the real calendar date, rejects future dates and requires age >= 18 at registration; client validation is not authoritative.
+             */
+            dateOfBirth: string;
+            /**
+             * @description Must be true. The server stores the acceptance timestamp and active terms version.
+             * @constant
+             */
+            acceptTerms: true;
+            /**
+             * @description Must be true. The server stores the acknowledgement timestamp and policy version; this does not replace server-side DOB/age validation.
+             * @constant
+             */
+            acceptAgeConfirmation: true;
+            /**
+             * @description Required saved language selected at registration; clients should preselect en by default. The server also defaults persisted preference to en where a default is applicable.
+             * @default en
+             */
+            preferredLanguage: components["schemas"]["LanguageCode"];
+            /**
+             * @description Optional username. Normalize on the server, enforce uniqueness atomically and reject reserved/system names.
+             * @default null
+             */
+            username: string | null;
+            /**
+             * @description Optional phone number in E.164 format. Supplying it does not mean the phone number is verified.
+             * @default null
+             */
+            phoneNumber: string | null;
+            /** @description Required CAPTCHA response token, verified server-to-server using the configured provider. Never log this token. */
+            captchaToken: string;
             /** @description Optional presentation preference only; it never changes settlement currency or provider/payment routing. */
             preferredDisplayCurrency?: components["schemas"]["CurrencyCode"];
         };
@@ -4312,7 +4381,7 @@ export interface components {
                 /** @enum {string} */
                 status: "active" | "suspended" | "closed" | "pending";
                 /** @enum {string} */
-                verificationStatus: "pending" | "verified" | "rejected" | "expired" | "not_required";
+                emailVerificationStatus: "not_required" | "pending" | "verified" | "rejected" | "expired";
                 /** @description Omitted unless caller has players.profile.sensitive.read. */
                 countryCode?: string | null;
                 /**
@@ -4985,7 +5054,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Account created; a verification challenge may still be required. */
+            /** @description Account created and active after server-side validation. Email verification is optional and is not required for initial activation. */
             201: {
                 headers: {
                     "Set-Cookie": components["headers"]["SessionCookie"];
