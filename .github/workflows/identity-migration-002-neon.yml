@@ -83,7 +83,7 @@ jobs:
             # M003 and M004 are allowed only in this disposable CI inventory;
             # neither is added to the guarded live-Neon migration inventory below.
             ["server/migrations/1792756800000_identity_player_credentials_003.sql"]="aa26b9a9888b1f244f14a32272fd7467cfc3876f"
-            ["server/migrations/1792843200000_player_profile_details_004.sql"]="f1350d40efd99f19c620f90ad589df73b5abbf78"
+            ["server/migrations/1792843200000_player_profile_details_004.sql"]="8b88f9a6ff10033e36b51918d6abb1c7df668abb"
           )
           for path in "${!expected_blobs[@]}"; do
             actual="$(git hash-object "$path")"
