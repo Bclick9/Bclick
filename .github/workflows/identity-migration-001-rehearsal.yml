@@ -85,8 +85,15 @@ jobs:
       - name: Run the mandatory read-only pre-Migration-001 gate
         run: pnpm --filter @bclick/server exec tsx scripts/identity-pre-migration-gate.ts
 
-      - name: Apply Migration 001 on disposable CI PostgreSQL
-        run: pnpm --filter @bclick/server migrate:up
+      - name: Apply exactly Migration 001 on disposable CI PostgreSQL
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bclick-m001-only-migrations
+          cp server/migrations/1792497600000_api_skeleton_baseline.sql /tmp/bclick-m001-only-migrations/
+          cp server/migrations/1792512000000_identity_sessions.sql /tmp/bclick-m001-only-migrations/
+          cp server/migrations/1792584000000_identity_domain_migration_001.sql /tmp/bclick-m001-only-migrations/
+          cd server
+          pnpm exec node-pg-migrate up --count 1 --migrations-dir /tmp/bclick-m001-only-migrations --database-url-var DATABASE_URL
 
       - name: Verify renamed schema, seed precision, legacy RBAC preservation, and constraint behavior
         run: pnpm --filter @bclick/server exec node scripts/identity-migration-001-rehearsal.mjs post-up
@@ -98,7 +105,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          (cd server && pnpm exec node-pg-migrate down --migrations-dir ./migrations --database-url-var DATABASE_URL --count 1)
+          (cd server && pnpm exec node-pg-migrate down --migrations-dir /tmp/bclick-m001-only-migrations --database-url-var DATABASE_URL --count 1)
           down_status=$?
           set -e
           if [ "$down_status" -eq 0 ]; then
@@ -113,16 +120,21 @@ jobs:
       - name: Roll back Migration 001 on the now-empty disposable database
         run: |
           cd server
-          pnpm exec node-pg-migrate down --migrations-dir ./migrations --database-url-var DATABASE_URL --count 1
+          pnpm exec node-pg-migrate down --migrations-dir /tmp/bclick-m001-only-migrations --database-url-var DATABASE_URL --count 1
 
       - name: Verify rollback restored the original two-migration baseline
         run: pnpm --filter @bclick/server exec node scripts/identity-migration-001-rehearsal.mjs post-down
 
-      - name: Re-apply Migration 001 after a clean rollback
-        run: pnpm --filter @bclick/server migrate:up
+      - name: Re-apply exactly Migration 001 after a clean rollback
+        run: |
+          cd server
+          pnpm exec node-pg-migrate up --count 1 --migrations-dir /tmp/bclick-m001-only-migrations --database-url-var DATABASE_URL
 
       - name: Verify re-application is clean and complete
         run: pnpm --filter @bclick/server exec node scripts/identity-migration-001-rehearsal.mjs post-up
+
+      - name: Apply remaining migrations to test current API against the latest schema
+        run: pnpm --filter @bclick/server migrate:up
 
       - name: Run API tests against the renamed schema
         env:
