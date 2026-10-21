@@ -395,7 +395,14 @@ export class IdentityService {
       await this.audit(tx, 'player.profile.update', 'player', session.principalId, 'player', session.principalId,
         'success', requestId, { changedFields: patch.map((field) => field.name) });
       return player as Record<string, unknown>;
-    });
+      });
+    } catch (error) {
+      const constraint = (error as { constraint?: unknown }).constraint;
+      if (String((error as { code?: unknown }).code) === '23505' && constraint === 'players_username_normalized_uidx') {
+        throw new IdentityFault(409, 'USERNAME_TAKEN', 'This username is already in use');
+      }
+      throw error;
+    }
   }
 
   async beginAdminLogin(emailInput: string, password: string, requestId: string, remoteAddress: string): Promise<{
