@@ -56,7 +56,13 @@ All of the following checks for the tested commit completed successfully:
 - New `player_profiles` and `player_credentials` rows are additive mirrors. The original `players` columns and `players.password_hash` remain in place; hashes are copied without transformation and are not printed by the rehearsal.
 - The generated `age_confirmed_at` alias is read-only and derived from the existing `age_confirmation_at`. No duplicate v2/KYC source fields are introduced.
 - Down validates the exact five-migration state and verifies row counts and source-to-mirror equality before dropping anything. The newly added negative-path rehearsal directly proved it refuses a mismatched credential hash before dropping either new table.
-- The current application still reads/writes the legacy `players` fields. This is an expand/mirror migration, **not** an application cutover to the new credential table.
+- The current application still reads/writes the legacy `players` fields. This is an expand/backfill migration, **not** an application cutover to the new credential table.
+
+### Runtime synchronization caveat (important for a future Neon decision)
+
+Migration 003 performs a one-time transactional copy. It does **not** add triggers or dual-write behavior. Once it is applied to a live database, subsequent registrations, profile edits, email changes or password resets handled only by the current IdentityService will change `players` without updating `player_profiles` / `player_credentials`. Therefore CI proves the initial backfill and safe rollback guards; it does not prove ongoing synchronization.
+
+Until a separately reviewed application cutover / dual-write / catch-up process is implemented, runtime code must not treat the new tables as authoritative. Before any later Neon application approval, the Project Owner must explicitly decide how writes will be controlled during the interval and how rows created or changed after this one-time backfill will be reconciled. This caveat does not authorize Neon changes and does not expand this PR into Migration 004.
 
 ### CI changes to Migration 001 and Migration 002 workflows
 
@@ -72,7 +78,7 @@ All of the following checks for the tested commit completed successfully:
 
 ## 4. Explicitly unchanged gates and prohibitions
 
-- **Migration 003 on Neon: NOT AUTHORIZED by this NOTE.** It requires the Project Owner's separate, explicit approval and a separate guarded run after PR #80 is merged.
+- **Migration 003 on Neon: NOT AUTHORIZED by this NOTE.** It requires the Project Owner's separate, explicit approval, a separate guarded run after PR #80 is merged, and an explicit decision covering the runtime synchronization caveat in Section 3.
 - Migration 004–006: out of scope and not authorized.
 - Migration B: prohibited.
 - Q-020, Q-011, Q-015 and Q-009: unchanged; Q-011 remains P0/Open until the VPS restore drill is completed.
