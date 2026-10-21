@@ -200,7 +200,7 @@ ALTER TABLE public.players
           AND username_normalized = lower(btrim(username)))
     ),
   ADD CONSTRAINT players_phone_number_e164_check
-    CHECK (phone_number_e164 IS NULL OR (left(phone_number_e164, 1) = '+' AND substring(phone_number_e164 from 2) ~ '^[1-9][0-9]{0,14}$')),
+    CHECK (phone_number_e164 IS NULL OR (left(phone_number_e164, 1) = '+' AND substring(phone_number_e164 from 2) ~ '^[1-9][0-9]{1,14}$')),
   ADD CONSTRAINT players_email_verification_status_check
     CHECK (email_verification_status IN ('pending','verified','rejected','expired','not_required')),
   ADD CONSTRAINT players_kyc_tier_check
