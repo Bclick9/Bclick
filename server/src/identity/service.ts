@@ -379,7 +379,7 @@ export class IdentityService {
       const result = await tx.query<DbRow>(`UPDATE players
         SET ${assignments.join(',')},updated_at=now()
         WHERE id=$1
-        RETURNING id,email,player_number,display_name,first_name,last_name,gender,country_code,city,address,
+        RETURNING id,email,player_number,username,display_name,first_name,last_name,gender,country_code,city,address,
           phone_number_e164,postal_code,settlement_currency,language,preferred_display_currency,status,verification_status,created_at,updated_at`,
       values);
       const player = result.rows[0];
