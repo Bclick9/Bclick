@@ -1,0 +1,43 @@
+name: Neon Migration 001 preflight (read-only)
+
+on:
+  push:
+    branches:
+      - ops/neon-migration-001-preflight
+    paths:
+      - 'server/scripts/identity-pre-migration-gate.ts'
+      - '.github/workflows/identity-neon-preflight.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: neon-migration-001-preflight
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Read-only target check using DATABASE_URL secret
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install locked workspace (no database access)
+        run: pnpm install --frozen-lockfile
+
+      - name: Run read-only pre-Migration-001 gate on configured Neon target
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BCLICK_PREFLIGHT_TARGET: neon-copabet365
+        run: pnpm --filter @bclick/server exec tsx scripts/identity-pre-migration-gate.ts
