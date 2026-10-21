@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import {
   BadgeHelp, CalendarDays, Check, ChevronDown, Chrome, Circle, Eye, EyeOff, Gift,
-  LockKeyhole, Mail, MoreHorizontal, Phone, Send, ShieldCheck, Sparkles,
+  LockKeyhole, Mail, MoreHorizontal, Phone, Send, ShieldCheck, Sparkles, UserRound,
   WalletCards, X, type LucideIcon,
 } from 'lucide-react'
 
@@ -86,6 +86,8 @@ function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initial
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [ageConfirmed, setAgeConfirmed] = useState(false)
   const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
+  const [loginIdentifier, setLoginIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [phone, setPhone] = useState('')
   const [promoCode, setPromoCode] = useState('')
@@ -116,15 +118,19 @@ function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initial
     setIsSubmitting(true)
     try {
       if (mode === 'login') {
-        await login(email, password)
+        await login(loginIdentifier, password)
       } else {
         if (!termsAccepted || !ageConfirmed) throw new Error('Please confirm the age requirement and accept the terms to continue.')
+        if (!/^[A-Za-z0-9._-]{3,32}$/.test(username.trim())) {
+          throw new Error('Username must be 3–32 characters using letters, numbers, dots, underscores, or hyphens.')
+        }
         if (!dateOfBirth) throw new Error('Date of birth is required.')
         if (phone.trim() && !/^\+[1-9][0-9]{1,14}$/.test(phone.trim())) {
           throw new Error('Enter the phone number in international format, for example +21612345678.')
         }
         await register({
           email,
+          username: username.trim(),
           password,
           countryCode,
           settlementCurrency,
@@ -221,17 +227,49 @@ function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initial
           </div>
 
           <form data-auth-form-version="2" data-auth-mode={mode} className="space-y-4" onSubmit={handleSubmit}>
-            <AuthField
-              label="Email"
-              icon={Mail}
-              type="email"
-              name="email"
-              autoComplete="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-            />
+            {mode === 'login' ? (
+              <AuthField
+                label="Email or username"
+                icon={UserRound}
+                type="text"
+                name="identifier"
+                autoComplete="username"
+                placeholder="Enter your email or username"
+                value={loginIdentifier}
+                onChange={(event) => setLoginIdentifier(event.target.value)}
+                maxLength={254}
+                required
+              />
+            ) : (
+              <>
+                <AuthField
+                  label="Username"
+                  icon={UserRound}
+                  type="text"
+                  name="username"
+                  autoComplete="username"
+                  placeholder="Choose a username"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  minLength={3}
+                  maxLength={32}
+                  pattern="[A-Za-z0-9._-]{3,32}"
+                  required
+                />
+                <p className="-mt-2 text-[11px] text-[#91a6b5]">Use 3–32 letters, numbers, dots, underscores, or hyphens. You’ll use this to log in.</p>
+                <AuthField
+                  label="Email"
+                  icon={Mail}
+                  type="email"
+                  name="email"
+                  autoComplete="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                />
+              </>
+            )}
 
             <AuthField
               label="Password"
