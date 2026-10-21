@@ -7,9 +7,9 @@ $env:DATABASE_URL = 'postgresql://bclick_dev:local_only_change_me@127.0.0.1:5432
 pnpm --filter @bclick/server migrate:up
 ```
 
-The identity schema is managed by the ordered SQL migrations in this directory. Migration 004 adds a separate sequence-backed public player number and editable personal-profile columns to the existing `players` table. The UUID `players.id` remains the internal primary key and foreign-key target; UI/support-facing player IDs use `player_number`.
+The identity schema is managed by the ordered SQL migrations in this directory. Migration 004 adds a separate sequence-backed public player number and editable personal-profile columns to the existing `players` table. The UUID `players.id` remains the internal primary key and foreign-key target; UI/support-facing player IDs use `player_number`. Username is required for new registrations and can be used for login. Existing accounts may continue to log in by email and can set a username once in Personal Info; usernames are case-insensitive and immutable after set.
 
-The first public player number is `100000000` (nine digits). IDs increase by one without wrapping; after `999999999`, the next ID is `1000000000` (ten digits). Existing players are assigned numbers deterministically in creation order during Migration 004.
+The first public player number is `100000000` (nine digits). IDs increase by one without wrapping; after `999999999`, the next ID is `1000000000` (ten digits). Existing players are assigned numbers deterministically in creation order during Migration 004. Migration 005 reconciles local databases that already applied the earlier Migration 004 starting at `436222976`: it preserves relative account order, rebases only an exact contiguous legacy sequence to `100000000`, and refuses unrecognized states. Fresh databases are left at the approved start. Migration 005 intentionally blocks rollback to avoid silently changing IDs already shown to players.
 
 Migration 004 also reconciles the existing Migration 003 profile and credential compatibility mirrors for accounts that were created after Migration 003. The active identity service still treats `players` as the source of truth. Keep those mirrors synchronized until a separately reviewed read/write cutover is approved.
 
