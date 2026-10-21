@@ -28,6 +28,11 @@ BEGIN
   IF to_regclass('public.auth_sessions') IS NULL THEN
     RAISE EXCEPTION 'Migration 002 stopped: source public.auth_sessions is missing';
   END IF;
+
+  -- Hold an exclusive table lock from the emptiness check through DROP TABLE.
+  -- This prevents a concurrent login from inserting a session after the check.
+  LOCK TABLE public.auth_sessions IN ACCESS EXCLUSIVE MODE;
+
   IF to_regclass('public.player_sessions') IS NOT NULL
      OR to_regclass('public.admin_sessions') IS NOT NULL THEN
     RAISE EXCEPTION 'Migration 002 stopped: one or both destination session tables already exist';
@@ -107,6 +112,9 @@ BEGIN
      OR to_regclass('public.admin_sessions') IS NULL THEN
     RAISE EXCEPTION 'Migration 002 rollback stopped: one or both split session tables are missing';
   END IF;
+
+  -- Prevent concurrent session issuance while rollback checks both tables.
+  LOCK TABLE public.player_sessions, public.admin_sessions IN ACCESS EXCLUSIVE MODE;
 
   SELECT array_agg(name::text ORDER BY name)
     INTO observed_migrations
