@@ -9,6 +9,15 @@ on:
         description: "Type exactly: copabet365-neondb-frankfurt"
         required: true
         type: string
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/neon-baseline-migrations.yml'
+      - 'server/scripts/neon-baseline-migration-gate.mjs'
+      - 'server/migrations/**'
+      - 'server/package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
 
 permissions:
   contents: read
@@ -18,7 +27,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    name: Validate guarded workflow without database access
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install locked workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate baseline gate syntax
+        run: node --check server/scripts/neon-baseline-migration-gate.mjs
+
   baseline:
+    if: github.event_name == 'workflow_dispatch'
     name: Guarded baseline migrations and verification
     runs-on: ubuntu-latest
     timeout-minutes: 20
