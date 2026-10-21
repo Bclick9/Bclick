@@ -177,6 +177,16 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     activeAdminJar = cookieMapFromResponse(enroll.headers['set-cookie'], adminStepJar);
     assert.ok(activeAdminJar['__Host-bclick_admin_session']);
     assert.ok(activeAdminJar['__Host-bclick_admin_csrf']);
+    const adminSetCookies = Array.isArray(enroll.headers['set-cookie'])
+      ? enroll.headers['set-cookie'] : [String(enroll.headers['set-cookie'] ?? '')];
+    const adminSessionSetCookie = adminSetCookies.find((value) => value.startsWith('__Host-bclick_admin_session='));
+    const adminCsrfSetCookie = adminSetCookies.find((value) => value.startsWith('__Host-bclick_admin_csrf='));
+    assert.ok(adminSessionSetCookie, 'MFA completion must issue an admin session cookie');
+    assert.match(adminSessionSetCookie, /SameSite=Strict/, 'Admin session cookie must be SameSite=Strict');
+    assert.match(adminSessionSetCookie, /HttpOnly/, 'Admin session cookie must be HttpOnly');
+    assert.ok(adminCsrfSetCookie, 'MFA completion must issue an admin CSRF cookie');
+    assert.match(adminCsrfSetCookie, /SameSite=Strict/, 'Admin CSRF cookie must be SameSite=Strict');
+    assert.doesNotMatch(adminCsrfSetCookie, /HttpOnly/, 'Admin CSRF cookie must remain JS-readable for the double-submit contract');
     assert.equal(activeAdminJar['__Host-bclick_admin_enrollment'], undefined);
     assert.equal(activeAdminJar['__Host-bclick_admin_enrollment_csrf'], undefined);
     assert.equal(activeAdminJar['__Host-bclick_admin_challenge'], undefined);
@@ -200,6 +210,16 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     playerId.push(String(registered.json().data.player.id));
     assert.ok(playerJar['__Host-bclick_session']);
     assert.ok(playerJar['__Host-bclick_player_csrf']);
+    const playerSetCookies = Array.isArray(registered.headers['set-cookie'])
+      ? registered.headers['set-cookie'] : [String(registered.headers['set-cookie'] ?? '')];
+    const playerSessionSetCookie = playerSetCookies.find((value) => value.startsWith('__Host-bclick_session='));
+    const playerCsrfSetCookie = playerSetCookies.find((value) => value.startsWith('__Host-bclick_player_csrf='));
+    assert.ok(playerSessionSetCookie, 'Registration must issue a player session cookie');
+    assert.match(playerSessionSetCookie, /SameSite=Lax/, 'Player session cookie must be SameSite=Lax');
+    assert.match(playerSessionSetCookie, /HttpOnly/, 'Player session cookie must be HttpOnly');
+    assert.ok(playerCsrfSetCookie, 'Registration must issue a player CSRF cookie');
+    assert.match(playerCsrfSetCookie, /SameSite=Strict/, 'Player CSRF cookie remains SameSite=Strict');
+    assert.doesNotMatch(playerCsrfSetCookie, /HttpOnly/, 'Player CSRF cookie must remain JS-readable for double submit');
 
     const persistedRegistration = await pool.query(
       'SELECT date_of_birth::text AS date_of_birth, terms_accepted_at IS NOT NULL AS terms_accepted, terms_version, age_confirmation_at IS NOT NULL AS age_confirmed, age_policy_version, preferred_language, username, username_normalized, phone_number_e164 FROM players WHERE id=$1',
@@ -311,7 +331,8 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     await app.close();
     if (playerId[0]) {
       await pool.query("DELETE FROM audit_events WHERE actor_id=$1 OR subject_id=$1 OR actor_id=$2 OR subject_id=$2", [adminId, playerId[0]]).catch(() => undefined);
-      await pool.query("DELETE FROM auth_sessions WHERE (principal_type='admin' AND principal_id=$1) OR (principal_type='player' AND principal_id=$2)", [adminId, playerId[0]]).catch(() => undefined);
+      await pool.query('DELETE FROM player_sessions WHERE player_id=$1', [playerId[0]]).catch(() => undefined);
+      await pool.query('DELETE FROM admin_sessions WHERE admin_id=$1', [adminId]).catch(() => undefined);
       await pool.query('DELETE FROM admin_users WHERE id=$1', [adminId]).catch(() => undefined);
       await pool.query('DELETE FROM players WHERE id=$1', [playerId[0]]).catch(() => undefined);
     } else {
