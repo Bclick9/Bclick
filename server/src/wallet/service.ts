@@ -53,8 +53,8 @@ function parseCursor(cursor: string | undefined): StatementCursor | null {
     if (typeof record.id !== 'string' || !UUID_PATTERN.test(record.id)) throw new Error('Invalid cursor ID');
     if (typeof record.postedAt !== 'string') throw new Error('Invalid cursor timestamp');
     const date = new Date(record.postedAt);
-    const microsecondUtc = /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$/.test(record.postedAt);
-    const millisecondTimestamp = record.postedAt.replace(/(\\.\\d{3})\\d{3}Z$/, '$1Z');
+    const microsecondUtc = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/.test(record.postedAt);
+    const millisecondTimestamp = record.postedAt.replace(/(\.\d{3})\d{3}Z$/, '$1Z');
     if (!microsecondUtc || !Number.isFinite(date.getTime()) || date.toISOString() !== millisecondTimestamp) {
       throw new Error('Invalid cursor timestamp');
     }
