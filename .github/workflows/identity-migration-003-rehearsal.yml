@@ -91,6 +91,29 @@ jobs:
       - name: Verify credential/profile backfill, v2 alias, KYC invariants, and source preservation
         run: pnpm --filter @bclick/server exec node scripts/identity-migration-003-rehearsal.mjs post-up
 
+      - name: Create one synthetic credential-mirror mismatch for the Down fail-closed test
+        run: pnpm --filter @bclick/server exec node scripts/identity-migration-003-rehearsal.mjs poison-credential
+
+      - name: Require Migration 003 Down to refuse the mismatched credential mirror
+        shell: bash
+        run: |
+          set -euo pipefail
+          log=/tmp/bclick-m003-down-guard.log
+          if pnpm --filter @bclick/server exec node-pg-migrate down --count 1 --migrations-dir ./migrations --database-url-var DATABASE_URL >"$log" 2>&1; then
+            cat "$log"
+            echo "Migration 003 Down unexpectedly succeeded with a mismatched credential mirror." >&2
+            exit 1
+          fi
+          cat "$log"
+          grep -F "Migration 003 rollback stopped:" "$log" >/dev/null || {
+            echo "Migration 003 Down failed for an unexpected reason; refusing to count this as a guard pass." >&2
+            exit 1
+          }
+          echo "MIGRATION_003_ROLLBACK_GUARD_REFUSAL=PASS"
+
+      - name: Verify refused Down preserved legacy data and schema; restore synthetic mirror
+        run: pnpm --filter @bclick/server exec node scripts/identity-migration-003-rehearsal.mjs assert-down-guarded
+
       - name: Type-check shared workspace packages and server
         run: pnpm api:typecheck
 
