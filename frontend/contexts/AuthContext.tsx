@@ -1,10 +1,21 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
+export type PlayerGender = 'female' | 'male' | 'other' | 'prefer_not_to_say'
+
 export interface Player {
+  /** Internal UUID. Use playerNumber for the public account ID shown in the UI. */
   id: string
+  playerNumber: string
   email: string
   displayName: string
+  firstName: string | null
+  lastName: string | null
+  gender: PlayerGender | null
   countryCode: string
+  city: string | null
+  address: string | null
+  phoneNumber: string | null
+  postalCode: string | null
   settlementCurrency: 'TND' | 'EUR' | 'USD'
   preferredDisplayCurrency?: 'TND' | 'EUR' | 'USD' | null
   language: string
@@ -17,6 +28,14 @@ export type AuthApiStatus = 'checking' | 'online' | 'offline' | 'identity-disabl
 export interface PlayerProfileUpdate {
   displayName?: string
   language?: string
+  firstName?: string | null
+  lastName?: string | null
+  gender?: PlayerGender | null
+  countryCode?: string
+  city?: string | null
+  address?: string | null
+  phoneNumber?: string | null
+  postalCode?: string | null
 }
 
 export interface RegisterInput {
@@ -209,18 +228,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const updatePlayerProfile = useCallback(async (input: PlayerProfileUpdate): Promise<Player> => {
-    const updates: Record<string, string> = {}
+    const updates: Record<string, string | null> = {}
     if (typeof input.displayName === 'string') updates.displayName = input.displayName.trim()
     if (typeof input.language === 'string') updates.language = input.language.trim()
+    if ('firstName' in input) updates.firstName = input.firstName?.trim() || null
+    if ('lastName' in input) updates.lastName = input.lastName?.trim() || null
+    if ('gender' in input) updates.gender = input.gender ?? null
+    if (typeof input.countryCode === 'string') updates.countryCode = input.countryCode.trim().toUpperCase()
+    if ('city' in input) updates.city = input.city?.trim() || null
+    if ('address' in input) updates.address = input.address?.trim() || null
+    if ('phoneNumber' in input) updates.phoneNumber = input.phoneNumber?.trim() || null
+    if ('postalCode' in input) updates.postalCode = input.postalCode?.trim() || null
     if (Object.keys(updates).length === 0) {
       throw new Error('Change a profile field before saving.')
     }
 
-    if (updates.displayName !== undefined && (updates.displayName.length < 1 || updates.displayName.length > 80)) {
+    if (updates.displayName !== undefined && (updates.displayName === null || updates.displayName.length < 1 || updates.displayName.length > 80)) {
       throw new Error('Display name must contain between 1 and 80 characters.')
     }
-    if (updates.language !== undefined && (updates.language.length < 2 || updates.language.length > 12)) {
+    if (updates.language !== undefined && (updates.language === null || updates.language.length < 2 || updates.language.length > 12)) {
       throw new Error('Language must contain between 2 and 12 characters.')
+    }
+    if (typeof updates.countryCode === 'string' && !/^[A-Z]{2}$/.test(updates.countryCode)) {
+      throw new Error('Choose a valid country.')
+    }
+    if (typeof updates.phoneNumber === 'string' && !/^\+[1-9][0-9]{1,14}$/.test(updates.phoneNumber)) {
+      throw new Error('Use international phone format, for example +21612345678.')
     }
 
     const csrfToken = readCookie('__Host-bclick_player_csrf')
