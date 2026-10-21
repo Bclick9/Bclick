@@ -164,7 +164,7 @@ test('CI Identity DB investigation: report disposable PostgreSQL seed state', {
     assert.equal(report.counts.permission_count, 5, 'current baseline seeds five legacy permissions');
     assert.equal(report.counts.role_permission_link_count, 5, 'current baseline links project-admin to five legacy permissions');
     assert.equal(report.roles[0]?.code, 'project-admin');
-    assert.equal(report.rolePermissionMapping.rows.length, 5);
+    assert.equal(report.rolePermissionMapping.length, 5);
     assert.equal(report.legacyPermissionRowsAndLinks.length, 5);
     assert.equal(report.existingCanonicalPermissions.length, 0, 'canonical permission registry has not been added yet');
   } finally {
