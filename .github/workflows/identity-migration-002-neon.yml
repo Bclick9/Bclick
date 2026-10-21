@@ -80,9 +80,10 @@ jobs:
             ["server/migrations/1792512000000_identity_sessions.sql"]="e82d0af78853136a33321489847ab2b0ae1573d8"
             ["server/migrations/1792584000000_identity_domain_migration_001.sql"]="dde5b276dd1220dba5107d7989b6c1378ead101a"
             ["server/migrations/1792670400000_identity_sessions_split_002.sql"]="e215f7a03c74fa140f9c8b1c568e58f56a67a46c"
-            # M003 is allowed only in this disposable CI inventory; this is not
-            # added to the guarded live-Neon migration inventory below.
+            # M003 and M004 are allowed only in this disposable CI inventory;
+            # neither is added to the guarded live-Neon migration inventory below.
             ["server/migrations/1792756800000_identity_player_credentials_003.sql"]="aa26b9a9888b1f244f14a32272fd7467cfc3876f"
+            ["server/migrations/1792843200000_player_profile_details_004.sql"]="f1350d40efd99f19c620f90ad589df73b5abbf78"
           )
           for path in "${!expected_blobs[@]}"; do
             actual="$(git hash-object "$path")"
@@ -95,6 +96,7 @@ jobs:
             "server/migrations/1792584000000_identity_domain_migration_001.sql"
             "server/migrations/1792670400000_identity_sessions_split_002.sql"
             "server/migrations/1792756800000_identity_player_credentials_003.sql"
+            "server/migrations/1792843200000_player_profile_details_004.sql"
           )
           diff -u <(printf '%s\n' "${expected_migrations[@]}") <(printf '%s\n' "${actual_migrations[@]}")
       - name: Create the exact three-migration pre-Migration-002 checkpoint on disposable PostgreSQL
