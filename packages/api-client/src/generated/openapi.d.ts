@@ -331,7 +331,7 @@ export interface paths {
         };
         /**
          * Resolve a public game slug
-         * @description Resolves the stable public slug used by current URLs to the normalized game UUID and complete categories list. Slug resolution is read-only and must apply the same visibility/availability policy as the catalogue.
+         * @description Resolves the stable public slug used by current URLs, including persisted legacy storefront aliases, to the normalized game UUID and complete categories list. Legacy aliases are resolved only when an exact title/provider match is unique; unresolved aliases fail closed and ambiguous aliases return 409. Slug resolution is read-only and applies the catalogue visibility/availability policy.
          */
         get: operations["getCasinoGameBySlug"];
         put?: never;
@@ -4874,7 +4874,7 @@ export interface components {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
-        /** @description Conflicting or ambiguous resource state, including duplicate idempotency keys, stale quotes, invalid transitions, and ambiguous legacy game slugs. */
+        /** @description Conflicting idempotency key, stale quote or invalid state transition. */
         Conflict: {
             headers: {
                 [name: string]: unknown;
