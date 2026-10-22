@@ -108,8 +108,8 @@ This fixes the client-side fallback, not the full Q-005 gate. The accepted statu
 
 Q-005 **is not closed by this PR**. Required next evidence/decisions:
 
-- Owner acceptance or amendment of the proposed identity/category/legacy-link contract and the per-alias disposition in [the local audit worklist](./2026-10-22-Q005-alias-disposition.md).
-- PR #100 has merged the persistent alias implementation; its merge does not authorize frontend catalogue API cutover. Owner acceptance remains a separate gate, alongside the count discrepancy evidence and Standard/Premium identity scope.
+- The Owner's 2026-10-22 acceptance covers the conservative per-alias disposition (three pinned mappings; 56 unresolved). The remaining Q-005 decision work is the count-scope evidence and a reviewed tier/source/legacy-route policy, not re-requesting the accepted per-alias disposition.
+- PR #100 has merged the persistent alias implementation, and the Owner's conservative disposition is recorded in `2026-10-22-Q005-owner-acceptance.md`. Neither PR #100 nor that disposition authorizes frontend catalogue cutover; the 3,802-vs-3,639 evidence and Standard/Premium source/legacy-route policy remain open.
 - Same-key/same-scope evidence or a written vendor explanation for 3,802 versus 3,639.
 - Review future Premium/live-key API visibility and launch policy. Migration 009 stores one UUID target per alias, so an explicit policy is still needed if the same legacy slug must lead to a different tier-specific canonical game. Confirm provider mapping, live-key permissions and Owner acceptance before Premium import.
 
