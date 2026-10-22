@@ -178,11 +178,8 @@ export function buildCookie(name: string, value: string, options: {
   maxAge?: number;
   httpOnly?: boolean;
   sameSite?: 'Strict' | 'Lax';
-  secure?: boolean;
 } = {}): string {
-  const parts = [name + '=' + value, 'Path=/'];
-  if (options.secure !== false) parts.push('Secure');
-  parts.push('SameSite=' + (options.sameSite ?? 'Strict'));
+  const parts = [name + '=' + value, 'Path=/', 'Secure', 'SameSite=' + (options.sameSite ?? 'Strict')];
   if (options.httpOnly) parts.push('HttpOnly');
   if (options.maxAge !== undefined) parts.push('Max-Age=' + String(Math.max(0, Math.floor(options.maxAge))));
   return parts.join('; ');
