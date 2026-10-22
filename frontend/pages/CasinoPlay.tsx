@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import {
   Search, Maximize2, Minimize2, X, WalletCards, Play, Gamepad2, LockKeyhole, LoaderCircle, RotateCw,
 } from 'lucide-react'
 import { GAMES } from '../data/catalog'
 import type { CasinoCatalogGame } from '../lib/casinoCatalog'
 import { fetchCasinoGameBySlug, fetchCasinoGames, getCatalogErrorMessage, launchCasinoSandboxDemo } from '../lib/casinoCatalog'
-import { cn } from '../lib/shadcn/utils'
 import { SearchDialog } from '../components/SearchDialog'
 import { Sidebar, SIDEBAR_WIDTH } from '../components/Sidebar'
 
@@ -30,9 +29,9 @@ async function resolveLegacyGame(title: string, provider: string): Promise<Casin
 
 export default function CasinoPlay() {
   const { mode = 'demo', gameId = '' } = useParams()
-  const navigate = useNavigate()
   const localGame = GAMES.find((item) => item.id === gameId)
   const stageRef = useRef<HTMLDivElement>(null)
+  const [sidebarExpanded, setSidebarExpanded] = useState(false)
   const launchPromiseCache = useRef(new Map<string, Promise<DemoLaunchResult>>())
   const [fullscreen, setFullscreen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -113,10 +112,10 @@ export default function CasinoPlay() {
 
   return (
     <div className="min-h-[100dvh] w-full bg-[#05090d] text-white">
-      <Sidebar expanded={false} onToggle={() => undefined} />
+      <Sidebar expanded={sidebarExpanded} onToggle={() => setSidebarExpanded((expanded) => !expanded)} />
       <div
         className="flex min-h-[100dvh] min-w-0 flex-col transition-[padding] duration-200 ease-out md:pl-[var(--sbw)]"
-        style={{ ['--sbw' as string]: String(SIDEBAR_WIDTH.collapsed) + 'px' }}
+        style={{ ['--sbw' as string]: String(sidebarExpanded ? SIDEBAR_WIDTH.expanded : SIDEBAR_WIDTH.collapsed) + 'px' }}
       >
         <header className="sticky top-0 z-[110] shrink-0 border-b border-[var(--cb-line)] bg-[var(--cb-nav)]">
           <div className="grid h-14 min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 sm:px-4 md:h-16 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-3">
