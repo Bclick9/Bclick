@@ -98,6 +98,9 @@ export class BigBangCatalogService {
       // Fetch and validate the entire provider snapshot before opening the publish transaction.
       // A partial or malformed response never modifies the currently visible catalogue.
       const snapshot = await this.client.listAllStandardGames();
+      if (!Number.isSafeInteger(snapshot.totalReported) || snapshot.totalReported < 0 || snapshot.games.length !== snapshot.totalReported) {
+        throw new CatalogSyncFault('BIGBANG_SNAPSHOT_INCONSISTENT', 'The complete BigBang snapshot count does not match its reported total');
+      }
       const counts = await this.repository.transaction(async (tx) => {
         await tx.query("SELECT pg_advisory_xact_lock(hashtext('bclick.bigbang.catalog-sync'))");
 
@@ -119,6 +122,10 @@ export class BigBangCatalogService {
         const providers = new Map<string, { name: string; id?: string }>();
         for (const game of snapshot.games) {
           const code = slugify(game.provider);
+          const existingProvider = providers.get(code);
+          if (existingProvider && existingProvider.name !== game.provider) {
+            throw new CatalogSyncFault('BIGBANG_PROVIDER_CODE_COLLISION', 'Distinct provider names normalize to the same local provider code');
+          }
           providers.set(code, { name: game.provider });
         }
 
@@ -185,10 +192,8 @@ export class BigBangCatalogService {
           await tx.query(`
             INSERT INTO public.casino_game_sources
               (game_id,source_code,external_game_id,launch_name,source_provider_name,
-               source_category,source_category_title,source_mode,is_premium,source_is_demo,game_type,
-               available,last_synced_at)
-            VALUES ${valuesSql(batch.length,11)}, 
-              (NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL)
+               source_category,source_category_title,source_mode,is_premium,source_is_demo,game_type)
+            VALUES ${valuesSql(batch.length,11)}
             ON CONFLICT (source_code,external_game_id) DO UPDATE SET
               game_id=EXCLUDED.game_id,
               launch_name=EXCLUDED.launch_name,
