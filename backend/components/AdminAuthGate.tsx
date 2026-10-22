@@ -137,7 +137,7 @@ export function AdminAuthGate({ children }: { children: ReactNode }) {
       if (result.data.status === 'enrollment_required') {
         const setup = await requestAdminApi<Envelope<{ secret: string; otpauthUri: string; expiresAt: string }>>(
           '/api/v1/admin/auth/mfa/totp/setup',
-          { method: 'POST', headers: EnrollmentCsrfHeaders(), body: JSON.stringify({}) },
+          { method: 'POST', headers: getEnrollmentCsrfHeaders(), body: JSON.stringify({}) },
         )
         setTotpSecret(setup.data.secret)
         setTotpUri(setup.data.otpauthUri)
@@ -178,7 +178,7 @@ export function AdminAuthGate({ children }: { children: ReactNode }) {
     try {
       await requestAdminApi('/api/v1/admin/auth/mfa/totp/verify', {
         method: 'POST',
-        headers: EnrollmentCsrfHeaders(),
+        headers: getEnrollmentCsrfHeaders(),
         body: JSON.stringify({ code: mfaCode.trim() }),
       })
       setTotpSecret('')
