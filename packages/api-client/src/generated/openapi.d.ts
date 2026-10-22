@@ -4874,7 +4874,7 @@ export interface components {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
-        /** @description Conflicting idempotency key, stale quote or invalid state transition. */
+        /** @description Conflicting or ambiguous resource state, including duplicate idempotency keys, stale quotes, invalid transitions, and ambiguous legacy game slugs. */
         Conflict: {
             headers: {
                 [name: string]: unknown;
@@ -5615,6 +5615,7 @@ export interface operations {
             };
             400: components["responses"]["ValidationError"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     getCasinoGamesByGameId: {
