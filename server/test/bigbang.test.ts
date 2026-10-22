@@ -81,6 +81,46 @@ test('BigBang client accepts the published standard-game envelope and sends only
   assert.equal(receivedKey, SANDBOX_KEY);
 });
 
+test('BigBang client accepts canonical decimal strings in provider pagination metadata', async () => {
+  const payload = {
+    ...documentedFixture,
+    pagination: { total: 1, limit: '5000', offset: '0' },
+  };
+  const client = new BigBangApiClient({
+    apiKey: SANDBOX_KEY,
+    fetcher: fetchStub(() => jsonResponse(payload)),
+  });
+
+  const snapshot = await client.listAllStandardGames();
+  assert.equal(snapshot.totalReported, 1);
+  assert.equal(snapshot.games.length, 1);
+  assert.equal(snapshot.games[0]?.id, 4821);
+});
+
+test('BigBang client rejects non-canonical string pagination integers', async () => {
+  const cases = [
+    { label: 'exponent notation', pagination: { total: 1, limit: '5e3', offset: '0' } },
+    { label: 'whitespace', pagination: { total: 1, limit: '5000', offset: ' 0' } },
+    { label: 'fractional text', pagination: { total: '1.0', limit: '5000', offset: '0' } },
+    { label: 'leading zero', pagination: { total: 1, limit: '05000', offset: '0' } },
+  ];
+
+  for (const item of cases) {
+    const client = new BigBangApiClient({
+      apiKey: SANDBOX_KEY,
+      fetcher: fetchStub(() => jsonResponse({
+        ...documentedFixture,
+        pagination: item.pagination,
+      })),
+    });
+    await assert.rejects(
+      () => client.listAllStandardGames(),
+      expectCode('BIGBANG_PAGINATION_INVALID'),
+      item.label,
+    );
+  }
+});
+
 test('BigBang client refuses a live key before any network request', () => {
   assert.throws(
     () => new BigBangApiClient({ apiKey: 'ek_live_not_for_phase6' }),
