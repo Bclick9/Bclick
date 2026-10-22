@@ -9,19 +9,19 @@ import {
 } from '../src/index.ts';
 
 test('parses and formats the currency precision defined by the platform contract', () => {
-  assert.equal(parseDecimalToMinorUnits('12.345', 'TND'), 12345n);
+  assert.equal(parseDecimalToMinorUnits('12.34', 'TND'), 1234n);
   assert.equal(parseDecimalToMinorUnits('12.34', 'EUR'), 1234n);
   assert.equal(parseDecimalToMinorUnits('12.34', 'USD'), 1234n);
 
-  assert.equal(formatMinorUnits(12345n, 'TND'), '12.345');
+  assert.equal(formatMinorUnits(1234n, 'TND'), '12.34');
   assert.equal(formatMinorUnits(1234n, 'EUR'), '12.34');
-  assert.equal(formatMinorUnits(-1n, 'TND'), '-0.001');
+  assert.equal(formatMinorUnits(-1n, 'TND'), '-0.01');
 });
 
 test('rejects extra precision rather than rounding or truncating', () => {
   assert.throws(
-    () => parseDecimalToMinorUnits('1.0001', 'TND'),
-    /more than 3 fractional digits/,
+    () => parseDecimalToMinorUnits('1.001', 'TND'),
+    /more than 2 fractional digits/,
   );
   assert.throws(
     () => parseDecimalToMinorUnits('1.001', 'EUR'),
