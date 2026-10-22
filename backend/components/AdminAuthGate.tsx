@@ -119,6 +119,48 @@ export function AdminAuthGate({ children }: { children: ReactNode }) {
     return () => { active = false }
   }, [])
 
+  // Expire the visible admin shell with the server session and re-check whenever the tab resumes.
+  useEffect(() => {
+    if (screen !== 'ready' || !adminSession) return
+    let active = true
+    const revalidate = async (): Promise<void> => {
+      try {
+        const result = await requestAdminApi<Envelope<AdminSession>>('/api/v1/admin/session')
+        if (!active) return
+        if (result.data.admin.status !== 'active' || result.data.mfa?.enabled !== true) {
+          setAdminSession(null)
+          setScreen('login')
+          setPassword('')
+          setMfaCode('')
+          return
+        }
+        setAdminSession(result.data)
+      } catch (caught) {
+        if (!active) return
+        if (caught instanceof AdminApiError && caught.status === 401) {
+          setAdminSession(null)
+          setScreen('login')
+          setPassword('')
+          setMfaCode('')
+          return
+        }
+        setError(displayError(caught, 'Could not revalidate the administrator session.'))
+      }
+    }
+    const expiry = Date.parse(adminSession.session.expiresAt)
+    const delay = Number.isFinite(expiry) ? Math.max(0, expiry - Date.now()) : 8 * 60 * 60 * 1000
+    const timer = window.setTimeout(() => { void revalidate() }, delay)
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void revalidate()
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      active = false
+      window.clearTimeout(timer)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [screen, adminSession?.session.expiresAt])
+
   async function submitLogin(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault()
     setBusy(true)
