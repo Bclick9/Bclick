@@ -118,7 +118,28 @@ if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
         $privateAddresses = @(Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue |
             Where-Object {
                 $_.AddressState -eq 'Preferred' -and
-                $_.IPAddress -match '^(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})
+                $_.IPAddress -match '^(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})$'
+            })
+        foreach ($address in $privateAddresses) {
+            $origin = 'http://' + $address.IPAddress + ':5173'
+            $currentValue = Get-LocalEnvValue -Name 'BCLICK_PLAYER_ALLOWED_ORIGINS'
+            $current = @($currentValue -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            if ($current -notcontains $origin) {
+                $current += $origin
+                Set-LocalEnvValue -Name 'BCLICK_PLAYER_ALLOWED_ORIGINS' -Value (($current | Select-Object -Unique) -join ',')
+            }
+            if ($script:MobileOrigins -notcontains $origin) {
+                $script:MobileOrigins += $origin
+            }
+        }
+    }
+}
+if ($script:MobileOrigins.Count -gt 0) {
+    Write-Host ('Added exact phone-testing origin(s): ' + ($script:MobileOrigins -join ', '))
+} else {
+    Write-Host 'No private IPv4 address found on an active physical adapter. Add the exact phone origin to BCLICK_PLAYER_ALLOWED_ORIGINS in .env if testing over LAN.'
+}
+
 foreach ($name in @(
     'BCLICK_SESSION_HASH_KEY',
     'BCLICK_CSRF_SIGNING_KEY',
