@@ -15,6 +15,7 @@
     "migrate:up": "node-pg-migrate up --migrations-dir ./migrations --database-url-var DATABASE_URL",
     "catalog:migrate:bigbang:sandbox": "pnpm --filter @bclick/config build && node --env-file=../.env --import=tsx src/bigbang/migrate-sandbox-cli.ts",
     "admin:bootstrap": "tsx src/identity/bootstrap-admin.ts",
+    "admin:bootstrap-local-default": "node --env-file=../.env --import=tsx src/identity/bootstrap-local-default-admin.ts",
     "catalog:sync:bigbang:sandbox": "pnpm --filter @bclick/config build && node --env-file=../.env --import=tsx src/bigbang/sync-cli.ts"
   },
   "dependencies": {
