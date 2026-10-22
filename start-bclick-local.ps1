@@ -180,6 +180,19 @@ function Invoke-LocalCompose {
     }
 }
 
+# Refuse to start a second API instance which could keep an older .env/Origin allow-list active.
+# Never terminate an unknown process automatically; tell the operator how to reload the configuration.
+if (Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue) {
+    $apiListeners = @(Get-NetTCPConnection -State Listen -LocalPort 3000 -ErrorAction SilentlyContinue)
+    if ($apiListeners.Count -gt 0) {
+        $owners = ($apiListeners | Select-Object -ExpandProperty OwningProcess -Unique) -join ', '
+        throw ('Port 3000 is already in use by process ID(s): ' + $owners + '. Stop the previous local API with Ctrl+C, then rerun this script so it reloads .env. No process was terminated.')
+    }
+}
+
+$playerOriginList = @(Get-LocalEnvValue -Name 'BCLICK_PLAYER_ALLOWED_ORIGINS' -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+Write-Host ('Player Origin allow-list for this API run: ' + ($playerOriginList -join ', '))
+
 Write-Host '[1/3] Validating Docker Compose configuration...'
 Invoke-LocalCompose -ComposeArguments @('config', '--quiet') -FailureMessage 'Docker Compose configuration is invalid'
 Write-Host '[2/3] Starting local PostgreSQL and applying pending migrations...'
