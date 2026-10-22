@@ -5389,6 +5389,8 @@ export interface operations {
                     };
                 };
             };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -5425,6 +5427,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
         };
     };
     postWalletsFxQuotes: {

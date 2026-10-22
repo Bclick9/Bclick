@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { allowExactOrigin, buildCookie } from './crypto.js';
 import type { IdentityConfig } from './config.js';
 import { IdentityFault, IdentityService, type AuthSession, type IssuedSession } from './service.js';
+import { WalletFault, WalletReadService } from '../wallet/service.js';
 
 const PLAYER_SESSION = '__Host-bclick_session';
 const PLAYER_CSRF = '__Host-bclick_player_csrf';
@@ -59,7 +60,7 @@ async function safely(
   try {
     return await work();
   } catch (error) {
-    if (error instanceof IdentityFault) return sendError(reply, request, error.status, error.code, error.message);
+    if (error instanceof IdentityFault || error instanceof WalletFault) return sendError(reply, request, error.status, error.code, error.message);
     request.log.error({ requestId: request.id }, 'Identity operation failed');
     return sendError(reply, request, 500, 'INTERNAL_ERROR', 'The request could not be completed');
   }
@@ -222,6 +223,11 @@ async function requireEnrollment(
 }
 
 export function registerIdentityRoutes(app: FastifyInstance, service: IdentityService, config: IdentityConfig): void {
+  let walletReadService: WalletReadService | undefined;
+  const getWalletReadService = (): WalletReadService => {
+    if (!walletReadService) walletReadService = new WalletReadService(service.repository);
+    return walletReadService;
+  };
   app.post('/api/v1/auth/register', {
     config: { rateLimit: false },
     schema: {
@@ -472,5 +478,62 @@ export function registerIdentityRoutes(app: FastifyInstance, service: IdentitySe
     if (session.status !== 'active') return sendError(reply, request, 403, 'FORBIDDEN', 'Administrator account is not active');
     if (!session.mfaVerified || session.admin?.mfa_enabled !== true) return sendError(reply, request, 401, 'UNAUTHORIZED', 'Completed administrator MFA is required');
     return reply.code(200).send(fullAdminResponse(session, request.id));
+  }));
+
+  app.get('/api/v1/wallets/:currency/balance', {
+    schema: {
+      params: {
+        type: 'object', additionalProperties: false, required: ['currency'],
+        properties: { currency: { type: 'string', pattern: '^[A-Z]{3}$', maxLength: 3 } },
+      },
+    },
+  }, async (request, reply) => safely(reply, request, async () => {
+    const session = await requirePlayer(request, reply, service, config, false);
+    if (!session) return;
+    const params = request.params as { currency: string };
+    const currency = await getWalletReadService().getBalance(
+      session.principalId,
+      session.player?.settlement_currency,
+      params.currency,
+    );
+    reply.header('Cache-Control', 'no-store');
+    return reply.code(200).send({ data: currency, requestId: request.id });
+  }));
+
+  app.get('/api/v1/wallets/:currency/statement', {
+    schema: {
+      params: {
+        type: 'object', additionalProperties: false, required: ['currency'],
+        properties: { currency: { type: 'string', pattern: '^[A-Z]{3}$', maxLength: 3 } },
+      },
+      querystring: {
+        type: 'object', additionalProperties: false,
+        properties: {
+          cursor: { type: 'string', maxLength: 512 },
+          limit: { type: 'integer', minimum: 1, maximum: 100, default: 25 },
+          from: { type: 'string', format: 'date-time' },
+          to: { type: 'string', format: 'date-time' },
+        },
+      },
+    },
+  }, async (request, reply) => safely(reply, request, async () => {
+    const session = await requirePlayer(request, reply, service, config, false);
+    if (!session) return;
+    const params = request.params as { currency: string };
+    const query = request.query as { cursor?: string; limit?: number; from?: string; to?: string };
+    const result = await getWalletReadService().getStatement(
+      session.principalId,
+      session.player?.settlement_currency,
+      {
+        currency: params.currency,
+        limit: query.limit ?? 25,
+        ...(query.cursor !== undefined ? { cursor: query.cursor } : {}),
+        ...(query.from !== undefined ? { from: query.from } : {}),
+        ...(query.to !== undefined ? { to: query.to } : {}),
+      },
+      request.id,
+    );
+    reply.header('Cache-Control', 'no-store');
+    return reply.code(200).send(result);
   }));
 }
