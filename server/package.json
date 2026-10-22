@@ -13,7 +13,8 @@
     "test": "tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "migrate:up": "node-pg-migrate up --migrations-dir ./migrations --database-url-var DATABASE_URL",
-    "admin:bootstrap": "tsx src/identity/bootstrap-admin.ts"
+    "admin:bootstrap": "tsx src/identity/bootstrap-admin.ts",
+    "catalog:sync:bigbang:sandbox": "tsx src/bigbang/sync-cli.ts"
   },
   "dependencies": {
     "@bclick/config": "workspace:*",
