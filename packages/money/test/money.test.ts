@@ -24,6 +24,11 @@ test('rejects extra precision rather than rounding or truncating', () => {
     /more than 2 fractional digits/,
   );
   assert.throws(
+    () => parseDecimalToMinorUnits('12.345', 'TND'),
+    /more than 2 fractional digits/,
+    'must reject millime-level TND instead of silently rounding it',
+  );
+  assert.throws(
     () => parseDecimalToMinorUnits('1.001', 'EUR'),
     /more than 2 fractional digits/,
   );
