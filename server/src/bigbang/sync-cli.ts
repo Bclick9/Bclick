@@ -3,6 +3,7 @@ import { parseServerConfig } from '@bclick/config';
 import { PgIdentityRepository } from '../identity/repository.js';
 import { BigBangApiClient } from './client.js';
 import { BigBangCatalogService } from './catalog.js';
+import { resolveSandboxLocalDatabaseUrl } from './local-database.js';
 
 async function main(): Promise<void> {
   const key = process.env.BIGBANG_SANDBOX_API_KEY?.trim();
@@ -12,25 +13,14 @@ async function main(): Promise<void> {
   }
   // This Phase 6 command deliberately refuses live keys. It can only read the sandbox catalogue.
   const api = new BigBangApiClient({ apiKey: key });
-  const config = parseServerConfig(process.env);
+  const databaseUrl = resolveSandboxLocalDatabaseUrl(process.env);
+  const config = parseServerConfig({ ...process.env, DATABASE_URL: databaseUrl });
 
   if (config.nodeEnv === 'production') {
     throw new Error('The Phase 6 BigBang catalogue command refuses production runtime configuration.');
   }
   if (process.env.BCLICK_BIGBANG_CATALOGUE_SANDBOX_CONFIRM !== 'YES') {
     throw new Error('Set BCLICK_BIGBANG_CATALOGUE_SANDBOX_CONFIRM=YES to confirm this sandbox-only catalogue sync.');
-  }
-
-  let databaseUrl: URL;
-  try {
-    databaseUrl = new URL(config.databaseUrl);
-  } catch {
-    throw new Error('The Phase 6 catalogue command requires a valid local PostgreSQL URL.');
-  }
-  const databaseHost = databaseUrl.hostname.replace(/^\[|\]$/g, '').toLowerCase();
-  if (!['postgres:', 'postgresql:'].includes(databaseUrl.protocol)
-    || !['localhost', '127.0.0.1', '::1'].includes(databaseHost)) {
-    throw new Error('The Phase 6 catalogue command can target only a loopback PostgreSQL database, never a remote database.');
   }
 
   const pool = new Pool({
