@@ -1,7 +1,7 @@
 # Q-006 — Provider specification fingerprint and contract review
 
 **Review date:** 2026-10-22  
-**Gate status:** **Q-006 OPEN / P0 — partially evidenced.** Exact source-artifact identification is complete for the two files listed below. Provider-contract acceptance, owner approval, and required golden fixture evidence are not complete.  
+**Gate status:** **Q-006 OPEN / P0 — partially evidenced.** The provider specifications are fingerprinted and support-issued TND bet/win signature vectors are now retained and cryptographically verified by tests. Full event coverage and owner acceptance are still pending.  
 **Scope boundary:** This review does not authorize production integration, Premium import, WinHouse Model B wallet endpoints, provider callbacks, wallet posting, wagers, or real-money operation.
 
 ## 1. Exact artifact register
@@ -31,11 +31,11 @@ Hashes were calculated from the raw bytes of the complete files supplied by the 
 3. **Sandbox fence:** the client deliberately accepts only `ek_test_` keys and the code launches only `demo: true`. That does not implement the brief's seamless-wallet callbacks, managed wallet, player auto-provisioning, or Premium paths.
 4. **Count/tier:** the brief says the visible catalog depends on the key/shop and that Sandbox is Standard-only; it does not prove that 3,639 and 3,802 were measured with the same key, filters, scope, and time. Nor does this brief explicitly establish numeric ID uniqueness across Standard and Premium. Q-005 remains open for the count and identity issues.
 
-## 3. BigBang money contract — unresolved P0 clarification
+## 3. BigBang money contract — support clarification applied to sample bet/win shapes; full gate remains open
 
-The supplied v1.10 brief specifies a body field `signature` using HMAC-SHA256 with the API key over the separator-free concatenation `username + amount + game + game_category + transaction_id`; `amount` uses shortest JavaScript-number string form. It explicitly treats fields such as `round_id`, `type`, `round_end`, `bet_amount`, `win_amount`, `game_id`, `provider_id`, and `sandbox` as outside that signature. It also documents `amount: 0`, a `400 { error: "insufficient balance" }` refusal for BigBang, and duplicate movement retries with the same `transaction_id`.
+The provider-support response supplied on 2026-10-22 states that the callback body `signature` is HMAC-SHA256 over the separator-free concatenation `username + amount + game + game_category + transaction_id`, with `amount` represented as its shortest decimal string. The attached support fixture also defines `X-Body-Signature` as HMAC-SHA256 over the exact raw JSON body. Both signatures for the supplied bet and win vectors have been recomputed successfully using the fixture-only dummy secret; automated regression tests now verify these vectors. The fixture is in `server/test/fixtures/tnd-wallet-provider-vectors.json`, and its source hash and limitations are recorded in the fixture README.
 
-However, the canonical planning record `docs/planning/03-provider-integrations.md` notes earlier HTML documentation describing an optional `X-Body-Signature` and different coverage of `bet_amount`/`win_amount` (P-04). The files are not enough to conclude whether the delivered v1.10 brief supersedes that earlier header contract for the actual tenant/key. Before implementing a BigBang wallet callback, obtain a written vendor answer and test-only signed vectors that cover every enabled callback shape, zero-amount round close, same-ID replay, conflicting same-ID payload, and insufficient balance. Do not silently choose one signature contract.
+This resolves the signing algorithms for the two supplied request examples and provides evidence for the earlier P-04 discrepancy. It does **not** yet establish whether `X-Body-Signature` is mandatory for every callback/event shape, or cover all the cases required before implementation: zero-amount round close, `sandbox` callback behavior, same-ID replay, conflicting same-ID payload, and a fully paired insufficient-balance request/response. The supplied refusal fixture contains the expected `400 { error: "insufficient balance" }` response but not its associated request. Keep the BigBang callback disabled until those remaining contract cases are confirmed and tested. Never use the dummy fixture secret outside these fixture tests.
 
 ## 4. WinHouse 2026-09-20 — code/spec comparison
 
@@ -57,9 +57,15 @@ However, the canonical planning record `docs/planning/03-provider-integrations.m
 
 The brief's wallet callback schema lists `action: bet | win`, while its read-side ticket fields describe payouts including cash-out amounts or refunded stakes. It does not fully define in the callback section how cashout, cancellation, and refund movements are distinguished and linked to tickets/transactions, nor does the file supply tenant-generated signature vectors. Get written answers plus sanitized fixtures for cashout, cancellation, refund, out-of-order delivery, duplicate/conflicting IDs, session end/account switch, and ticket ownership before implementing Model B. Do not use ticket status alone as a wallet instruction.
 
-## 5. Currency precision — Q-009 remains a separate hard gate
+## 5. Currency precision — written answer confirms a hard Q-009 compatibility gap
 
-Both supplied briefs describe money as **two-decimal** amounts. That is not evidence of TND millime (three-decimal) fidelity. Until each provider confirms TND precision in writing and supplies test-only balance/stake/debit/win/refund/ticket/reconciliation fixtures containing a third fractional digit, **do not route TND real-money play to that provider**. No rounding or truncation assumption is accepted.
+Provider support confirmed in writing on 2026-10-22 that both platforms carry TND at **two decimal places only**: `0.01 TND = 10 millimes`; a true third fractional digit is not transported.
+
+- **WinHouse:** the tenant is TND-only. A stake with more than two decimal places is rejected with `invalid_stake_precision` and nothing is debited; a payout is rounded to 0.01 TND.
+- **BigBang:** the Dedicated TND shop supports slots and other games but not live-dealer tables in TND. Amounts with more than two decimal places are rounded half away from zero to 0.01 TND; rounded-zero movements are not sent. Support will set a TND bet ladder.
+- **Important distinction:** storing TND internally at three decimal places is representationally safe, but it cannot restore millimes that are rejected or rounded away by the provider. A provider balance or callback will be a multiple of 0.01 TND, not a millime-accurate amount.
+
+This is evidence of each provider's limitation, **not** evidence that the project's existing three-decimal TND requirement is satisfied. Keep Q-009 and TND real-money routing blocked until the Project Owner explicitly chooses between (a) retaining millime-level transport and asking support to scope a provider change, or (b) formally accepting 0.01 TND as the minimum external movement unit and defining the rounding/refusal rules as part of the product and ledger contract. Do not silently accept lossy rounding simply because the platform supports a TND-denominated account.
 
 ## 6. Fixture/evidence matrix
 
@@ -70,10 +76,10 @@ Both supplied briefs describe money as **two-decimal** amounts. That is not evid
 | BigBang demo launch | `server/test/bigbang.test.ts` | Synthetic response and URL-safety checks |
 | WinHouse embed | `frontend/pages/Sports.tsx` | Code exists; tenant allow-list/CSP/mobile behavior requires environment acceptance |
 | WinHouse launch token and wallet callbacks | No server routes currently exist | Correctly out of scope; create contract fixtures and tests only after the owner authorizes the wallet phase and vendor questions are resolved |
-| Provider-originated signed vectors for either provider | Not present | Required before any real-money callback implementation |
+| Support-issued BigBang/WinHouse TND bet/win signature vectors | `server/test/fixtures/tnd-wallet-provider-vectors.json` plus `server/test/provider-tnd-fixtures.test.ts` | Supplied by provider support; HMACs, BigBang raw-body HMACs, and sample balance arithmetic verify using a dummy test-only secret. Not a production endpoint test; no replay/conflict/cashout/refund/round-close vectors yet |
 
 ## 7. Gate decision and next actions
 
-**Q-006 stays OPEN/P0.** The exact artifact filenames, versions, source URLs, and SHA-256 fingerprints are now recorded, and the source-to-code review is documented. Do not mark the gate closed yet because owner approval, provider-originated fixtures, and the signature/currency/event clarifications listed above are missing.
+**Q-006 stays OPEN/P0.** Exact specification fingerprints are recorded and test signatures for the support-issued bet/win examples verify. Remaining evidence includes BigBang's full callback matrix (header requirement, zero-amount close, sandbox flag, replay/conflicting payload), WinHouse cashout/cancellation/refund and out-of-order semantics, and recorded owner acceptance. Do not claim a production-ready wallet contract from the supplied examples alone.
 
-Next safe actions are documentation/fixture work and written vendor due diligence only. Phase 8 remains blocked by Q-010 and Q-011 in addition to Q-006 and Q-009. No wallet posting, callback endpoint, wager, payment, or Production activation is added by this review.
+**Q-009 stays OPEN/P0 for TND real-money routing** because support has confirmed two-decimal transport, which does not meet the currently documented three-decimal/millime requirement. This now requires a product/owner decision or a scoped provider change, not another generic precision question. Phase 8 remains blocked by Q-006, Q-009, Q-010, and Q-011. No wallet posting, callback endpoint, wager, payment, or Production activation is added by this review.
