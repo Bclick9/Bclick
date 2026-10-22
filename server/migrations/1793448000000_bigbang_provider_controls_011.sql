@@ -21,11 +21,9 @@ BEGIN
   IF EXISTS (SELECT 1 FROM public.permissions WHERE code='casino.provider-settings.manage') THEN
     RAISE EXCEPTION 'Migration 011 stopped: provider settings permission already exists';
   END IF;
-  IF EXISTS (SELECT 1 FROM public.casino_providers WHERE bclick_enabled IS NOT NULL) THEN
-    RAISE EXCEPTION 'Migration 011 stopped: provider control columns already exist';
-  END IF;
-  IF EXISTS (SELECT 1 FROM public.casino_games WHERE bclick_enabled IS NOT NULL) THEN
-    RAISE EXCEPTION 'Migration 011 stopped: game control columns already exist';
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='casino_providers' AND column_name='bclick_enabled')
+     OR EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='casino_games' AND column_name='bclick_enabled') THEN
+    RAISE EXCEPTION 'Migration 011 stopped: provider/game control columns already exist';
   END IF;
   IF to_regclass('public.casino_integration_settings') IS NOT NULL THEN
     RAISE EXCEPTION 'Migration 011 stopped: integration settings table already exists';
