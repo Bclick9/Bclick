@@ -5,6 +5,8 @@ import Fastify from 'fastify';
 import { registerIdentityRoutes } from './identity/routes.js';
 import type { IdentityConfig } from './identity/config.js';
 import { IdentityService } from './identity/service.js';
+import type { SqlExecutor } from './identity/repository.js';
+import { registerCasinoCatalogRoutes } from './bigbang/routes.js';
 
 export interface DatabaseProbe {
   query(sql: string): Promise<unknown>;
@@ -15,6 +17,8 @@ export interface BuildAppOptions {
   logLevel?: string;
   identity?: IdentityService | null;
   identityConfig?: IdentityConfig | null;
+  /** Enables the local-database-only casino catalogue routes when the schema is installed. */
+  catalogDatabase?: SqlExecutor | null;
 }
 
 const healthResponseSchema = {
@@ -145,6 +149,9 @@ export function buildApp(options: BuildAppOptions) {
 
   if (options.identity && options.identityConfig) {
     registerIdentityRoutes(app, options.identity, options.identityConfig);
+  }
+  if (options.catalogDatabase) {
+    registerCasinoCatalogRoutes(app, options.catalogDatabase);
   }
 
   return app;
