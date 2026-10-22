@@ -114,7 +114,47 @@ $phoneKeyPath = Join-Path $repoRoot 'frontend/.local-certs/phone-key.pem'
 $script:PhoneTlsReady = (Test-Path -LiteralPath $phoneCertPath) -and (Test-Path -LiteralPath $phoneKeyPath)
 $script:MobileOrigins = @()
 $script:MobileAddresses = @()
-$privateHttpOriginPattern = '^http://(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}):5173
+$privateHttpOriginPattern = '^http://(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}):5173$'
+$currentPlayerOrigins = @((Get-LocalEnvValue -Name 'BCLICK_PLAYER_ALLOWED_ORIGINS') -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -and $_ -notmatch $privateHttpOriginPattern })
+Set-LocalEnvValue -Name 'BCLICK_PLAYER_ALLOWED_ORIGINS' -Value (($currentPlayerOrigins | Select-Object -Unique) -join ',')
+
+if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
+    $physicalAdapters = @(Get-NetAdapter -Physical -ErrorAction SilentlyContinue |
+        Where-Object { $_.Status -eq 'Up' })
+    foreach ($adapter in $physicalAdapters) {
+        $privateAddresses = @(Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+            Where-Object {
+                $_.AddressState -eq 'Preferred' -and
+                $_.IPAddress -match '^(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})$'
+            })
+        foreach ($address in $privateAddresses) {
+            if ($script:MobileAddresses -notcontains $address.IPAddress) {
+                $script:MobileAddresses += $address.IPAddress
+            }
+            if ($script:PhoneTlsReady) {
+                $origin = 'https://' + $address.IPAddress + ':5173'
+                $currentValue = Get-LocalEnvValue -Name 'BCLICK_PLAYER_ALLOWED_ORIGINS'
+                $current = @($currentValue -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+                if ($current -notcontains $origin) {
+                    $current += $origin
+                    Set-LocalEnvValue -Name 'BCLICK_PLAYER_ALLOWED_ORIGINS' -Value (($current | Select-Object -Unique) -join ',')
+                }
+                if ($script:MobileOrigins -notcontains $origin) {
+                    $script:MobileOrigins += $origin
+                }
+            }
+        }
+    }
+}
+if ($script:MobileOrigins.Count -gt 0) {
+    Write-Host ('Added exact HTTPS phone-testing origin(s): ' + ($script:MobileOrigins -join ', '))
+} elseif ($script:MobileAddresses.Count -gt 0) {
+    Write-Host ('Found private LAN address(es): ' + ($script:MobileAddresses -join ', '))
+    Write-Host 'Phone login is not allow-listed over plain HTTP because Secure __Host cookies require HTTPS.'
+    Write-Host 'Run .\scripts\setup-local-phone-https.ps1, trust the generated mobile-rootCA.pem on the phone, then rerun this script.'
+} else {
+    Write-Host 'No private IPv4 address found on an active physical adapter. Phone authentication requires a trusted HTTPS LAN certificate.'
+}
 
 foreach ($name in @(
     'BCLICK_SESSION_HASH_KEY',
