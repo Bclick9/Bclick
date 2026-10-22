@@ -27,7 +27,7 @@ async function main(): Promise<void> {
   } catch {
     throw new Error('The Phase 6 catalogue command requires a valid local PostgreSQL URL.');
   }
-  const databaseHost = databaseUrl.hostname.replace(/^\\[|\\]$/g, '').toLowerCase();
+  const databaseHost = databaseUrl.hostname.replace(/^\[|\]$/g, '').toLowerCase();
   if (!['postgres:', 'postgresql:'].includes(databaseUrl.protocol)
     || !['localhost', '127.0.0.1', '::1'].includes(databaseHost)) {
     throw new Error('The Phase 6 catalogue command can target only a loopback PostgreSQL database, never a remote database.');
