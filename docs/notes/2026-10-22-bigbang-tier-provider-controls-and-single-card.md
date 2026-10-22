@@ -85,7 +85,7 @@ Before implementing Premium import, document and test:
 
 ## 5. Work sequence and gates
 
-1. Keep Q-005 open. Complete Owner review of the 59 alias dispositions, canonical identity/category contract, and 3,802 versus 3,639 count discrepancy.
+1. Keep Q-005 open, but do not re-request acceptance of the per-alias disposition: the Owner accepted the conservative treatment of all 59 aliases on 2026-10-22 (three pinned, 56 unmatched). Remaining Q-005 work is the 3,802-versus-3,639 scope evidence and the reviewed tier/source/legacy-route contract.
 2. Keep Q-006 open until BigBang/WinHouse event and launch contracts are accepted.
 3. Keep Q-020 open while mapping the implemented provider-settings, provider/game disable, catalogue visibility and demo-launch denial routes to runtime contract assertions. The basic admin-route and server-enforcement tests exist, but the full application route contract is not yet accepted.
 4. Migration 011 now provides Bclick-owned provider/game availability settings and the Standard-only integration mode. Do not edit Migrations 010/011 after merge; add any future schema evolution as separately reviewed forward migrations.
