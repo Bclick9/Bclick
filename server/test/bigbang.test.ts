@@ -12,6 +12,7 @@ import { BigBangApiClient } from '../src/bigbang/client.js';
 import { BigBangCatalogService, CatalogSyncFault } from '../src/bigbang/catalog.js';
 import { PgIdentityRepository } from '../src/identity/repository.js';
 import { BigBangApiError, type BigBangGame } from '../src/bigbang/types.js';
+import { resolveSandboxLocalDatabaseUrl } from '../src/bigbang/local-database.js';
 
 type RawGame = Record<string, unknown>;
 type FixtureEnvelope = {
@@ -84,6 +85,36 @@ test('BigBang client refuses a live key before any network request', () => {
   assert.throws(
     () => new BigBangApiClient({ apiKey: 'ek_live_not_for_phase6' }),
     /requires a BigBang sandbox key/,
+  );
+});
+
+test('sandbox local database URL derives from local Postgres settings and rejects remote database URLs', () => {
+  const derived = resolveSandboxLocalDatabaseUrl({
+    POSTGRES_USER: 'bclick_dev',
+    POSTGRES_PASSWORD: 'local_only_change_me',
+    POSTGRES_DB: 'bclick',
+    POSTGRES_PORT: '5432',
+  });
+  assert.equal(derived, 'postgresql://bclick_dev:local_only_change_me@127.0.0.1:5432/bclick');
+
+  assert.equal(
+    resolveSandboxLocalDatabaseUrl({ DATABASE_URL: 'postgresql://user:pw@localhost:5432/bclick' }),
+    'postgresql://user:pw@localhost:5432/bclick',
+  );
+  assert.throws(
+    () => resolveSandboxLocalDatabaseUrl({ DATABASE_URL: 'postgresql://user:pw@ep-example.neon.tech/neondb' }),
+    /only loopback PostgreSQL/,
+  );
+  assert.throws(
+    () => resolveSandboxLocalDatabaseUrl({ POSTGRES_USER: 'bclick_dev', POSTGRES_DB: 'bclick' }),
+    /POSTGRES_PASSWORD/,
+  );
+  assert.throws(
+    () => resolveSandboxLocalDatabaseUrl({
+      POSTGRES_PASSWORD: 'local_only_change_me',
+      POSTGRES_PORT: '70000',
+    }),
+    /between 1 and 65535/,
   );
 });
 
