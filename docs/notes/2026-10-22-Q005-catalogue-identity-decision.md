@@ -100,13 +100,13 @@ The read-only `scripts/q005-catalogue-alias-audit.sql` has been run against loca
 
 Reviewing the merged implementation found one residual gap beyond the server-side alias contract: the former `frontend/pages/CasinoPlay.tsx` resolver queried games by display title, preferred an exact provider-name match, but then accepted the sole exact-title result even if the provider differed. That fallback could launch a different provider's product for a legacy route and contradicts the accepted fail-closed alias disposition.
 
-The focused follow-up in this change set makes a launchable game resolve only through `GET /api/v1/casino/games/by-slug/{slug}`, which checks the persistent canonical-slug/legacy-alias records. The demo endpoint is called only with the canonical UUID returned by that lookup. Unmatched aliases (404) and ambiguous aliases (409) propagate as errors and must not invoke demo launch. Regression tests exercise successful UUID pinning and prove 404/409 resolution failures do not launch a substitute; CI runs these tests through `pnpm frontend:test`.
+PR #108 is merged. It makes a launchable game resolve only through `GET /api/v1/casino/games/by-slug/{slug}`, which checks the persistent canonical-slug/legacy-alias records. The demo endpoint is called only with the canonical UUID returned by that lookup. Unmatched aliases (404) and ambiguous aliases (409) propagate as errors and must not invoke demo launch. Regression tests exercise successful UUID pinning and prove 404/409 resolution failures do not launch a substitute; `pnpm frontend:test` passed in CI.
 
 This fixes the client-side fallback, not the full Q-005 gate. The accepted status remains: three evidence-backed legacy aliases are pinned, and the other 56 remain unmatched until authoritative identity evidence exists. The separate 3,802-versus-3,639 count discrepancy still needs same-key/same-scope complete pagination evidence or a written BigBang explanation, and the Standard/Premium legacy-route policy must be reviewed before any future tier expansion. No Premium import, full catalogue frontend cutover, real-play route or financial operation is authorized.
 
 ## 5. What remains OPEN
 
-Q-005 **is not closed by this PR**. Required next evidence/decisions:
+Q-005 **remains open after PR #108**. Required next evidence/decisions:
 
 - The Owner's 2026-10-22 acceptance covers the conservative per-alias disposition (three pinned mappings; 56 unresolved). The remaining Q-005 decision work is the count-scope evidence and a reviewed tier/source/legacy-route policy, not re-requesting the accepted per-alias disposition.
 - PR #100 has merged the persistent alias implementation, and the Owner's conservative disposition is recorded in `2026-10-22-Q005-owner-acceptance.md`. Neither PR #100 nor that disposition authorizes frontend catalogue cutover; the 3,802-vs-3,639 evidence and Standard/Premium source/legacy-route policy remain open.
