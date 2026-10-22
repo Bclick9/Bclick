@@ -6,10 +6,17 @@ import { buildApp } from './app.js';
 import { parseIdentityConfig } from './identity/config.js';
 import { PgIdentityRepository } from './identity/repository.js';
 import { IdentityService } from './identity/service.js';
+import { BigBangApiClient } from './bigbang/client.js';
 
 async function main(): Promise<void> {
   const config = parseServerConfig(process.env);
   const identityConfig = parseIdentityConfig(process.env, config.nodeEnv);
+  const sandboxKey = process.env.BIGBANG_SANDBOX_API_KEY?.trim() ?? '';
+  const sandboxDemoClient = config.nodeEnv === 'development'
+    && sandboxKey.startsWith('ek_test_')
+    && sandboxKey.length >= 12
+    ? new BigBangApiClient({ apiKey: sandboxKey })
+    : null;
   const pool = new Pool({
     connectionString: config.databaseUrl,
     max: config.dbPoolMax,
@@ -18,12 +25,15 @@ async function main(): Promise<void> {
     application_name: 'bclick-api',
   });
 
-  const identity = identityConfig ? new IdentityService(new PgIdentityRepository(pool), identityConfig) : null;
+  const repository = new PgIdentityRepository(pool);
+  const identity = identityConfig ? new IdentityService(repository, identityConfig) : null;
   const app = buildApp({
     database: pool,
     logLevel: config.logLevel,
     identity,
     identityConfig,
+    catalogDatabase: repository,
+    sandboxDemoClient,
   });
 
   app.addHook('onClose', async () => {

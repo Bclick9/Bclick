@@ -108,7 +108,7 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
     });
 
     const migrationCount = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM pgmigrations');
-    assert.equal(migrationCount.rows[0]?.count, '8', 'wallet migration must be the eighth migration');
+    assert.equal(migrationCount.rows[0]?.count, '9', 'wallet and Phase 6 catalogue migrations must be applied in order');
 
     const anonymousBalance = await app.inject({ method: 'GET', url: '/api/v1/wallets/TND/balance' });
     assert.equal(anonymousBalance.statusCode, 401);

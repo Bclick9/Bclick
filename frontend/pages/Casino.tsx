@@ -6,7 +6,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { GameCard, SectionRow, Wireframe } from '../components/cards'
-import { GAMES, CASINO_CATEGORIES } from '../data/catalog'
+import { GAMES, CASINO_CATEGORIES, type Game } from '../data/catalog'
+import { fetchCasinoGames, getCatalogErrorMessage, type CasinoCatalogGame } from '../lib/casinoCatalog'
 import { cn } from '../lib/shadcn/utils'
 
 const ICONS: Record<string, LucideIcon> = {
@@ -210,6 +211,86 @@ function GameGrid({ ids, emptyMessage = 'No games in this category yet.' }: { id
   )
 }
 
+function CatalogGameGrid({
+  games,
+  total,
+  nextCursor,
+  loading,
+  loadingMore,
+  error,
+  stale,
+  onLoadMore,
+  onRetry,
+  emptyMessage,
+}: {
+  games: CasinoCatalogGame[]
+  total: number
+  nextCursor: string | null
+  loading: boolean
+  loadingMore: boolean
+  error: string
+  stale: boolean
+  onLoadMore: () => void
+  onRetry: () => void
+  emptyMessage: string
+}) {
+  if (loading && games.length === 0) {
+    return <p className="py-10 text-center text-sm text-muted-foreground" role="status">Loading casino games…</p>
+  }
+  if (error && games.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-10 text-center">
+        <p className="max-w-lg text-sm text-[#f3b9b9]" role="alert">{error}</p>
+        <button type="button" onClick={onRetry} className="rounded-lg bg-[var(--cb-card)] px-5 py-2.5 text-sm font-bold text-white hover:bg-[var(--cb-hover)]">Retry</button>
+      </div>
+    )
+  }
+  if (games.length === 0) {
+    return <p className="py-10 text-center text-sm text-muted-foreground">{emptyMessage}</p>
+  }
+
+  return (
+    <>
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-9 gap-3">
+        {games.map((catalogGame) => {
+          const game: Game = {
+            id: catalogGame.id,
+            title: catalogGame.title,
+            provider: catalogGame.provider.name,
+            image: catalogGame.imageUrl ?? undefined,
+            imageShowsTitle: true,
+            categories: catalogGame.categories,
+          }
+          return (
+            <GameCard
+              key={catalogGame.id}
+              game={game}
+              href={'/casino/play/demo/' + encodeURIComponent(catalogGame.slug)}
+              className="w-full"
+            />
+          )
+        })}
+      </div>
+      <div className="mt-6 flex flex-col items-center gap-3 pb-2">
+        <p className="text-sm text-muted-foreground" aria-live="polite">
+          Showing {games.length} of {total} games{stale ? ' · catalogue may be stale' : ''}
+        </p>
+        {error ? <p className="max-w-lg text-center text-sm text-[#f3b9b9]" role="alert">{error}</p> : null}
+        {nextCursor ? (
+          <button
+            type="button"
+            onClick={onLoadMore}
+            disabled={loadingMore}
+            className="h-10 min-w-[130px] rounded-xl bg-[var(--cb-card)] px-6 text-sm font-bold text-white transition-colors hover:bg-[var(--cb-hover)] disabled:cursor-wait disabled:opacity-60"
+          >
+            {loadingMore ? 'Loading…' : 'Load More'}
+          </button>
+        ) : null}
+      </div>
+    </>
+  )
+}
+
 function HalloweenBanner({ games }: { games: string[] }) {
   const gamesRailRef = useRef<HTMLDivElement | null>(null)
   const [canScrollGamesLeft, setCanScrollGamesLeft] = useState(false)
@@ -277,25 +358,88 @@ function HalloweenBanner({ games }: { games: string[] }) {
 export function CasinoCategory() {
   const { category = 'lobby' } = useParams()
   const [searchQuery, setSearchQuery] = useState('')
+  const [catalogGames, setCatalogGames] = useState<CasinoCatalogGame[]>([])
+  const [catalogTotal, setCatalogTotal] = useState(0)
+  const [catalogNextCursor, setCatalogNextCursor] = useState<string | null>(null)
+  const [catalogLoading, setCatalogLoading] = useState(false)
+  const [catalogLoadingMore, setCatalogLoadingMore] = useState(false)
+  const [catalogError, setCatalogError] = useState('')
+  const [catalogStale, setCatalogStale] = useState(false)
+  const [catalogReloadKey, setCatalogReloadKey] = useState(0)
+
+  const searchTerm = searchQuery.trim()
+  const catalogBackedCategory = ['lobby', 'slot-games', 'live-casino', 'crash-games'].includes(category)
+  const useLiveCatalog = catalogBackedCategory || Boolean(searchTerm)
+
+  useEffect(() => {
+    if (category === 'providers' || !useLiveCatalog) return
+    const controller = new AbortController()
+    const selectedCategory = searchTerm || category === 'lobby' ? undefined : category
+    setCatalogLoading(true)
+    setCatalogError('')
+    setCatalogGames([])
+    setCatalogTotal(0)
+    setCatalogNextCursor(null)
+    setCatalogStale(false)
+
+    void fetchCasinoGames({
+      pageSize: 48,
+      category: selectedCategory,
+      query: searchTerm || undefined,
+      signal: controller.signal,
+    }).then((page) => {
+      if (controller.signal.aborted) return
+      setCatalogGames(page.data)
+      setCatalogTotal(page.page.total)
+      setCatalogNextCursor(page.page.nextCursor)
+      setCatalogStale(page.meta.stale)
+    }).catch((error: unknown) => {
+      if (!controller.signal.aborted) setCatalogError(getCatalogErrorMessage(error))
+    }).finally(() => {
+      if (!controller.signal.aborted) setCatalogLoading(false)
+    })
+
+    return () => controller.abort()
+  }, [category, searchTerm, useLiveCatalog, catalogReloadKey])
+
   if (category === 'providers') return <Providers />
-  const known = CASINO_CATEGORIES.some((c) => c.slug === category) || category === 'drop-and-wins'
+  const known = CASINO_CATEGORIES.some((item) => item.slug === category) || category === 'drop-and-wins'
   if (!known) return <Navigate to="/casino" replace />
 
-  const cat = CASINO_CATEGORIES.find((c) => c.slug === category)
-  const games = GAMES.filter((g) => g.categories.includes(category)).map((g) => g.id)
+  const cat = CASINO_CATEGORIES.find((item) => item.slug === category)
+  const games = GAMES.filter((game) => game.categories.includes(category)).map((game) => game.id)
   const isLobby = category === 'lobby'
-  const searchTerm = searchQuery.trim().toLocaleLowerCase()
-  const searchResults = searchTerm
-    ? GAMES.filter((g) => `${g.title} ${g.provider}`.toLocaleLowerCase().includes(searchTerm)).map((g) => g.id)
-    : []
-  const visibleCategoryGames = searchTerm ? searchResults : games
+
+  const loadMoreCatalog = async () => {
+    if (!catalogNextCursor || catalogLoadingMore) return
+    setCatalogLoadingMore(true)
+    setCatalogError('')
+    try {
+      const page = await fetchCasinoGames({
+        pageSize: 48,
+        cursor: catalogNextCursor,
+        category: searchTerm || category === 'lobby' ? undefined : category,
+        query: searchTerm || undefined,
+      })
+      setCatalogGames((current) => {
+        const ids = new Set(current.map((game) => game.id))
+        return [...current, ...page.data.filter((game) => !ids.has(game.id))]
+      })
+      setCatalogTotal(page.page.total)
+      setCatalogNextCursor(page.page.nextCursor)
+      setCatalogStale(page.meta.stale)
+    } catch (error) {
+      setCatalogError(getCatalogErrorMessage(error))
+    } finally {
+      setCatalogLoadingMore(false)
+    }
+  }
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-5 md:py-6">
       {isLobby ? <TrendingGames /> : null}
 
       <CasinoFilterBar searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} />
-
       <CategoryStrip active={category} />
 
       {searchTerm ? (
@@ -303,27 +447,76 @@ export function CasinoCategory() {
           <div className="mb-4 flex items-center justify-between gap-3">
             <h1 className="text-lg font-extrabold text-white md:text-xl">Search results</h1>
             <p className="shrink-0 text-sm text-muted-foreground" aria-live="polite">
-              {searchResults.length} games found
+              {catalogLoading ? 'Searching…' : catalogTotal + ' games found'}
             </p>
           </div>
-          <GameGrid ids={searchResults} emptyMessage="No matching games found." />
+          <CatalogGameGrid
+            games={catalogGames}
+            total={catalogTotal}
+            nextCursor={catalogNextCursor}
+            loading={catalogLoading}
+            loadingMore={catalogLoadingMore}
+            error={catalogError}
+            stale={catalogStale}
+            onLoadMore={loadMoreCatalog}
+            onRetry={() => setCatalogReloadKey((key) => key + 1)}
+            emptyMessage="No matching games found."
+          />
         </div>
       ) : isLobby ? (
         <>
-          <GameGrid ids={GAMES.map((g) => g.id)} />
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h1 className="text-lg font-extrabold text-white md:text-xl">All Games</h1>
+            <p className="shrink-0 text-sm text-muted-foreground" aria-live="polite">
+              {catalogLoading ? 'Loading…' : catalogTotal + ' games'}
+            </p>
+          </div>
+          <CatalogGameGrid
+            games={catalogGames}
+            total={catalogTotal}
+            nextCursor={catalogNextCursor}
+            loading={catalogLoading}
+            loadingMore={catalogLoadingMore}
+            error={catalogError}
+            stale={catalogStale}
+            onLoadMore={loadMoreCatalog}
+            onRetry={() => setCatalogReloadKey((key) => key + 1)}
+            emptyMessage="No games are currently available in the catalogue."
+          />
           <HalloweenBanner games={['death-dominion', 'coins-of-halloween', 'wolf-power-megaways', 'spooky-kabuki', 'vamp-hunt', 'halloween-bonanza', 'haunted-coins', 'halloween-jack', 'devils-feast']} />
-          <h2 className="text-lg md:text-xl font-extrabold text-foreground mb-4">Top Picks</h2>
-          <GameGrid ids={GAMES.filter((g) => g.categories.includes('top-picks')).map((g) => g.id)} />
+          <h2 className="mb-4 text-lg font-extrabold text-foreground md:text-xl">Top Picks</h2>
+          <GameGrid ids={GAMES.filter((game) => game.categories.includes('top-picks')).map((game) => game.id)} />
+        </>
+      ) : catalogBackedCategory ? (
+        <>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h1 className="text-xl font-extrabold text-foreground md:text-2xl">{cat?.label ?? 'Games'}</h1>
+            <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+              <Info className="h-3.5 w-3.5" /> {catalogLoading ? 'Loading…' : catalogTotal + ' games'}
+            </span>
+          </div>
+          <CatalogGameGrid
+            games={catalogGames}
+            total={catalogTotal}
+            nextCursor={catalogNextCursor}
+            loading={catalogLoading}
+            loadingMore={catalogLoadingMore}
+            error={catalogError}
+            stale={catalogStale}
+            onLoadMore={loadMoreCatalog}
+            onRetry={() => setCatalogReloadKey((key) => key + 1)}
+            emptyMessage="No games in this category yet."
+          />
         </>
       ) : (
         <>
-          <div className="flex items-center gap-3 mb-6">
-            <h1 className="text-xl md:text-2xl font-extrabold text-foreground">{cat?.label ?? 'Games'}</h1>
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Info className="w-3.5 h-3.5" /> {visibleCategoryGames.length} games
+          <div className="mb-6 flex items-center gap-3">
+            <h1 className="text-xl font-extrabold text-foreground md:text-2xl">{cat?.label ?? 'Games'}</h1>
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Info className="h-3.5 w-3.5" /> {games.length} games
             </span>
           </div>
-          <GameGrid ids={visibleCategoryGames} emptyMessage={searchTerm ? "No matching games found." : "No games in this category yet."} />
+          <GameGrid ids={games} emptyMessage="No games in this category yet." />
         </>
       )}
     </div>
