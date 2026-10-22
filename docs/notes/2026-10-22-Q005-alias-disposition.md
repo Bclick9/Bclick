@@ -2,7 +2,7 @@
 
 **Evidence date:** 2026-10-22  
 **Source:** Project Owner-supplied output from `scripts/q005-catalogue-alias-audit.sql`, run against local Docker PostgreSQL after the reported 3,639-record Standard Sandbox sync.  
-**Status:** Evidence inventory and recommended dispositions; **Owner acceptance still required**. This note does not update alias rows or authorize a player frontend cutover.
+**Status:** Evidence inventory with Project Owner acceptance of the conservative per-alias disposition recorded on 2026-10-22. This acceptance preserves the 59 alias records and accepts only the three evidence-backed mappings; it does not resolve the 56 unmatched aliases, close Q-005, or authorize frontend cutover.
 
 ## 1. Summary
 
@@ -125,10 +125,12 @@ Before any frontend cutover or real-money catalogue launch, decide and test one 
 
 Which design is correct depends on whether the provider confirms the Standard and Premium entries are the same underlying game identity or distinct products. Do not choose from titles alone. Provider-source identity, displayed provider name, launch ID, mode, availability, and permissions must remain consistent in responses and launch operations.
 
-## 7. Explicit decisions for this iteration
+## 7. Project Owner disposition and explicit decisions (2026-10-22)
 
-- Do not alter the 59 alias rows from this audit output. The three confirmed links remain resolved; the other 56 remain unmatched.
-- Do not add global provider-name synonyms or fuzzy matching.
-- Do not interpret “not in this Standard snapshot” as proof of absence in every tier.
-- Do not cut over the frontend to legacy aliases, import Premium, use a live key, or enable any real-money operation.
-- Keep Q-005 OPEN/P0 pending per-alias Owner acceptance, contract acceptance, and evidence/explanation for the 3,802-versus-3,639 count discrepancy. Q-006, Q-010, Q-011, Q-013, Q-020, and all Phase 8 gates remain independent blockers.
+The Project Owner has accepted the conservative disposition of the current 59-row audit:
+
+- Preserve all 59 legacy slugs as persistent compatibility records. Keep the three evidence-backed mappings pinned to their existing canonical UUIDs; do not retarget them after provider display-name changes.
+- Keep the other 56 aliases unresolved until authoritative evidence proves a unique identity. Unresolved aliases must continue to fail closed (404); ambiguous aliases must return 409. Do not redirect them to a similar title or another provider.
+- Do not add global provider-name synonyms, title-only/fuzzy matching, or cross-tier identity assumptions. The Owner confirms Crazy Time is not supplied by BigBang; keep `crazy-time` unmatched.
+- Do not cut over the frontend to the database catalogue yet, import Premium, use a live key, or enable any real-money operation.
+- This accepts the **current evidence-based alias disposition only**. Q-005 remains OPEN/P0 until the 3,802-versus-3,639 count discrepancy is evidenced/explained and the future tier/source/legacy-route contract is reviewed. Q-006, Q-010, Q-011, Q-013, Q-020, and all Phase 8 gates remain independent blockers.
