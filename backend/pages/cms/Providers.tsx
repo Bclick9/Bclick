@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import {
-  AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Gamepad2, KeyRound,
+  AlertTriangle, ChevronLeft, ChevronRight, Gamepad2, KeyRound,
   LoaderCircle, LogIn, LogOut, RefreshCw, Search, ShieldCheck, ShieldX,
 } from 'lucide-react'
 import { Badge, Button, Input } from '../../components/ui'
@@ -71,7 +71,7 @@ function StatusBadge({ enabled, enabledLabel = 'Enabled', disabledLabel = 'Block
 }
 
 function AuthShell({ children, title, description }: {
-  children: React.ReactNode
+  children: ReactNode
   title: string
   description: string
 }) {
@@ -372,7 +372,7 @@ export function CmsProvidersPage({ onNotify }: { onNotify: (message: string) => 
     }
   }
 
-  if (screen === 'checking' || screen === 'checking') {
+  if (screen === 'checking') {
     return <div className="flex min-h-64 items-center justify-center gap-3 text-sm text-slate-500"><LoaderCircle className="h-5 w-5 animate-spin" /> Checking administrator session…</div>
   }
 
