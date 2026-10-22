@@ -5800,7 +5800,7 @@ components:
       description: Exact signed decimal string. Signed values are valid for journal/statement amounts. Do not 
         use for player wallet balance fields (use NonNegativeAmount) or positive payment requests (use 
         PositiveAmount). Enforce enabled currency exponent at runtime. No exponent notation.
-      examples: ['12.345', '12.34']
+      examples: ['12.34']
     Money:
       type: object
       additionalProperties: false
@@ -6804,14 +6804,11 @@ components:
       minLength: 1
       maxLength: 32
       pattern: ^(?:0(?:\.[0-9]+)?|[1-9][0-9]*(?:\.[0-9]+)?)$
-      description: Non-negative exact decimal string, including formatted zero values such as 0, 0.00 and 
-        0.000; no sign or exponent notation. Runtime enforces the enabled currency exponent.
+      description: Non-negative exact decimal string, including formatted zero values such as 0 and 0.00; no sign or exponent notation. Runtime enforces the enabled currency exponent.
       examples:
         - '0'
         - '0.00'
-        - '0.000'
         - '12.34'
-        - '12.345'
     ListPage:
       type: object
       description: Shared list pagination envelope. Cursor mode uses nextCursor; offset mode sets page and 
