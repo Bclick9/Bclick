@@ -1,9 +1,9 @@
 # Phase 6 — BigBang Catalogue Adapter Readiness
 
 **Date:** 2026-10-22  
-**Status:** implementation authorized for local development / BigBang Sandbox only on 2026-10-22; Production remains blocked  
-**Target branch:** main, via review  
-**Precedence:** the shared planning bundle and open-question register remain canonical. This repository note records the immediate decisions and controls needed to prepare Phase 6.
+**Status:** Historical readiness snapshot; superseded for current implementation state by docs/notes/PROGRESS.md, docs/notes/2026-10-22-Q005-catalogue-identity-decision.md, and docs/notes/2026-10-22-Q006-provider-spec-review.md. Production remains blocked.  
+**Original date / scope:** 2026-10-22, local development and BigBang Sandbox only.  
+**Precedence:** the shared planning bundle and open-question register remain canonical. This note preserves the original Phase 6 planning decisions, but it predates PR #100, #103, #107 and #108. Later sections that describe the alias map, tier-aware identity, provider availability controls, or client-side legacy resolver as not yet implemented are historical snapshots, not current-state claims.
 
 ## 1. Verified current boundary
 
