@@ -1,5 +1,5 @@
 export const CURRENCY_EXPONENTS = {
-  TND: 3,
+  TND: 2,
   EUR: 2,
   USD: 2,
 } as const;
