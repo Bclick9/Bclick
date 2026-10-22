@@ -108,7 +108,7 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
     });
 
     const migrationCount = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM pgmigrations');
-    assert.equal(migrationCount.rows[0]?.count, '9', 'wallet and Phase 6 catalogue migrations must be applied in order');
+    assert.equal(migrationCount.rows[0]?.count, '10', 'wallet, catalogue, and TND precision migrations must be applied in order');
 
     const anonymousBalance = await app.inject({ method: 'GET', url: '/api/v1/wallets/TND/balance' });
     assert.equal(anonymousBalance.statusCode, 401);
@@ -146,9 +146,9 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
     assert.equal(emptyWallet.headers['cache-control'], 'no-store');
     assert.deepEqual(emptyWallet.json().data, {
       currency: 'TND',
-      balance: '0.000',
-      available: '0.000',
-      held: '0.000',
+      balance: '0.00',
+      available: '0.00',
+      held: '0.00',
       bonusRestrictedBalance: null,
       asOf: emptyWallet.json().data.asOf,
     });
@@ -191,8 +191,8 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
       scope: 'wallet-ci',
       key: randomUUID(),
       entries: [
-        { accountId: available.id, currency: 'TND', amount: 12_345n, sequence: 1 },
-        { accountId: operatorEquity.id, currency: 'TND', amount: -12_345n, sequence: 2 },
+        { accountId: available.id, currency: 'TND', amount: 1_234n, sequence: 1 },
+        { accountId: operatorEquity.id, currency: 'TND', amount: -1_234n, sequence: 2 },
       ],
     });
 
@@ -202,9 +202,9 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
       headers: { cookie: cookieHeader(cookies) },
     });
     assert.equal(creditedWallet.statusCode, 200, creditedWallet.body);
-    assert.equal(creditedWallet.json().data.balance, '12.345');
-    assert.equal(creditedWallet.json().data.available, '12.345');
-    assert.equal(creditedWallet.json().data.held, '0.000');
+    assert.equal(creditedWallet.json().data.balance, '12.34');
+    assert.equal(creditedWallet.json().data.available, '12.34');
+    assert.equal(creditedWallet.json().data.held, '0.00');
 
     const creditedStatement = await app.inject({
       method: 'GET',
@@ -214,7 +214,7 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
     assert.equal(creditedStatement.statusCode, 200, creditedStatement.body);
     assert.equal(creditedStatement.json().data.length, 1);
     assert.equal(creditedStatement.json().data[0].id, creditJournalId);
-    assert.equal(creditedStatement.json().data[0].amount, '12.345');
+    assert.equal(creditedStatement.json().data[0].amount, '12.34');
     assert.equal(creditedStatement.json().data[0].status, 'posted');
     assert.equal(creditedStatement.json().data[0].reference, 'wallet-ci-credit');
 
@@ -290,8 +290,8 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
         movementType: 'bet_debit',
         reference: 'wallet-ci-overdraft',
         entries: [
-          { accountId: available.id, currency: 'TND', amount: -12_346n, sequence: 1 },
-          { accountId: operatorEquity.id, currency: 'TND', amount: 12_346n, sequence: 2 },
+          { accountId: available.id, currency: 'TND', amount: -1_235n, sequence: 1 },
+          { accountId: operatorEquity.id, currency: 'TND', amount: 1_235n, sequence: 2 },
         ],
       }),
       /WALLET_OVERDRAFT/,
@@ -303,15 +303,15 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
       postJournal(pool, {
         movementType: 'bet_debit', reference: 'wallet-ci-concurrent-a',
         entries: [
-          { accountId: available.id, currency: 'TND', amount: -7_000n, sequence: 1 },
-          { accountId: operatorEquity.id, currency: 'TND', amount: 7_000n, sequence: 2 },
+          { accountId: available.id, currency: 'TND', amount: -700n, sequence: 1 },
+          { accountId: operatorEquity.id, currency: 'TND', amount: 700n, sequence: 2 },
         ],
       }),
       postJournal(pool, {
         movementType: 'bet_debit', reference: 'wallet-ci-concurrent-b',
         entries: [
-          { accountId: available.id, currency: 'TND', amount: -7_000n, sequence: 1 },
-          { accountId: operatorEquity.id, currency: 'TND', amount: 7_000n, sequence: 2 },
+          { accountId: available.id, currency: 'TND', amount: -700n, sequence: 1 },
+          { accountId: operatorEquity.id, currency: 'TND', amount: 700n, sequence: 2 },
         ],
       }),
     ]);
@@ -328,7 +328,7 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
         JOIN account_balances ab ON ab.wallet_account_id=wa.id
        WHERE wa.id=$1
     `, [available.id]);
-    assert.deepEqual(projection.rows[0], { balance_minor: '5345', ledger_total: '5345' });
+    assert.deepEqual(projection.rows[0], { balance_minor: '534', ledger_total: '534' });
 
     const firstPage = await app.inject({
       method: 'GET',
