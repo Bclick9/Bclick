@@ -143,8 +143,7 @@ export function AccountPanel() {
         <div className="min-w-0 p-3 text-center">
           <p className="text-xs text-[var(--cb-light-muted)]">Bonus-restricted</p>
           <p className="mt-1 break-words text-sm font-bold text-[var(--cb-light-text)]">
-            {walletBalanceLoading ? 'Loading…' : walletBalance?.bonusRestrictedBalance ?? 'Not enabled'}
-            {walletBalance?.bonusRestrictedBalance ? ' ' + walletBalance.currency : ''}
+            {walletBalanceLoading ? 'Loading…' : !walletBalance ? 'Unavailable' : walletBalance.bonusRestrictedBalance === null ? 'Not enabled' : walletBalance.bonusRestrictedBalance + ' ' + walletBalance.currency}
           </p>
         </div>
       </div>

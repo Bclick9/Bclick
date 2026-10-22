@@ -5,7 +5,7 @@ import { AccountLayout } from '../components/AccountPanel'
 import { PAYMENT_METHODS } from '../data/catalog'
 import { cn } from '../lib/shadcn/utils'
 import { useAuth } from '../contexts/AuthContext'
-import { fetchWalletBalance, fetchWalletStatementPage, type WalletBalance as WalletBalanceData, type WalletCurrency, type WalletStatementRow } from '../lib/walletApi'
+import { fetchWalletBalance, fetchWalletStatementPage, type WalletBalance as WalletBalanceData, type WalletStatementRow } from '../lib/walletApi'
 
 const DEPOSIT_NETWORKS = [
   {
