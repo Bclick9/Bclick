@@ -121,7 +121,7 @@ function whereClause(options: QueryOptions): { sql: string; values: unknown[] } 
   }
   if (options.query) {
     const p = add('%' + options.query.replace(/[\\%_]/g, '\\$&') + '%');
-    conditions.push(`(g.title ILIKE ${p} ESCAPE '\\\\' OR p.name ILIKE ${p} ESCAPE '\\\\')`);
+    conditions.push(`(g.title ILIKE ${p} ESCAPE E'\\\\' OR p.name ILIKE ${p} ESCAPE E'\\\\')`);
   }
   if (options.mode === 'demo') conditions.push('g.demo_available=true');
   if (options.mode === 'real') conditions.push('g.real_available=true');
@@ -169,7 +169,132 @@ function mapGame(row: GameRow) {
   };
 }
 
+interface CatalogPageOptions {
+  readonly pageSize: number;
+  readonly offset: number;
+}
+
+function readCatalogPage(request: FastifyRequest, reply: any): CatalogPageOptions | null {
+  const query = request.query as Record<string, unknown>;
+  const pageSize = query.pageSize === undefined ? 25 : Number(query.pageSize);
+  const page = query.page === undefined ? 1 : Number(query.page);
+  if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100
+    || !Number.isSafeInteger(page) || page < 1) {
+    errorResponse(reply, request, 400, 'VALIDATION_ERROR', 'Catalogue pagination parameters are invalid');
+    return null;
+  }
+  let offset = (page - 1) * pageSize;
+  if (query.cursor !== undefined) {
+    if (typeof query.cursor !== 'string' || query.cursor.length > 2048) {
+      errorResponse(reply, request, 400, 'VALIDATION_ERROR', 'Catalogue cursor is invalid');
+      return null;
+    }
+    const decoded = parseCursor(query.cursor);
+    if (decoded === null) {
+      errorResponse(reply, request, 400, 'VALIDATION_ERROR', 'Catalogue cursor is invalid');
+      return null;
+    }
+    offset = decoded;
+  }
+  if (!Number.isSafeInteger(offset)) {
+    errorResponse(reply, request, 400, 'VALIDATION_ERROR', 'Catalogue page offset is invalid');
+    return null;
+  }
+  return { pageSize, offset };
+}
+
+function listPage<T>(rows: readonly T[], total: number, options: CatalogPageOptions) {
+  const nextOffset = options.offset + rows.length;
+  return {
+    page: Math.floor(options.offset / options.pageSize) + 1,
+    pageSize: options.pageSize,
+    total,
+    nextCursor: nextOffset < total ? Buffer.from(String(nextOffset)).toString('base64url') : null,
+  };
+}
+
+function categoryPresentation(slug: string): { title: string; icon: string | null } {
+  const known: Record<string, { title: string; icon: string }> = {
+    'slot-games': { title: 'Slots', icon: 'cherry' },
+    'live-casino': { title: 'Live Casino', icon: 'spade' },
+    'crash-games': { title: 'Crash Games', icon: 'rocket' },
+  };
+  const match = known[slug];
+  if (match) return match;
+  return {
+    title: slug.split('-').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' '),
+    icon: null,
+  };
+}
+
 export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlExecutor): void {
+  const paginationSchema = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      cursor: { type: 'string', maxLength: 2048 },
+      page: { type: 'integer', minimum: 1, default: 1 },
+      pageSize: { type: 'integer', minimum: 1, maximum: 100, default: 25 },
+    },
+  };
+
+  // These read-only endpoints query only the local normalized catalogue. They never contact BigBang.
+  app.get('/api/v1/casino/categories', { schema: { querystring: paginationSchema } }, async (request, reply) => {
+    const options = readCatalogPage(request, reply);
+    if (!options) return;
+    const count = await database.query<{ total: string }>(`
+      SELECT count(DISTINCT gc.category_slug)::text AS total
+        FROM public.casino_game_categories gc
+        JOIN public.casino_games g ON g.id=gc.game_id
+        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.available=true
+       WHERE g.available=true
+    `);
+    const total = Number(count.rows[0]?.total ?? 0);
+    const result = await database.query<{ slug: string }>(`
+      SELECT DISTINCT gc.category_slug AS slug
+        FROM public.casino_game_categories gc
+        JOIN public.casino_games g ON g.id=gc.game_id
+        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.available=true
+       WHERE g.available=true
+       ORDER BY gc.category_slug
+       LIMIT $1 OFFSET $2
+    `, [options.pageSize, options.offset]);
+    const meta = await getSyncMeta(database);
+    return {
+      data: result.rows.map((row) => ({ slug: row.slug, ...categoryPresentation(row.slug) })),
+      page: listPage(result.rows, total, options),
+      meta: { resolvedLocale: 'en', stale: meta.stale, fetchedAt: meta.fetchedAt },
+      requestId: request.id,
+    };
+  });
+
+  app.get('/api/v1/casino/providers', { schema: { querystring: paginationSchema } }, async (request, reply) => {
+    const options = readCatalogPage(request, reply);
+    if (!options) return;
+    const count = await database.query<{ total: string }>(`
+      SELECT count(DISTINCT p.id)::text AS total
+        FROM public.casino_providers p
+        JOIN public.casino_games g ON g.provider_id=p.id AND g.available=true
+        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.available=true
+    `);
+    const total = Number(count.rows[0]?.total ?? 0);
+    const result = await database.query<{ code: string; name: string }>(`
+      SELECT DISTINCT p.code,p.name
+        FROM public.casino_providers p
+        JOIN public.casino_games g ON g.provider_id=p.id AND g.available=true
+        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.available=true
+       ORDER BY p.name,p.code
+       LIMIT $1 OFFSET $2
+    `, [options.pageSize, options.offset]);
+    const meta = await getSyncMeta(database);
+    return {
+      data: result.rows,
+      page: listPage(result.rows, total, options),
+      meta: { resolvedLocale: 'en', stale: meta.stale, fetchedAt: meta.fetchedAt },
+      requestId: request.id,
+    };
+  });
+
   const querySchema = {
     type: 'object',
     additionalProperties: false,
@@ -205,8 +330,6 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
     if (!SLUG_PATTERN.test(slug) || slug.length > 120) {
       return errorResponse(reply, request, 400, 'VALIDATION_ERROR', 'Game slug is invalid');
     }
-    const result = await readGames(database, { pageSize: 1, offset: 0, query: undefined } as QueryOptions);
-    void result;
     const filter = await database.query<GameRow>(`
       SELECT g.id::text AS id,g.game_slug AS slug,g.title,
              p.code AS provider_code,p.name AS provider_name,
