@@ -42,7 +42,7 @@ function paginationInteger(value: unknown): number | null {
   if (typeof value === 'number') {
     return Number.isSafeInteger(value) ? value : null;
   }
-  if (typeof value !== 'string' || !/^(0|[1-9]\\d*)$/.test(value)) {
+  if (typeof value !== 'string' || !/^(0|[1-9]\d*)$/.test(value)) {
     return null;
   }
   const parsed = Number(value);
