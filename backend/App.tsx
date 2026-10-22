@@ -26,7 +26,7 @@ import { CmsProvidersPage } from './pages/cms/Providers'
 function AdminDashboard() {
   const auth = useAdminAuth()
   const adminDisplayName = auth.admin.displayName?.trim() || auth.admin.email || 'Administrator'
-  const adminInitials = adminDisplayName.split(/\\s+/).filter(Boolean).slice(0, 2).map((part) => part.charAt(0)).join('').toUpperCase() || 'AD'
+  const adminInitials = adminDisplayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part.charAt(0)).join('').toUpperCase() || 'AD'
   const [workspace, setWorkspace] = useState<WorkspaceMode>(() => workspaceForPage(pageFromPath(window.location.pathname)))
   const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false)
   const [activePage, setActivePage] = useState<PageKey>(() => pageFromPath(window.location.pathname))
