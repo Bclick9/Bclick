@@ -142,7 +142,7 @@ async function readGames(db: SqlExecutor, options: QueryOptions): Promise<{ data
     SELECT g.id::text AS id,g.game_slug AS slug,g.title,
            p.code AS provider_code,p.name AS provider_name,
            g.image_url, g.available,g.demo_available,g.real_available,
-           COALESCE(array_agg(DISTINCT gc.category_slug) FILTER (WHERE gc.category_slug IS NOT NULL),ARRAY[]::text[]) AS categories
+           COALESCE(array_agg(DISTINCT gc.category_slug ORDER BY gc.category_slug) FILTER (WHERE gc.category_slug IS NOT NULL),ARRAY[]::text[]) AS categories
       FROM public.casino_games g
       JOIN public.casino_providers p ON p.id=g.provider_id
       JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.available=true
@@ -334,7 +334,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
       SELECT g.id::text AS id,g.game_slug AS slug,g.title,
              p.code AS provider_code,p.name AS provider_name,
              g.image_url,g.available,g.demo_available,g.real_available,
-             COALESCE(array_agg(DISTINCT gc.category_slug) FILTER (WHERE gc.category_slug IS NOT NULL),ARRAY[]::text[]) AS categories
+             COALESCE(array_agg(DISTINCT gc.category_slug ORDER BY gc.category_slug) FILTER (WHERE gc.category_slug IS NOT NULL),ARRAY[]::text[]) AS categories
         FROM public.casino_games g
         JOIN public.casino_providers p ON p.id=g.provider_id
         JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.available=true
@@ -356,7 +356,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
       SELECT g.id::text AS id,g.game_slug AS slug,g.title,
              p.code AS provider_code,p.name AS provider_name,
              g.image_url,g.available,g.demo_available,g.real_available,
-             COALESCE(array_agg(DISTINCT gc.category_slug) FILTER (WHERE gc.category_slug IS NOT NULL),ARRAY[]::text[]) AS categories
+             COALESCE(array_agg(DISTINCT gc.category_slug ORDER BY gc.category_slug) FILTER (WHERE gc.category_slug IS NOT NULL),ARRAY[]::text[]) AS categories
         FROM public.casino_games g
         JOIN public.casino_providers p ON p.id=g.provider_id
         JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.available=true

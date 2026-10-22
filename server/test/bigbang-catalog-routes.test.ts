@@ -15,7 +15,7 @@ const ROW = {
   provider_name: 'Habanero',
   image_url: 'https://assets.example.test/hot-hot-fruit.webp',
   available: true,
-  categories: ['slot-games', 'classic-slots'],
+  categories: ['classic-slots', 'slot-games'],
   demo_available: false,
   real_available: false,
 };
@@ -66,7 +66,7 @@ function expectedGame() {
     slug: GAME_SLUG,
     title: 'Hot Hot Fruit',
     provider: { code: 'habanero', name: 'Habanero' },
-    categories: ['slot-games', 'classic-slots'],
+    categories: ['classic-slots', 'slot-games'],
     imageUrl: 'https://assets.example.test/hot-hot-fruit.webp',
     available: true,
     modes: { demo: false, real: false },
@@ -86,6 +86,7 @@ test('slug lookup resolves the canonical UUID and preserves every stored categor
     assert.equal(response.statusCode, 200, response.body);
     assert.deepEqual(response.json().data, expectedGame());
     assert.match(fixture.calls[0]!.sql, /WHERE g\.game_slug=\$1/);
+    assert.match(fixture.calls[0]!.sql, /array_agg\(DISTINCT gc\.category_slug ORDER BY gc\.category_slug\)/);
     assert.deepEqual(fixture.calls[0]!.values, [GAME_SLUG]);
     assert.equal(response.headers['cache-control'], 'public, max-age=30, stale-while-revalidate=120');
   } finally {
@@ -106,6 +107,7 @@ test('UUID lookup returns the same canonical game as slug lookup', async () => {
     assert.equal(response.statusCode, 200, response.body);
     assert.deepEqual(response.json().data, expectedGame());
     assert.match(fixture.calls[0]!.sql, /WHERE g\.id=\$1/);
+    assert.match(fixture.calls[0]!.sql, /array_agg\(DISTINCT gc\.category_slug ORDER BY gc\.category_slug\)/);
     assert.deepEqual(fixture.calls[0]!.values, [GAME_ID]);
   } finally {
     await app.close();
@@ -165,6 +167,7 @@ test('catalogue category/search filters are parameterized and pagination retains
     assert.equal(response.json().meta.stale, false);
     assert.equal(fixture.calls.length, 3);
     assert.match(fixture.calls[0]!.sql, /EXISTS \(SELECT 1 FROM public\.casino_game_categories/);
+    assert.match(fixture.calls[1]!.sql, /array_agg\(DISTINCT gc\.category_slug ORDER BY gc\.category_slug\)/);
     assert.match(fixture.calls[0]!.sql, /g\.title ILIKE/);
     assert.deepEqual(fixture.calls[0]!.values, ['slot-games', '%Hot%']);
     assert.deepEqual(fixture.calls[1]!.values, ['slot-games', '%Hot%', 1, 0]);
