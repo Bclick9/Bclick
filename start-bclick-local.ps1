@@ -118,6 +118,16 @@ $privateHttpOriginPattern = '^http://(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[
 $currentPlayerOrigins = @((Get-LocalEnvValue -Name 'BCLICK_PLAYER_ALLOWED_ORIGINS') -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -and $_ -notmatch $privateHttpOriginPattern })
 Set-LocalEnvValue -Name 'BCLICK_PLAYER_ALLOWED_ORIGINS' -Value (($currentPlayerOrigins | Select-Object -Unique) -join ',')
 
+if ($script:PhoneTlsReady) {
+    # Vite switches the whole local frontend to HTTPS when phone TLS is configured.
+    # Keep desktop localhost origins allowed as well as the detected private-LAN origins.
+    $current = @((Get-LocalEnvValue -Name 'BCLICK_PLAYER_ALLOWED_ORIGINS') -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    foreach ($origin in @('https://localhost:5173', 'https://127.0.0.1:5173')) {
+        if ($current -notcontains $origin) { $current += $origin }
+    }
+    Set-LocalEnvValue -Name 'BCLICK_PLAYER_ALLOWED_ORIGINS' -Value (($current | Select-Object -Unique) -join ',')
+}
+
 if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
     $physicalAdapters = @(Get-NetAdapter -Physical -ErrorAction SilentlyContinue |
         Where-Object { $_.Status -eq 'Up' })
