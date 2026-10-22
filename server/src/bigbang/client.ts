@@ -1,6 +1,7 @@
 import { BigBangApiError, type BigBangCatalogSnapshot, type BigBangGame, type BigBangGameType, type BigBangMode } from './types.js';
 
-const BIGBANG_BASE_URL = 'https://api.bigbangcasino.bet/api/v1/';
+/** BigBang documents one API base URL for both key types; Sandbox is enforced by the ek_test_ key. */
+const BIGBANG_API_BASE_URL = 'https://api.bigbangcasino.bet/api/v1/';
 const PAGE_LIMIT = 5_000;
 const MAX_RESPONSE_BYTES = 20 * 1024 * 1024;
 const GAME_TYPES = new Set<BigBangGameType>(['slot','live','crash']);
@@ -176,7 +177,7 @@ export class BigBangApiClient {
   private readonly apiKey: string;
 
   private async fetchPage(offset: number): Promise<{ games: BigBangGame[]; total: number; limit: number }> {
-    const url = new URL('games', BIGBANG_BASE_URL);
+    const url = new URL('games', BIGBANG_API_BASE_URL);
     url.searchParams.set('type', 'standard');
     url.searchParams.set('limit', String(this.pageLimit));
     url.searchParams.set('offset', String(offset));
