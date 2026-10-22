@@ -85,6 +85,8 @@ export const PROVIDERS = [
 export const CASINO_CATEGORIES = [
   { slug: 'lobby', label: 'Lobby', icon: 'Home' },
   { slug: 'slot-games', label: 'Slot Games', icon: 'Cherry' },
+  { slug: 'live-casino', label: 'Live Casino', icon: 'Spade' },
+  { slug: 'crash-games', label: 'Crash Games', icon: 'Rocket' },
   { slug: 'halloween-games', label: 'Halloween Games', icon: 'Ghost' },
   { slug: 'top-picks', label: 'Top Picks', icon: 'Flame' },
   { slug: 'new-games', label: 'New Games', icon: 'Sparkles' },
