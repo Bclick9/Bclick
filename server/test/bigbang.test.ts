@@ -433,12 +433,42 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
       log: () => undefined,
     });
     const migrationCount = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM pgmigrations');
-    assert.equal(migrationCount.rows[0]?.count, '10', 'The full migration chain through Migration 008 must apply in order');
+    assert.equal(migrationCount.rows[0]?.count, '11', 'The full migration chain through Migration 009 must apply in order');
 
     const first = await service.sync();
     assert.equal(first.createdCount, 2);
     assert.equal(first.updatedCount, 0);
     assert.equal(first.receivedCount, 2);
+
+    const legacyAlias = await pool.query<{
+      resolution_status: string;
+      game_id: string;
+      game_slug: string;
+      external_game_id: string;
+    }>(`
+      SELECT a.resolution_status,g.id::text AS game_id,g.game_slug,
+             s.external_game_id::text AS external_game_id
+        FROM public.casino_game_legacy_slug_aliases a
+        JOIN public.casino_games g ON g.id=a.game_id
+        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang'
+       WHERE a.alias_slug='lightning-roulette'
+    `);
+    assert.deepEqual(legacyAlias.rows[0], {
+      resolution_status: 'resolved',
+      game_id: legacyAlias.rows[0]?.game_id,
+      game_slug: 'lightning-roulette-evolution',
+      external_game_id: '4822',
+    });
+    assert.match(legacyAlias.rows[0]?.game_id ?? '', /^[0-9a-f-]{36}$/i);
+
+    const legacyRoute = await app.inject({
+      method: 'GET',
+      url: '/api/v1/casino/games/by-slug/lightning-roulette',
+    });
+    assert.equal(legacyRoute.statusCode, 200, legacyRoute.body);
+    assert.equal(legacyRoute.json().data.id, legacyAlias.rows[0]?.game_id);
+    assert.equal(legacyRoute.json().data.slug, 'lightning-roulette-evolution');
+    assert.equal(legacyRoute.json().data.title, 'Lightning Roulette');
 
     const second = await service.sync();
     assert.equal(second.createdCount, 0);
