@@ -60,7 +60,7 @@ The implementation is additive; review or merge does not itself authorize a stor
 Q-005 **is not closed by this PR**. Required next evidence/decisions:
 
 - Owner acceptance or amendment of the proposed identity/category/legacy-link contract.
-- Review and merge the persistent alias implementation before frontend catalogue API cutover; Owner acceptance remains a separate gate and is not granted by merge.
+- PR #100 has merged the persistent alias implementation; its merge does not authorize frontend catalogue API cutover. Owner acceptance remains a separate gate, alongside the count discrepancy evidence and Standard/Premium identity scope.
 - Same-key/same-scope evidence or a written vendor explanation for 3,802 versus 3,639.
 - Written confirmation of cross-tier ID uniqueness, or a reviewed tier-inclusive identity migration before Premium support.
 
