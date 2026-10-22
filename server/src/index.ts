@@ -18,12 +18,14 @@ async function main(): Promise<void> {
     application_name: 'bclick-api',
   });
 
-  const identity = identityConfig ? new IdentityService(new PgIdentityRepository(pool), identityConfig) : null;
+  const repository = new PgIdentityRepository(pool);
+  const identity = identityConfig ? new IdentityService(repository, identityConfig) : null;
   const app = buildApp({
     database: pool,
     logLevel: config.logLevel,
     identity,
     identityConfig,
+    catalogDatabase: repository,
   });
 
   app.addHook('onClose', async () => {
