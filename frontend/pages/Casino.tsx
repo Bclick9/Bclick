@@ -368,7 +368,6 @@ export function CasinoCategory() {
   const [catalogReloadKey, setCatalogReloadKey] = useState(0)
 
   const searchTerm = searchQuery.trim()
-  const searchLower = searchTerm.toLocaleLowerCase()
   const catalogBackedCategory = ['lobby', 'slot-games', 'live-casino', 'crash-games'].includes(category)
   const useLiveCatalog = catalogBackedCategory || Boolean(searchTerm)
 
