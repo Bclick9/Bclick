@@ -109,7 +109,7 @@ The repository-root `.env` is loaded by both Phase 6 package commands using Node
 
 Required local variables:
 - `BIGBANG_SANDBOX_API_KEY=ek_test_...` — the exact name expected by the CLI; the old `BIGBANG_API_KEY` variable is not read by this command.
-- `DATABASE_URL=postgresql://...@127.0.0.1:5432/...` — must point to local loopback PostgreSQL.
+- `DATABASE_URL=postgresql://...@127.0.0.1:5432/...` — optional if `POSTGRES_PASSWORD`, `POSTGRES_USER`, `POSTGRES_DB`, and `POSTGRES_PORT` are present; in that case the CLI builds a loopback URL from those Compose values. Any explicitly supplied remote `DATABASE_URL` is rejected.
 - Set `BCLICK_BIGBANG_CATALOGUE_SANDBOX_CONFIRM=YES` in the invoking shell to confirm the local-only action. Do not commit `.env`.
 
 From repository-root PowerShell:
@@ -124,5 +124,7 @@ Remove-Item Env:BCLICK_BIGBANG_CATALOGUE_SANDBOX_CONFIRM
 The guarded migration command is a no-op only if Migration 007 is already the final migration in the exact reviewed chain. Otherwise it accepts only the exact eight-entry chain through Migration 006, then applies one migration and verifies Migration 007. Both migration and sync commands reject production runtime, non-`ek_test_` keys, and non-loopback databases.
 
 BigBang's published documentation specifies the shared base URL `https://api.bigbangcasino.bet/api/v1/` for both key types; it does **not** document a separate sandbox hostname. Sandbox access is selected by the `ek_test_` key, which restricts this client to Standard games. The URL is fixed in code and not loaded from `.env`.
+
+If the local database has not yet been initialized through Migration 006, first run `./start-bclick-local.ps1` in PowerShell and leave that terminal open; it starts local Compose PostgreSQL, applies the pending ordered migrations, and starts the API. This bootstrap can itself apply Migration 007, after which the guarded migration command reports `already-applied`. For a database already migrated through 006, start only the loopback PostgreSQL service with `docker compose --env-file .env -f infra/compose/compose.yaml up -d postgres`, then use the two guarded commands above.
 
 The sync populates local database tables `casino_games`, `casino_game_sources`, `casino_providers` and `casino_game_categories`. The player-facing `/casino` route is not switched to these API endpoints in Phase 6 because Q-005's slug/category and legacy URL decision remains open; a successful sync alone therefore does not prove that `/casino` is displaying the database-backed catalog. This is a deliberate acceptance/review boundary, not a sync failure.
