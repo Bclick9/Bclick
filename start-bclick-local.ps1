@@ -190,7 +190,7 @@ if (Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue) {
     }
 }
 
-$playerOriginList = @(Get-LocalEnvValue -Name 'BCLICK_PLAYER_ALLOWED_ORIGINS' -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+$playerOriginList = @((Get-LocalEnvValue -Name 'BCLICK_PLAYER_ALLOWED_ORIGINS') -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 Write-Host ('Player Origin allow-list for this API run: ' + ($playerOriginList -join ', '))
 
 Write-Host '[1/3] Validating Docker Compose configuration...'
