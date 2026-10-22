@@ -209,8 +209,17 @@ $env:NODE_ENV = 'development'
 $env:HOST = '127.0.0.1'
 $env:PORT = '3000'
 
-Write-Host '[3/3] Database migrations are complete. Starting the API with local Identity enabled.'
-Write-Host 'Keep this terminal open. Start the frontend in a second terminal with: npm run dev'
+Write-Host '[3/4] Ensuring the temporary local-development administrator exists...'
+& pnpm api:admin:bootstrap-local-default
+$bootstrapExitCode = $LASTEXITCODE
+if ($bootstrapExitCode -ne 0) {
+    throw ('Local administrator bootstrap failed (exit code ' + $bootstrapExitCode + '). The API will not start; no containers or volumes were automatically deleted.')
+}
+
+Write-Host '[4/4] Database migrations are complete. Starting the API with local Identity enabled.'
+Write-Host 'Local-only login: admin@admin.com / admin. First login requires authenticator-app enrollment.'
+Write-Host 'This temporary credential exception is not permitted in staging or Production.'
+Write-Host 'Keep this terminal open. Start the player frontend in a second terminal with: pnpm dev'
 Write-Host 'The script does not delete containers, volumes, or database data.'
 & pnpm api:dev
 $apiExitCode = $LASTEXITCODE

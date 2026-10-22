@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { BadgePercent, Bell, CheckCircle2, ChevronDown, ChevronRight, CreditCard, Download, LogOut, Menu, Plus, X, Zap, UserPlus, Shield, Paintbrush } from 'lucide-react'
 import { Badge, Button } from './components/ui'
 import { cn } from './lib/utils'
+import { AdminAuthGate, useAdminAuth } from './components/AdminAuthGate'
 import { NAV_GROUPS, CMS_NAV_GROUPS, PAGE_INFO, PAGE_PATHS, pageFromPath, workspaceForPage } from './lib/navigation'
 import type { WorkspaceMode, PageKey, UserRow, BonusWizardForm, Offer } from './lib/types'
 import { INITIAL_USERS, INITIAL_BONUSES } from './data/backoffice'
@@ -22,7 +23,10 @@ import { CmsPagesPage } from './pages/cms/Pages'
 import { CmsSkinGamesPage, INITIAL_CMS_SKIN_GAMES, type CmsSkinGame } from './pages/cms/SkinGames'
 import { CmsProvidersPage } from './pages/cms/Providers'
 
-export default function App() {
+function AdminDashboard() {
+  const auth = useAdminAuth()
+  const adminDisplayName = auth.admin.displayName?.trim() || auth.admin.email || 'Administrator'
+  const adminInitials = adminDisplayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part.charAt(0)).join('').toUpperCase() || 'AD'
   const [workspace, setWorkspace] = useState<WorkspaceMode>(() => workspaceForPage(pageFromPath(window.location.pathname)))
   const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false)
   const [activePage, setActivePage] = useState<PageKey>(() => pageFromPath(window.location.pathname))
@@ -188,17 +192,17 @@ export default function App() {
             </div>
             <div className="relative">
               <button type="button" aria-haspopup="menu" aria-expanded={profileOpen} aria-label="Open profile menu" onClick={() => { setProfileOpen((open) => !open); setNotificationOpen(false) }} className="flex h-8 items-center gap-2 rounded-md border border-slate-200 bg-white px-2 text-left shadow-sm transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#e4e9f0] text-[10px] font-extrabold text-slate-800">AD</span>
-                <span className="hidden text-[11px] font-medium text-slate-700 sm:inline">Admin Demo</span>
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#e4e9f0] text-[10px] font-extrabold text-slate-800">{adminInitials}</span>
+                <span className="hidden text-[11px] font-medium text-slate-700 sm:inline">{adminDisplayName}</span>
                 <ChevronDown className={"h-3.5 w-3.5 text-slate-500 transition-transform " + (profileOpen ? "rotate-180" : "")} />
               </button>
               {profileOpen ? <div role="menu" aria-label="Profile menu" className="absolute right-0 top-10 z-50 w-[min(240px,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
                 <div className="flex items-center gap-3 rounded-lg px-2 py-2.5">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#e4e9f0] text-xs font-extrabold text-slate-800">AD</div>
-                  <div className="min-w-0"><p className="truncate text-xs font-semibold text-slate-900">Admin Demo</p><p className="mt-1 truncate text-[10px] text-slate-500">Super administrator</p></div>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#e4e9f0] text-xs font-extrabold text-slate-800">{adminInitials}</div>
+                  <div className="min-w-0"><p className="truncate text-xs font-semibold text-slate-900">{adminDisplayName}</p><p className="mt-1 truncate text-[10px] text-slate-500">{auth.roles.join(', ') || 'Administrator'}</p></div>
                 </div>
                 <div className="my-1 border-t border-slate-100" />
-                <button type="button" role="menuitem" onClick={() => { setProfileOpen(false); notify('Authentication is outside the scope of this UI prototype.') }} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2.5 text-left text-xs font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"><LogOut className="h-4 w-4" /> Sign out</button>
+                <button type="button" role="menuitem" onClick={() => { setProfileOpen(false); void auth.signOut() }} disabled={auth.signOutBusy} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2.5 text-left text-xs font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 disabled:opacity-50"><LogOut className="h-4 w-4" /> {auth.signOutBusy ? 'Signing out…' : 'Sign out'}</button>
               </div> : null}
             </div>
           </div>
@@ -238,4 +242,9 @@ export default function App() {
       {toast ? <div role="status" className="fixed bottom-5 right-5 z-[70] flex max-w-sm items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-semibold text-slate-700 shadow-xl"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />{toast}</div> : null}
     </div>
   )
+}
+
+
+export default function App() {
+  return <AdminAuthGate><AdminDashboard /></AdminAuthGate>
 }
