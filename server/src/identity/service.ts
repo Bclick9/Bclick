@@ -626,6 +626,63 @@ export class IdentityService {
     await this.emitLocalMail('email_verification', String(player.email), token);
   }
 
+  /**
+   * Temporary owner-requested local-development exception only. This method is never
+   * exposed as an HTTP route and deliberately refuses test/staging/production configs.
+   * The default password is weak, so the login flow requires TOTP enrollment immediately.
+   */
+  async bootstrapLocalDefaultAdmin(): Promise<'created' | 'already-present' | 'skipped-existing-admin'> {
+    if (this.config.nodeEnv !== 'development') {
+      throw new Error('The default admin@admin.com/admin credential is permitted only in local development');
+    }
+
+    const email = 'admin@admin.com';
+    const normalizedEmail = normalizeEmail(email);
+    return this.repository.transaction(async (tx) => {
+      // Serialize first-admin bootstrap across simultaneous local API starts.
+      await tx.query('LOCK TABLE admin_users IN EXCLUSIVE MODE');
+
+      const existing = await tx.query<DbRow>(`SELECT id,password_hash,status,mfa_enabled
+        FROM admin_users WHERE email_normalized=$1 LIMIT 1`, [normalizedEmail]);
+      if (existing.rows[0]) {
+        const matches = await verifyPassword('admin', String(existing.rows[0].password_hash ?? ''));
+        if (!matches) {
+          throw new Error('admin@admin.com already exists with a different password; local bootstrap will not reset credentials');
+        }
+        return 'already-present';
+      }
+
+      const anyAdmin = await tx.query<DbRow>('SELECT id FROM admin_users LIMIT 1');
+      if (anyAdmin.rows.length > 0) {
+        // Never add a second privileged account automatically over an existing admin setup.
+        return 'skipped-existing-admin';
+      }
+
+      const passwordHash = await hashPassword('admin');
+      const id = randomUUID();
+      await tx.query(`INSERT INTO admin_users
+        (id,email,email_normalized,display_name,password_hash,status,mfa_enabled,created_at,updated_at)
+        VALUES ($1,$2,$2,'Local Development Admin',$3,'active',FALSE,now(),now())`,
+      [id, email, passwordHash]);
+
+      const role = await tx.query<DbRow>(`INSERT INTO admin_role_assignments(admin_id,role_id)
+        SELECT $1,id FROM roles WHERE code='project-admin'
+        RETURNING admin_id`, [id]);
+      if (role.rows.length !== 1) {
+        throw new Error('Required project-admin role is missing; local default admin bootstrap was rolled back');
+      }
+
+      await this.audit(tx, 'admin.bootstrap.local-default', 'system', null, 'admin', id, 'success', randomUUID(), {
+        localOnly: true,
+        ownerRequestedTemporaryDefaultCredential: true,
+        weakDefaultCredential: true,
+        totpEnrollmentRequiredAtFirstLogin: true,
+        mustReplaceBeforeAnySharedEnvironment: true,
+      });
+      return 'created';
+    });
+  }
+
   async bootstrapAdmin(input: { email: string; displayName: string; password: string }): Promise<void> {
     if (this.config.nodeEnv === 'production') throw new Error('Admin bootstrap is local-only while Q-011 remains open');
     const email = normalizeEmail(input.email);
