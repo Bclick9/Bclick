@@ -101,7 +101,7 @@ export function registerSandboxDemoLaunchRoute(
 
     let source: LaunchSourceRow | undefined;
     try {
-      const result = await database.query<LaunchSourceRow>(\`
+      const result = await database.query<LaunchSourceRow>(`
         SELECT s.external_game_id::text AS external_game_id,
                s.source_mode,
                s.is_premium,
@@ -112,7 +112,7 @@ export function registerSandboxDemoLaunchRoute(
             ON s.game_id=g.id AND s.source_code='bigbang'
          WHERE g.id=$1
          LIMIT 1
-      \`, [gameId]);
+      `, [gameId]);
       source = result.rows[0];
     } catch {
       return errorResponse(reply, request, 503, 'CATALOGUE_UNAVAILABLE', 'The casino catalogue is temporarily unavailable.');
