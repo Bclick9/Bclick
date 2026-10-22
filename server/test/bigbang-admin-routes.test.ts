@@ -8,7 +8,7 @@ import type { SqlExecutor } from '../src/identity/repository.js';
 
 const ADMIN_ORIGIN = 'http://localhost:5174';
 const SESSION_COOKIE = '__Host-bclick_admin_session=admin-session';
-const CSRF_COOKIE = '__Host-bclick_admin_csrf=csrf-token-value';
+const CSRF_COOKIE = '__Host-bclick_admin_csrf=csrf-token-value-123456789';
 const ADMIN_ID = '8d01ab53-7f9c-4e67-b4e8-64c5a409a7a9';
 const PROVIDER_ID = '5a03f96c-a9cb-4f98-8a54-29af7a9f77c3';
 const GAME_ID = 'ebc75e97-68a5-40f8-8177-65db54ace749';
@@ -51,7 +51,7 @@ function fakeIdentity(permissions: string[] = [PERMISSION]) {
       return type === 'admin' && token === 'admin-session' ? session : null;
     },
     verifyCsrfForSession(_session: AuthSession, token: string) {
-      return token === 'csrf-token-value';
+      return token === 'csrf-token-value-123456789';
     },
   } as unknown as IdentityService;
 }
@@ -123,7 +123,7 @@ function authHeaders(options: { csrf?: boolean; origin?: string } = {}) {
   return {
     cookie: cookies.join('; '),
     ...(options.origin ? { origin: options.origin } : {}),
-    ...(options.csrf !== false ? { 'x-csrf-token': 'csrf-token-value' } : {}),
+    ...(options.csrf !== false ? { 'x-csrf-token': 'csrf-token-value-123456789' } : {}),
   };
 }
 
