@@ -9,7 +9,7 @@
 
 - Migration 006, wallet read APIs, and the player wallet view are present on main.
 - PR #92 merged Migration 007, the server-only BigBang client, local catalogue persistence/sync service, read-only database-backed catalogue routes, the sandbox-only CLI, and regression tests to `main`. Migration 007 has not been applied to Neon or Production.
-- On 2026-10-22, the Project Owner explicitly authorized continuing Phase 6 implementation and testing in local development / BigBang Sandbox only. This does not close Q-011 or authorize Production, payment movement, provider wallet callbacks, wagers, or launch routes.
+- On 2026-10-22, the Project Owner explicitly authorized continuing Phase 6 implementation and testing in local development / BigBang Sandbox only. This does not close Q-011 or authorize Production launch, real-money launch, payment movement, provider wallet callbacks, wagers, or any production provider route.
 - The CLI requires an `ek_test_` key, an explicit `BCLICK_BIGBANG_CATALOGUE_SANDBOX_CONFIRM=YES` confirmation, a non-production runtime and loopback PostgreSQL (`localhost`, `127.0.0.1`, or `::1`). No live provider credential or provider request was used while writing this code.
 - The documented Q-011 exception remains a Production/release blocker: Q-011 is still NOT RUN / OPEN / P0. This phase-specific owner approval is limited to sandbox catalogue work and does not widen the financial or deployment boundary.
 
