@@ -37,6 +37,18 @@ function requiredBoolean(object: RawObject, field: string): boolean {
   return object[field] as boolean;
 }
 
+/** Accept JSON numbers or canonical decimal-integer strings for provider pagination metadata. */
+function paginationInteger(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) ? value : null;
+  }
+  if (typeof value !== 'string' || !/^(0|[1-9]\\d*)$/.test(value)) {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : null;
+}
+
 function safeThumbnail(value: unknown): string | null {
   if (value === null || value === undefined || value === '') return null;
   if (typeof value !== 'string') return null;
@@ -92,20 +104,20 @@ function parseEnvelope(value: unknown, expectedOffset: number, expectedLimit: nu
   if (!isObject(value) || value.success !== true || !Array.isArray(value.data) || !isObject(value.pagination)) {
     throw new BigBangApiError('BIGBANG_ENVELOPE_INVALID', 'BigBang returned an unexpected catalogue response');
   }
-  const total = value.pagination.total;
-  const limit = value.pagination.limit;
-  const offset = value.pagination.offset;
-  if (!Number.isSafeInteger(total) || Number(total) < 0
-    || !Number.isSafeInteger(limit) || Number(limit) < 1 || Number(limit) > PAGE_LIMIT
-    || !Number.isSafeInteger(offset) || Number(offset) !== expectedOffset
-    || Number(limit) !== expectedLimit
-    || value.data.length > Number(limit)) {
+  const total = paginationInteger(value.pagination.total);
+  const limit = paginationInteger(value.pagination.limit);
+  const offset = paginationInteger(value.pagination.offset);
+  if (total === null || total < 0
+    || limit === null || limit < 1 || limit > PAGE_LIMIT
+    || offset === null || offset !== expectedOffset
+    || limit !== expectedLimit
+    || value.data.length > limit) {
     throw new BigBangApiError('BIGBANG_PAGINATION_INVALID', 'BigBang catalogue pagination metadata is inconsistent');
   }
   return {
     games: value.data.map(parseGame),
-    total: Number(total),
-    limit: Number(limit),
+    total,
+    limit,
   };
 }
 
