@@ -110,7 +110,7 @@ function parseEnvelope(value: unknown, expectedOffset: number, expectedLimit: nu
 
 async function readBoundedBody(response: Response, maxBytes: number): Promise<string> {
   const declaredLength = response.headers.get('content-length');
-  if (declaredLength && /^\\d+$/.test(declaredLength) && Number(declaredLength) > maxBytes) {
+  if (declaredLength && /^\d+$/.test(declaredLength) && Number(declaredLength) > maxBytes) {
     throw new BigBangApiError('BIGBANG_RESPONSE_TOO_LARGE', 'BigBang catalogue response exceeded the size limit');
   }
 
