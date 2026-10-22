@@ -41,12 +41,12 @@ For each provider independently, record:
 
 **Evidence reviewed for the current sandbox implementation:** the public [BigBang API documentation](https://api.bigbangcasino.bet/docs/) was checked on 2026-10-22 for `GET /api/v1/games`, the `success/data/pagination` envelope, the fields used by the adapter, the `limit`/`offset` scheme, and `X-API-Key` sandbox authentication. The test fixture is the published documentation example, not a captured live API response. Pagination and failure test responses are synthetic test doubles derived from that documented schema.
 
-**Q-006 remains OPEN:** the exact complete, versioned `BIGBANG_AGENT.md` artifact and its SHA-256/reviewer record were not found in the current repository/library inventory, so this public page does not substitute for that required artifact. WinHouse is a separate specification and is not covered by this BigBang adapter.
+**Q-006 remains OPEN:** the provider specifications are part of the project planning evidence set, but this implementation branch does not yet register the exact normative artifact filename/version/source, its SHA-256, and the reviewer/approval record. The public HTML page is supporting evidence for the catalogue endpoint, not a substitute for the exact approved artifact. Hash and review the exact delivered `BIGBANG_AGENT.md`; record WinHouse independently. WinHouse is a separate specification and is not covered by this BigBang adapter.
 
 ## 3. Sandbox-only Phase 6 implementation scope
 
 1. **Server-only vendor client (implemented on the Phase 6 branch).** Only `ek_test_` keys are accepted; the client sends `X-API-Key` server-side, bounds request timeouts/retries and response size, validates response schemas and pagination, rejects Premium games, and does not log provider payloads or credentials.
-2. **Validated catalogue ingestion (implemented; CI evidence pending).** The sync fetches the complete paginated snapshot before opening the publish transaction. Duplicate provider IDs, changing totals, wrong page offsets/limits, malformed fields, and incomplete pages fail closed.
+2. **Validated catalogue ingestion (implemented and verified by disposable PostgreSQL CI on 2026-10-22; see Section 7).** The sync fetches the complete paginated snapshot before opening the publish transaction. Duplicate provider IDs, changing totals, wrong page offsets/limits, malformed fields, and incomplete pages fail closed.
 3. **Local persistence (implemented provisionally for Sandbox).** Migration 007 stores providers, canonical game rows, provider source metadata, category slugs and sync-run status. Idempotent upserts maintain one mapping for each BigBang external ID. Q-005 slug/category behavior is still provisional.
 4. **Last-good protection (implementation and regression coverage added).** A provider failure or invalid snapshot does not publish partial rows; a zero-game response cannot replace a previously non-empty catalogue; publication changes and the successful sync status commit in one database transaction.
 5. **DB-backed browsing (implemented on the branch).** Games, categories, providers, filters and slug/UUID detail routes read local persistence only. Tests assert that browsing does not call the vendor. These routes return `demo=false` and `real=false`; no launch endpoint or admin sync endpoint is added by this branch.
@@ -77,4 +77,27 @@ For each provider independently, record:
 - Q-010 remains **partially evidenced but OPEN**: DB-level concurrent debit/ledger invariants are tested, but application-level exact replay and conflicting-payload idempotency semantics are not.
 - Q-011 remains **NOT RUN / OPEN / P0** per infra/restore-drill/last-drill.md.
 - The Project Owner's 2026-10-22 authorization is limited to local development / BigBang Sandbox catalogue implementation and tests. It grants no Production deployment, live provider credentials, callback, payment, wallet posting, wager, launch, or real-money authorization.
-- Current branch CI has not yet been asserted as passing in this note; report only actual GitHub Actions results after they complete.
+- The code/test head `668189d0223a4219b8095e34799b2e147bfb9aa5` passed the API/test, build, disposable PostgreSQL migration-rehearsal, and local Compose checks recorded in Section 7. The subsequent commit for this note is documentation-only; do not infer Production readiness or closure of any open question.
+
+
+## 7. CI evidence checkpoint — 2026-10-22
+
+**Tested code head:** `668189d0223a4219b8095e34799b2e147bfb9aa5` on `feat/phase6-bigbang-catalogue-sandbox`.
+
+- `pnpm api:test`: 29 server tests passed, 0 failed; the same command also passed the 4 config tests and 4 money-package tests. The BigBang cases include malformed required fields/types, full pagination, cross-page total drift, duplicate IDs, incomplete pages, premium-tier rejection, bounded retries, invalid content type/JSON, declared response-size limit, Testcontainers migration rehearsal, idempotent sync, DB-only browsing, last-good preservation, slug suffix collisions, and provider-code collision rollback.
+- `API skeleton and contract checks`: passed, including TypeScript/API tests, migration validation, health-contract checks, OpenAPI lint and generated-client drift.
+- `Application builds`: passed for the player frontend and admin dashboard.
+- Disposable PostgreSQL rehearsals for Migrations 001, 002 and 003 passed; Wallet Migration 006 rehearsal passed; Local Compose bootstrap smoke test passed, including Windows PowerShell 5.1 script parsing.
+- The M001/M002/M003 workflow pre/postflight jobs also passed on their disposable PostgreSQL targets. In those workflows, the guarded live-Neon jobs were **skipped** because the runs were pull-request CI rehearsals. No Migration 007 was applied to Neon or Production.
+- The initial M001/M002/M003 rehearsal attempts correctly failed closed because the CI inventory expected only M001–M006 while the branch added M007. Their **disposable-CI inventory lists only** were amended to include `1793102400000_bigbang_catalogue_007.sql`; M002/M003 also pin its blob hash `ee72b82a1ea300a7390dae37639063de3052d0f4`. The `neon:` jobs' stricter production migration allowlists remain unchanged and do not admit M007.
+
+Evidence:
+- [API skeleton and contract checks](https://github.com/Bclick9/Bclick/actions/runs/39765782841)
+- [Application builds](https://github.com/Bclick9/Bclick/actions/runs/39765782970)
+- [Migration 001 rehearsal](https://github.com/Bclick9/Bclick/actions/runs/39765782947)
+- [Migration 002 rehearsal](https://github.com/Bclick9/Bclick/actions/runs/39765782845)
+- [Migration 003 rehearsal](https://github.com/Bclick9/Bclick/actions/runs/39765782934)
+- [Wallet Migration 006 rehearsal](https://github.com/Bclick9/Bclick/actions/runs/39765782935)
+- [Local Compose bootstrap smoke test](https://github.com/Bclick9/Bclick/actions/runs/39765782924)
+
+**Gate status is unchanged:** Phase 6 sandbox catalogue implementation has passing CI evidence, but Q-005, Q-006, and Q-010 remain open. Q-011 remains NOT RUN / OPEN / P0 and blocks Production. The player-facing frontend has not been switched to these routes; launch, provider callbacks, wagers, payments, and real-money wallet posting remain out of scope.
