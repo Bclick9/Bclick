@@ -102,7 +102,8 @@ foreach ($pair in @(
     @{ Name = 'BCLICK_PLAYER_ALLOWED_ORIGINS'; Origin = 'http://localhost:5173' },
     @{ Name = 'BCLICK_ADMIN_ALLOWED_ORIGINS'; Origin = 'http://localhost:5174' }
 )) {
-    $current = @(Get-LocalEnvValue -Name $pair.Name -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    $currentValue = Get-LocalEnvValue -Name $pair.Name
+    $current = @($currentValue -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
     if ($current -notcontains $pair.Origin) { $current += $pair.Origin }
     Set-LocalEnvValue -Name $pair.Name -Value (($current | Select-Object -Unique) -join ',')
 }
