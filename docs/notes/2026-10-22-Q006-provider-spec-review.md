@@ -21,7 +21,7 @@ Hashes were calculated from the raw bytes of the complete files supplied by the 
 
 - The catalog client uses the documented `https://api.bigbangcasino.bet/api/v1/` origin and sends `X-API-Key` server-side.
 - It requests `GET /games?type=standard&limit=5000&offset=...`, validates the `success/data/pagination` envelope and documented game fields, checks offsets/totals/duplicate IDs, bounds retries and response size, and rejects Premium records under the Sandbox client.
-- The existing success fixture is derived from the exact documented single-game example. Pagination, malformed-payload, HTTP failure, retry, duplicate, and incomplete-page cases are synthetic test doubles. They prove code behavior against our model of the documented schema; they are **not** captured provider responses or vendor-issued golden vectors.
+- The existing success fixture is derived from the exact documented single-game example. Pagination, malformed-payload, HTTP failure, retry, duplicate, and incomplete-page cases are synthetic test doubles. They prove code behavior against our model of the documented schema; they are **not** captured provider responses or vendor-issued golden vectors. For non-2xx HTTP responses, the current client uses a safe local code derived from the HTTP status instead of parsing the documented `error.code`/`error.message` envelope; decide whether explicit status-to-local-error mapping is needed before later player/provider operations, and never log untrusted provider error bodies.
 - The existing launch client sends `game_id`, `demo: true`, and a language using the Sandbox key. It has no real-mode/user-token input, consistent with the approved Sandbox-only boundary.
 
 ### Observed gaps / constraints

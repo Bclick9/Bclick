@@ -2,7 +2,7 @@
 
 ## Pinned source artifacts
 
-The exact complete Project-Owner-supplied artifacts were fingerprinted and reviewed on 2026-10-22. See [Q-006 Provider Specification Review](../../docs/notes/2026-10-22-Q006-provider-spec-review.md) for scope, reviewer status, code comparison, and unresolved vendor questions.
+The exact complete Project-Owner-supplied artifacts were fingerprinted and reviewed on 2026-10-22. See [Q-006 Provider Specification Review](../../../docs/notes/2026-10-22-Q006-provider-spec-review.md) for scope, reviewer status, code comparison, and unresolved vendor questions.
 
 - BigBang `BIGBANG_AGENT.md`, docs v1.10 (2026-09-20), https://api.bigbangcasino.bet/docs/agent.md, 20,552 bytes, SHA-256 `60b7b046dd1f56cbd4cf3577b349fe9f1ffbde3b2df1538d6ece7c2368b59b74`.
 - WinHouse `WINHOUSE_AGENT.md` (2026-09-20), https://iframe.winhouse.bet/docs/agent.md, 23,021 bytes, SHA-256 `00de9e66c76627eee31af1f9ccba93371432abfffebff39d026d512e53dc2d6b`.
