@@ -32,12 +32,12 @@ END
 $m011_preconditions$;
 
 ALTER TABLE public.casino_providers
-  ADD COLUMN bclick_enabled boolean NOT NULL DEFAULT true,
+  ADD COLUMN bclick_enabled boolean NOT NULL DEFAULT false,
   ADD COLUMN availability_updated_by uuid REFERENCES public.admin_users(id) ON UPDATE RESTRICT ON DELETE RESTRICT,
   ADD COLUMN availability_updated_at timestamptz NOT NULL DEFAULT now();
 
 ALTER TABLE public.casino_games
-  ADD COLUMN bclick_enabled boolean NOT NULL DEFAULT true,
+  ADD COLUMN bclick_enabled boolean NOT NULL DEFAULT false,
   ADD COLUMN availability_updated_by uuid REFERENCES public.admin_users(id) ON UPDATE RESTRICT ON DELETE RESTRICT,
   ADD COLUMN availability_updated_at timestamptz NOT NULL DEFAULT now();
 
@@ -47,6 +47,11 @@ CREATE TABLE public.casino_integration_settings (
   updated_by uuid REFERENCES public.admin_users(id) ON UPDATE RESTRICT ON DELETE RESTRICT,
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Preserve the visibility that already existed before this migration while making
+-- newly synced providers/games opt-in (future rows keep DEFAULT false).
+UPDATE public.casino_providers SET bclick_enabled=true;
+UPDATE public.casino_games SET bclick_enabled=true;
 
 INSERT INTO public.casino_integration_settings(source_code,selected_mode)
 VALUES ('bigbang','standard');
