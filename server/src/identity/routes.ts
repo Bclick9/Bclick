@@ -7,11 +7,6 @@ import { WalletFault, WalletReadService } from '../wallet/service.js';
 
 const PLAYER_SESSION = '__Host-bclick_session';
 const PLAYER_CSRF = '__Host-bclick_player_csrf';
-// HTTP over a private LAN is not a secure context on phones, so browsers reject __Host-/Secure cookies.
-// These alternate host-only cookie names are enabled only in development/test and for an exact
-// allow-listed RFC1918 HTTP Origin; production/staging never run Phase 4 Identity while Q-011 is open.
-const LAN_PLAYER_SESSION = 'bclick_dev_player_session';
-const LAN_PLAYER_CSRF = 'bclick_dev_player_csrf';
 const ADMIN_SESSION = '__Host-bclick_admin_session';
 const ADMIN_CSRF = '__Host-bclick_admin_csrf';
 const ADMIN_CHALLENGE = '__Host-bclick_admin_challenge';
@@ -39,14 +34,13 @@ function readCookie(request: FastifyRequest, name: string): CookieRead {
 function setCookies(reply: FastifyReply, cookies: string[]): void {
   if (cookies.length > 0) reply.header('Set-Cookie', cookies);
 }
-function clearCookie(name: string, httpOnly = false, sameSite: 'Strict' | 'Lax' = 'Strict', secure = true): string {
-  return buildCookie(name, '', { maxAge: 0, httpOnly, sameSite, secure });
+function clearCookie(name: string, httpOnly = false, sameSite: 'Strict' | 'Lax' = 'Strict'): string {
+  return buildCookie(name, '', { maxAge: 0, httpOnly, sameSite });
 }
-function issuePlayerCookies(session: IssuedSession, request: FastifyRequest, config: IdentityConfig): string[] {
-  const names = playerCookieNames(request, config);
+function issuePlayerCookies(session: IssuedSession): string[] {
   return [
-    buildCookie(names.session, session.token, { maxAge: 30 * 86400, httpOnly: true, sameSite: 'Lax', secure: names.secure }),
-    buildCookie(names.csrf, session.csrf, { maxAge: 30 * 86400, sameSite: 'Strict', secure: names.secure }),
+    buildCookie(PLAYER_SESSION, session.token, { maxAge: 30 * 86400, httpOnly: true, sameSite: 'Lax' }),
+    buildCookie(PLAYER_CSRF, session.csrf, { maxAge: 30 * 86400, sameSite: 'Strict' }),
   ];
 }
 function issueAdminCookies(session: IssuedSession): string[] {
@@ -142,54 +136,6 @@ function originDenied(request: FastifyRequest, reply: FastifyReply, config: Iden
   return sendError(reply, request, 403, 'ORIGIN_INVALID', 'Request Origin is not allowed');
 }
 
-interface PlayerCookieNames {
-  readonly session: string;
-  readonly csrf: string;
-  readonly secure: boolean;
-}
-
-function isPrivateLanIpv4(hostname: string): boolean {
-  const parts = hostname.split('.');
-  if (parts.length !== 4 || parts.some((part) => part.length === 0 || [...part].some((digit) => digit < '0' || digit > '9'))) return false;
-  const octets = parts.map(Number);
-  if (octets.some((octet) => octet < 0 || octet > 255)) return false;
-  const [first, second] = octets;
-  return first === 10
-    || (first === 172 && second! >= 16 && second! <= 31)
-    || (first === 192 && second === 168);
-}
-
-function isPrivateLanHttpOrigin(origin: string): boolean {
-  try {
-    const parsed = new URL(origin);
-    return parsed.protocol === 'http:' && isPrivateLanIpv4(parsed.hostname);
-  } catch {
-    return false;
-  }
-}
-
-function playerCookieNames(request: FastifyRequest, config: IdentityConfig): PlayerCookieNames {
-  const localRuntime = config.nodeEnv === 'development' || config.nodeEnv === 'test';
-  const origin = typeof request.headers.origin === 'string' ? request.headers.origin : undefined;
-  if (localRuntime && origin
-    && allowExactOrigin(origin, config.playerOrigins)
-    && isPrivateLanHttpOrigin(origin)) {
-    return { session: LAN_PLAYER_SESSION, csrf: LAN_PLAYER_CSRF, secure: false };
-  }
-
-  // Session GETs are same-origin but browsers do not send an Origin header. Recognize only
-  // the alternate local cookie names previously issued by the allow-listed LAN login flow.
-  if (localRuntime) {
-    const lanSession = readCookie(request, LAN_PLAYER_SESSION);
-    const lanCsrf = readCookie(request, LAN_PLAYER_CSRF);
-    if (lanSession.value !== undefined || lanSession.duplicate
-      || lanCsrf.value !== undefined || lanCsrf.duplicate) {
-      return { session: LAN_PLAYER_SESSION, csrf: LAN_PLAYER_CSRF, secure: false };
-    }
-  }
-  return { session: PLAYER_SESSION, csrf: PLAYER_CSRF, secure: true };
-}
-
 function csrfValue(request: FastifyRequest, cookieName: string): string | null {
   const read = readCookie(request, cookieName);
   if (read.duplicate || !read.value) return null;
@@ -203,8 +149,7 @@ async function requirePlayer(request: FastifyRequest, reply: FastifyReply, servi
     originDenied(request, reply, config, 'player');
     return null;
   }
-  const cookieNames = playerCookieNames(request, config);
-  const sessionCookie = readCookie(request, cookieNames.session);
+  const sessionCookie = readCookie(request, PLAYER_SESSION);
   if (sessionCookie.duplicate) {
     sendError(reply, request, 401, 'UNAUTHORIZED', 'Session is invalid');
     return null;
@@ -219,7 +164,7 @@ async function requirePlayer(request: FastifyRequest, reply: FastifyReply, servi
     return null;
   }
   if (unsafe) {
-    const token = csrfValue(request, cookieNames.csrf);
+    const token = csrfValue(request, PLAYER_CSRF);
     if (!token || !service.verifyCsrfForSession(session, token)) {
       sendError(reply, request, 403, 'CSRF_INVALID', 'CSRF validation failed');
       return null;
@@ -334,7 +279,7 @@ export function registerIdentityRoutes(app: FastifyInstance, service: IdentitySe
       phoneNumber: body.phoneNumber == null ? null : String(body.phoneNumber),
       preferredDisplayCurrency: body.preferredDisplayCurrency ? String(body.preferredDisplayCurrency) : undefined,
     }, request.id, request.ip);
-    setCookies(reply, issuePlayerCookies(result.session, request, config));
+    setCookies(reply, issuePlayerCookies(result.session));
     return reply.code(201).send(playerResponse(result.player, request.id));
   }));
   app.post('/api/v1/auth/login', { schema: { body: { type: 'object', additionalProperties: false, required: ['password'], properties: { identifier: { type: 'string', minLength: 1, maxLength: 254 }, email: { type: 'string', minLength: 1, maxLength: 254 }, password: { type: 'string', minLength: 1, maxLength: 1024 } }, oneOf: [{ required: ['identifier'] }, { required: ['email'] }] } } }, async (request, reply) => safely(reply, request, async () => {
@@ -342,7 +287,7 @@ export function registerIdentityRoutes(app: FastifyInstance, service: IdentitySe
     const body = bodyObject(request);
     const identifier = typeof body.identifier === 'string' ? body.identifier : String(body.email);
     const result = await service.loginPlayer(identifier, String(body.password), request.id, request.ip);
-    setCookies(reply, issuePlayerCookies(result.session, request, config));
+    setCookies(reply, issuePlayerCookies(result.session));
     return reply.code(200).send(playerResponse(result.player, request.id));
   }));
 
@@ -356,11 +301,7 @@ export function registerIdentityRoutes(app: FastifyInstance, service: IdentitySe
     const session = await requirePlayer(request, reply, service, config, true);
     if (!session) return;
     await service.revokeSession(session, request.id);
-    const cookieNames = playerCookieNames(request, config);
-    setCookies(reply, [
-      clearCookie(cookieNames.session, true, 'Lax', cookieNames.secure),
-      clearCookie(cookieNames.csrf, false, 'Strict', cookieNames.secure),
-    ]);
+    setCookies(reply, [clearCookie(PLAYER_SESSION, true, 'Lax'), clearCookie(PLAYER_CSRF)]);
     return reply.code(204).send();
   }));
 
