@@ -99,9 +99,11 @@ test('slug lookup resolves the canonical UUID and preserves every stored categor
 
     assert.equal(response.statusCode, 200, response.body);
     assert.deepEqual(response.json().data, expectedGame());
-    assert.match(fixture.calls[0]!.sql, /WHERE g\.game_slug=\$1/);
-    assert.match(fixture.calls[0]!.sql, /array_agg\(DISTINCT gc\.category_slug ORDER BY gc\.category_slug\)/);
+    assert.match(fixture.calls[0]!.sql, /FROM public\.casino_game_legacy_slug_aliases/);
+    assert.match(fixture.calls[1]!.sql, /WHERE g\.game_slug=\$1/);
+    assert.match(fixture.calls[1]!.sql, /array_agg\(DISTINCT gc\.category_slug ORDER BY gc\.category_slug\)/);
     assert.deepEqual(fixture.calls[0]!.values, [GAME_SLUG]);
+    assert.deepEqual(fixture.calls[1]!.values, [GAME_SLUG]);
     assert.equal(response.headers['cache-control'], 'public, max-age=30, stale-while-revalidate=120');
   } finally {
     await app.close();
