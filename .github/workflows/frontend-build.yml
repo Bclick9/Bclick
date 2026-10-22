@@ -33,6 +33,9 @@ jobs:
       - name: Test canonical casino slug resolution and fail-closed demo launch
         run: pnpm frontend:test
 
+      - name: Test protected admin API client
+        run: pnpm admin:test
+
       - name: Build storefront
         env:
           SKIP_ASSET_SYNC: '1'

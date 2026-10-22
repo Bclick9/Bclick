@@ -15,6 +15,7 @@
     "api:client:generate": "pnpm --filter @bclick/api-client generate",
     "api:client:typecheck": "pnpm --filter @bclick/api-client typecheck",
     "frontend:test": "tsx --test frontend/test/*.test.ts",
+    "admin:test": "tsx --test backend/test/*.test.ts",
     "api:admin:bootstrap": "pnpm --filter @bclick/config build && pnpm --filter @bclick/server admin:bootstrap"
   },
   "devDependencies": {
