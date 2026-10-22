@@ -38,7 +38,9 @@ Merged Migration 010 makes database source identity tier-aware and the current c
 
 ## 3. Count discrepancy: 3,802 versus 3,639
 
-The project records an owner-reported Standard Sandbox sync of 3,639 games and a separately reported figure of 3,802. These numbers are not yet proven comparable. BigBang's documentation states that the catalog visible to a key depends on plan/shop configuration. Close this discrepancy only with either:
+The project records an owner-reported Standard Sandbox sync of 3,639 games and a separately reported figure of 3,802. The Owner's supplied read-only probe output (2026-10-22) shows an HTTP 200, `success: true` response for `type=standard&limit=5000&offset=0`, with `dataCount=3639` and `pagination.total=3639`. The response echoed `pagination.limit` as the string `"5000"` and `pagination.offset` as the string `"0"`; the ad-hoc probe's checks marked those two fields invalid only because they expected JSON numbers. The current BigBang client accepts canonical decimal-string pagination metadata and has a regression test for this response shape. Since the returned data count equals the reported total and fits the requested limit, the supplied evidence corroborates the 3,639 Standard Sandbox snapshot.
+
+It does **not** explain where the separate 3,802 figure came from or prove that it used the same key/shop, scope, filters, time or pagination process. No matching 3,802 response or written BigBang explanation was found in the reviewed project evidence. Therefore the 3,802-vs-3,639 discrepancy remains open. Close it only with one of:
 
 - redacted evidence from the same key/account, `type=standard`, identical filters, and a time-scoped complete pagination run whose `pagination.total` remains consistent across every page; or
 - a written BigBang explanation naming the scope/entitlement difference.
