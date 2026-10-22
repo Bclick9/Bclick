@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { GAMES } from '../data/catalog'
 import type { CasinoCatalogGame } from '../lib/casinoCatalog'
-import { fetchCasinoGameBySlug, getCatalogErrorMessage } from '../lib/casinoCatalog'
+import { getCatalogErrorMessage } from '../lib/casinoCatalog'
 import { launchSandboxDemoForSlug } from '../lib/casinoPlay'
 import { SearchDialog } from '../components/SearchDialog'
 import { Sidebar, SIDEBAR_WIDTH } from '../components/Sidebar'
