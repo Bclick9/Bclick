@@ -50,15 +50,15 @@ A complete successful sync should compare the selected tier's latest provider/ga
 
 An external console change is not a push event unless BigBang documents and Bclick implements such a webhook. Until then, Bclick learns of the change at the next successful sync. Admin UI should show the last sync timestamp/staleness so the user understands this propagation delay.
 
-### Current-state finding from repository review
+### Current-state finding after PR #107
 
-- `backend/pages/cms/Providers.tsx` is a local UI preview backed by `useState` and five hard-coded sample providers. Reordering, badge toggling and reset are local preview operations; it is not connected to the BigBang database/API and has no enabled/disabled provider switch.
-- The current BigBang catalogue schema has provider records, per-game `available`, and per-source `available`, but no persisted integration-level selected tier or Bclick-owned provider enable/disable setting.
-- The catalogue API filters on game and source availability, but it does not join an authoritative provider-enabled setting because none exists.
-- The Sandbox demo-launch route verifies canonical game availability and Standard source availability. It does not yet check a Bclick-owned provider enabled flag because that flag is not implemented.
-- The catalogue sync has a tier-scoped source identity foundation and a Standard sync, but this is not yet a complete admin-controlled tier/availability lifecycle.
+- Migration 011 now adds persisted `bclick_enabled` flags for providers and games plus `casino_integration_settings`, whose current constraint intentionally permits `selected_mode='standard'` only. It grants `casino.provider-settings.manage` to the existing `project-admin` role; it does not enable Premium selection or import.
+- `server/src/bigbang/admin-routes.ts` provides Standard-only settings and protected provider/game list and mutation endpoints. Mutations require an MFA-backed admin session, exact Origin/CSRF checks and the provider-settings permission; the setting change and audit event are persisted atomically. Tests cover Standard-only settings, access denial/auditing, protected mutations and persisted provider/game disable actions.
+- `server/src/bigbang/routes.ts` filters catalogue games/categories/providers using game availability, provider Bclick availability, and available Standard source rows. `server/src/bigbang/demo-launch.ts` checks provider/game/source availability server-side before calling BigBang.
+- `backend/pages/cms/Providers.tsx` remains a local preview backed by hard-coded sample providers and `useState`; it is not connected to the new BigBang admin endpoints. Therefore the existing CMS table is not an operational BigBang control surface even though the backend controls now exist.
+- The backend can report the Standard mode and that Premium is unavailable; it does not implement Premium client/configuration/sync, per-tier source selection or real-play.
 
-**Conclusion:** Your observed behavior is not correct for the intended production admin contract. Disabling a provider in a local/mock admin table cannot affect the real catalogue. This must be implemented as a backend-backed setting and enforced both at read and launch boundaries. This note records a code-review finding; it does not claim a live running instance was toggled or reproduced during this review.
+**Conclusion:** The earlier claim that no backend availability controls existed became stale after PR #107. The backend persistence and enforcement are implemented, but the mock CMS Providers page has not been wired to those endpoints. Do not represent the mock table as controlling BigBang; any UI connection should be a separate reviewed change with permission-aware UX and route acceptance tests. This note does not claim a live running instance was toggled or reproduced during this review.
 
 ## 4. One card, Demo and Play
 
@@ -87,9 +87,9 @@ Before implementing Premium import, document and test:
 
 1. Keep Q-005 open. Complete Owner review of the 59 alias dispositions, canonical identity/category contract, and 3,802 versus 3,639 count discrepancy.
 2. Keep Q-006 open until BigBang/WinHouse event and launch contracts are accepted.
-3. Review OpenAPI and runtime contracts under Q-020 for provider settings, tier switch, provider disable, game disable, catalogue visibility and launch rejection.
-4. Design a separate reviewed migration for Bclick-owned provider/integration settings and tier configuration. Do not edit Migration 010 after it has been merged; create a new migration with safe preconditions/down behavior.
-5. Implement backend authorization/audit and enforcement first; then wire the admin UI to real endpoints; then add route/integration tests; only after that consider frontend card wiring.
+3. Keep Q-020 open while mapping the implemented provider-settings, provider/game disable, catalogue visibility and demo-launch denial routes to runtime contract assertions. The basic admin-route and server-enforcement tests exist, but the full application route contract is not yet accepted.
+4. Migration 011 now provides Bclick-owned provider/game availability settings and the Standard-only integration mode. Do not edit Migrations 010/011 after merge; add any future schema evolution as separately reviewed forward migrations.
+5. Before presenting provider settings as operational, wire the Admin UI to the existing endpoints in a separate PR; replace the hard-coded CMS preview only after permission-aware loading, denied/error states, mutation confirmation and audit visibility are tested. Do not add a working Premium selector or real Play.
 6. Keep Q-013 CSP/frame/host-header review and Q-011 restore drill open.
 7. Do not start Phase 8, provider callbacks, wallet posting, Premium/live-key sync or real-money Play until all required gates and explicit authorization are met.
 

@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Test canonical casino slug resolution and fail-closed demo launch
+        run: pnpm frontend:test
+
       - name: Build storefront
         env:
           SKIP_ASSET_SYNC: '1'

@@ -5,7 +5,8 @@ import {
 } from 'lucide-react'
 import { GAMES } from '../data/catalog'
 import type { CasinoCatalogGame } from '../lib/casinoCatalog'
-import { fetchCasinoGameBySlug, fetchCasinoGames, getCatalogErrorMessage, launchCasinoSandboxDemo } from '../lib/casinoCatalog'
+import { getCatalogErrorMessage } from '../lib/casinoCatalog'
+import { launchSandboxDemoForSlug } from '../lib/casinoPlay'
 import { SearchDialog } from '../components/SearchDialog'
 import { Sidebar, SIDEBAR_WIDTH } from '../components/Sidebar'
 
@@ -18,14 +19,6 @@ function friendlyTitle(slug: string): string {
   return slug.split('-').filter(Boolean).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
 }
 
-async function resolveLegacyGame(title: string, provider: string): Promise<CasinoCatalogGame> {
-  const page = await fetchCasinoGames({ query: title, pageSize: 100 })
-  const matches = page.data.filter((item) => item.title.trim().toLocaleLowerCase() === title.trim().toLocaleLowerCase())
-  const providerMatch = matches.find((item) => item.provider.name.trim().toLocaleLowerCase() === provider.trim().toLocaleLowerCase())
-  if (providerMatch) return providerMatch
-  if (matches.length === 1) return matches[0]
-  throw new Error('This legacy display item could not be matched to a unique game in the synced catalogue. Search the Lobby for its current listing.')
-}
 
 export default function CasinoPlay() {
   const { mode = 'demo', gameId = '' } = useParams()
@@ -70,12 +63,7 @@ export default function CasinoPlay() {
     let launchPromise = launchPromiseCache.current.get(cacheKey)
     if (!launchPromise) {
       launchPromise = (async () => {
-        const currentLocalGame = GAMES.find((item) => item.id === gameId)
-        const resolvedGame = currentLocalGame
-          ? await resolveLegacyGame(currentLocalGame.title, currentLocalGame.provider)
-          : await fetchCasinoGameBySlug(gameId)
-        const launch = await launchCasinoSandboxDemo(resolvedGame.id, 'en')
-        return { game: resolvedGame, gameUrl: launch.gameUrl }
+        return launchSandboxDemoForSlug(gameId)
       })()
       launchPromiseCache.current.set(cacheKey, launchPromise)
       if (launchPromiseCache.current.size > 30) {
