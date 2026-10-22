@@ -160,7 +160,7 @@ async function requirePlayer(request: FastifyRequest, reply: FastifyReply, servi
   return session;
 }
 
-async function requireAdmin(request: FastifyRequest, reply: FastifyReply, service: IdentityService, config: IdentityConfig, unsafe: boolean): Promise<AuthSession | null> {
+export async function requireAdmin(request: FastifyRequest, reply: FastifyReply, service: IdentityService, config: IdentityConfig, unsafe: boolean): Promise<AuthSession | null> {
   if (unsafe && !originAllowed(request, config, 'admin')) {
     sendError(reply, request, 403, 'ORIGIN_INVALID', 'Request Origin is not allowed');
     return null;
