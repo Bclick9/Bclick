@@ -631,7 +631,7 @@ export class IdentityService {
    * exposed as an HTTP route and deliberately refuses test/staging/production configs.
    * The default password is weak, so the login flow requires TOTP enrollment immediately.
    */
-  async bootstrapLocalDefaultAdmin(): Promise<'created' | 'already-present' | 'skipped-existing-admin'> {
+  async bootstrapLocalDefaultAdmin(): Promise<'created' | 'already-present' | 'existing-needs-attention' | 'skipped-existing-admin'> {
     if (this.config.nodeEnv !== 'development') {
       throw new Error('The default admin@admin.com/admin credential is permitted only in local development');
     }
@@ -646,8 +646,9 @@ export class IdentityService {
         FROM admin_users WHERE email_normalized=$1 LIMIT 1`, [normalizedEmail]);
       if (existing.rows[0]) {
         const matches = await verifyPassword('admin', String(existing.rows[0].password_hash ?? ''));
-        if (!matches) {
-          throw new Error('admin@admin.com already exists with a different password; local bootstrap will not reset credentials');
+        if (!matches || String(existing.rows[0].status) !== 'active') {
+          // Never reset a password or re-enable an existing account as a startup side effect.
+          return 'existing-needs-attention';
         }
         return 'already-present';
       }
