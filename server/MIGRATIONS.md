@@ -21,7 +21,7 @@ Every committed journal is checked at deferred constraint time: at least two ent
 
 The disposable PostgreSQL rehearsal for Phase 5 is `server/test/wallet.test.ts` and the dedicated GitHub workflow is `.github/workflows/wallet-migration-006-rehearsal.yml`. It checks balanced/unbalanced journals, late append, immutability, cross-currency rejection, overdraft/concurrent debit behavior and the authenticated read endpoints. Migration 006 rollback intentionally fails closed; do not manually delete migration history or financial rows. No deposit, withdrawal, provider callback or real-money route is activated by this migration.
 
-## Catalogue and currency migrations (007–009)
+## Catalogue and currency migrations (007–010)
 
 Migration 007 creates the local BigBang catalogue tables for providers, canonical games, source records, canonical categories, and sync-run history. Bclick UUIDs are the internal game identities; provider identifiers are source-mapping keys and public slugs are unique, stable lookup strings. The current adapter is Standard-Sandbox-only. The schema and browse endpoints do not enable real-money mode, provider wallet callbacks, or wallet posting. Its rollback refuses while any catalogue state exists.
 
@@ -31,3 +31,5 @@ Migration 009 creates `casino_game_legacy_slug_aliases`, a persistent mapping fo
 
 The disposable PostgreSQL catalogue integration test in `server/test/bigbang.test.ts` applies the ordered migrations through 009 and exercises the alias sync and legacy lookup. This CI rehearsal is not evidence that any migration was applied to a shared, staging, or production database. Do not manually remove migration history, alias seeds, or catalogue records to force a rollback.
 
+
+Migration 010 makes BigBang source identity tier-aware before any future Premium import: source rows are uniquely identified by `(source_code, source_mode, external_game_id)`, and each canonical game can have at most one source row per provider and tier. It also requires `is_premium` to agree with `source_mode`. The migration does not fetch or import Premium games and does not authorize a live key. Standard-only catalogue routes, the current Sandbox client and demo-launch lookup explicitly filter to `source_mode='standard'`. Rollback refuses if Standard/Premium rows collide under the former tier-blind keys; do not force rollback after importing tier-distinct sources.
