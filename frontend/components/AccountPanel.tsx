@@ -1,10 +1,11 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   User2, ChevronDown, ChevronUp, BadgeCheck, Gift, Wallet, History, Copy,
 } from 'lucide-react'
 import { cn } from '../lib/shadcn/utils'
 import { useAuth } from '../contexts/AuthContext'
+import { fetchWalletBalance, type WalletBalance } from '../lib/walletApi'
 
 /* Account side panel recreated from the reference deposit screenshot — light
    content surface, avatar chip, KYC notice, balances, expandable menu groups. */
@@ -37,6 +38,7 @@ const GROUPS = [
     label: 'Wallet',
     icon: Wallet,
     links: [
+      { label: 'Balance', path: '/account/wallet/balance' },
       { label: 'Deposit', path: '/account/wallet/deposit' },
       { label: 'Withdraw', path: '/account/wallet/withdraw' },
       { label: 'Transaction History', path: '/account/wallet/transaction-history' },
@@ -58,6 +60,23 @@ export function AccountPanel() {
   const { player } = useAuth()
   const [open, setOpen] = useState<string[]>(['profile', 'wallet'])
   const [copiedUserId, setCopiedUserId] = useState(false)
+  const [walletBalance, setWalletBalance] = useState<WalletBalance | null>(null)
+  const [walletBalanceLoading, setWalletBalanceLoading] = useState(true)
+
+  useEffect(() => {
+    if (!player) {
+      setWalletBalance(null)
+      setWalletBalanceLoading(false)
+      return
+    }
+    const controller = new AbortController()
+    setWalletBalanceLoading(true)
+    void fetchWalletBalance(player.settlementCurrency, controller.signal)
+      .then((result) => { if (!controller.signal.aborted) setWalletBalance(result) })
+      .catch(() => { if (!controller.signal.aborted) setWalletBalance(null) })
+      .finally(() => { if (!controller.signal.aborted) setWalletBalanceLoading(false) })
+    return () => controller.abort()
+  }, [player?.id, player?.settlementCurrency])
 
   const copyUserId = async () => {
     if (!player?.id) return
@@ -115,13 +134,18 @@ export function AccountPanel() {
       </div>
 
       <div className="grid grid-cols-2 rounded-md border border-[var(--cb-light-border)] bg-white overflow-hidden mb-6">
-        <div className="p-3 text-center">
-          <p className="text-xs text-[var(--cb-light-muted)]">Balance (demo)</p>
-          <p className="text-sm font-bold text-[var(--cb-light-text)]">Not connected</p>
-        </div>
-        <div className="p-3 text-center">
-          <p className="text-xs text-[var(--cb-light-muted)]">Bonus balance (demo)</p>
-          <p className="text-base font-bold text-[var(--cb-light-text)]">€0.00</p>
+        <Link to="/account/wallet/balance" className="min-w-0 p-3 text-center transition-colors hover:bg-black/5">
+          <p className="text-xs text-[var(--cb-light-muted)]">Wallet balance</p>
+          <p className="mt-1 break-words text-sm font-bold text-[var(--cb-light-text)]">
+            {walletBalanceLoading ? 'Loading…' : walletBalance ? walletBalance.balance + ' ' + walletBalance.currency : 'Unavailable'}
+          </p>
+        </Link>
+        <div className="min-w-0 p-3 text-center">
+          <p className="text-xs text-[var(--cb-light-muted)]">Bonus-restricted</p>
+          <p className="mt-1 break-words text-sm font-bold text-[var(--cb-light-text)]">
+            {walletBalanceLoading ? 'Loading…' : walletBalance?.bonusRestrictedBalance ?? 'Not enabled'}
+            {walletBalance?.bonusRestrictedBalance ? ' ' + walletBalance.currency : ''}
+          </p>
         </div>
       </div>
 
@@ -183,6 +207,7 @@ export function AccountLayout({ children }: { children: ReactNode }) {
     { label: 'Messages', path: '/account/messages' },
   ]
   const walletLinks = [
+    { label: 'Balance', path: '/account/wallet/balance' },
     { label: 'Deposit', path: '/account/wallet/deposit' },
     { label: 'Withdraw', path: '/account/wallet/withdraw' },
     { label: 'Transaction History', path: '/account/wallet/transaction-history' },
