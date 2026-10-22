@@ -30,6 +30,15 @@ services:
       PORT: 3000
       DB_POOL_MAX: 10
       DATABASE_URL: postgresql://${POSTGRES_USER:-bclick_dev}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the repository-root .env}@postgres:5432/${POSTGRES_DB:-bclick}
+      BCLICK_IDENTITY_ENABLED: ${BCLICK_IDENTITY_ENABLED:-false}
+      BCLICK_SESSION_HASH_KEY: ${BCLICK_SESSION_HASH_KEY:-}
+      BCLICK_CSRF_SIGNING_KEY: ${BCLICK_CSRF_SIGNING_KEY:-}
+      BCLICK_TOTP_ENCRYPTION_KEY: ${BCLICK_TOTP_ENCRYPTION_KEY:-}
+      BCLICK_PLAYER_ALLOWED_ORIGINS: ${BCLICK_PLAYER_ALLOWED_ORIGINS:-http://localhost:5173}
+      BCLICK_ADMIN_ALLOWED_ORIGINS: ${BCLICK_ADMIN_ALLOWED_ORIGINS:-http://localhost:5174}
+      BCLICK_LOCAL_MAIL_SINK_PATH: ${BCLICK_LOCAL_MAIL_SINK_PATH:-.local-mail-sink.jsonl}
+      BCLICK_TERMS_VERSION: ${BCLICK_TERMS_VERSION:-local-terms-v1}
+      BCLICK_AGE_POLICY_VERSION: ${BCLICK_AGE_POLICY_VERSION:-local-age-policy-v1}
     ports:
       - "127.0.0.1:${API_PORT:-3000}:3000"
     depends_on:
@@ -59,5 +68,4 @@ volumes:
 
 networks:
   bclick-local:
-    name: bclick-local-network
     driver: bridge
