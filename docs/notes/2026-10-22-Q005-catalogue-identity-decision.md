@@ -1,7 +1,7 @@
 # Q-005 — BigBang catalogue identity and category contract
 
 **Date:** 2026-10-22  
-**Status:** Technical proposal ready for owner review; **Q-005 remains OPEN/P0**  
+**Status:** Technical proposal documented and persistent alias implementation delivered in PR #100; **Q-005 remains OPEN/P0 pending Owner acceptance and evidence**  
 **Scope:** BigBang Standard Sandbox catalogue and future player-facing catalogue API. This note does not authorize a frontend API cutover, Premium import, Production deployment, wallet callbacks, or real-money operations.
 
 ## 1. Evidence inspected
@@ -43,19 +43,24 @@ The project records an owner-reported Standard Sandbox sync of 3,639 games and a
 
 Record timestamp, key label (never the secret), requested tier/filters, reported total and page offsets. Never commit API keys or full unredacted responses. A numeric difference alone is not proof that 163 particular games are missing.
 
-## 4. Acceptance work in this PR
+## 4. Acceptance work in the Q-005 implementation (PR #100)
 
-- Catalogue SQL sorts the `categories[]` aggregate by canonical category slug for list, slug and UUID detail routes.
-- Sync processes first-time games in ascending external numeric ID order, making collision-suffix assignment reproducible despite BigBang's documented shuffled catalog presentation.
-- Integration tests verify source category metadata stays distinct from canonical Bclick categories, that reversed provider input order still gives the same collision-slug winner, and that a title rename for the same provider identity keeps the UUID and slug.
-- Existing PR #94 route tests cover slug/UUID lookups, invalid/missing slugs, parameterized filters, pagination, and database-only browsing.
+The earlier merged work in PRs #94 and #95 covers route shape, canonical category ordering, deterministic collision-slug assignment and stable UUID/slug behavior on provider title rename. The current review branch adds:
+
+- Migration 009 creates `casino_game_legacy_slug_aliases` and seeds the exact 59 curated game slugs from `frontend/data/catalog.ts` with their original title/provider metadata. Promotional cards, jackpot widgets and payment IDs are not treated as game routes.
+- A successful Standard Sandbox catalogue sync binds an unresolved alias only when exactly one available Standard BigBang record matches the stored title and provider after trimming outer whitespace and case-folding. The alias pins to the canonical UUID thereafter; unmatched records remain unresolved, and duplicate candidates are marked ambiguous. No fuzzy title matching is used.
+- The by-slug API checks the persistent alias first. Resolved aliases return the canonical game; unresolved aliases return 404 and ambiguous aliases return 409 without falling through to another game's canonical slug.
+- Route tests cover canonical slug resolution, a valid legacy alias, an unmatched alias, and an ambiguous alias. A PostgreSQL-backed catalogue-sync test verifies that the curated `lightning-roulette` route resolves to the UUID for the exact Standard record and returns that game's canonical slug.
+- OpenAPI and generated client types include the 409 conflict response. The migration remains additive and does not change wallet or provider money-movement behavior.
+
+The implementation is additive; review or merge does not itself authorize a storefront cutover or close Q-005.
 
 ## 5. What remains OPEN
 
 Q-005 **is not closed by this PR**. Required next evidence/decisions:
 
 - Owner acceptance or amendment of the proposed identity/category/legacy-link contract.
-- A slug-alias migration and integration tests before frontend catalogue API cutover.
+- Review and merge the persistent alias implementation before frontend catalogue API cutover; Owner acceptance remains a separate gate and is not granted by merge.
 - Same-key/same-scope evidence or a written vendor explanation for 3,802 versus 3,639.
 - Written confirmation of cross-tier ID uniqueness, or a reviewed tier-inclusive identity migration before Premium support.
 
