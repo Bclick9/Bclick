@@ -8,7 +8,7 @@
 ## 1. Verified current boundary
 
 - Migration 006, wallet read APIs, and the player wallet view are present on main.
-- The Phase 6 branch now contains Migration 007, a server-only BigBang client, local catalogue persistence/sync service, read-only database-backed catalogue routes, a sandbox-only CLI, and regression tests. These are proposed changes on `feat/phase6-bigbang-catalogue-sandbox`, not yet merged to `main`.
+- PR #92 merged Migration 007, the server-only BigBang client, local catalogue persistence/sync service, read-only database-backed catalogue routes, the sandbox-only CLI, and regression tests to `main`. Migration 007 has not been applied to Neon or Production.
 - On 2026-10-22, the Project Owner explicitly authorized continuing Phase 6 implementation and testing in local development / BigBang Sandbox only. This does not close Q-011 or authorize Production, payment movement, provider wallet callbacks, wagers, or launch routes.
 - The CLI requires an `ek_test_` key, an explicit `BCLICK_BIGBANG_CATALOGUE_SANDBOX_CONFIRM=YES` confirmation, a non-production runtime and loopback PostgreSQL (`localhost`, `127.0.0.1`, or `::1`). No live provider credential or provider request was used while writing this code.
 - The documented Q-011 exception remains a Production/release blocker: Q-011 is still NOT RUN / OPEN / P0. This phase-specific owner approval is limited to sandbox catalogue work and does not widen the financial or deployment boundary.
@@ -29,20 +29,17 @@ The approved decision needs to settle all of the following, rather than leaving 
 
 **Exit evidence:** a written owner decision plus mapping/category fixtures and tests before declaring Q-005 closed or switching player routes to the database-backed catalogue.
 
-### Q-006 — versioned BigBang/WinHouse agent specifications (OPEN)
+### Q-006 — versioned BigBang/WinHouse agent specifications (OPEN; exact artifacts fingerprinted)
 
-For each provider independently, record:
+The complete artifacts supplied by the Project Owner on 2026-10-22 were hashed and reviewed. Exact byte sizes, versions, canonical URLs, SHA-256 fingerprints, reviewer record, code comparison, and remaining questions are recorded in [Q-006 Provider Specification Review](./2026-10-22-Q006-provider-spec-review.md).
 
-- The exact complete specification filename/version and official source or delivery date.
-- SHA-256 of the reviewed file and who reviewed/approved it. If a user-supplied file is authoritative, hash and review that exact artifact rather than relying on a similarly named or partial extract.
-- Normative authentication headers, endpoint paths, pagination/cursors, rate limits/timeouts, error and retry semantics, response schemas, launch/demo contract, and any signature/canonicalization rules relevant to later money flows.
-- Sanitized golden fixtures for success, empty result, next page, malformed payload, authentication failure, rate-limit response, server error, and documented retry cases. Signature vectors must use test-only secrets and must never contain credentials.
-- Explicitly unresolved vendor behavior, with a named gate rather than a guessed default.
+- **BigBang:** `BIGBANG_AGENT.md`, docs v1.10 dated 2026-09-20, canonical source `https://api.bigbangcasino.bet/docs/agent.md`, 20,552 bytes, SHA-256 `60b7b046dd1f56cbd4cf3577b349fe9f1ffbde3b2df1538d6ece7c2368b59b74`.
+- **WinHouse:** `WINHOUSE_AGENT.md`, version dated 2026-09-20, canonical source `https://iframe.winhouse.bet/docs/agent.md`, 23,021 bytes, SHA-256 `00de9e66c76627eee31af1f9ccba93371432abfffebff39d026d512e53dc2d6b`.
+- **Reviewer:** AI coding-agent source-to-code review on 2026-10-22 of the exact uploaded bytes. **Project Owner/vendor acceptance is not recorded.** A future file, even from the same URL, must be re-hashed and separately reviewed.
 
-**Evidence reviewed for the current sandbox implementation:** the public [BigBang API documentation](https://api.bigbangcasino.bet/docs/) was checked on 2026-10-22 for `GET /api/v1/games`, the `success/data/pagination` envelope, the fields used by the adapter, the `limit`/`offset` scheme, and `X-API-Key` sandbox authentication. The test fixture is the published documentation example, not a captured live API response. Pagination and failure test responses are synthetic test doubles derived from that documented schema.
+**Code comparison:** the merged BigBang Sandbox catalog client matches the documented `X-API-Key`, `type=standard`, `limit/offset`, and `success/data/pagination` flow. Its sample success fixture is taken from the published example and its pagination/failure cases are synthetic—not vendor-originated golden responses. The current code does not call the documented `GET /categories`; provider records are currently synthesized from game-level provider names, so exact vendor provider-slug parity has not been established. The merged launch path remains demo-only. The WinHouse page uses `embed.js`, but the repository has no Model B launch-token endpoint, `user-data` or `balance-change` handler. No real-money callbacks have been built.
 
-**Q-006 remains OPEN:** the provider specifications are part of the project planning evidence set, but this implementation branch does not yet register the exact normative artifact filename/version/source, its SHA-256, and the reviewer/approval record. The public HTML page is supporting evidence for the catalogue endpoint, not a substitute for the exact approved artifact. Hash and review the exact delivered `BIGBANG_AGENT.md`; record WinHouse independently. WinHouse is a separate specification and is not covered by this BigBang adapter.
-
+**Q-006 remains OPEN/P0.** The source artifacts are now fingerprinted; that closes the artifact-identification task only. The complete gate still needs provider-originated sanitized signature vectors and fixture evidence, resolution of the open questions in the linked memo, and recorded owner acceptance. Do not infer closure from the hashes, existing synthetic tests, or the fact that the documentation itself describes an algorithm. Q-009 (TND precision), Q-010 (application idempotency/posting), and Q-011 (real base+WAL restore) remain separate blockers.
 ## 3. Sandbox-only Phase 6 implementation scope
 
 1. **Server-only vendor client (implemented on the Phase 6 branch).** Only `ek_test_` keys are accepted; the client sends `X-API-Key` server-side, bounds request timeouts/retries and response size, validates response schemas and pagination, rejects Premium games, and does not log provider payloads or credentials.
@@ -65,7 +62,7 @@ For each provider independently, record:
 
 ## 5. Dependency order and release boundaries
 
-1. Keep Q-005 open until the owner signs the slug/UUID/category mapping and legacy URL behavior; keep Q-006 open until the exact BigBang agent artifact/version/hash is reviewed. The current mappings and docs-derived fixtures are only for controlled Sandbox work.
+1. Keep Q-005 open until the owner signs the slug/UUID/category mapping and legacy URL behavior. For Q-006, the exact BigBang/WinHouse agent artifacts are now fingerprinted; keep the gate open until the named vendor questions and fixture requirements in `2026-10-22-Q006-provider-spec-review.md` are resolved. The current docs-derived and synthetic fixtures support controlled Sandbox testing only.
 2. Complete Q-011's isolated base-backup + WAL restore, integrity/projection checks, independent archive/failure monitoring, and measured RPO/RTO before any Production deployment or production provider integration. The 2026-10-22 Phase 6 Sandbox approval does not waive this gate.
 3. Run the branch CI and PostgreSQL rehearsal, review the result, and obtain PR approval before merging the sandbox catalogue code. No external request has been made by the implementation work to date.
 4. Proceed to Phase 7 demo launch only after Phase 6 acceptance, Q-005/Q-006 and the relevant CSP/frame/host allowlist and vendor demo/session policies are approved and tested. Demo must use virtual balance only and must never attach a real wallet account ID.
@@ -100,7 +97,7 @@ Evidence:
 - [Wallet Migration 006 rehearsal](https://github.com/Bclick9/Bclick/actions/runs/39765782935)
 - [Local Compose bootstrap smoke test](https://github.com/Bclick9/Bclick/actions/runs/39765782924)
 
-**Gate status is unchanged:** Phase 6 sandbox catalogue implementation has passing CI evidence, but Q-005, Q-006, and Q-010 remain open. Q-011 remains NOT RUN / OPEN / P0 and blocks Production. The player-facing frontend has not been switched to these routes; launch, provider callbacks, wagers, payments, and real-money wallet posting remain out of scope.
+**Gate status:** Phase 6 catalogue/Sandbox code is merged, but Q-005 and Q-006 remain open; Q-010 remains partially evidenced and open; Q-011 remains NOT RUN / OPEN / P0 and blocks Production. PR #92 includes a BigBang Sandbox demo-launch path, but no BigBang wallet callback or WinHouse Model B wallet endpoint is implemented. Catalogue acceptance, old-link handling, provider-originated fixtures, and CSP/frame/allowlist acceptance must be completed in their respective gates. Wagers, payments, wallet posting, and real-money callbacks remain disabled.
 
 
 ## Local Sandbox runbook — 2026-10-22
