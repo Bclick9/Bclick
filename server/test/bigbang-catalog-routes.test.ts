@@ -125,8 +125,8 @@ test('legacy slug resolves to the pinned canonical UUID and returns the canonica
 
     assert.equal(response.statusCode, 200, response.body);
     assert.deepEqual(response.json().data, expectedGame());
-    assert.match(fixture.calls[0]!.sql, /FROM public\\.casino_game_legacy_slug_aliases/);
-    assert.match(fixture.calls[1]!.sql, /WHERE g\\.id=\\$1/);
+    assert.match(fixture.calls[0]!.sql, /FROM public\.casino_game_legacy_slug_aliases/);
+    assert.match(fixture.calls[1]!.sql, /WHERE g\.id=\$1/);
     assert.deepEqual(fixture.calls[1]!.values, [GAME_ID]);
   } finally {
     await app.close();
@@ -219,7 +219,7 @@ test('invalid slug is rejected before any database query and unknown slug return
     assert.equal(missing.statusCode, 404);
     assert.equal(missing.json().error.code, 'NOT_FOUND');
     assert.equal(missing.json().error.message, 'Game not found');
-    assert.match(missingFixture.calls[0]!.sql, /FROM public\\.casino_game_legacy_slug_aliases/);
+    assert.match(missingFixture.calls[0]!.sql, /FROM public\.casino_game_legacy_slug_aliases/);
     assert.deepEqual(missingFixture.calls[0]!.values, ['unknown-game']);
     assert.deepEqual(missingFixture.calls[1]!.values, ['unknown-game']);
   } finally {
