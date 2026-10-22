@@ -48,8 +48,11 @@ test('identity crypto primitives normalize identifiers, use RFC TOTP and bind CS
   assert.equal(allowExactOrigin('https://localhost:5173', ['https://localhost:5173']), true);
   assert.equal(allowExactOrigin('https://localhost:5173/path', ['https://localhost:5173']), false);
   assert.equal(allowExactOrigin('https://evil.example', ['https://localhost:5173']), false);
+  assert.equal(allowExactOrigin('http://192.168.1.180:5173', ['http://192.168.1.180:5173']), true);
+  assert.equal(allowExactOrigin('http://192.168.1.181:5173', ['http://192.168.1.180:5173']), false);
   const cookie = buildCookie('__Host-bclick_admin_csrf', 'token');
   assert.match(cookie, /Secure/);
+  assert.doesNotMatch(buildCookie('bclick_dev_player_csrf', 'token', { secure: false }), /Secure/);
   assert.match(cookie, /Path=\//);
   assert.match(cookie, /SameSite=Strict/);
   assert.doesNotMatch(cookie, /Domain=/);
@@ -89,7 +92,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     BCLICK_SESSION_HASH_KEY: randomBytes(32).toString('hex'),
     BCLICK_CSRF_SIGNING_KEY: randomBytes(32).toString('hex'),
     BCLICK_TOTP_ENCRYPTION_KEY: randomBytes(32).toString('hex'),
-    BCLICK_PLAYER_ALLOWED_ORIGINS: 'https://localhost:5173',
+    BCLICK_PLAYER_ALLOWED_ORIGINS: 'https://localhost:5173,http://192.168.1.180:5173',
     BCLICK_ADMIN_ALLOWED_ORIGINS: 'https://localhost:5174',
     BCLICK_LOCAL_MAIL_SINK_PATH: mailSinkPath,
     BCLICK_TERMS_VERSION: 'ci-terms-v1',
@@ -185,6 +188,24 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
       payload: { email: adminEmail, password: adminPassword },
     });
     assert.equal(blockedOrigin.statusCode, 403, 'untrusted Origin must be denied');
+
+    const blockedPhoneOrigin = await appUnderTest.inject({
+      method: 'POST', url: '/api/v1/auth/register',
+      headers: { origin: 'http://192.168.1.181:5173' },
+      payload: {
+        email: 'blocked-phone-' + randomUUID() + '@example.test',
+        username: 'Blocked.Phone',
+        password: playerPassword,
+        countryCode: 'TN',
+        settlementCurrency: 'TND',
+        dateOfBirth: '1990-01-01',
+        acceptTerms: true,
+        acceptAgeConfirmation: true,
+        preferredLanguage: 'en',
+      },
+    });
+    assert.equal(blockedPhoneOrigin.statusCode, 403);
+    assert.equal(blockedPhoneOrigin.json().error.code, 'ORIGIN_INVALID');
 
     const consentRejected = await appUnderTest.inject({
       method: 'POST', url: '/api/v1/auth/register',
@@ -307,6 +328,68 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     assert.ok(playerCsrfSetCookie, 'Registration must issue a player CSRF cookie');
     assert.match(playerCsrfSetCookie, /SameSite=Strict/, 'Player CSRF cookie remains SameSite=Strict');
     assert.doesNotMatch(playerCsrfSetCookie, /HttpOnly/, 'Player CSRF cookie must remain JS-readable for double submit');
+
+    // LAN phone acceptance: Secure __Host cookies are intentionally replaced with
+    // development-only host cookies for the exact allow-listed HTTP private-LAN Origin.
+    const lanOrigin = 'http://192.168.1.180:5173';
+    const lanRegistered = await appUnderTest.inject({
+      method: 'POST', url: '/api/v1/auth/register',
+      headers: { origin: lanOrigin },
+      payload: {
+        email: 'lan-player-' + randomUUID() + '@example.test',
+        username: 'Mobile.Test',
+        password: playerPassword,
+        countryCode: 'TN',
+        settlementCurrency: 'TND',
+        dateOfBirth: '1990-01-01',
+        acceptTerms: true,
+        acceptAgeConfirmation: true,
+        preferredLanguage: 'en',
+      },
+    });
+    assert.equal(lanRegistered.statusCode, 201, lanRegistered.body);
+    let lanJar = cookieMapFromResponse(lanRegistered.headers['set-cookie']);
+    assert.ok(lanJar.bclick_dev_player_session);
+    assert.ok(lanJar.bclick_dev_player_csrf);
+    assert.equal(lanJar['__Host-bclick_session'], undefined);
+    const lanSetCookies = Array.isArray(lanRegistered.headers['set-cookie'])
+      ? lanRegistered.headers['set-cookie'] : [String(lanRegistered.headers['set-cookie'] ?? '')];
+    const lanSessionCookie = lanSetCookies.find((value) => value.startsWith('bclick_dev_player_session='));
+    const lanCsrfCookie = lanSetCookies.find((value) => value.startsWith('bclick_dev_player_csrf='));
+    assert.ok(lanSessionCookie);
+    assert.match(lanSessionCookie, /HttpOnly/);
+    assert.match(lanSessionCookie, /SameSite=Lax/);
+    assert.doesNotMatch(lanSessionCookie, /Secure/i);
+    assert.ok(lanCsrfCookie);
+    assert.match(lanCsrfCookie, /SameSite=Strict/);
+    assert.doesNotMatch(lanCsrfCookie, /Secure/i);
+
+    // Auth/session GETs carry cookies but no Origin header, as in a same-origin browser fetch.
+    const lanSession = await appUnderTest.inject({
+      method: 'GET', url: '/api/v1/auth/session',
+      headers: { cookie: cookieHeader(lanJar) },
+    });
+    assert.equal(lanSession.statusCode, 200, lanSession.body);
+
+    const lanProfileUpdate = await appUnderTest.inject({
+      method: 'PATCH', url: '/api/v1/player/profile',
+      headers: csrfHeaders(lanJar, 'bclick_dev_player_csrf', lanOrigin),
+      payload: { displayName: 'Phone LAN Session' },
+    });
+    assert.equal(lanProfileUpdate.statusCode, 200, lanProfileUpdate.body);
+    assert.equal(lanProfileUpdate.json().data.player.displayName, 'Phone LAN Session');
+
+    const lanLogout = await appUnderTest.inject({
+      method: 'POST', url: '/api/v1/auth/logout',
+      headers: csrfHeaders(lanJar, 'bclick_dev_player_csrf', lanOrigin),
+    });
+    assert.equal(lanLogout.statusCode, 204, lanLogout.body);
+    lanJar = cookieMapFromResponse(lanLogout.headers['set-cookie'], lanJar);
+    const lanRevokedSession = await appUnderTest.inject({
+      method: 'GET', url: '/api/v1/auth/session',
+      headers: { cookie: cookieHeader(lanJar) },
+    });
+    assert.equal(lanRevokedSession.statusCode, 401, 'LAN logout must revoke the session and clear the LAN cookie names');
 
     const usernameLogin = await appUnderTest.inject({
       method: 'POST', url: '/api/v1/auth/login',
