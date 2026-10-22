@@ -1,0 +1,97 @@
+name: Local Compose bootstrap smoke test
+
+on:
+  pull_request:
+    paths:
+      - 'start-bclick-local.ps1'
+      - 'infra/compose/compose.yaml'
+      - 'server/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'server/Dockerfile'
+      - '.github/workflows/local-compose-bootstrap.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'start-bclick-local.ps1'
+      - 'infra/compose/compose.yaml'
+      - 'server/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'server/Dockerfile'
+      - '.github/workflows/local-compose-bootstrap.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap-smoke:
+    name: Fresh local database, migrations, and Identity route
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Verify PowerShell script syntax
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'start-bclick-local.ps1'), [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -gt 0) {
+            $parseErrors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
+      - name: Install the locked workspace
+        run: pnpm install --frozen-lockfile
+      - name: Execute the one-click bootstrap and verify readiness/auth route
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The script creates this ignored file from .env.example and generates local-only test keys.
+          test ! -e .env
+          pwsh -NoProfile -File ./start-bclick-local.ps1 > /tmp/bclick-local-bootstrap.log 2>&1 &
+          bootstrap_pid=$!
+          cleanup() {
+            kill "$bootstrap_pid" 2>/dev/null || true
+            pkill -f '[t]sx watch src/index.ts' 2>/dev/null || true
+            pkill -f '[p]npm --filter @bclick/server dev' 2>/dev/null || true
+            docker compose --env-file .env -f infra/compose/compose.yaml down -v --remove-orphans >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          ready=0
+          for attempt in $(seq 1 180); do
+            status=$(curl -sS -o /tmp/bclick-ready.json -w '%{http_code}' http://127.0.0.1:3000/api/v1/health/ready || true)
+            if [[ "$status" == "200" ]] && grep -q '"status":"ok"' /tmp/bclick-ready.json; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$bootstrap_pid" 2>/dev/null; then
+              cat /tmp/bclick-local-bootstrap.log
+              exit 1
+            fi
+            sleep 2
+          done
+          if [[ "$ready" != "1" ]]; then
+            cat /tmp/bclick-local-bootstrap.log
+            exit 1
+          fi
+
+          session_status=$(curl -sS -o /tmp/bclick-session.json -w '%{http_code}' http://127.0.0.1:3000/api/v1/auth/session || true)
+          if [[ "$session_status" != "401" ]]; then
+            echo "Expected unauthenticated /api/v1/auth/session to return 401; received $session_status."
+            cat /tmp/bclick-session.json
+            cat /tmp/bclick-local-bootstrap.log
+            exit 1
+          fi
+          echo "PASS: fresh Compose database migrated; health/ready=200; auth/session=401."
