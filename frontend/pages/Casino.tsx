@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, Navigate } from 'react-router-dom'
 import {
   Home, Cherry, Ghost, Flame, Sparkles, Crown, ShoppingBag, Rocket, Gem, Spade,
-  Trophy, Search as SearchIcon, LayoutGrid, ChevronLeft, ChevronRight, Info, X,
+  Trophy, Search as SearchIcon, LayoutGrid, ChevronLeft, ChevronRight, X,
   type LucideIcon,
 } from 'lucide-react'
 import { GameCard, SectionRow, Wireframe } from '../components/cards'
@@ -110,24 +110,24 @@ function CategoryStrip({ active }: { active: string }) {
           <ul
             ref={railRef}
             aria-label="Casino categories"
-            className="no-scrollbar -ml-1 flex snap-x snap-mandatory scroll-smooth flex-row overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden"
+            className="no-scrollbar -ml-2 flex snap-x snap-mandatory scroll-smooth flex-row overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden"
           >
             {CASINO_CATEGORIES.map((c) => {
               const Icon = ICONS[c.icon] ?? Gem
               const isActive = c.slug === active
               return (
-                <li key={c.slug} className="min-w-0 shrink-0 grow-0 snap-start pl-1">
+                <li key={c.slug} className="min-w-0 shrink-0 grow-0 snap-start pl-2 basis-auto">
                   <Link
                     to={'/casino/' + c.slug}
                     aria-current={isActive ? 'page' : undefined}
                     data-status={isActive ? 'active' : undefined}
                     className={cn(
-                      'block rounded-xl px-3 py-2 text-sm font-semibold text-slate-300 transition-colors hover:bg-[var(--cb-hover)]',
-                      isActive ? 'bg-[var(--cb-item-active)] text-white' : 'bg-[var(--cb-card)]',
+                      'block rounded-lg px-3 py-2 text-base font-semibold text-slate-300 transition-colors hover:bg-[var(--cb-hover)]',
+                      isActive ? 'bg-[var(--cb-hover)] text-white' : 'bg-[var(--cb-card)]',
                     )}
                   >
-                    <span className="flex items-center gap-x-1.5">
-                      <Icon className="h-5 w-5 shrink-0 mix-blend-plus-lighter" aria-hidden="true" />
+                    <span className="flex items-center gap-x-1">
+                      <Icon className="h-6 w-6 shrink-0 mix-blend-plus-lighter" aria-hidden="true" />
                       <span className="whitespace-nowrap">{c.label}</span>
                     </span>
                   </Link>
@@ -180,97 +180,37 @@ function TrendingGames() {
 }
 
 function GameGrid({ ids, emptyMessage = 'No games in this category yet.' }: { ids: string[]; emptyMessage?: string }) {
-  const [shown, setShown] = useState(100)
+  const [shown, setShown] = useState(48)
   const games = useMemo(
     () => ids.map((id) => GAMES.find((g) => g.id === id)!).filter(Boolean),
     [ids],
   )
   if (games.length === 0) {
-    return <p className="text-muted-foreground text-sm py-10 text-center">{emptyMessage}</p>
+    return <p className="py-10 text-center text-sm text-muted-foreground">{emptyMessage}</p>
   }
   const visible = games.slice(0, shown)
   return (
     <>
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-9 gap-3">
+      <div className="grid grid-cols-3 min-[420px]:grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 gap-2">
         {visible.map((g) => (
           <GameCard key={g.id} game={g} className="w-full" />
         ))}
       </div>
-      {shown < games.length ? (
-        <div className="flex justify-center mt-6">
+      <div className="mt-6 flex flex-col items-center gap-3 pb-2">
+        <p className="text-sm text-muted-foreground" aria-live="polite">
+          {visible.length} of {games.length} games
+        </p>
+        {shown < games.length ? (
           <button
-            onClick={() => setShown((s) => s + 12)}
-            className="h-10 px-6 rounded-lg bg-secondary hover:bg-accent text-sm font-bold text-foreground transition-colors"
+            type="button"
+            onClick={() => setShown((s) => s + 48)}
+            className="h-10 min-w-[130px] rounded-xl bg-[var(--cb-card)] px-6 text-sm font-bold text-white transition-colors hover:bg-[var(--cb-hover)]"
           >
-            Load more
+            Load More
           </button>
-        </div>
-      ) : null}
-    </>
-  )
-}
-
-function HalloweenBanner({ games }: { games: string[] }) {
-  const gamesRailRef = useRef<HTMLDivElement | null>(null)
-  const [canScrollGamesLeft, setCanScrollGamesLeft] = useState(false)
-  const [canScrollGamesRight, setCanScrollGamesRight] = useState(false)
-
-  useEffect(() => {
-    const rail = gamesRailRef.current
-    if (!rail) return
-
-    const updateScrollEdges = () => {
-      const maxScroll = rail.scrollWidth - rail.clientWidth
-      setCanScrollGamesLeft(rail.scrollLeft > 2)
-      setCanScrollGamesRight(maxScroll > 2 && rail.scrollLeft < maxScroll - 2)
-    }
-
-    updateScrollEdges()
-    rail.addEventListener('scroll', updateScrollEdges, { passive: true })
-    const resizeObserver = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(updateScrollEdges)
-      : null
-    resizeObserver?.observe(rail)
-    Array.from(rail.children).forEach((child) => resizeObserver?.observe(child))
-
-    return () => {
-      rail.removeEventListener('scroll', updateScrollEdges)
-      resizeObserver?.disconnect()
-    }
-  }, [])
-
-  return (
-    <div className="rounded-2xl bg-card border border-border overflow-hidden mb-8">
-      <img
-        src="https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/Halloween-2026.webp"
-        alt="CampeonBet Halloween Games"
-        loading="lazy"
-        className="block w-full aspect-[5.2/1] object-cover"
-      />
-      <div className="relative p-4 md:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg md:text-xl font-extrabold text-foreground">Halloween Games</h2>
-          <div className="hidden md:flex items-center gap-2">
-            <button aria-label="Scroll banner left" className="w-9 h-9 rounded-lg bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors">&lsaquo;</button>
-            <button aria-label="Scroll banner right" className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold">&rsaquo;</button>
-          </div>
-        </div>
-        <div className="relative isolate">
-          <div ref={gamesRailRef} className="flex gap-3 overflow-x-auto no-scrollbar">
-            {games.map((id) => {
-              const g = GAMES.find((x) => x.id === id)!
-              return <GameCard key={id} game={g} />
-            })}
-          </div>
-          {canScrollGamesLeft ? (
-            <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-black/90 via-black/55 to-transparent md:w-10" />
-          ) : null}
-          {canScrollGamesRight ? (
-            <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-black/90 via-black/55 to-transparent md:w-10" />
-          ) : null}
-        </div>
+        ) : null}
       </div>
-    </div>
+    </>
   )
 }
 
@@ -278,53 +218,50 @@ export function CasinoCategory() {
   const { category = 'lobby' } = useParams()
   const [searchQuery, setSearchQuery] = useState('')
   if (category === 'providers') return <Providers />
-  const known = CASINO_CATEGORIES.some((c) => c.slug === category) || category === 'drop-and-wins'
+  const known = CASINO_CATEGORIES.some((c) => c.slug === category)
   if (!known) return <Navigate to="/casino" replace />
 
   const cat = CASINO_CATEGORIES.find((c) => c.slug === category)
-  const games = GAMES.filter((g) => g.categories.includes(category)).map((g) => g.id)
   const isLobby = category === 'lobby'
+  const categoryGames = isLobby
+    ? GAMES.map((game) => game.id)
+    : GAMES.filter((game) => game.categories.includes(category)).map((game) => game.id)
   const searchTerm = searchQuery.trim().toLocaleLowerCase()
   const searchResults = searchTerm
-    ? GAMES.filter((g) => `${g.title} ${g.provider}`.toLocaleLowerCase().includes(searchTerm)).map((g) => g.id)
+    ? GAMES.filter((game) => `${game.title} ${game.provider}`.toLocaleLowerCase().includes(searchTerm)).map((game) => game.id)
     : []
-  const visibleCategoryGames = searchTerm ? searchResults : games
 
   return (
-    <div className="mx-auto w-full max-w-screen-2xl px-4 py-5 md:py-6">
-      {isLobby ? <TrendingGames /> : null}
-
+    <div className="mx-auto w-full max-w-screen-2xl px-2 py-3 md:py-4">
+      <CategoryStrip active={category} />
       <CasinoFilterBar searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} />
 
-      <CategoryStrip active={category} />
-
       {searchTerm ? (
-        <div>
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h1 className="text-lg font-extrabold text-white md:text-xl">Search results</h1>
+        <section aria-labelledby="casino-search-heading">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h1 id="casino-search-heading" className="text-lg font-extrabold text-white md:text-xl">Search results</h1>
             <p className="shrink-0 text-sm text-muted-foreground" aria-live="polite">
               {searchResults.length} games found
             </p>
           </div>
-          <GameGrid ids={searchResults} emptyMessage="No matching games found." />
-        </div>
-      ) : isLobby ? (
-        <>
-          <GameGrid ids={GAMES.map((g) => g.id)} />
-          <HalloweenBanner games={['death-dominion', 'coins-of-halloween', 'wolf-power-megaways', 'spooky-kabuki', 'vamp-hunt', 'halloween-bonanza', 'haunted-coins', 'halloween-jack', 'devils-feast']} />
-          <h2 className="text-lg md:text-xl font-extrabold text-foreground mb-4">Top Picks</h2>
-          <GameGrid ids={GAMES.filter((g) => g.categories.includes('top-picks')).map((g) => g.id)} />
-        </>
+          <GameGrid key={`search-${searchTerm}`} ids={searchResults} emptyMessage="No matching games found." />
+        </section>
       ) : (
-        <>
-          <div className="flex items-center gap-3 mb-6">
-            <h1 className="text-xl md:text-2xl font-extrabold text-foreground">{cat?.label ?? 'Games'}</h1>
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Info className="w-3.5 h-3.5" /> {visibleCategoryGames.length} games
-            </span>
+        <section aria-labelledby="casino-games-heading">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h1 id="casino-games-heading" className="text-lg font-extrabold text-white md:text-xl">
+              {isLobby ? 'Lobby' : (cat?.label ?? 'Games')}
+            </h1>
+            <p className="shrink-0 text-sm text-muted-foreground">
+              {categoryGames.length} games
+            </p>
           </div>
-          <GameGrid ids={visibleCategoryGames} emptyMessage={searchTerm ? "No matching games found." : "No games in this category yet."} />
-        </>
+          <GameGrid
+            key={category}
+            ids={categoryGames}
+            emptyMessage="No games in this category yet."
+          />
+        </section>
       )}
     </div>
   )
