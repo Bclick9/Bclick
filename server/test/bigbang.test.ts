@@ -433,7 +433,7 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
       log: () => undefined,
     });
     const migrationCount = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM pgmigrations');
-    assert.equal(migrationCount.rows[0]?.count, '11', 'The full migration chain through Migration 009 must apply in order');
+    assert.equal(migrationCount.rows[0]?.count, '12', 'The full migration chain through Migration 010 must apply in order');
 
     const first = await service.sync();
     assert.equal(first.createdCount, 2);
@@ -653,6 +653,90 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
       'SELECT count(*)::text AS count FROM public.casino_games WHERE available=true',
     );
     assert.equal(afterProviderCollision.rows[0]?.count, '2', 'provider normalization collisions must not publish partial changes');
+
+    // A future live catalogue may reuse a numeric ID across tiers. The schema must
+    // permit that as a distinct source identity, and Standard sync must preserve Premium state.
+    const standardIdentity = await pool.query<{ game_id: string; provider_id: string }>(`
+      SELECT s.game_id::text AS game_id, g.provider_id::text AS provider_id
+        FROM public.casino_game_sources s
+        JOIN public.casino_games g ON g.id=s.game_id
+       WHERE s.source_code='bigbang'
+         AND s.source_mode='standard'
+         AND s.external_game_id=4821
+       LIMIT 1
+    `);
+    assert.ok(standardIdentity.rows[0], 'the Standard fixture must still exist before the tier-collision check');
+    const premiumGame = await pool.query<{ id: string }>(`
+      INSERT INTO public.casino_games
+        (game_slug,title,provider_id,image_url,game_type,available,demo_available,real_available)
+      VALUES ('hot-hot-fruit-habanero-premium','Hot Hot Fruit Premium',$1,NULL,'slot',true,false,false)
+      RETURNING id::text AS id
+    `, [standardIdentity.rows[0]!.provider_id]);
+    assert.ok(premiumGame.rows[0]);
+    await pool.query(`
+      INSERT INTO public.casino_game_sources
+        (game_id,source_code,external_game_id,launch_name,source_provider_name,
+         source_category,source_category_title,source_mode,is_premium,source_is_demo,game_type,available)
+      VALUES ($1,'bigbang',4821,'HotHotFruitPremium','Habanero Premium',
+              'Habanero Premium','Habanero Premium','premium',true,false,'slot',true)
+    `, [premiumGame.rows[0]!.id]);
+    await pool.query(
+      'INSERT INTO public.casino_game_categories(game_id,category_slug) VALUES ($1,$2)',
+      [premiumGame.rows[0]!.id, 'premium-only-test-category'],
+    );
+
+    scenario = 'success';
+    games = [normalizedGame({ id: 4821, title: 'Hot Hot Fruit Revised', name: 'SGHotHotFruit', provider: 'Habanero' })];
+    const standardReSync = await service.sync();
+    assert.equal(standardReSync.createdCount, 0);
+    assert.equal(standardReSync.updatedCount, 1);
+
+    const tierIdentities = await pool.query<{
+      source_mode: string;
+      external_game_id: string;
+      title: string;
+      source_provider_name: string;
+      source_available: boolean;
+    }>(`
+      SELECT s.source_mode,s.external_game_id::text AS external_game_id,
+             g.title,s.source_provider_name,s.available AS source_available
+        FROM public.casino_game_sources s
+        JOIN public.casino_games g ON g.id=s.game_id
+       WHERE s.source_code='bigbang' AND s.external_game_id=4821
+       ORDER BY s.source_mode
+    `);
+    assert.deepEqual(tierIdentities.rows, [
+      {
+        source_mode: 'premium',
+        external_game_id: '4821',
+        title: 'Hot Hot Fruit Premium',
+        source_provider_name: 'Habanero Premium',
+        source_available: true,
+      },
+      {
+        source_mode: 'standard',
+        external_game_id: '4821',
+        title: 'Hot Hot Fruit Revised',
+        source_provider_name: 'Habanero',
+        source_available: true,
+      },
+    ], 'a Standard re-sync must not overwrite or deactivate a Premium source that shares the external ID');
+
+    const preservedPremiumCategory = await pool.query<{ category_slug: string }>(`
+      SELECT category_slug
+        FROM public.casino_game_categories
+       WHERE game_id=$1
+       ORDER BY category_slug
+    `, [premiumGame.rows[0]!.id]);
+    assert.deepEqual(preservedPremiumCategory.rows, [{ category_slug: 'premium-only-test-category' }],
+      'a Standard category refresh must not delete Premium-only game categories');
+
+    const premiumSlugRoute = await app.inject({
+      method: 'GET',
+      url: '/api/v1/casino/games/by-slug/hot-hot-fruit-habanero-premium',
+    });
+    assert.equal(premiumSlugRoute.statusCode, 404,
+      'the current Standard catalogue API must not expose a future Premium-only source');
   } finally {
     await app.close();
     await pool.end();
