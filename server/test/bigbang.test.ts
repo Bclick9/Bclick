@@ -121,6 +121,53 @@ test('BigBang client rejects non-canonical string pagination integers', async ()
   }
 });
 
+test('BigBang client launches demo with a sandbox key only and validates the provider URL', async () => {
+  let requestedUrl: URL | null = null;
+  let receivedKey: string | undefined;
+  let requestBody: Record<string, unknown> | null = null;
+  const client = new BigBangApiClient({
+    apiKey: SANDBOX_KEY,
+    fetcher: fetchStub((url, init) => {
+      requestedUrl = url;
+      receivedKey = (init?.headers as Record<string, string>)['X-API-Key'];
+      requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return jsonResponse({
+        success: true,
+        demo: true,
+        game_id: 4821,
+        game_name: 'Hot Hot Fruit',
+        game_url: 'https://bigbangcasino.bet/demo/launch/Habanero/SGHotHotFruit?currency=EUR',
+      });
+    }),
+  });
+
+  const launch = await client.launchDemoGame(4821, 'en');
+  assert.ok(requestedUrl);
+  assert.equal(requestedUrl.pathname, '/api/v1/games/launch');
+  assert.equal(receivedKey, SANDBOX_KEY);
+  assert.deepEqual(requestBody, { game_id: 4821, demo: true, language: 'en' });
+  assert.equal(launch.gameId, 4821);
+  assert.equal(launch.gameName, 'Hot Hot Fruit');
+  assert.equal(launch.gameUrl.startsWith('https://bigbangcasino.bet/demo/launch/'), true);
+});
+
+test('BigBang client refuses unsafe demo launch URLs and never downgrades to HTTP', async () => {
+  const client = new BigBangApiClient({
+    apiKey: SANDBOX_KEY,
+    fetcher: fetchStub(() => jsonResponse({
+      success: true,
+      demo: true,
+      game_id: 4821,
+      game_name: 'Hot Hot Fruit',
+      game_url: 'https://evil.example/collect',
+    })),
+  });
+  await assert.rejects(
+    () => client.launchDemoGame(4821),
+    expectCode('BIGBANG_LAUNCH_URL_INVALID'),
+  );
+});
+
 test('BigBang client refuses a live key before any network request', () => {
   assert.throws(
     () => new BigBangApiClient({ apiKey: 'ek_live_not_for_phase6' }),
