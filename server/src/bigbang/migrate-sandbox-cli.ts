@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { runner } from 'node-pg-migrate';
 import { Pool } from 'pg';
 import { parseServerConfig } from '@bclick/config';
+import { resolveSandboxLocalDatabaseUrl } from './local-database.js';
 
 const MIGRATION_006 = '1793016000000_wallet_ledger_foundation_006';
 const MIGRATION_007 = '1793102400000_bigbang_catalogue_007';
@@ -35,28 +36,17 @@ function assertSandboxConfirmation(): void {
   }
 }
 
-function assertLoopbackDatabase(databaseUrl: string): void {
-  let parsed: URL;
-  try {
-    parsed = new URL(databaseUrl);
-  } catch {
-    throw new Error('The Phase 6 migration requires a valid local PostgreSQL URL.');
-  }
-  const host = parsed.hostname.replace(/^\[|\]$/g, '').toLowerCase();
-  if (!['postgres:', 'postgresql:'].includes(parsed.protocol)
-      || !['localhost', '127.0.0.1', '::1'].includes(host)) {
-    throw new Error('The Phase 6 migration can target only loopback PostgreSQL, never a remote database.');
-  }
-}
-
 function migrationName(value: string): string {
   return value.replace(/\.sql$/i, '');
 }
 
 async function main(): Promise<void> {
   assertSandboxConfirmation();
-  const config = parseServerConfig(process.env);
-  assertLoopbackDatabase(config.databaseUrl);
+  const databaseUrl = resolveSandboxLocalDatabaseUrl(process.env);
+  const config = parseServerConfig({ ...process.env, DATABASE_URL: databaseUrl });
+  if (config.nodeEnv === 'production') {
+    throw new Error('The Phase 6 catalogue migration refuses production runtime configuration.');
+  }
 
   const pool = new Pool({
     connectionString: config.databaseUrl,
