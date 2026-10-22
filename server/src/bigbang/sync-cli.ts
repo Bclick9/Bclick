@@ -5,8 +5,11 @@ import { BigBangApiClient } from './client.js';
 import { BigBangCatalogService } from './catalog.js';
 
 async function main(): Promise<void> {
-  const key = process.env.BIGBANG_API_KEY?.trim();
-  if (!key) throw new Error('BIGBANG_API_KEY is required for the catalogue sync command.');
+  const key = process.env.BIGBANG_SANDBOX_API_KEY?.trim();
+  if (!key) throw new Error('BIGBANG_SANDBOX_API_KEY is required for the catalogue sync command.');
+  if (!key.startsWith('ek_test_')) {
+    throw new Error('Phase 6 catalogue sync accepts only a BigBang sandbox key prefixed ek_test_.');
+  }
   // This Phase 6 command deliberately refuses live keys. It can only read the sandbox catalogue.
   const api = new BigBangApiClient({ apiKey: key });
   const config = parseServerConfig(process.env);
