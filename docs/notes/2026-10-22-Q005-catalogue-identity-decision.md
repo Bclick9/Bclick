@@ -55,6 +55,45 @@ The earlier merged work in PRs #94 and #95 covers route shape, canonical categor
 
 The implementation is additive; review or merge does not itself authorize a storefront cutover or close Q-005.
 
+## Local Sandbox sync and alias-resolution evidence (2026-10-22)
+
+The Project Owner ran the merged Standard Sandbox sync locally from `C:\Projects\Bclick` and supplied the following terminal evidence:
+
+- Sync result: `status=succeeded`, `receivedCount=3639`, `totalReported=3639`, `createdCount=0`, `updatedCount=3639`.
+- The local PostgreSQL `pgmigrations` table shows Migrations 008 and 009 applied. This is local Docker evidence only; it does not state that any Neon, staging, or Production database was changed.
+- `casino_game_legacy_slug_aliases` contains 59 rows: 3 `resolved`, 56 `unmatched`, 0 `pending`, and 0 `ambiguous`. The three resolved aliases are `aviator`, `le-bandit`, and `wanted-dead-or-a-wild`.
+- A read-only join found these ten unresolved aliases with an exact normalized title present in the synced Standard catalogue but a different provider label:
+
+| Legacy alias | Legacy provider | Current catalogue provider |
+|---|---|---|
+| `auto-roulette` | Evolution | Iconic21 |
+| `big-bass-trophy-catch` | Pragmatic Play | Pragmatic |
+| `dragon-tiger` | Evolution | Iconic21 |
+| `european-roulette` | Playtech | Amusnet Live |
+| `gates-of-olympus` | Pragmatic Play | Pragmatic |
+| `lucky-ladys-charm` | Novomatic | Novamatic |
+| `mega-joker` | Novomatic | GREENTUBE |
+| `sugar-rush` | Pragmatic Play | Pragmatic |
+| `sweet-bonanza` | Pragmatic Play | Pragmatic |
+| `wolf-gold` | Pragmatic Play | Pragmatic |
+
+- The targeted title-substring query returned no candidates for `lightning-roulette` or `crazy-time`. The Project Owner explicitly confirms BigBang does not provide Crazy Time; `crazy-time` came from Bclick's legacy curated UI, so treat it as a **legacy UI route with no current Standard Sandbox target**, not as a provider slug that should be guessed. For `sweet-bonanza`, the query returned several related-title candidates, including the exact title and variants; substring matching cannot safely establish identity.
+- The published [BigBang API documentation](https://api.bigbangcasino.bet/docs/) describes the visible provider list as key/shop dependent and says to read the live catalog rather than hard-code providers. Its representative list distinguishes `Pragmatic` (Standard) from `Pragmatic Play` (Premium), while Sandbox keys are Standard-only. Therefore even apparently similar provider labels must not be equated without a reviewed provider/tier mapping. The observed `Evolution`/ `Iconic21`, `Playtech`/ `Amusnet Live`, `Novomatic`/ `Novamatic`, and `Novomatic`/ `GREENTUBE` pairs are likewise not treated as synonyms by code.
+
+**Decision:** the exact title + provider matching behavior is failing closed as designed; the evidence does not justify weakening it to title-only or fuzzy matching. Keep Q-005 OPEN. The next catalogue task is to produce an owner-reviewed per-alias disposition backed by the actual Standard Sandbox source identity (canonical Bclick UUID and provider/external game ID) or explicitly mark an alias unavailable/not present. Obtain same-key/same-scope evidence or vendor explanation for the separate 3,802-vs-3,639 discrepancy, and resolve Standard/Premium identity scope before frontend cutover. No code path, alias rows, frontend routes, or real-money behavior were changed by this audit.
+
+## Future real-money / tier-readiness hard gate
+
+The current integration is deliberately Standard-Sandbox-only. BigBang's live key can expose both Standard and Premium tiers, while a Sandbox key exposes Standard only. The current public docs explicitly list `Pragmatic` as Standard and `Pragmatic Play` as Premium, so those labels must not be globally normalized into one provider. See the current [BigBang API contract](https://api.bigbangcasino.bet/docs/), especially `GET /games`, `GET /categories`, and Sandbox Mode.
+
+Before the first Premium catalogue import or any live-key catalogue sync, the schema and code must become tier-aware:
+- Change source identity uniqueness from `(source_code, external_game_id)` to `(source_code, source_mode, external_game_id)`, and make source-to-canonical-game uniqueness tier-scoped too.
+- Refactor source lookups, upserts, stale-source disabling, catalogue routes and launch selection to specify the intended tier explicitly. A Standard sync must never update or disable a Premium source with the same numeric ID; a Standard/demo view must never accidentally expose a Premium source.
+- Add migration/CI evidence in disposable PostgreSQL that deliberately stores the same numeric BigBang ID in Standard and Premium, then re-syncs Standard and proves the Premium row is unchanged.
+- Keep Premium import disabled until the tier-key change, route/launch policy, live-key permissions, and provider acceptance are reviewed. This is catalog-readiness work only; it does not authorize real-money launch or wallet callbacks. Q-006, Q-010, Q-011, Q-013, Q-020 and the formal release gates remain independent blockers.
+
+Run the read-only `scripts/q005-catalogue-alias-audit.sql` against local Docker PostgreSQL to classify all 59 aliases against the actual available Standard snapshot. It reports candidate evidence only; it does not update aliases or infer provider synonyms.
+
 ## 5. What remains OPEN
 
 Q-005 **is not closed by this PR**. Required next evidence/decisions:
