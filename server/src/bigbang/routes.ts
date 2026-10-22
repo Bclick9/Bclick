@@ -18,6 +18,11 @@ interface GameRow extends QueryResultRow {
   real_available: boolean;
 }
 
+interface LegacyAliasRow extends QueryResultRow {
+  resolution_status: 'pending' | 'resolved' | 'unmatched' | 'ambiguous';
+  game_id: string | null;
+}
+
 interface SyncMetaRow extends QueryResultRow {
   latest_status: string | null;
   fetched_at: string | null;
@@ -330,6 +335,31 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
     if (!SLUG_PATTERN.test(slug) || slug.length > 120) {
       return errorResponse(reply, request, 400, 'VALIDATION_ERROR', 'Game slug is invalid');
     }
+
+    // A known legacy slug takes precedence over canonical-slug lookup. Unresolved
+    // legacy routes never fall through to a different game that happens to reuse
+    // the same text slug.
+    const aliasResult = await database.query<LegacyAliasRow>(`
+      SELECT resolution_status,game_id::text AS game_id
+        FROM public.casino_game_legacy_slug_aliases
+       WHERE alias_slug=$1
+    `, [slug]);
+    const alias = aliasResult.rows[0];
+    if (alias?.resolution_status === 'ambiguous') {
+      return errorResponse(reply, request, 409, 'LEGACY_SLUG_AMBIGUOUS', 'This legacy game URL matches more than one catalogue game');
+    }
+    if (alias && alias.resolution_status !== 'resolved') {
+      return errorResponse(reply, request, 404, 'NOT_FOUND', 'Game not found');
+    }
+    if (alias?.resolution_status === 'resolved' && !alias.game_id) {
+      return errorResponse(reply, request, 409, 'LEGACY_SLUG_MAPPING_INVALID', 'This legacy game URL needs catalogue reconciliation');
+    }
+
+    const lookupValue = alias ? alias.game_id : slug;
+    if (typeof lookupValue !== 'string') {
+      return errorResponse(reply, request, 409, 'LEGACY_SLUG_MAPPING_INVALID', 'This legacy game URL needs catalogue reconciliation');
+    }
+    const lookupPredicate = alias ? 'g.id=$1' : 'g.game_slug=$1';
     const filter = await database.query<GameRow>(`
       SELECT g.id::text AS id,g.game_slug AS slug,g.title,
              p.code AS provider_code,p.name AS provider_name,
@@ -339,10 +369,10 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
         JOIN public.casino_providers p ON p.id=g.provider_id
         JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.available=true
         LEFT JOIN public.casino_game_categories gc ON gc.game_id=g.id
-       WHERE g.game_slug=$1 AND g.available=true
+       WHERE ${lookupPredicate} AND g.available=true
        GROUP BY g.id,g.game_slug,g.title,p.code,p.name,g.image_url,g.available,g.demo_available,g.real_available
        LIMIT 1
-    `, [slug]);
+    `, [lookupValue]);
     const row = filter.rows[0];
     if (!row) return errorResponse(reply, request, 404, 'NOT_FOUND', 'Game not found');
     reply.header('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
