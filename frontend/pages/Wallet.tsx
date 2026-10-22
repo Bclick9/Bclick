@@ -117,7 +117,7 @@ function formatStatementDate(value: string): string {
 }
 
 function readableMovementType(value: string): string {
-  return value.replace(/_/g, ' ').replace(/\\b\\w/g, (letter) => letter.toUpperCase())
+  return value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
 export function WalletBalancePage() {
