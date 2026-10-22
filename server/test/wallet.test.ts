@@ -108,7 +108,7 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
     });
 
     const migrationCount = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM pgmigrations');
-    assert.equal(migrationCount.rows[0]?.count, '11', 'wallet, catalogue, TND precision, and legacy-alias migrations must apply in order');
+    assert.equal(migrationCount.rows[0]?.count, '12', 'wallet, catalogue, TND precision, legacy-alias, and tier-identity migrations must apply in order');
     const tndCurrency = await pool.query<{ decimal_places: number }>(
       "SELECT decimal_places FROM public.currencies WHERE code='TND'",
     );
