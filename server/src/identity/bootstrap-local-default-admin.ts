@@ -29,9 +29,13 @@ async function main(): Promise<void> {
       console.info('An administrator already exists; no default admin was added or changed.');
       return;
     }
+    if (result === 'existing-needs-attention') {
+      console.warn('admin@admin.com already exists but is inactive or no longer uses the temporary default password. Existing credentials were not changed.');
+      return;
+    }
     console.info(
       (result === 'created' ? 'Created' : 'Verified') +
-      ' local-only administrator admin@admin.com (temporary password: admin). First login requires TOTP enrollment.',
+      ' local-only administrator admin@admin.com (temporary password: admin). First login requires TOTP enrollment unless already enrolled.',
     );
     console.warn('OWNER-REQUESTED TEMPORARY EXCEPTION: never use this default credential outside local development.');
   } finally {
