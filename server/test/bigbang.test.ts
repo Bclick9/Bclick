@@ -433,7 +433,18 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
       log: () => undefined,
     });
     const migrationCount = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM pgmigrations');
-    assert.equal(migrationCount.rows[0]?.count, '12', 'The full migration chain through Migration 010 must apply in order');
+    assert.equal(migrationCount.rows[0]?.count, '13', 'The full migration chain through Migration 011 must apply in order');
+
+    const controlSchema = await pool.query<{ provider_enabled: string | null; game_enabled: string | null; tier: string | null; permission_links: string }>(`
+      SELECT
+        (SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='casino_providers' AND column_name='bclick_enabled') AS provider_enabled,
+        (SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='casino_games' AND column_name='bclick_enabled') AS game_enabled,
+        (SELECT selected_mode FROM public.casino_integration_settings WHERE source_code='bigbang') AS tier,
+        (SELECT count(*)::text FROM public.role_permissions rp JOIN public.roles r ON r.id=rp.role_id JOIN public.permissions p ON p.id=rp.permission_id WHERE r.code='project-admin' AND p.code='casino.provider-settings.manage') AS permission_links
+    `);
+    assert.deepEqual(controlSchema.rows[0], {
+      provider_enabled: 'bclick_enabled', game_enabled: 'bclick_enabled', tier: 'standard', permission_links: '1',
+    });
 
     const first = await service.sync();
     assert.equal(first.createdCount, 2);
@@ -552,6 +563,26 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
     assert.equal(detailBySlug.json().data.slug, slug);
     const detailById = await app.inject({ method: 'GET', url: '/api/v1/casino/games/' + detailBySlug.json().data.id });
     assert.equal(detailById.statusCode, 200, detailById.body);
+
+    // Bclick-owned controls must suppress public listings/details immediately, without
+    // changing source availability. Reset the switches after each isolated check.
+    const canonicalGameId = String(detailBySlug.json().data.id);
+    const canonicalProviderCode = String(detailBySlug.json().data.provider.code);
+    await pool.query('UPDATE public.casino_providers SET bclick_enabled=false WHERE code=$1', [canonicalProviderCode]);
+    const disabledProviderBrowse = await app.inject({ method: 'GET', url: '/api/v1/casino/games?provider=' + encodeURIComponent(canonicalProviderCode) });
+    const disabledProviderDetail = await app.inject({ method: 'GET', url: '/api/v1/casino/games/' + canonicalGameId });
+    const disabledProviderList = await app.inject({ method: 'GET', url: '/api/v1/casino/providers' });
+    assert.equal(disabledProviderBrowse.json().page.total, 0);
+    assert.equal(disabledProviderDetail.statusCode, 404);
+    assert.ok(!disabledProviderList.json().data.some((item: { code: string }) => item.code === canonicalProviderCode));
+    await pool.query('UPDATE public.casino_providers SET bclick_enabled=true WHERE code=$1', [canonicalProviderCode]);
+
+    await pool.query('UPDATE public.casino_games SET bclick_enabled=false WHERE id=$1', [canonicalGameId]);
+    const disabledGameBrowse = await app.inject({ method: 'GET', url: '/api/v1/casino/games?query=' + encodeURIComponent(String(detailBySlug.json().data.title)) });
+    const disabledGameDetail = await app.inject({ method: 'GET', url: '/api/v1/casino/games/by-slug/' + slug });
+    assert.equal(disabledGameBrowse.json().page.total, 0);
+    assert.equal(disabledGameDetail.statusCode, 404);
+    await pool.query('UPDATE public.casino_games SET bclick_enabled=true WHERE id=$1', [canonicalGameId]);
 
     const demoGames = await app.inject({ method: 'GET', url: '/api/v1/casino/games?mode=demo' });
     assert.equal(demoGames.statusCode, 200, demoGames.body);
