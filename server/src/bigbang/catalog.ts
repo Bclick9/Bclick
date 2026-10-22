@@ -119,8 +119,11 @@ export class BigBangCatalogService {
 
         const slugRows = await tx.query<{ game_slug: string }>('SELECT game_slug FROM public.casino_games');
         const usedSlugs = new Set(slugRows.rows.map((row) => row.game_slug));
+        // BigBang documents that unfiltered catalogue responses can be shuffled. Sort by provider ID
+        // before assigning first-time slug collision winners so a fresh sync is reproducible.
+        const gamesInCanonicalOrder = [...snapshot.games].sort((left, right) => left.id - right.id);
         const providers = new Map<string, { name: string; id?: string }>();
-        for (const game of snapshot.games) {
+        for (const game of gamesInCanonicalOrder) {
           const code = slugify(game.provider);
           const existingProvider = providers.get(code);
           if (existingProvider && existingProvider.name !== game.provider) {
@@ -142,7 +145,7 @@ export class BigBangCatalogService {
           providers.set(code, { name: provider.name, id: providerRow.id });
         }
 
-        const prepared = snapshot.games.map((game) => {
+        const prepared = gamesInCanonicalOrder.map((game) => {
           const code = slugify(game.provider);
           const provider = providers.get(code);
           if (!provider?.id) throw new CatalogSyncFault('BIGBANG_PROVIDER_MAPPING_FAILED', 'A catalogue provider mapping is missing');
@@ -210,7 +213,7 @@ export class BigBangCatalogService {
           `, params);
         }
 
-        const ids = snapshot.games.map((game) => game.id);
+        const ids = gamesInCanonicalOrder.map((game) => game.id);
         await tx.query(`
           UPDATE public.casino_game_sources
              SET available=false,updated_at=now()

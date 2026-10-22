@@ -1,11 +1,11 @@
 # Bclick — Cumulative Progress and Roadmap Gate Checkpoint
 
-**Updated:** 2026-10-22, after PR #92 merged to `main`  
+**Updated:** 2026-10-22, after PR #94 merged to `main`; Q-005 proposal prepared on `fix/q005-catalogue-identity-acceptance`  
 **Purpose:** Current implementation status and explicit stop conditions. This file reconciles current code with the planning roadmap; it does not replace the shared Library's `docs/planning/12-open-questions.md`.
 
 ## Current verified position
 
-- **Current `main`:** `7747d212a33f7765f429ef916dd623237265710d`, containing PR #92. PR #92 merged the BigBang Standard Sandbox catalogue adapter, Migration 007/catalogue persistence, database-backed browse routes, and Sandbox demo-launch path. The earlier catalogue-only PR #89 was superseded; PR #90 was not merged.
+- **Current `main`:** `0becbc705421df29d57ba8e0d5fce41429e3d91c`, containing PR #92 and PR #94. PR #92 merged the BigBang Standard Sandbox catalogue adapter, Migration 007/catalogue persistence, database-backed browse routes, and Sandbox demo-launch path; PR #94 added route-level acceptance tests and reconciled this progress ledger. The earlier catalogue-only PR #89 was superseded; PR #90 was not merged.
 - **Owner-reported local acceptance:** the Standard Sandbox sync returned 3,639 records, and a repeat sync updated those rows without creating new rows. The Project Owner has also confirmed that the local BigBang Sandbox demo now launches successfully. These are local operator observations; CI mocks provider calls and does not prove that every physical browser/device or vendor-account entitlement works.
 - **Player identity:** registration/login/session/logout and related server-side identity routes are present on `main`, with runtime tests in `server/test/identity.test.ts`. Mobile login over plain HTTP/LAN is deliberately deferred to the planned HTTPS VPS work; do not weaken Secure/host-only cookies to make HTTP LAN login appear to work.
 - **Wallet foundation:** Migration 006, wallet balance/statement read endpoints and player wallet UI are merged (PRs #86 and #87). They are read-only. There is no accepted money-movement/posting service, deposit/withdrawal execution, wager settlement, or provider wallet callback.
@@ -26,7 +26,7 @@
 
 ## Open gates that control the next work
 
-- **Q-005 — P0, Open:** canonical game slug/UUID/deep-link and legacy mapping, uniqueness policy, provider DTO and full `categories[]` semantics need explicit tests and an accepted decision. Current sync maps each Standard game to one coarse Bclick category based on `gameType`; it does not establish a full, vendor-derived category taxonomy. Current legacy routes try a title/provider lookup and fail safely if the item cannot be uniquely resolved. Treat this behavior as provisional.
+- **Q-005 — P0, Open:** canonical game slug/UUID/deep-link and legacy mapping, uniqueness policy, provider DTO and `categories[]` semantics need explicit tests and an accepted decision. PR #94 added route-level coverage. The Q-005 proposal in `docs/notes/2026-10-22-Q005-catalogue-identity-decision.md` separates the provider's singular category fields from Bclick's canonical category array and specifies stable identity, deterministic collision slugs, and the legacy-alias requirement. This branch also adds stable-slug and category-ordering tests. Q-005 remains open: the owner must accept the decision, slug aliases must be implemented before frontend catalogue cutover, Premium identity scope remains unverified, and the 3,802-vs-3,639 count difference remains unresolved.
 - **Q-006 — P0, Open:** exact versioned/hash-pinned `BIGBANG_AGENT.md` and `WINHOUSE_AGENT.md`, plus their applicable verified fixtures. An adapter being present is not a substitute for provider evidence.
 - **Q-010 — P0, Open:** ledger lock/concurrency and normative idempotency scope, including same/different-payload replay and posting-service tests.
 - **Q-011 — P0, Open:** isolated base+WAL restore, integrity checks, independent alert evidence and measured RPO/RTO. No restore result is assumed.
@@ -36,11 +36,11 @@
 
 ## Immediate next task
 
-1. Add route-level regression coverage for the catalogue's slug lookup, UUID lookup, invalid/missing deep links, parameterized category/search filters, pagination and preservation of the stored `categories[]`.
-2. Use that evidence to finish Q-005's explicit decision. Keep the gate open until the *source-to-canonical* category mapping, legacy URL policy and slug uniqueness/migration expectations are resolved; route DTO tests alone are insufficient to close it.
-3. Close Q-006 by recording the exact normative provider specs and fixtures. Do not guess provider behavior.
-4. Plan Q-010 work and Q-011 restore execution without enabling posting/provider callbacks. Q-011 needs an actual isolated staging/off-host backup target and owner-operated restore evidence; a code-only PR cannot fabricate it.
-5. Only after Phase 5 exit and the applicable catalogue/provider/security gates pass, proceed to Phase 8.
+1. Review and explicitly accept or amend the proposed Q-005 contract in `docs/notes/2026-10-22-Q005-catalogue-identity-decision.md`; it is a technical recommendation, not a closed gate.
+2. Before frontend catalogue cutover, add a persistent legacy-slug alias map seeded from the existing storefront catalog and test valid, unknown, and ambiguous legacy URLs.
+3. Reconcile 3,802 vs 3,639 only from same-key, same-tier, same-filter and time-scoped evidence (or a written BigBang explanation). Do not infer missing games from the difference alone.
+4. Keep Premium import disabled until BigBang confirms ID uniqueness scope across Standard/Premium or the schema and sync identity key include the tier.
+5. Proceed to Q-006 provider-artifact pinning next; Q-010 and Q-011 remain separate P0 blockers for all money movement/Phase 8.
 
 ## Completed engineering work (historical)
 

@@ -387,7 +387,7 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
   const repository = new PgIdentityRepository(pool);
   const app = buildApp({ database: pool, catalogDatabase: repository, logLevel: 'silent' });
 
-  const games: BigBangGame[] = [
+  let games: BigBangGame[] = [
     normalizedGame({ id: 4821, title: 'Hot Hot Fruit', name: 'SGHotHotFruit', provider: 'Habanero' }),
     normalizedGame({
       id: 4822,
@@ -399,9 +399,10 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
       gameType: 'live',
     }),
   ];
+  // Deliberately reverse numeric ID order: first-time slug assignment must not depend on provider ordering.
   const slugCollisionGames: BigBangGame[] = [
-    normalizedGame({ id: 4823, name: 'TwinGameOne', title: 'Twin Game', provider: 'Twin Provider' }),
     normalizedGame({ id: 4824, name: 'TwinGameTwo', title: 'Twin Game', provider: 'Twin Provider' }),
+    normalizedGame({ id: 4823, name: 'TwinGameOne', title: 'Twin Game', provider: 'Twin Provider' }),
   ];
   const providerCollisionGames: BigBangGame[] = [
     normalizedGame({ id: 4825, name: 'ProviderCollisionOne', title: 'Provider Collision One', provider: 'Same Provider' }),
@@ -447,6 +448,42 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
       "SELECT (SELECT count(*)::text FROM public.casino_games) AS games, (SELECT count(*)::text FROM public.casino_game_sources WHERE source_code='bigbang') AS sources",
     );
     assert.deepEqual(stored.rows[0], { games: '2', sources: '2' });
+
+    const categoryEvidence = await pool.query<{
+      external_game_id: string;
+      source_category: string | null;
+      source_category_title: string | null;
+      game_type: string;
+      categories: string[];
+    }>(`
+      SELECT s.external_game_id::text AS external_game_id,
+             s.source_category,s.source_category_title,s.game_type,
+             ARRAY(
+               SELECT gc.category_slug
+                 FROM public.casino_game_categories gc
+                WHERE gc.game_id=s.game_id
+                ORDER BY gc.category_slug
+             ) AS categories
+        FROM public.casino_game_sources s
+       WHERE s.source_code='bigbang'
+       ORDER BY s.external_game_id
+    `);
+    assert.deepEqual(categoryEvidence.rows, [
+      {
+        external_game_id: '4821',
+        source_category: 'Habanero',
+        source_category_title: 'Habanero',
+        game_type: 'slot',
+        categories: ['slot-games'],
+      },
+      {
+        external_game_id: '4822',
+        source_category: 'Live',
+        source_category_title: 'Live Casino',
+        game_type: 'live',
+        categories: ['live-casino'],
+      },
+    ], 'provider category fields must remain source metadata, separate from Bclick categories[]');
 
     const firstPage = await app.inject({ method: 'GET', url: '/api/v1/casino/games?pageSize=1' });
     assert.equal(firstPage.statusCode, 200, firstPage.body);
@@ -498,6 +535,43 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
     await app.inject({ method: 'GET', url: '/api/v1/casino/categories' });
     await app.inject({ method: 'GET', url: '/api/v1/casino/providers' });
     assert.equal(providerCalls, callsBeforeBrowse, 'browse/search/filter routes must never call a provider');
+
+    const identityBeforeRename = await pool.query<{
+      external_game_id: string;
+      game_id: string;
+      game_slug: string;
+    }>(`
+      SELECT s.external_game_id::text AS external_game_id,
+             s.game_id::text AS game_id,g.game_slug
+        FROM public.casino_game_sources s
+        JOIN public.casino_games g ON g.id=s.game_id
+       WHERE s.source_code='bigbang'
+       ORDER BY s.external_game_id
+    `);
+    games = games.map((game) => ({ ...game, title: game.title + ' Revised' }));
+    const renameSync = await service.sync();
+    assert.equal(renameSync.createdCount, 0);
+    assert.equal(renameSync.updatedCount, 2);
+    const identityAfterRename = await pool.query<{
+      external_game_id: string;
+      game_id: string;
+      game_slug: string;
+    }>(`
+      SELECT s.external_game_id::text AS external_game_id,
+             s.game_id::text AS game_id,g.game_slug
+        FROM public.casino_game_sources s
+        JOIN public.casino_games g ON g.id=s.game_id
+       WHERE s.source_code='bigbang'
+       ORDER BY s.external_game_id
+    `);
+    assert.deepEqual(identityAfterRename.rows, identityBeforeRename.rows,
+      'a title change for the same provider identity must retain canonical UUID and public slug');
+    const renamedTitle = await pool.query<{ title: string }>(`
+      SELECT g.title FROM public.casino_game_sources s
+      JOIN public.casino_games g ON g.id=s.game_id
+      WHERE s.source_code='bigbang' AND s.external_game_id=4821
+    `);
+    assert.equal(renamedTitle.rows[0]?.title, 'Hot Hot Fruit Revised');
 
     scenario = 'offline';
     await assert.rejects(
