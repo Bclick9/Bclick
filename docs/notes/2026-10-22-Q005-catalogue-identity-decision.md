@@ -86,11 +86,11 @@ The Project Owner ran the merged Standard Sandbox sync locally from `C:\Projects
 
 The current integration is deliberately Standard-Sandbox-only. BigBang's live key can expose both Standard and Premium tiers, while a Sandbox key exposes Standard only. The current public docs explicitly list `Pragmatic` as Standard and `Pragmatic Play` as Premium, so those labels must not be globally normalized into one provider. See the current [BigBang API contract](https://api.bigbangcasino.bet/docs/), especially `GET /games`, `GET /categories`, and Sandbox Mode.
 
-Before the first Premium catalogue import or any live-key catalogue sync, the schema and code must become tier-aware:
-- Migration 010 changes source identity uniqueness to `(source_code, source_mode, external_game_id)` and makes source-to-canonical-game uniqueness tier-scoped. The current Standard re-sync is tested against a synthetic Premium row using the same external ID; it must not overwrite or deactivate that row.
-- Refactor source lookups, upserts, stale-source disabling, catalogue routes and launch selection to specify the intended tier explicitly. A Standard sync must never update or disable a Premium source with the same numeric ID; a Standard/demo view must never accidentally expose a Premium source.
-- Disposable-PostgreSQL CI stores the same numeric BigBang ID in Standard and Premium, re-syncs Standard, and asserts the Premium row and its category remain unchanged.
-- Keep Premium import disabled until the tier-key change, route/launch policy, live-key permissions, and provider acceptance are reviewed. This is catalog-readiness work only; it does not authorize real-money launch or wallet callbacks. Q-006, Q-010, Q-011, Q-013, Q-020 and the formal release gates remain independent blockers.
+Before the first Premium catalogue import or any live-key catalogue sync, the following additional conditions must be met:
+- PR #103 merged Migration 010, changing source identity uniqueness to `(source_code, source_mode, external_game_id)` and making source-to-canonical-game uniqueness tier-scoped. Disposable-PostgreSQL CI stores the same external numeric ID in Standard and Premium, re-syncs Standard, and asserts the Premium row and its category remain unchanged.
+- The current Standard path scopes source lookup, upsert, stale-source deactivation, category refresh, catalogue browse/detail and Sandbox demo launch explicitly to Standard. Mixed-tier snapshots are rejected; legacy UI alias resolution is Standard-only.
+- Before implementing a Premium importer or live-key sync, separately review the live provider list and provider slug contract (`GET /categories`), decide how per-tier provider/game identities and launch configuration are represented, test the entire route/launch policy, and gate access to the live key. Migration 010 is schema readiness only and does not import Premium or enable live launches.
+- Keep Premium import and all real-money wallet paths disabled until those decisions and implementations are reviewed. Q-006, Q-010, Q-011, Q-013, Q-020 and the formal release gates remain independent blockers.
 
 Run the read-only `scripts/q005-catalogue-alias-audit.sql` against local Docker PostgreSQL to classify all 59 aliases against the actual available Standard snapshot. It reports candidate evidence only; it does not update aliases or infer provider synonyms.
 
@@ -101,6 +101,6 @@ Q-005 **is not closed by this PR**. Required next evidence/decisions:
 - Owner acceptance or amendment of the proposed identity/category/legacy-link contract.
 - PR #100 has merged the persistent alias implementation; its merge does not authorize frontend catalogue API cutover. Owner acceptance remains a separate gate, alongside the count discrepancy evidence and Standard/Premium identity scope.
 - Same-key/same-scope evidence or a written vendor explanation for 3,802 versus 3,639.
-- Review of tier-aware API visibility and launch selection, live-key permissions/provider acceptance, and the remaining Q-005 alias/count decisions before any Premium import.
+- Review the future Premium/live-key API visibility and launch path, live-key permissions/provider acceptance, and the remaining Q-005 alias/count decisions before any Premium import.
 
 Q-006 remains separate: pin and review the exact normative BigBang and WinHouse agent artifacts and hash-matched fixtures. Q-010 and Q-011 remain P0 blockers for Phase 5 exit and all Phase 8 money movement. Nothing in this PR enables wallet posting, provider callbacks, payments, wagers, Premium games, or Production launch.
