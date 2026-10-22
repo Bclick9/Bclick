@@ -3041,7 +3041,6 @@ export interface components {
     schemas: {
         /**
          * @description Exact signed decimal string. Signed values are valid for journal/statement amounts. Do not use for player wallet balance fields (use NonNegativeAmount) or positive payment requests (use PositiveAmount). Enforce enabled currency exponent at runtime. No exponent notation.
-         * @example 12.345
          * @example 12.34
          */
         DecimalAmount: string;
@@ -3868,12 +3867,10 @@ export interface components {
         /** @description Strictly positive decimal string; no sign, exponent notation, or zero. Runtime enforces exact currency exponent and product/provider limits. */
         PositiveAmount: string;
         /**
-         * @description Non-negative exact decimal string, including formatted zero values such as 0, 0.00 and 0.000; no sign or exponent notation. Runtime enforces the enabled currency exponent.
+         * @description Non-negative exact decimal string, including formatted zero values such as 0 and 0.00; no sign or exponent notation. Runtime enforces the enabled currency exponent.
          * @example 0
          * @example 0.00
-         * @example 0.000
          * @example 12.34
-         * @example 12.345
          */
         NonNegativeAmount: string;
         /** @description Shared list pagination envelope. Cursor mode uses nextCursor; offset mode sets page and total. Fields are optional when not supported by a particular list. */

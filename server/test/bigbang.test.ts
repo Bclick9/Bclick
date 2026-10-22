@@ -433,7 +433,7 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
       log: () => undefined,
     });
     const migrationCount = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM pgmigrations');
-    assert.equal(migrationCount.rows[0]?.count, '9', 'Migration 007 must be applied after the existing migration chain');
+    assert.equal(migrationCount.rows[0]?.count, '10', 'The full migration chain through Migration 008 must apply in order');
 
     const first = await service.sync();
     assert.equal(first.createdCount, 2);

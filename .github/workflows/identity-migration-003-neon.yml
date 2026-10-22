@@ -80,6 +80,7 @@ jobs:
             ["server/migrations/1792929600000_player_public_number_reconcile_005.sql"]="d93aaef8d1fe79e9095ec17e752a2c1ce8027be1"
             ["server/migrations/1793016000000_wallet_ledger_foundation_006.sql"]="245028f593912ecf1bb972b6ec52a1c9d3fb84dc"
             ["server/migrations/1793102400000_bigbang_catalogue_007.sql"]="ee72b82a1ea300a7390dae37639063de3052d0f4"
+            ["server/migrations/1793188800000_tnd_provider_precision_008.sql"]="a84926fad268d003bba8fa10125006ef220e7f2d"
           )
           for path in "${!expected_blobs[@]}"; do
             actual="$(git hash-object "$path")"
@@ -96,6 +97,7 @@ jobs:
             "server/migrations/1792929600000_player_public_number_reconcile_005.sql"
             "server/migrations/1793016000000_wallet_ledger_foundation_006.sql"
             "server/migrations/1793102400000_bigbang_catalogue_007.sql"
+            "server/migrations/1793188800000_tnd_provider_precision_008.sql"
           )
           diff -u <(printf '%s\n' "${expected_migrations[@]}") <(printf '%s\n' "${actual_migrations[@]}")
 

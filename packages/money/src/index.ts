@@ -1,5 +1,7 @@
+// TND uses two decimal places to match both provider wallet contracts:
+// 0.01 TND = 10 millimes. Parsing rejects extra precision; it never rounds.
 export const CURRENCY_EXPONENTS = {
-  TND: 3,
+  TND: 2,
   EUR: 2,
   USD: 2,
 } as const;
