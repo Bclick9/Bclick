@@ -38,12 +38,6 @@ export interface CasinoCatalogQuery {
   signal?: AbortSignal;
 }
 
-interface ErrorEnvelope {
-  error?: { code?: string; message?: string };
-  data?: unknown;
-  requestId?: string;
-}
-
 async function readJson(response: Response): Promise<unknown> {
   return response.json().catch(() => null) as Promise<unknown>;
 }
