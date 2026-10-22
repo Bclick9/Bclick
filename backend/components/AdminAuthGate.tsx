@@ -33,7 +33,7 @@ function displayError(error: unknown, fallback: string): string {
   return fallback
 }
 
-function getgetEnrollmentCsrfHeaders(): Record<string, string> {
+function getEnrollmentCsrfHeaders(): Record<string, string> {
   return getAdminCsrfHeaders('__Host-bclick_admin_enrollment_csrf')
 }
 
