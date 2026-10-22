@@ -113,7 +113,7 @@ async function getSyncMeta(db: SqlExecutor): Promise<{ stale: boolean; fetchedAt
 }
 
 function whereClause(options: QueryOptions): { sql: string; values: unknown[] } {
-  const conditions = ['g.available=true', 's.source_code=\'bigbang\'', 's.available=true'];
+  const conditions = ['g.available=true', 's.source_code=\'bigbang\'', 's.source_mode=\'standard\'', 's.available=true'];
   const values: unknown[] = [];
   const add = (value: unknown) => { values.push(value); return '$' + values.length; };
   if (options.category) {
@@ -139,7 +139,7 @@ async function readGames(db: SqlExecutor, options: QueryOptions): Promise<{ data
     SELECT count(DISTINCT g.id)::text AS total
       FROM public.casino_games g
       JOIN public.casino_providers p ON p.id=g.provider_id
-      JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang'
+      JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard'
      WHERE ${filter.sql}
   `, filter.values);
   const total = Number(count.rows[0]?.total ?? 0);
@@ -150,7 +150,7 @@ async function readGames(db: SqlExecutor, options: QueryOptions): Promise<{ data
            COALESCE(array_agg(DISTINCT gc.category_slug ORDER BY gc.category_slug) FILTER (WHERE gc.category_slug IS NOT NULL),ARRAY[]::text[]) AS categories
       FROM public.casino_games g
       JOIN public.casino_providers p ON p.id=g.provider_id
-      JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.available=true
+      JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
       LEFT JOIN public.casino_game_categories gc ON gc.game_id=g.id
      WHERE ${filter.sql}
      GROUP BY g.id,g.game_slug,g.title,p.code,p.name,g.image_url,g.available,g.demo_available,g.real_available
@@ -251,7 +251,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
       SELECT count(DISTINCT gc.category_slug)::text AS total
         FROM public.casino_game_categories gc
         JOIN public.casino_games g ON g.id=gc.game_id
-        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.available=true
+        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
        WHERE g.available=true
     `);
     const total = Number(count.rows[0]?.total ?? 0);
@@ -259,7 +259,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
       SELECT DISTINCT gc.category_slug AS slug
         FROM public.casino_game_categories gc
         JOIN public.casino_games g ON g.id=gc.game_id
-        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.available=true
+        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
        WHERE g.available=true
        ORDER BY gc.category_slug
        LIMIT $1 OFFSET $2
@@ -280,14 +280,14 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
       SELECT count(DISTINCT p.id)::text AS total
         FROM public.casino_providers p
         JOIN public.casino_games g ON g.provider_id=p.id AND g.available=true
-        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.available=true
+        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
     `);
     const total = Number(count.rows[0]?.total ?? 0);
     const result = await database.query<{ code: string; name: string }>(`
       SELECT DISTINCT p.code,p.name
         FROM public.casino_providers p
         JOIN public.casino_games g ON g.provider_id=p.id AND g.available=true
-        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.available=true
+        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
        ORDER BY p.name,p.code
        LIMIT $1 OFFSET $2
     `, [options.pageSize, options.offset]);
@@ -367,7 +367,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
              COALESCE(array_agg(DISTINCT gc.category_slug ORDER BY gc.category_slug) FILTER (WHERE gc.category_slug IS NOT NULL),ARRAY[]::text[]) AS categories
         FROM public.casino_games g
         JOIN public.casino_providers p ON p.id=g.provider_id
-        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.available=true
+        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
         LEFT JOIN public.casino_game_categories gc ON gc.game_id=g.id
        WHERE ${lookupPredicate} AND g.available=true
        GROUP BY g.id,g.game_slug,g.title,p.code,p.name,g.image_url,g.available,g.demo_available,g.real_available
@@ -389,7 +389,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
              COALESCE(array_agg(DISTINCT gc.category_slug ORDER BY gc.category_slug) FILTER (WHERE gc.category_slug IS NOT NULL),ARRAY[]::text[]) AS categories
         FROM public.casino_games g
         JOIN public.casino_providers p ON p.id=g.provider_id
-        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.available=true
+        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
         LEFT JOIN public.casino_game_categories gc ON gc.game_id=g.id
        WHERE g.id=$1 AND g.available=true
        GROUP BY g.id,g.game_slug,g.title,p.code,p.name,g.image_url,g.available,g.demo_available,g.real_available

@@ -17,7 +17,7 @@
 ### Canonical identity and slugs
 
 1. `casino_games.id` (UUID) is Bclick's canonical internal identity. It is the stable lookup identifier used between Bclick API layers; vendor numeric IDs must not become public canonical IDs.
-2. For the currently supported Standard-only source, the mapping key is `(source_code='bigbang', external_game_id)`. Never deduplicate games by title or launch `name` alone; display-title/provider-name changes are not proof that two records are the same game.
+2. Migration 010 changes source identity storage to `(source_code='bigbang', source_mode, external_game_id)` before Premium support. Never deduplicate games by title or launch `name` alone; display-title/provider-name changes are not proof that two records are the same game. The current client and catalogue/launch routes still expose Standard only until a separately reviewed Premium path exists.
 3. Create a public slug once, from the first accepted title + provider label, and keep it unchanged when that source identity is renamed. Slugs remain globally unique and must fit the database's lower-kebab 120-character limit. For a first-time collision, process numeric BigBang IDs in ascending order; the first receives the base slug and subsequent collisions receive a deterministic `-bb-<id>` suffix. This avoids a daily shuffled provider response choosing different slug winners on a fresh database bootstrap.
 4. If an external provider ID changes, do not automatically merge by matching title/name. Require explicit, reviewed alias/remapping evidence.
 5. Keep retired/missing provider source records for traceability; mark them unavailable rather than deleting/reusing their canonical identity. The current detail routes intentionally return 404 for unavailable catalogue games.
@@ -87,9 +87,9 @@ The Project Owner ran the merged Standard Sandbox sync locally from `C:\Projects
 The current integration is deliberately Standard-Sandbox-only. BigBang's live key can expose both Standard and Premium tiers, while a Sandbox key exposes Standard only. The current public docs explicitly list `Pragmatic` as Standard and `Pragmatic Play` as Premium, so those labels must not be globally normalized into one provider. See the current [BigBang API contract](https://api.bigbangcasino.bet/docs/), especially `GET /games`, `GET /categories`, and Sandbox Mode.
 
 Before the first Premium catalogue import or any live-key catalogue sync, the schema and code must become tier-aware:
-- Change source identity uniqueness from `(source_code, external_game_id)` to `(source_code, source_mode, external_game_id)`, and make source-to-canonical-game uniqueness tier-scoped too.
+- Migration 010 changes source identity uniqueness to `(source_code, source_mode, external_game_id)` and makes source-to-canonical-game uniqueness tier-scoped. The current Standard re-sync is tested against a synthetic Premium row using the same external ID; it must not overwrite or deactivate that row.
 - Refactor source lookups, upserts, stale-source disabling, catalogue routes and launch selection to specify the intended tier explicitly. A Standard sync must never update or disable a Premium source with the same numeric ID; a Standard/demo view must never accidentally expose a Premium source.
-- Add migration/CI evidence in disposable PostgreSQL that deliberately stores the same numeric BigBang ID in Standard and Premium, then re-syncs Standard and proves the Premium row is unchanged.
+- Disposable-PostgreSQL CI stores the same numeric BigBang ID in Standard and Premium, re-syncs Standard, and asserts the Premium row and its category remain unchanged.
 - Keep Premium import disabled until the tier-key change, route/launch policy, live-key permissions, and provider acceptance are reviewed. This is catalog-readiness work only; it does not authorize real-money launch or wallet callbacks. Q-006, Q-010, Q-011, Q-013, Q-020 and the formal release gates remain independent blockers.
 
 Run the read-only `scripts/q005-catalogue-alias-audit.sql` against local Docker PostgreSQL to classify all 59 aliases against the actual available Standard snapshot. It reports candidate evidence only; it does not update aliases or infer provider synonyms.
@@ -101,6 +101,6 @@ Q-005 **is not closed by this PR**. Required next evidence/decisions:
 - Owner acceptance or amendment of the proposed identity/category/legacy-link contract.
 - PR #100 has merged the persistent alias implementation; its merge does not authorize frontend catalogue API cutover. Owner acceptance remains a separate gate, alongside the count discrepancy evidence and Standard/Premium identity scope.
 - Same-key/same-scope evidence or a written vendor explanation for 3,802 versus 3,639.
-- Written confirmation of cross-tier ID uniqueness, or a reviewed tier-inclusive identity migration before Premium support.
+- Review of tier-aware API visibility and launch selection, live-key permissions/provider acceptance, and the remaining Q-005 alias/count decisions before any Premium import.
 
 Q-006 remains separate: pin and review the exact normative BigBang and WinHouse agent artifacts and hash-matched fixtures. Q-010 and Q-011 remain P0 blockers for Phase 5 exit and all Phase 8 money movement. Nothing in this PR enables wallet posting, provider callbacks, payments, wagers, Premium games, or Production launch.

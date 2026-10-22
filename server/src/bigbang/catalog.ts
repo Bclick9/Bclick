@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { PoolClient, QueryResultRow } from 'pg';
 import type { SqlExecutor } from '../identity/repository.js';
 import { BigBangApiClient } from './client.js';
-import { BigBangApiError, type BigBangGame } from './types.js';
+import { BigBangApiError, type BigBangGame, type BigBangMode } from './types.js';
 
 export interface CatalogTransactionRepository extends SqlExecutor {
   transaction<T>(work: (client: PoolClient) => Promise<T>): Promise<T>;
@@ -18,6 +18,7 @@ export interface CatalogSyncResult {
 
 interface ExistingGameRow extends QueryResultRow {
   external_game_id: string;
+  source_mode: BigBangMode;
   game_id: string;
   game_slug: string;
 }
@@ -101,19 +102,28 @@ export class BigBangCatalogService {
       if (!Number.isSafeInteger(snapshot.totalReported) || snapshot.totalReported < 0 || snapshot.games.length !== snapshot.totalReported) {
         throw new CatalogSyncFault('BIGBANG_SNAPSHOT_INCONSISTENT', 'The complete BigBang snapshot count does not match its reported total');
       }
+      const observedModes = [...new Set(snapshot.games.map((game) => game.mode))];
+      if (observedModes.length > 1) {
+        throw new CatalogSyncFault('BIGBANG_MIXED_TIER_SNAPSHOT', 'A catalogue sync must contain one provider tier only');
+      }
+      // The current API client fetches Standard only. A future Premium client must
+      // invoke its own single-tier sync instead of mixing modes in one snapshot.
+      const syncMode: BigBangMode = observedModes[0] ?? 'standard';
+
       const counts = await this.repository.transaction(async (tx) => {
         await tx.query("SELECT pg_advisory_xact_lock(hashtext('bclick.bigbang.catalog-sync'))");
 
         const existingRows = await tx.query<ExistingGameRow>(`
           SELECT s.external_game_id::text AS external_game_id,
+                 s.source_mode,
                  s.game_id::text AS game_id,
                  g.game_slug
             FROM public.casino_game_sources s
             JOIN public.casino_games g ON g.id=s.game_id
            WHERE s.source_code='bigbang'
         `);
-        const existingByExternalId = new Map(existingRows.rows.map((row) => [Number(row.external_game_id), row]));
-        if (snapshot.games.length === 0 && existingRows.rows.length > 0) {
+        const existingByIdentity = new Map(existingRows.rows.map((row) => [`${row.source_mode}:${row.external_game_id}`, row]));
+        if (snapshot.games.length === 0 && existingRows.rows.some((row) => row.source_mode === syncMode)) {
           throw new CatalogSyncFault('BIGBANG_EMPTY_CATALOG_REJECTED', 'A zero-game response cannot replace a previously published non-empty catalogue');
         }
 
@@ -149,7 +159,7 @@ export class BigBangCatalogService {
           const code = slugify(game.provider);
           const provider = providers.get(code);
           if (!provider?.id) throw new CatalogSyncFault('BIGBANG_PROVIDER_MAPPING_FAILED', 'A catalogue provider mapping is missing');
-          const existing = existingByExternalId.get(game.id);
+          const existing = existingByIdentity.get(`${game.mode}:${game.id}`);
           const id = existing?.game_id ?? randomUUID();
           const slug = existing?.game_slug ?? uniqueSlug(game, usedSlugs);
           return {
@@ -197,7 +207,7 @@ export class BigBangCatalogService {
               (game_id,source_code,external_game_id,launch_name,source_provider_name,
                source_category,source_category_title,source_mode,is_premium,source_is_demo,game_type)
             VALUES ${valuesSql(batch.length,11)}
-            ON CONFLICT (source_code,external_game_id) DO UPDATE SET
+            ON CONFLICT (source_code,source_mode,external_game_id) DO UPDATE SET
               game_id=EXCLUDED.game_id,
               launch_name=EXCLUDED.launch_name,
               source_provider_name=EXCLUDED.source_provider_name,
@@ -218,8 +228,9 @@ export class BigBangCatalogService {
           UPDATE public.casino_game_sources
              SET available=false,updated_at=now()
            WHERE source_code='bigbang'
-             AND NOT (external_game_id = ANY($1::bigint[]))
-        `, [ids]);
+             AND source_mode=$1
+             AND NOT (external_game_id = ANY($2::bigint[]))
+        `, [syncMode, ids]);
 
         await tx.query(`
           UPDATE public.casino_games g
@@ -233,10 +244,11 @@ export class BigBangCatalogService {
            )
         `);
 
+        const syncedGameIds = prepared.map((row) => row.id);
         await tx.query(`
           DELETE FROM public.casino_game_categories
-           WHERE game_id IN (SELECT game_id FROM public.casino_game_sources WHERE source_code='bigbang')
-        `);
+           WHERE game_id = ANY($1::uuid[])
+        `, [syncedGameIds]);
         for (const batch of chunks(prepared, 500)) {
           const params: unknown[] = [];
           for (const row of batch) params.push(row.id,row.category);
@@ -249,6 +261,9 @@ export class BigBangCatalogService {
           }
         }
 
+        // Legacy storefront aliases belong to Standard catalogue identity. A future Premium
+        // sync must not re-evaluate or resolve aliases from the old player UI list.
+        if (syncMode === 'standard') {
         // Bind legacy slugs only when an available Standard game matches the stored
         // title + provider exactly (ignoring outer whitespace and case). Existing
         // resolved aliases remain pinned to their UUID even if provider metadata changes.
@@ -288,6 +303,8 @@ export class BigBangCatalogService {
            WHERE a.alias_slug=m.alias_slug
              AND a.resolution_status <> 'resolved'
         `);
+
+        }
 
         const createdCount = prepared.filter((row) => !row.wasExisting).length;
         const updatedCount = prepared.length - createdCount;
