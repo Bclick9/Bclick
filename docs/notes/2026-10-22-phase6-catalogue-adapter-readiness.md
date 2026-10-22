@@ -31,7 +31,7 @@ The approved decision needs to settle all of the following, rather than leaving 
 
 ### Q-006 — versioned BigBang/WinHouse agent specifications (OPEN; exact artifacts fingerprinted)
 
-The complete artifacts supplied by the Project Owner on 2026-10-22 were hashed and reviewed. Exact byte sizes, versions, canonical URLs, SHA-256 fingerprints, reviewer record, code comparison, and remaining questions are recorded in [Q-006 Provider Specification Review](./2026-10-22-Q006-provider-spec-review.md).
+The complete agent-spec artifacts supplied by the Project Owner on 2026-10-22 were hashed and reviewed. A provider-support written response and test vectors were then supplied on 2026-10-22; the vector attachment is fingerprinted and its BigBang/WinHouse bet/win HMACs are regression-tested. Exact artifacts, hashes, current code comparison, precision decision, and remaining questions are recorded in [Q-006 Provider Specification Review](./2026-10-22-Q006-provider-spec-review.md).
 
 - **BigBang:** `BIGBANG_AGENT.md`, docs v1.10 dated 2026-09-20, canonical source `https://api.bigbangcasino.bet/docs/agent.md`, 20,552 bytes, SHA-256 `60b7b046dd1f56cbd4cf3577b349fe9f1ffbde3b2df1538d6ece7c2368b59b74`.
 - **WinHouse:** `WINHOUSE_AGENT.md`, version dated 2026-09-20, canonical source `https://iframe.winhouse.bet/docs/agent.md`, 23,021 bytes, SHA-256 `00de9e66c76627eee31af1f9ccba93371432abfffebff39d026d512e53dc2d6b`.
@@ -39,7 +39,7 @@ The complete artifacts supplied by the Project Owner on 2026-10-22 were hashed a
 
 **Code comparison:** the merged BigBang Sandbox catalog client matches the documented `X-API-Key`, `type=standard`, `limit/offset`, and `success/data/pagination` flow. Its sample success fixture is taken from the published example and its pagination/failure cases are synthetic—not vendor-originated golden responses. The current code does not call the documented `GET /categories`; provider records are currently synthesized from game-level provider names, so exact vendor provider-slug parity has not been established. The merged launch path remains demo-only. The WinHouse page uses `embed.js`, but the repository has no Model B launch-token endpoint, `user-data` or `balance-change` handler. No real-money callbacks have been built.
 
-**Q-006 remains OPEN/P0.** The source artifacts are now fingerprinted; that closes the artifact-identification task only. The complete gate still needs provider-originated sanitized signature vectors and fixture evidence, resolution of the open questions in the linked memo, and recorded owner acceptance. Do not infer closure from the hashes, existing synthetic tests, or the fact that the documentation itself describes an algorithm. Q-009 (TND precision), Q-010 (application idempotency/posting), and Q-011 (real base+WAL restore) remain separate blockers.
+**Q-006 remains OPEN/P0.** The supplied support vectors establish and verify the signing algorithms for the example BigBang and WinHouse bet/win requests, but do not test wallet handlers or cover the full provider event matrix. BigBang round-close/replay/conflict and header applicability remain open; WinHouse cashout/cancellation/refund/out-of-order semantics remain open; owner acceptance is still pending. Q-009 (TND precision compatibility), Q-010 (application idempotency/posting), and Q-011 (real base+WAL restore) remain separate blockers.
 ## 3. Sandbox-only Phase 6 implementation scope
 
 1. **Server-only vendor client (merged to `main` in PR #92).** Only `ek_test_` keys are accepted; the client sends `X-API-Key` server-side, bounds request timeouts/retries and response size, validates response schemas and pagination, rejects Premium games, and does not log provider payloads or credentials.
@@ -62,11 +62,11 @@ The complete artifacts supplied by the Project Owner on 2026-10-22 were hashed a
 
 ## 5. Dependency order and release boundaries
 
-1. Keep Q-005 open until the owner signs the slug/UUID/category mapping and legacy URL behavior. For Q-006, the exact BigBang/WinHouse agent artifacts are now fingerprinted; keep the gate open until the named vendor questions and fixture requirements in `2026-10-22-Q006-provider-spec-review.md` are resolved. The current docs-derived and synthetic fixtures support controlled Sandbox testing only.
+1. Keep Q-005 open until the owner signs the slug/UUID/category mapping and legacy URL behavior. For Q-006, retain the support-issued vectors as test-only evidence and keep the gate open until the remaining provider event/signature questions and owner acceptance recorded in `2026-10-22-Q006-provider-spec-review.md` are resolved. These are not wallet-handler or production tests.
 2. Complete Q-011's isolated base-backup + WAL restore, integrity/projection checks, independent archive/failure monitoring, and measured RPO/RTO before any Production deployment or production provider integration. The 2026-10-22 Phase 6 Sandbox approval does not waive this gate.
 3. PR #92 merged the Sandbox catalogue/demo implementation after the recorded CI and disposable PostgreSQL rehearsal. Migration 007 has not been applied to Neon or Production. Passing CI and local Sandbox sync do not close Q-005, Q-006, or Q-011.
 4. The Phase 7 Sandbox demo-launch path is already merged and must remain `demo: true` with no real wallet account ID. Do not treat this as production launch acceptance; any deployment still requires Q-005/Q-006 and the relevant CSP/frame/host allowlist and vendor demo/session policies to be approved and tested.
-5. Phase 8 seamless wallet remains separately blocked by Q-009 per-provider TND precision/signature contract and Q-010 application-level idempotency/posting tests, in addition to all provider/security/compliance gates.
+5. Phase 8 seamless wallet remains blocked by Q-009's confirmed two-decimal TND limitation versus the current millime-level requirement, Q-010 application-level idempotency/posting tests, Q-011 restore evidence, and remaining Q-006 provider contract items, in addition to all security/compliance gates.
 
 ## 6. Decision log
 
@@ -97,7 +97,7 @@ Evidence:
 - [Wallet Migration 006 rehearsal](https://github.com/Bclick9/Bclick/actions/runs/39765782935)
 - [Local Compose bootstrap smoke test](https://github.com/Bclick9/Bclick/actions/runs/39765782924)
 
-**Gate status:** Phase 6 catalogue/Sandbox code is merged, but Q-005 and Q-006 remain open; Q-010 remains partially evidenced and open; Q-011 remains NOT RUN / OPEN / P0 and blocks Production. PR #92 includes a BigBang Sandbox demo-launch path, but no BigBang wallet callback or WinHouse Model B wallet endpoint is implemented. Catalogue acceptance, old-link handling, provider-originated fixtures, and CSP/frame/allowlist acceptance must be completed in their respective gates. Wagers, payments, wallet posting, and real-money callbacks remain disabled.
+**Gate status:** Phase 6 catalogue/Sandbox code is merged, but Q-005 and Q-006 remain open; Q-009 is blocked by the confirmed TND precision mismatch; Q-010 remains partially evidenced and open; Q-011 remains NOT RUN / OPEN / P0 and blocks Production. PR #92 includes a BigBang Sandbox demo-launch path, but no BigBang wallet callback or WinHouse Model B wallet endpoint is implemented. Catalogue/legacy-link acceptance, remaining provider event fixtures, the TND precision product decision, and CSP/frame/allowlist acceptance remain open. Wagers, payments, wallet posting, and real-money callbacks remain disabled.
 
 
 ## Local Sandbox runbook — 2026-10-22
