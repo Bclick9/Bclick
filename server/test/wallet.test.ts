@@ -109,6 +109,10 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
 
     const migrationCount = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM pgmigrations');
     assert.equal(migrationCount.rows[0]?.count, '10', 'wallet, catalogue, and TND precision migrations must be applied in order');
+    const tndCurrency = await pool.query<{ decimal_places: number }>(
+      "SELECT decimal_places FROM public.currencies WHERE code='TND'",
+    );
+    assert.equal(tndCurrency.rows[0]?.decimal_places, 2, 'Migration 008 must configure TND to two decimal places');
 
     const anonymousBalance = await app.inject({ method: 'GET', url: '/api/v1/wallets/TND/balance' });
     assert.equal(anonymousBalance.statusCode, 401);
