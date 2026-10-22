@@ -138,7 +138,7 @@ export function registerBigBangAdminRoutes(
                p.availability_updated_at AS "updatedAt",
                count(DISTINCT g.id)::int AS "totalGames",
                count(DISTINCT g.id) FILTER (WHERE s.available=true AND g.available=true)::int AS "sourceAvailableGames",
-               count(DISTINCT g.id) FILTER (WHERE s.available=true AND g.available=true AND g.bclick_enabled=true)::int AS "enabledGames"
+               count(DISTINCT g.id) FILTER (WHERE s.available=true AND g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true)::int AS "enabledGames"
           FROM public.casino_providers p
           JOIN public.casino_games g ON g.provider_id=p.id
           JOIN public.casino_game_sources s
@@ -186,6 +186,11 @@ export function registerBigBangAdminRoutes(
           UPDATE public.casino_providers
              SET bclick_enabled=$2,availability_updated_by=$3,availability_updated_at=now()
            WHERE code=$1
+             AND EXISTS (
+               SELECT 1 FROM public.casino_games g
+               JOIN public.casino_game_sources s ON s.game_id=g.id
+                WHERE g.provider_id=casino_providers.id AND s.source_code='bigbang' AND s.source_mode='standard'
+             )
            RETURNING id::text AS id,code,name,bclick_enabled AS enabled,availability_updated_at AS "updatedAt"
         ), audited AS (
           INSERT INTO public.audit_events
@@ -270,7 +275,7 @@ export function registerBigBangAdminRoutes(
         data: rows.rows.map((row) => ({
           id: row.id, slug: row.slug, title: row.title,
           provider: { code: row.providerCode, name: row.providerName },
-          sourceAvailable: row.sourceAvailable, sourceAvailableInBclick: row.gameAvailable,
+          sourceAvailable: row.sourceAvailable, catalogAvailable: row.gameAvailable,
           enabled: row.enabled, providerEnabled: row.providerEnabled,
           updatedAt: new Date(row.updatedAt).toISOString(),
         })),
