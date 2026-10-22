@@ -249,6 +249,46 @@ export class BigBangCatalogService {
           }
         }
 
+        // Bind legacy slugs only when an available Standard game matches the stored
+        // title + provider exactly (ignoring outer whitespace and case). Existing
+        // resolved aliases remain pinned to their UUID even if provider metadata changes.
+        // Missing or duplicate matches fail closed instead of guessing by title.
+        await tx.query(`
+          WITH exact_matches AS (
+            SELECT a.alias_slug,
+                   count(DISTINCT s.game_id)::integer AS match_count,
+                   (array_agg(DISTINCT s.game_id ORDER BY s.game_id)
+                     FILTER (WHERE s.game_id IS NOT NULL))[1] AS matched_game_id
+              FROM public.casino_game_legacy_slug_aliases a
+              LEFT JOIN public.casino_games g
+                ON g.available=true
+               AND lower(btrim(g.title))=lower(btrim(a.legacy_title))
+              LEFT JOIN public.casino_providers p
+                ON p.id=g.provider_id
+               AND lower(btrim(p.name))=lower(btrim(a.legacy_provider))
+              LEFT JOIN public.casino_game_sources s
+                ON s.game_id=g.id
+               AND s.source_code='bigbang'
+               AND s.source_mode='standard'
+               AND s.available=true
+               AND p.id IS NOT NULL
+             WHERE a.resolution_status <> 'resolved'
+             GROUP BY a.alias_slug
+          )
+          UPDATE public.casino_game_legacy_slug_aliases a
+             SET game_id=CASE WHEN m.match_count=1 THEN m.matched_game_id ELSE NULL END,
+                 resolution_status=CASE
+                   WHEN m.match_count=1 THEN 'resolved'
+                   WHEN m.match_count>1 THEN 'ambiguous'
+                   ELSE 'unmatched'
+                 END,
+                 last_matched_at=CASE WHEN m.match_count=1 THEN now() ELSE NULL END,
+                 updated_at=now()
+            FROM exact_matches m
+           WHERE a.alias_slug=m.alias_slug
+             AND a.resolution_status <> 'resolved'
+        `);
+
         const createdCount = prepared.filter((row) => !row.wasExisting).length;
         const updatedCount = prepared.length - createdCount;
         await tx.query(`
