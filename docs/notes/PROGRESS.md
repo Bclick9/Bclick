@@ -1,11 +1,11 @@
 # Bclick — Cumulative Progress and Roadmap Gate Checkpoint
 
-**Updated:** 2026-10-22, after PR #94 merged to `main`; Q-005 proposal prepared on `fix/q005-catalogue-identity-acceptance`  
+**Updated:** 2026-10-22, after PR #95 merged to `main`  
 **Purpose:** Current implementation status and explicit stop conditions. This file reconciles current code with the planning roadmap; it does not replace the shared Library's `docs/planning/12-open-questions.md`.
 
 ## Current verified position
 
-- **Current `main`:** `0becbc705421df29d57ba8e0d5fce41429e3d91c`, containing PR #92 and PR #94. PR #92 merged the BigBang Standard Sandbox catalogue adapter, Migration 007/catalogue persistence, database-backed browse routes, and Sandbox demo-launch path; PR #94 added route-level acceptance tests and reconciled this progress ledger. The earlier catalogue-only PR #89 was superseded; PR #90 was not merged.
+- **Current `main`:** contains PR #92, PR #94, and PR #95. PR #92 merged the BigBang Standard Sandbox catalogue adapter, Migration 007/catalogue persistence, database-backed browse routes, and Sandbox demo-launch path; PR #94 added route-level acceptance tests; PR #95 added deterministic collision-slug assignment, stable category-array ordering, regression tests, and a Q-005 proposal while keeping the gate open. The earlier catalogue-only PR #89 was superseded; PR #90 was not merged.
 - **Owner-reported local acceptance:** the Standard Sandbox sync returned 3,639 records, and a repeat sync updated those rows without creating new rows. The Project Owner has also confirmed that the local BigBang Sandbox demo now launches successfully. These are local operator observations; CI mocks provider calls and does not prove that every physical browser/device or vendor-account entitlement works.
 - **Player identity:** registration/login/session/logout and related server-side identity routes are present on `main`, with runtime tests in `server/test/identity.test.ts`. Mobile login over plain HTTP/LAN is deliberately deferred to the planned HTTPS VPS work; do not weaken Secure/host-only cookies to make HTTP LAN login appear to work.
 - **Wallet foundation:** Migration 006, wallet balance/statement read endpoints and player wallet UI are merged (PRs #86 and #87). They are read-only. There is no accepted money-movement/posting service, deposit/withdrawal execution, wager settlement, or provider wallet callback.
@@ -26,7 +26,7 @@
 
 ## Open gates that control the next work
 
-- **Q-005 — P0, Open:** canonical game slug/UUID/deep-link and legacy mapping, uniqueness policy, provider DTO and `categories[]` semantics need explicit tests and an accepted decision. PR #94 added route-level coverage. The Q-005 proposal in `docs/notes/2026-10-22-Q005-catalogue-identity-decision.md` separates the provider's singular category fields from Bclick's canonical category array and specifies stable identity, deterministic collision slugs, and the legacy-alias requirement. This branch also adds stable-slug and category-ordering tests. Q-005 remains open: the owner must accept the decision, slug aliases must be implemented before frontend catalogue cutover, Premium identity scope remains unverified, and the 3,802-vs-3,639 count difference remains unresolved.
+- **Q-005 — P0, Open:** canonical game slug/UUID/deep-link and legacy mapping, uniqueness policy, provider DTO and `categories[]` semantics need explicit tests and an accepted decision. PR #94 added route-level coverage. The Q-005 proposal in `docs/notes/2026-10-22-Q005-catalogue-identity-decision.md` separates the provider's singular category fields from Bclick's canonical category array and specifies stable identity, deterministic collision slugs, and the legacy-alias requirement. PR #95 also adds stable-slug and category-ordering tests. Q-005 remains open: the owner must accept the decision, slug aliases must be implemented before frontend catalogue cutover, Premium identity scope remains unverified, and the 3,802-vs-3,639 count difference remains unresolved.
 - **Q-006 — P0, Open:** exact versioned/hash-pinned `BIGBANG_AGENT.md` and `WINHOUSE_AGENT.md`, plus their applicable verified fixtures. An adapter being present is not a substitute for provider evidence.
 - **Q-010 — P0, Open:** ledger lock/concurrency and normative idempotency scope, including same/different-payload replay and posting-service tests.
 - **Q-011 — P0, Open:** isolated base+WAL restore, integrity checks, independent alert evidence and measured RPO/RTO. No restore result is assumed.
