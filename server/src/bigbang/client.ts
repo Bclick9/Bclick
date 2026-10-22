@@ -249,6 +249,78 @@ export class BigBangApiClient {
     throw new BigBangApiError('BIGBANG_NETWORK_ERROR', 'BigBang catalogue request failed after bounded retries');
   }
 
+  /**
+   * Launches a Standard game using BigBang's virtual Sandbox balance only.
+   * This method deliberately has no real-mode/user-token option and does not retry,
+   * because every launch creates a provider session.
+   */
+  async launchDemoGame(gameId: number, language = 'en'): Promise<{ gameUrl: string; gameId: number; gameName: string }> {
+    if (!Number.isSafeInteger(gameId) || gameId <= 0) {
+      throw new BigBangApiError('BIGBANG_LAUNCH_REQUEST_INVALID', 'A valid provider game id is required');
+    }
+    if (!/^[a-z]{2}$/.test(language)) {
+      throw new BigBangApiError('BIGBANG_LAUNCH_REQUEST_INVALID', 'Language must be a two-letter ISO code');
+    }
+
+    const url = new URL('games/launch', BIGBANG_API_BASE_URL);
+    let response: Response;
+    try {
+      response = await this.fetcher(url, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'X-API-Key': this.apiKey,
+        },
+        body: JSON.stringify({ game_id: gameId, demo: true, language }),
+        redirect: 'error',
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+    } catch {
+      throw new BigBangApiError('BIGBANG_LAUNCH_NETWORK_ERROR', 'BigBang Sandbox demo launch could not be reached');
+    }
+
+    const contentType = response.headers.get('content-type') ?? '';
+    if (!contentType.toLowerCase().includes('json')) {
+      throw new BigBangApiError('BIGBANG_LAUNCH_RESPONSE_INVALID', 'BigBang Sandbox returned an unexpected launch response');
+    }
+
+    const text = await readBoundedBody(response, 512 * 1024);
+    let payload: unknown;
+    try {
+      payload = JSON.parse(text) as unknown;
+    } catch {
+      throw new BigBangApiError('BIGBANG_LAUNCH_RESPONSE_INVALID', 'BigBang Sandbox returned malformed launch JSON');
+    }
+
+    if (!response.ok) {
+      throw new BigBangApiError(
+        'BIGBANG_LAUNCH_HTTP_' + response.status,
+        'BigBang Sandbox rejected the demo launch with HTTP ' + response.status,
+      );
+    }
+    if (!isObject(payload) || payload.success !== true || payload.demo !== true
+      || typeof payload.game_url !== 'string'
+      || typeof payload.game_name !== 'string' || !payload.game_name.trim()
+      || !Number.isSafeInteger(payload.game_id) || Number(payload.game_id) !== gameId) {
+      throw new BigBangApiError('BIGBANG_LAUNCH_RESPONSE_INVALID', 'BigBang Sandbox returned an invalid demo launch response');
+    }
+
+    let gameUrl: URL;
+    try {
+      gameUrl = new URL(payload.game_url);
+    } catch {
+      throw new BigBangApiError('BIGBANG_LAUNCH_URL_INVALID', 'BigBang Sandbox returned an invalid demo game URL');
+    }
+    const hostAllowed = gameUrl.hostname === 'bigbangcasino.bet'
+      || gameUrl.hostname.endsWith('.bigbangcasino.bet');
+    if (gameUrl.protocol !== 'https:' || !hostAllowed || gameUrl.username || gameUrl.password) {
+      throw new BigBangApiError('BIGBANG_LAUNCH_URL_INVALID', 'BigBang Sandbox returned a game URL outside the approved HTTPS host');
+    }
+
+    return { gameUrl: gameUrl.toString(), gameId, gameName: payload.game_name.trim().slice(0, 240) };
+  }
+
   async listAllStandardGames(): Promise<BigBangCatalogSnapshot> {
     const games: BigBangGame[] = [];
     const ids = new Set<number>();
