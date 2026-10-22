@@ -22,3 +22,6 @@ Thumbs.db
 
 # Local-only Identity email sink may contain single-use tokens.
 .local-mail-sink.jsonl
+
+# Local mkcert TLS keys/certificates for phone testing; never commit private keys or local CA copies.
+frontend/.local-certs/
