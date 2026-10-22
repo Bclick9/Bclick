@@ -11,6 +11,8 @@ export interface BigBangClientOptions {
   readonly fetcher?: typeof fetch;
   readonly timeoutMs?: number;
   readonly maxPages?: number;
+  /** Injectable for deterministic pagination tests; production defaults to the vendor maximum. */
+  readonly pageLimit?: number;
 }
 
 type RawObject = Record<string, unknown>;
@@ -85,7 +87,7 @@ function parseGame(value: unknown): BigBangGame {
   };
 }
 
-function parseEnvelope(value: unknown, expectedOffset: number): { games: BigBangGame[]; total: number; limit: number } {
+function parseEnvelope(value: unknown, expectedOffset: number, expectedLimit: number): { games: BigBangGame[]; total: number; limit: number } {
   if (!isObject(value) || value.success !== true || !Array.isArray(value.data) || !isObject(value.pagination)) {
     throw new BigBangApiError('BIGBANG_ENVELOPE_INVALID', 'BigBang returned an unexpected catalogue response');
   }
@@ -95,6 +97,7 @@ function parseEnvelope(value: unknown, expectedOffset: number): { games: BigBang
   if (!Number.isSafeInteger(total) || Number(total) < 0
     || !Number.isSafeInteger(limit) || Number(limit) < 1 || Number(limit) > PAGE_LIMIT
     || !Number.isSafeInteger(offset) || Number(offset) !== expectedOffset
+    || Number(limit) !== expectedLimit
     || value.data.length > Number(limit)) {
     throw new BigBangApiError('BIGBANG_PAGINATION_INVALID', 'BigBang catalogue pagination metadata is inconsistent');
   }
@@ -105,6 +108,40 @@ function parseEnvelope(value: unknown, expectedOffset: number): { games: BigBang
   };
 }
 
+async function readBoundedBody(response: Response, maxBytes: number): Promise<string> {
+  const declaredLength = response.headers.get('content-length');
+  if (declaredLength && /^\\d+$/.test(declaredLength) && Number(declaredLength) > maxBytes) {
+    throw new BigBangApiError('BIGBANG_RESPONSE_TOO_LARGE', 'BigBang catalogue response exceeded the size limit');
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    const body = await response.text();
+    if (Buffer.byteLength(body, 'utf8') > maxBytes) {
+      throw new BigBangApiError('BIGBANG_RESPONSE_TOO_LARGE', 'BigBang catalogue response exceeded the size limit');
+    }
+    return body;
+  }
+
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const result = await reader.read();
+      if (result.done) break;
+      size += result.value.byteLength;
+      if (size > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw new BigBangApiError('BIGBANG_RESPONSE_TOO_LARGE', 'BigBang catalogue response exceeded the size limit');
+      }
+      chunks.push(result.value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -113,6 +150,7 @@ export class BigBangApiClient {
   private readonly fetcher: typeof fetch;
   private readonly timeoutMs: number;
   private readonly maxPages: number;
+  private readonly pageLimit: number;
 
   constructor(options: BigBangClientOptions) {
     const apiKey = options.apiKey.trim();
@@ -123,6 +161,10 @@ export class BigBangApiClient {
     this.fetcher = options.fetcher ?? fetch;
     this.timeoutMs = options.timeoutMs ?? 15_000;
     this.maxPages = options.maxPages ?? 100;
+    this.pageLimit = options.pageLimit ?? PAGE_LIMIT;
+    if (!Number.isInteger(this.pageLimit) || this.pageLimit < 1 || this.pageLimit > PAGE_LIMIT) {
+      throw new Error('BigBang pageLimit must be between 1 and 5000');
+    }
     if (!Number.isInteger(this.timeoutMs) || this.timeoutMs < 1_000 || this.timeoutMs > 60_000) {
       throw new Error('BigBang request timeout must be between 1000 and 60000 milliseconds');
     }
@@ -136,7 +178,7 @@ export class BigBangApiClient {
   private async fetchPage(offset: number): Promise<{ games: BigBangGame[]; total: number; limit: number }> {
     const url = new URL('games', BIGBANG_BASE_URL);
     url.searchParams.set('type', 'standard');
-    url.searchParams.set('limit', String(PAGE_LIMIT));
+    url.searchParams.set('limit', String(this.pageLimit));
     url.searchParams.set('offset', String(offset));
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -168,17 +210,14 @@ export class BigBangApiClient {
         if (!contentType.toLowerCase().includes('json')) {
           throw new BigBangApiError('BIGBANG_CONTENT_TYPE_INVALID', 'BigBang returned a non-JSON catalogue response');
         }
-        const text = await response.text();
-        if (Buffer.byteLength(text, 'utf8') > MAX_RESPONSE_BYTES) {
-          throw new BigBangApiError('BIGBANG_RESPONSE_TOO_LARGE', 'BigBang catalogue response exceeded the size limit');
-        }
+        const text = await readBoundedBody(response, MAX_RESPONSE_BYTES);
         let payload: unknown;
         try {
           payload = JSON.parse(text) as unknown;
         } catch {
           throw new BigBangApiError('BIGBANG_JSON_INVALID', 'BigBang returned malformed JSON');
         }
-        return parseEnvelope(payload, offset);
+        return parseEnvelope(payload, offset, this.pageLimit);
       } catch (error) {
         if (error instanceof BigBangApiError) {
           if (error.retryable && attempt < 2) {
