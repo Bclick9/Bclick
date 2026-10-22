@@ -57,6 +57,8 @@ function sourceRow(overrides: Record<string, unknown> = {}) {
     is_premium: false,
     source_available: true,
     game_available: true,
+    provider_bclick_enabled: true,
+    game_bclick_enabled: true,
     ...overrides,
   };
 }
@@ -146,6 +148,8 @@ test('sandbox demo route refuses Premium or unavailable games', async () => {
     { label: 'premium', source: sourceRow({ source_mode: 'premium', is_premium: true }) },
     { label: 'unavailable source', source: sourceRow({ source_available: false }) },
     { label: 'unavailable game', source: sourceRow({ game_available: false }) },
+    { label: 'disabled provider in Bclick', source: sourceRow({ provider_bclick_enabled: false }) },
+    { label: 'disabled game in Bclick', source: sourceRow({ game_bclick_enabled: false }) },
   ]) {
     let providerCalls = 0;
     const source = databaseFor(item.source);
@@ -172,7 +176,7 @@ test('sandbox demo route refuses Premium or unavailable games', async () => {
         headers: { origin: PLAYER_ORIGIN },
         payload: { language: 'en' },
       });
-      assert.equal(response.statusCode, item.label === 'unavailable source' || item.label === 'unavailable game' ? 404 : 403);
+      assert.equal(response.statusCode, item.label === 'premium' ? 403 : 404);
       assert.equal(providerCalls, 0);
     } finally {
       await app.close();

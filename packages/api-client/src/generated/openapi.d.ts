@@ -763,6 +763,116 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/bigbang/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read BigBang integration controls
+         * @description Requires casino.provider-settings.manage. Current implementation is restricted to Standard Sandbox; Premium is unavailable and cannot be selected.
+         */
+        get: operations["getAdminBigBangSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/bigbang/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List BigBang providers and Bclick availability controls
+         * @description Requires casino.provider-settings.manage. Counts distinguish vendor/source availability from Bclick's own switches.
+         */
+        get: operations["getAdminBigBangProviders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/bigbang/providers/{providerCode}": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path: {
+                providerCode: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Enable or disable a BigBang provider in Bclick
+         * @description Requires casino.provider-settings.manage, a fully authenticated MFA admin session, exact allowed Origin, and the admin CSRF token. This does not alter vendor source availability. The state change and audit record are atomic.
+         */
+        patch: operations["patchAdminBigBangProvider"];
+        trace?: never;
+    };
+    "/api/v1/admin/bigbang/games": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Standard BigBang games and Bclick availability controls
+         * @description Requires casino.provider-settings.manage. Reads the local catalogue only; it does not fetch from BigBang.
+         */
+        get: operations["getAdminBigBangGames"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/bigbang/games/{gameId}": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path: {
+                gameId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Enable or disable a Standard BigBang game in Bclick
+         * @description Requires casino.provider-settings.manage, a fully authenticated MFA admin session, exact allowed Origin, and the admin CSRF token. The state change and audit record are atomic.
+         */
+        patch: operations["patchAdminBigBangGame"];
+        trace?: never;
+    };
     "/api/v1/admin/providers/{providerCode}/catalog-sync": {
         parameters: {
             query?: never;
@@ -3039,6 +3149,93 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        BigBangAdminSettingsResponse: {
+            data: {
+                /** @constant */
+                sourceCode: "bigbang";
+                /** @constant */
+                selectedTier: "standard";
+                supportedTiers: "standard"[];
+                /** @constant */
+                premiumAvailable: false;
+                premiumReason: string;
+                sync: {
+                    latestStatus: string | null;
+                    /** Format: date-time */
+                    lastSucceededAt: string | null;
+                };
+            };
+            requestId: string;
+        };
+        BigBangAdminProvider: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name: string;
+            enabled: boolean;
+            /** Format: date-time */
+            updatedAt: string;
+            totalGames: number;
+            sourceAvailableGames: number;
+            enabledGames: number;
+        };
+        BigBangAdminProvidersResponse: {
+            data: components["schemas"]["BigBangAdminProvider"][];
+            requestId: string;
+        };
+        BigBangAdminGame: {
+            /** Format: uuid */
+            id: string;
+            slug: string;
+            title: string;
+            provider: {
+                code: string;
+                name: string;
+            };
+            sourceAvailable: boolean;
+            catalogAvailable: boolean;
+            enabled: boolean;
+            providerEnabled: boolean;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        BigBangAdminGamesResponse: {
+            data: components["schemas"]["BigBangAdminGame"][];
+            page: {
+                page: number;
+                pageSize: number;
+                total: number;
+                nextPage: number | null;
+            };
+            requestId: string;
+        };
+        BigBangAdminControlPatchRequest: {
+            enabled: boolean;
+        };
+        BigBangAdminProviderControlResponse: {
+            data: {
+                /** Format: uuid */
+                id: string;
+                code: string;
+                name: string;
+                enabled: boolean;
+                /** Format: date-time */
+                updatedAt: string;
+            };
+            requestId: string;
+        };
+        BigBangAdminGameControlResponse: {
+            data: {
+                /** Format: uuid */
+                id: string;
+                slug: string;
+                title: string;
+                enabled: boolean;
+                /** Format: date-time */
+                updatedAt: string;
+            };
+            requestId: string;
+        };
         /**
          * @description Exact signed decimal string. Signed values are valid for journal/statement amounts. Do not use for player wallet balance fields (use NonNegativeAmount) or positive payment requests (use PositiveAmount). Enforce enabled currency exponent at runtime. No exponent notation.
          * @example 12.34
@@ -6367,6 +6564,202 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    getAdminBigBangSettings: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current BigBang tier and last successful catalogue sync status. */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BigBangAdminSettingsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Integration settings have not been initialized. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getAdminBigBangProviders: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Providers represented by the Standard Sandbox catalogue. */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BigBangAdminProvidersResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    patchAdminBigBangProvider: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
+                "X-CSRF-Token": components["parameters"]["CsrfToken"];
+            };
+            path: {
+                providerCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BigBangAdminControlPatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Provider control updated and audited. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BigBangAdminProviderControlResponse"];
+                };
+            };
+            /** @description Invalid provider code or request body. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Update or audit persistence failed; the mutation is not reported as successful. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getAdminBigBangGames: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                providerCode?: string;
+                query?: string;
+            };
+            header?: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated Standard BigBang catalogue and Bclick availability controls. */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BigBangAdminGamesResponse"];
+                };
+            };
+            /** @description Invalid pagination or search parameters. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    patchAdminBigBangGame: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
+                "X-CSRF-Token": components["parameters"]["CsrfToken"];
+            };
+            path: {
+                gameId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BigBangAdminControlPatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Game control updated and audited. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BigBangAdminGameControlResponse"];
+                };
+            };
+            /** @description Invalid game ID or request body. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Update or audit persistence failed; the mutation is not reported as successful. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     postAdminProvidersByProviderCodeCatalogSync: {

@@ -1396,6 +1396,134 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
       operationId: getAdminPlayers
+  /api/v1/admin/bigbang/settings:
+    get:
+      tags: [Backoffice]
+      security: [adminSession: []]
+      summary: Read BigBang integration controls
+      description: Requires casino.provider-settings.manage. Current implementation is restricted to Standard Sandbox; Premium is unavailable and cannot be selected.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Current BigBang tier and last successful catalogue sync status.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BigBangAdminSettingsResponse'}
+          headers:
+            Cache-Control: {schema: {type: string, const: no-store}}
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {description: Integration settings have not been initialized.}
+      operationId: getAdminBigBangSettings
+  /api/v1/admin/bigbang/providers:
+    get:
+      tags: [Backoffice]
+      security: [adminSession: []]
+      summary: List BigBang providers and Bclick availability controls
+      description: Requires casino.provider-settings.manage. Counts distinguish vendor/source availability from Bclick's own switches.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Providers represented by the Standard Sandbox catalogue.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BigBangAdminProvidersResponse'}
+          headers:
+            Cache-Control: {schema: {type: string, const: no-store}}
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+      operationId: getAdminBigBangProviders
+  /api/v1/admin/bigbang/providers/{providerCode}:
+    parameters:
+      - name: providerCode
+        in: path
+        required: true
+        schema: {type: string, minLength: 1, maxLength: 120, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'}
+      - $ref: '#/components/parameters/XRequestId'
+    patch:
+      tags: [Backoffice]
+      security: [adminSession: []]
+      summary: Enable or disable a BigBang provider in Bclick
+      description: Requires casino.provider-settings.manage, a fully authenticated MFA admin session, exact allowed Origin, and the admin CSRF token. This does not alter vendor source availability. The state change and audit record are atomic.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BigBangAdminControlPatchRequest'}
+      responses:
+        '200':
+          description: Provider control updated and audited.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BigBangAdminProviderControlResponse'}
+        '400': {description: Invalid provider code or request body.}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {description: Update or audit persistence failed; the mutation is not reported as successful.}
+      operationId: patchAdminBigBangProvider
+  /api/v1/admin/bigbang/games:
+    get:
+      tags: [Backoffice]
+      security: [adminSession: []]
+      summary: Search Standard BigBang games and Bclick availability controls
+      description: Requires casino.provider-settings.manage. Reads the local catalogue only; it does not fetch from BigBang.
+      parameters:
+        - {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+        - {name: pageSize, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 25}}
+        - {name: providerCode, in: query, schema: {type: string, minLength: 1, maxLength: 120, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'}}
+        - {name: query, in: query, schema: {type: string, maxLength: 100}}
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Paginated Standard BigBang catalogue and Bclick availability controls.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BigBangAdminGamesResponse'}
+          headers:
+            Cache-Control: {schema: {type: string, const: no-store}}
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+        '400': {description: Invalid pagination or search parameters.}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+      operationId: getAdminBigBangGames
+  /api/v1/admin/bigbang/games/{gameId}:
+    parameters:
+      - name: gameId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - $ref: '#/components/parameters/XRequestId'
+    patch:
+      tags: [Backoffice]
+      security: [adminSession: []]
+      summary: Enable or disable a Standard BigBang game in Bclick
+      description: Requires casino.provider-settings.manage, a fully authenticated MFA admin session, exact allowed Origin, and the admin CSRF token. The state change and audit record are atomic.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BigBangAdminControlPatchRequest'}
+      responses:
+        '200':
+          description: Game control updated and audited.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BigBangAdminGameControlResponse'}
+        '400': {description: Invalid game ID or request body.}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {description: Update or audit persistence failed; the mutation is not reported as successful.}
+      operationId: patchAdminBigBangGame
   /api/v1/admin/providers/{providerCode}/catalog-sync:
     parameters:
       - name: providerCode
@@ -5792,6 +5920,123 @@ components:
           schema:
             $ref: '#/components/schemas/HealthResponse'
   schemas:
+    BigBangAdminSettingsResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [sourceCode, selectedTier, supportedTiers, premiumAvailable, premiumReason, sync]
+          properties:
+            sourceCode: {type: string, const: bigbang}
+            selectedTier: {type: string, const: standard}
+            supportedTiers: {type: array, items: {type: string, enum: [standard]}, minItems: 1, maxItems: 1}
+            premiumAvailable: {type: boolean, const: false}
+            premiumReason: {type: string}
+            sync:
+              type: object
+              additionalProperties: false
+              required: [latestStatus, lastSucceededAt]
+              properties:
+                latestStatus: {type: [string, 'null']}
+                lastSucceededAt: {type: [string, 'null'], format: date-time}
+        requestId: {type: string}
+    BigBangAdminProvider:
+      type: object
+      additionalProperties: false
+      required: [id, code, name, enabled, updatedAt, totalGames, sourceAvailableGames, enabledGames]
+      properties:
+        id: {type: string, format: uuid}
+        code: {type: string}
+        name: {type: string}
+        enabled: {type: boolean}
+        updatedAt: {type: string, format: date-time}
+        totalGames: {type: integer, minimum: 0}
+        sourceAvailableGames: {type: integer, minimum: 0}
+        enabledGames: {type: integer, minimum: 0}
+    BigBangAdminProvidersResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data: {type: array, items: {$ref: '#/components/schemas/BigBangAdminProvider'}}
+        requestId: {type: string}
+    BigBangAdminGame:
+      type: object
+      additionalProperties: false
+      required: [id, slug, title, provider, sourceAvailable, catalogAvailable, enabled, providerEnabled, updatedAt]
+      properties:
+        id: {type: string, format: uuid}
+        slug: {type: string}
+        title: {type: string}
+        provider:
+          type: object
+          additionalProperties: false
+          required: [code, name]
+          properties:
+            code: {type: string}
+            name: {type: string}
+        sourceAvailable: {type: boolean}
+        catalogAvailable: {type: boolean}
+        enabled: {type: boolean}
+        providerEnabled: {type: boolean}
+        updatedAt: {type: string, format: date-time}
+    BigBangAdminGamesResponse:
+      type: object
+      additionalProperties: false
+      required: [data, page, requestId]
+      properties:
+        data: {type: array, items: {$ref: '#/components/schemas/BigBangAdminGame'}}
+        page:
+          type: object
+          additionalProperties: false
+          required: [page, pageSize, total, nextPage]
+          properties:
+            page: {type: integer, minimum: 1}
+            pageSize: {type: integer, minimum: 1, maximum: 100}
+            total: {type: integer, minimum: 0}
+            nextPage: {type: [integer, 'null'], minimum: 1}
+        requestId: {type: string}
+    BigBangAdminControlPatchRequest:
+      type: object
+      additionalProperties: false
+      required: [enabled]
+      properties:
+        enabled: {type: boolean}
+    BigBangAdminProviderControlResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [id, code, name, enabled, updatedAt]
+          properties:
+            id: {type: string, format: uuid}
+            code: {type: string}
+            name: {type: string}
+            enabled: {type: boolean}
+            updatedAt: {type: string, format: date-time}
+        requestId: {type: string}
+    BigBangAdminGameControlResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [id, slug, title, enabled, updatedAt]
+          properties:
+            id: {type: string, format: uuid}
+            slug: {type: string}
+            title: {type: string}
+            enabled: {type: boolean}
+            updatedAt: {type: string, format: date-time}
+        requestId: {type: string}
     DecimalAmount:
       type: string
       pattern: '^-?(0|[1-9][0-9]*)(\.[0-9]+)?$'

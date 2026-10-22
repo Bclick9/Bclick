@@ -15,6 +15,8 @@ interface LaunchSourceRow extends QueryResultRow {
   is_premium: boolean;
   source_available: boolean;
   game_available: boolean;
+  provider_bclick_enabled: boolean;
+  game_bclick_enabled: boolean;
 }
 
 interface RateBucket {
@@ -106,8 +108,11 @@ export function registerSandboxDemoLaunchRoute(
                s.source_mode,
                s.is_premium,
                s.available AS source_available,
-               g.available AS game_available
+               g.available AS game_available,
+               p.bclick_enabled AS provider_bclick_enabled,
+               g.bclick_enabled AS game_bclick_enabled
           FROM public.casino_games g
+          JOIN public.casino_providers p ON p.id=g.provider_id
           JOIN public.casino_game_sources s
             ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard'
          WHERE g.id=$1
@@ -118,7 +123,8 @@ export function registerSandboxDemoLaunchRoute(
       return errorResponse(reply, request, 503, 'CATALOGUE_UNAVAILABLE', 'The casino catalogue is temporarily unavailable.');
     }
 
-    if (!source || !source.game_available || !source.source_available) {
+    if (!source || !source.game_available || !source.source_available
+      || !source.game_bclick_enabled || !source.provider_bclick_enabled) {
       return errorResponse(reply, request, 404, 'GAME_NOT_AVAILABLE', 'This game is not currently available.');
     }
     if (source.source_mode !== 'standard' || source.is_premium) {
