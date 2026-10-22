@@ -1,0 +1,108 @@
+{
+  "note": "Sample payloads for a TND account. Both platforms carry money at 2 decimals (0.01 TND = 10 millimes); the third decimal of every amount is 0. Signatures computed with the dummy secret below so you can verify your code; production uses your own key.",
+  "dummy_secret": "test_secret_for_fixtures",
+  "bigbang_casino": {
+    "signature_rule": "signature = HMAC-SHA256(secret, username + amount + game + game_category + transaction_id), amount as its shortest decimal string (e.g. -12.34, 24.68, -2.5). X-Body-Signature = HMAC-SHA256(secret, raw JSON body).",
+    "user_data_reply_expected": {
+      "username": "player_tnd_1",
+      "balance": "1250.00",
+      "currency": "TND"
+    },
+    "1_bet_debit": {
+      "request_headers": {
+        "Content-Type": "application/json",
+        "X-Body-Signature": "053387a4688dc38acc6d9f1671e6ff1cdac54cbeb8ed88d646def3250575c020"
+      },
+      "request_body": {
+        "username": "player_tnd_1",
+        "amount": -12.34,
+        "game": "SweetBonanza",
+        "game_category": "pragmatic",
+        "transaction_id": "tx_8812001_bet",
+        "signature": "fb2340afb9710e4f31c4aafa2249717cd1e1bf0d32ce7cbe2a4b887d02ecef0d",
+        "round_id": "r_8812001",
+        "type": "round",
+        "round_end": false,
+        "game_id": "vs20fruitsw",
+        "provider_id": "pragmatic"
+      },
+      "raw_body_signed": "{\"username\":\"player_tnd_1\",\"amount\":-12.34,\"game\":\"SweetBonanza\",\"game_category\":\"pragmatic\",\"transaction_id\":\"tx_8812001_bet\",\"signature\":\"fb2340afb9710e4f31c4aafa2249717cd1e1bf0d32ce7cbe2a4b887d02ecef0d\",\"round_id\":\"r_8812001\",\"type\":\"round\",\"round_end\":false,\"game_id\":\"vs20fruitsw\",\"provider_id\":\"pragmatic\"}"
+    },
+    "1_bet_debit_reply_expected": {
+      "status": "ok",
+      "balance": "1237.66"
+    },
+    "2_win_credit": {
+      "request_headers": {
+        "Content-Type": "application/json",
+        "X-Body-Signature": "2b505c4953ff4312685c1e35ba08785b25812399a3cd377f9a37ef429a77b30d"
+      },
+      "request_body": {
+        "username": "player_tnd_1",
+        "amount": 24.68,
+        "game": "SweetBonanza",
+        "game_category": "pragmatic",
+        "transaction_id": "tx_8812001_win",
+        "signature": "e5d5262c14d981828c5c66e860be5e16bb92f5f2732a2430f4e586411b4663fc",
+        "round_id": "r_8812001",
+        "type": "round",
+        "round_end": true,
+        "game_id": "vs20fruitsw",
+        "provider_id": "pragmatic",
+        "bet_amount": 12.34,
+        "win_amount": 24.68
+      },
+      "raw_body_signed": "{\"username\":\"player_tnd_1\",\"amount\":24.68,\"game\":\"SweetBonanza\",\"game_category\":\"pragmatic\",\"transaction_id\":\"tx_8812001_win\",\"signature\":\"e5d5262c14d981828c5c66e860be5e16bb92f5f2732a2430f4e586411b4663fc\",\"round_id\":\"r_8812001\",\"type\":\"round\",\"round_end\":true,\"game_id\":\"vs20fruitsw\",\"provider_id\":\"pragmatic\",\"bet_amount\":12.34,\"win_amount\":24.68}"
+    },
+    "2_win_credit_reply_expected": {
+      "status": "ok",
+      "balance": "1262.34"
+    },
+    "3_refuse_bet_reply": {
+      "http_status": 400,
+      "body": {
+        "error": "insufficient balance"
+      }
+    },
+    "rounding": "An amount computed with more than 2 decimals (e.g. 12.345) is rounded half away from zero before sending (12.35); 12.3449 -> 12.34. A movement whose rounded value is 0 is not sent."
+  },
+  "winhouse_sportsbook": {
+    "signature_rule": "signature = HMAC-SHA256(api_key, username + amount + action + ticket_id + transaction_id), amount as its shortest decimal string.",
+    "endpoint": "POST {your_base_url}/balance-change?token={callback_token}",
+    "user_data": "GET {your_base_url}/user-data?token={callback_token}&username=player_tnd_1 -> {\"balance\":\"1250.00\"}",
+    "1_bet_debit": {
+      "username": "player_tnd_1",
+      "session": "",
+      "transaction_id": "bet_48211",
+      "amount": -12.34,
+      "action": "bet",
+      "ticket_id": "48211",
+      "signature": "62e65083c762371367b666cd0986b1a8f823c7de1a69be953fb09da85868d21f"
+    },
+    "1_bet_debit_reply_expected": {
+      "balance": "1237.66"
+    },
+    "2_win_credit": {
+      "username": "player_tnd_1",
+      "session": "",
+      "transaction_id": "win_48211",
+      "amount": 24.68,
+      "action": "win",
+      "ticket_id": "48211",
+      "signature": "b2e11198ea2304f6564a160b523de2bbc4ff50f41cbcaa7e3d49058fdd009b89"
+    },
+    "2_win_credit_reply_expected": {
+      "balance": "1262.34"
+    },
+    "3_stake_with_3_decimals": {
+      "request_stake": 12.345,
+      "result": {
+        "Error": true,
+        "Message": "invalid_stake_precision"
+      },
+      "note": "refused, nothing is debited"
+    },
+    "rounding": "Stakes must have at most 2 decimals; more is refused. Payout = stake x odds rounded to 0.01."
+  }
+}
+
