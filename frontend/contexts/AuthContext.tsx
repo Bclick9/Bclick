@@ -91,6 +91,14 @@ function readCookie(name: string): string | null {
   return item ? decodeURIComponent(item.slice(prefix.length)) : null
 }
 
+function readPlayerCsrfCookie(): string | null {
+  const secureCookie = readCookie('__Host-bclick_player_csrf')
+  if (secureCookie) return secureCookie
+  // The server issues this alternate cookie only for an exact allow-listed private-LAN
+  // HTTP Origin in local development; never look for it in a production build.
+  return import.meta.env.DEV ? readCookie('bclick_dev_player_csrf') : null
+}
+
 function connectionError(): Error {
   return new Error('Cannot reach the local Bclick API. Start it with "pnpm api:dev" and make sure it is listening on port 3000.')
 }
@@ -265,7 +273,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Use international phone format, for example +21612345678.')
     }
 
-    const csrfToken = readCookie('__Host-bclick_player_csrf')
+    const csrfToken = readPlayerCsrfCookie()
     if (!csrfToken) {
       throw new Error('The player CSRF cookie is missing. Refresh the page or log in again, then retry.')
     }
@@ -305,7 +313,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const logout = async () => {
-    const csrfToken = readCookie('__Host-bclick_player_csrf')
+    const csrfToken = readPlayerCsrfCookie()
     if (!csrfToken) throw new Error('The player CSRF cookie is missing. Refresh the page and try again.')
 
     let response: Response
