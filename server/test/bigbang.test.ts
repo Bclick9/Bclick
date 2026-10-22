@@ -451,6 +451,15 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
     assert.equal(first.updatedCount, 0);
     assert.equal(first.receivedCount, 2);
 
+    // New catalogue rows are opt-in after Migration 011; only an explicit admin approval
+    // should make newly discovered providers/games visible. Enable the synthetic fixture
+    // rows here to exercise the established browse/legacy-route behavior below.
+    const newRowsHidden = await app.inject({ method: 'GET', url: '/api/v1/casino/games' });
+    assert.equal(newRowsHidden.statusCode, 200, newRowsHidden.body);
+    assert.equal(newRowsHidden.json().page.total, 0, 'newly synced rows default to hidden until Bclick enables them');
+    await pool.query('UPDATE public.casino_providers SET bclick_enabled=true');
+    await pool.query('UPDATE public.casino_games SET bclick_enabled=true');
+
     const legacyAlias = await pool.query<{
       resolution_status: string;
       game_id: string;
