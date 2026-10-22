@@ -109,7 +109,7 @@ export function registerSandboxDemoLaunchRoute(
                g.available AS game_available
           FROM public.casino_games g
           JOIN public.casino_game_sources s
-            ON s.game_id=g.id AND s.source_code='bigbang'
+            ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard'
          WHERE g.id=$1
          LIMIT 1
       `, [gameId]);
