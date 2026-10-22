@@ -1,0 +1,281 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import { buildApp } from '../src/app.js';
+import type { IdentityConfig } from '../src/identity/config.js';
+import type { AuthSession, IdentityService } from '../src/identity/service.js';
+import type { SqlExecutor } from '../src/identity/repository.js';
+
+const ADMIN_ORIGIN = 'http://localhost:5174';
+const SESSION_COOKIE = '__Host-bclick_admin_session=admin-session';
+const CSRF_COOKIE = '__Host-bclick_admin_csrf=csrf-token-value';
+const ADMIN_ID = '8d01ab53-7f9c-4e67-b4e8-64c5a409a7a9';
+const PROVIDER_ID = '5a03f96c-a9cb-4f98-8a54-29af7a9f77c3';
+const GAME_ID = 'ebc75e97-68a5-40f8-8177-65db54ace749';
+const PERMISSION = 'casino.provider-settings.manage';
+
+function config(): IdentityConfig {
+  return {
+    nodeEnv: 'test',
+    sessionHashKey: 'a'.repeat(64),
+    csrfSigningKey: 'b'.repeat(64),
+    totpEncryptionKey: 'c'.repeat(64),
+    playerOrigins: ['http://localhost:5173'],
+    adminOrigins: [ADMIN_ORIGIN],
+    mailSinkPath: '.local-mail-sink.jsonl',
+    termsVersion: 'test-terms-v1',
+    agePolicyVersion: 'test-age-v1',
+  };
+}
+
+function adminSession(permissions: string[] = [PERMISSION]): AuthSession {
+  return {
+    id: 'session-id',
+    type: 'admin',
+    principalId: ADMIN_ID,
+    version: 1,
+    authenticatedAt: '2026-10-22T10:00:00.000Z',
+    expiresAt: '2026-10-22T18:00:00.000Z',
+    status: 'active',
+    admin: { id: ADMIN_ID, status: 'active', mfa_enabled: true },
+    roles: ['project-admin'],
+    permissions,
+    mfaVerified: true,
+  };
+}
+
+function fakeIdentity(permissions: string[] = [PERMISSION]) {
+  const session = adminSession(permissions);
+  return {
+    async resolveSession(type: 'player' | 'admin', token: string | undefined) {
+      return type === 'admin' && token === 'admin-session' ? session : null;
+    },
+    verifyCsrfForSession(_session: AuthSession, token: string) {
+      return token === 'csrf-token-value';
+    },
+  } as unknown as IdentityService;
+}
+
+function fakeDatabase() {
+  const calls: Array<{ sql: string; values: unknown[] }> = [];
+  const database = {
+    async query(sql: string, values: unknown[] = []) {
+      calls.push({ sql, values });
+      if (sql.includes('casino.provider-settings.access-denied')) {
+        return { rows: [{ id: 'audit-id' }], rowCount: 1 };
+      }
+      if (sql.includes('FROM public.casino_integration_settings')) {
+        return {
+          rows: [{
+            source_code: 'bigbang',
+            selected_mode: 'standard',
+            updated_at: '2026-10-22T10:00:00.000Z',
+            latest_status: 'succeeded',
+            last_succeeded_at: '2026-10-22T10:00:00.000Z',
+          }],
+          rowCount: 1,
+        };
+      }
+      if (sql.includes('FROM public.casino_providers p') && sql.includes('count(DISTINCT g.id)')) {
+        return {
+          rows: [{
+            id: PROVIDER_ID, code: 'habanero', name: 'Habanero', enabled: true,
+            updatedAt: '2026-10-22T10:00:00.000Z', totalGames: 20,
+            sourceAvailableGames: 18, enabledGames: 17,
+          }],
+          rowCount: 1,
+        };
+      }
+      if (sql.includes('FROM public.casino_games g') && sql.includes('count(DISTINCT g.id)::text AS total')) {
+        return { rows: [{ total: '1' }], rowCount: 1 };
+      }
+      if (sql.includes('WITH changed AS') && sql.includes('UPDATE public.casino_providers')) {
+        assert.match(sql, /INSERT INTO public\.audit_events/);
+        assert.match(sql, /CROSS JOIN audited/);
+        return {
+          rows: [{
+            id: PROVIDER_ID, code: String(values[0]), name: 'Habanero',
+            enabled: values[1], updatedAt: '2026-10-22T10:05:00.000Z',
+          }],
+          rowCount: 1,
+        };
+      }
+      if (sql.includes('WITH changed AS') && sql.includes('UPDATE public.casino_games')) {
+        assert.match(sql, /INSERT INTO public\.audit_events/);
+        assert.match(sql, /CROSS JOIN audited/);
+        return {
+          rows: [{
+            id: GAME_ID, slug: 'hot-hot-fruit-habanero', title: 'Hot Hot Fruit',
+            enabled: values[1], updatedAt: '2026-10-22T10:06:00.000Z',
+          }],
+          rowCount: 1,
+        };
+      }
+      throw new Error('Unexpected provider-control SQL in test: ' + sql);
+    },
+  } as unknown as SqlExecutor;
+  return { database, calls };
+}
+
+function authHeaders(options: { csrf?: boolean; origin?: string } = {}) {
+  const cookies = [SESSION_COOKIE];
+  if (options.csrf !== false) cookies.push(CSRF_COOKIE);
+  return {
+    cookie: cookies.join('; '),
+    ...(options.origin ? { origin: options.origin } : {}),
+    ...(options.csrf !== false ? { 'x-csrf-token': 'csrf-token-value' } : {}),
+  };
+}
+
+test('BigBang admin settings expose Standard only and explicitly keep Premium unavailable', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+  });
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/bigbang/settings',
+      headers: { cookie: SESSION_COOKIE },
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.deepEqual(response.json().data.supportedTiers, ['standard']);
+    assert.equal(response.json().data.selectedTier, 'standard');
+    assert.equal(response.json().data.premiumAvailable, false);
+    assert.equal(response.headers['cache-control'], 'no-store');
+  } finally {
+    await app.close();
+  }
+});
+
+test('provider listing is protected and reports separate provider and source availability counts', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+  });
+  try {
+    const denied = await app.inject({ method: 'GET', url: '/api/v1/admin/bigbang/providers' });
+    assert.equal(denied.statusCode, 401);
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/bigbang/providers',
+      headers: { cookie: SESSION_COOKIE },
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.equal(response.json().data[0].enabled, true);
+    assert.equal(response.json().data[0].sourceAvailableGames, 18);
+    assert.equal(response.json().data[0].enabledGames, 17);
+  } finally {
+    await app.close();
+  }
+});
+
+test('administrator without provider-settings permission is denied and the denial is audited', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(['admin.session.read']),
+    identityConfig: config(),
+  });
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/bigbang/settings',
+      headers: { cookie: SESSION_COOKIE },
+    });
+    assert.equal(response.statusCode, 403);
+    assert.equal(response.json().error.code, 'FORBIDDEN');
+    assert.equal(fixture.calls.length, 1);
+    assert.match(fixture.calls[0]!.sql, /casino\.provider-settings\.access-denied/);
+    assert.equal(fixture.calls[0]!.values[1], ADMIN_ID);
+  } finally {
+    await app.close();
+  }
+});
+
+test('provider state changes require Origin, CSRF and MFA-backed admin session before mutation', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+  });
+  try {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/bigbang/providers/habanero',
+      headers: authHeaders({ origin: ADMIN_ORIGIN, csrf: false }),
+      payload: { enabled: false },
+    });
+    assert.equal(response.statusCode, 403);
+    assert.equal(response.json().error.code, 'CSRF_INVALID');
+    assert.equal(fixture.calls.length, 0);
+  } finally {
+    await app.close();
+  }
+});
+
+test('provider disable is persisted with an atomic audit record', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+  });
+  try {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/bigbang/providers/habanero',
+      headers: authHeaders({ origin: ADMIN_ORIGIN }),
+      payload: { enabled: false },
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.equal(response.json().data.enabled, false);
+    assert.equal(fixture.calls.length, 1);
+    const call = fixture.calls[0]!;
+    assert.match(call.sql, /UPDATE public\.casino_providers/);
+    assert.match(call.sql, /INSERT INTO public\.audit_events/);
+    assert.deepEqual(call.values.slice(0, 3), ['habanero', false, ADMIN_ID]);
+    assert.equal(call.values[4], 'casino.provider.disabled');
+  } finally {
+    await app.close();
+  }
+});
+
+test('game disable is persisted with an atomic audit record', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+  });
+  try {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/bigbang/games/' + GAME_ID,
+      headers: authHeaders({ origin: ADMIN_ORIGIN }),
+      payload: { enabled: false },
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.equal(response.json().data.enabled, false);
+    assert.equal(fixture.calls.length, 1);
+    const call = fixture.calls[0]!;
+    assert.match(call.sql, /UPDATE public\.casino_games/);
+    assert.match(call.sql, /source_mode='standard'/);
+    assert.match(call.sql, /INSERT INTO public\.audit_events/);
+    assert.deepEqual(call.values.slice(0, 3), [GAME_ID, false, ADMIN_ID]);
+    assert.equal(call.values[4], 'casino.game.disabled');
+  } finally {
+    await app.close();
+  }
+});
