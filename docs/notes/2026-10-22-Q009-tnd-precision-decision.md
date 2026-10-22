@@ -2,7 +2,7 @@
 
 **Decision date:** 2026-10-22  
 **Decision owner:** Project Owner  
-**Gate status:** **Decision accepted; implementation/rehearsal pending.** This is not authorization to enable live betting or provider wallet callbacks.
+**Gate status:** **Decision accepted; implementation verified in local development and CI.** Staging/Production target execution remains a separate environment-specific gate. This is not authorization to enable live betting or provider wallet callbacks.
 
 ## Decision
 
@@ -26,11 +26,11 @@ The current public WinHouse docs also confirm that the amount used in the wallet
 
 ## Acceptance evidence
 
-- [ ] Shared money package accepts two decimals for TND and rejects three decimals without rounding.
-- [ ] Wallet balance/statement API tests assert canonical two-decimal TND values.
-- [ ] Migration 008 updates the seeded TND exponent to 2 on a clean, fully migrated database.
-- [ ] Migration 008 demonstrably refuses to run when TND ledger history exists and leaves TND exponent at 3.
-- [ ] CI passes build, TypeScript, API/migration, OpenAPI and migration-guard tests.
-- [ ] Before applying to any existing database, separately verify the migration's preconditions and review the target environment. Do not run this migration against Neon or Production as part of this development change set.
+- [x] Shared money package accepts two decimals for TND and rejects three decimals without rounding; local api:test passed the money precision tests.
+- [x] Wallet balance/statement API tests assert canonical two-decimal TND values; the Owner's local api:test passed.
+- [x] Migration 008 sets the seeded TND exponent to 2 on a clean fully migrated PostgreSQL Testcontainer; the wallet test asserts decimal_places=2.
+- [x] Migration 008 fails closed when TND ledger history exists; the regression test passed in the Owner's local output and the API CI workflow.
+- [x] API TypeScript/tests/migration/OpenAPI CI passed on the PR #108 head: https://github.com/Bclick9/Bclick/actions/runs/39829151553.
+- [ ] Before applying to any non-local existing database, separately verify that database's migration history, TND ledger entries, and projected TND balances in an approved non-production target. This note does not establish any staging/Production execution; do not run the migration against Neon or Production as part of this work.
 
-Q-009 may be marked implementation-verified only after the acceptance evidence above passes. Production TND routing remains gated by Q-006's outstanding provider event contract, Q-010 wallet posting/idempotency tests, Q-011 restore evidence, and all applicable security/compliance/release gates.
+**Implementation status:** Q-009's product decision and code/dev-test acceptance are satisfied. The Owner's local Docker PostgreSQL migration ledger records Migration 008 as id 10, named 1793188800000_tnd_provider_precision_008, with a 2026-10-22 application timestamp. This is local-development evidence only, not proof about any shared environment. Production TND routing remains gated by Q-006's outstanding provider event contract, Q-010 wallet posting/idempotency tests, Q-011 restore evidence, and all applicable security/compliance/release gates.
