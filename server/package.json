@@ -13,9 +13,9 @@
     "test": "tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "migrate:up": "node-pg-migrate up --migrations-dir ./migrations --database-url-var DATABASE_URL",
-    "catalog:migrate:bigbang:sandbox": "node --env-file=../.env --import=tsx src/bigbang/migrate-sandbox-cli.ts",
+    "catalog:migrate:bigbang:sandbox": "pnpm --filter @bclick/config build && node --env-file=../.env --import=tsx src/bigbang/migrate-sandbox-cli.ts",
     "admin:bootstrap": "tsx src/identity/bootstrap-admin.ts",
-    "catalog:sync:bigbang:sandbox": "node --env-file=../.env --import=tsx src/bigbang/sync-cli.ts"
+    "catalog:sync:bigbang:sandbox": "pnpm --filter @bclick/config build && node --env-file=../.env --import=tsx src/bigbang/sync-cli.ts"
   },
   "dependencies": {
     "@bclick/config": "workspace:*",
