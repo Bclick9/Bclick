@@ -1,7 +1,7 @@
 # Q-005 — BigBang catalogue identity and category contract
 
 **Date:** 2026-10-22  
-**Status:** Technical proposal plus alias implementation under review; **Q-005 remains OPEN/P0**  
+**Status:** Technical proposal documented and persistent alias implementation delivered in PR #100; **Q-005 remains OPEN/P0 pending Owner acceptance and evidence**  
 **Scope:** BigBang Standard Sandbox catalogue and future player-facing catalogue API. This note does not authorize a frontend API cutover, Premium import, Production deployment, wallet callbacks, or real-money operations.
 
 ## 1. Evidence inspected
@@ -43,7 +43,7 @@ The project records an owner-reported Standard Sandbox sync of 3,639 games and a
 
 Record timestamp, key label (never the secret), requested tier/filters, reported total and page offsets. Never commit API keys or full unredacted responses. A numeric difference alone is not proof that 163 particular games are missing.
 
-## 4. Acceptance work in the current Q-005 review branch
+## 4. Acceptance work in the Q-005 implementation (PR #100)
 
 The earlier merged work in PRs #94 and #95 covers route shape, canonical category ordering, deterministic collision-slug assignment and stable UUID/slug behavior on provider title rename. The current review branch adds:
 
@@ -53,14 +53,14 @@ The earlier merged work in PRs #94 and #95 covers route shape, canonical categor
 - Route tests cover canonical slug resolution, a valid legacy alias, an unmatched alias, and an ambiguous alias. A PostgreSQL-backed catalogue-sync test verifies that the curated `lightning-roulette` route resolves to the UUID for the exact Standard record and returns that game's canonical slug.
 - OpenAPI and generated client types include the 409 conflict response. The migration remains additive and does not change wallet or provider money-movement behavior.
 
-This implementation is proposed for review and is not yet merged into `main`. It does not authorize a storefront cutover.
+The implementation is additive; review or merge does not itself authorize a storefront cutover or close Q-005.
 
 ## 5. What remains OPEN
 
 Q-005 **is not closed by this PR**. Required next evidence/decisions:
 
 - Owner acceptance or amendment of the proposed identity/category/legacy-link contract.
-- CI/review/merge of the persistent alias implementation before frontend catalogue API cutover; owner acceptance is still required.
+- Review and merge the persistent alias implementation before frontend catalogue API cutover; Owner acceptance remains a separate gate and is not granted by merge.
 - Same-key/same-scope evidence or a written vendor explanation for 3,802 versus 3,639.
 - Written confirmation of cross-tier ID uniqueness, or a reviewed tier-inclusive identity migration before Premium support.
 
