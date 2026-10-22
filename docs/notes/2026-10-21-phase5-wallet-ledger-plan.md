@@ -1,6 +1,6 @@
 # Phase 5 — Wallet & Ledger Foundation
 
-**Status:** implementation note; local/disposable environments only  
+**Status:** read-only wallet foundation merged to main; formal Phase 5 exit BLOCKED by Q-010/Q-011  
 **Date:** 2026-10-21  
 **Branch:** `feat/phase5-wallet-ledger`  
 **Scope:** Migration 006, PostgreSQL rehearsal, and read-only wallet endpoints. This is not authorization to activate payments, provider callbacks, wagers, or real-money flows.
@@ -70,10 +70,20 @@ Out of scope: deposits, withdrawals, transfers, payment intents, provider callba
 
 ## 7. Exit checklist
 
-- [ ] Migration 006 passes the disposable PostgreSQL rehearsal.
-- [ ] Build, typecheck, API tests and OpenAPI lint/generated-client typecheck pass in CI.
-- [ ] Local Docker migration succeeds and migration history has eight entries.
-- [ ] Browser/API checks pass for authenticated balance and statement reads.
-- [ ] Double-entry, append-only, currency-match, overdraft and concurrent-debit tests pass.
-- [ ] The owner reviews the PR; only then may it be merged.
-- [ ] Phase 3 restore gate and Phase 5 posting/idempotency/concurrency gates remain tracked separately; no payment/provider phase starts automatically.
+- [x] Migration 006 passes the disposable PostgreSQL rehearsal in CI; the test verifies the migration history contains eight migrations.
+- [x] Build, typecheck, API tests, OpenAPI lint and generated-client drift checks passed in the merged CI increments.
+- [ ] A separate local Docker migration acceptance log has been recorded. The CI/Testcontainers rehearsal is not relabeled as a local Docker result.
+- [x] Browser/API checks passed for authenticated balance and statement reads; anonymous reads return 401, currency mismatch does not disclose a wallet, and the empty wallet/statement displays no fabricated movement.
+- [x] DB rehearsal tests cover balanced double entry, append-only records, account-currency matching, overdraft rejection, projection-vs-ledger totals, and two concurrent debits with only one successful commit.
+- [x] Owner review and merge were completed for [PR #86](https://github.com/Bclick9/Bclick/pull/86) and [PR #87](https://github.com/Bclick9/Bclick/pull/87).
+- [ ] Q-010 application-level idempotency scope, exact replay, conflicting-payload rejection, and posting-service tests. Unique DB constraints alone are not sufficient.
+- [ ] Q-011 isolated base-backup + WAL restore, restored ledger/projection checks, independent archive/failure alerts, and measured RPO/RTO.
+- [ ] Phase 5 exit approval. Read-only endpoints and UI are delivered, but no money-moving route is implemented or authorized.
+
+## 8. Post-merge evidence reconciliation — 2026-10-22
+
+The merged implementation comprises Migration 006, the append-only double-entry schema, read-only player balance/statement endpoints, and the player wallet UI. The wallet test in server/test/wallet.test.ts directly exercises DB-level journal rules and concurrent overdraw protection; it does **not** establish the application idempotency/replay contract because no money-movement posting endpoint/service is included in this scope.
+
+The Project Owner's browser acceptance for PR #87 confirmed a zero TND balance with no fabricated statement lines, unauthenticated redirect to login, working error/retry behavior, and deposit/withdraw previews only. Those previews remain informational UI; they create no intent, transaction, or ledger entry.
+
+**Phase 5 cannot exit yet.** Keep Q-010 and Q-011 open. Do not activate deposits, withdrawals, transfers, wagers, bonus credits, provider callbacks, or real-money routes. A restore runbook, migration test, browser acceptance, or passing CI job is not a substitute for the separate restore evidence and idempotency/posting tests.
