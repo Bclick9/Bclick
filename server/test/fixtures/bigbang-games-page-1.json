@@ -1,0 +1,19 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": 4821,
+      "name": "SGHotHotFruit",
+      "title": "Hot Hot Fruit",
+      "provider": "Habanero",
+      "category": "Habanero",
+      "category_title": "Habanero",
+      "thumbnail": "https://bigbangcasino.bet/frontend/Vegas/ico/Habanero/SGHotHotFruit.webp?v=1699999999",
+      "mode": "standard",
+      "is_premium": false,
+      "game_type": "slot",
+      "is_demo": false
+    }
+  ],
+  "pagination": { "total": 2, "limit": 5000, "offset": 0 }
+}
