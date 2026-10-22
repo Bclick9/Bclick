@@ -179,6 +179,62 @@ function TrendingGames() {
   )
 }
 
+const FEATURED_GAME_IDS = [
+  'zeus-vs-hades',
+  'wild-clusters',
+  'raptor-doublemax',
+  'wealth-bells-40',
+  'le-bandit',
+  'big-bass-trophy-catch',
+  'silver-coins',
+  'eggs-of-fortune',
+]
+
+function FeaturedGameStrip() {
+  const featured = FEATURED_GAME_IDS
+    .map((id) => GAMES.find((game) => game.id === id))
+    .filter((game): game is (typeof GAMES)[number] => Boolean(game))
+
+  if (featured.length === 0) return null
+
+  return (
+    <section aria-label="Featured casino games" className="mb-4">
+      <div className="no-scrollbar flex snap-x snap-mandatory gap-2 overflow-x-auto">
+        {featured.map((game) => (
+          <Link
+            key={game.id}
+            to={`/casino/play/demo/${encodeURIComponent(game.id)}`}
+            aria-label={`Play ${game.title}`}
+            className="group relative block aspect-[2/1] w-[180px] min-w-[180px] shrink-0 snap-start overflow-hidden rounded-lg bg-[var(--cb-card)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--cb-yellow)]"
+          >
+            {game.image ? (
+              <img
+                src={game.image}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                draggable={false}
+                className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.05]"
+                onError={(event) => { event.currentTarget.style.visibility = 'hidden' }}
+              />
+            ) : null}
+            <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/10" />
+            <span className="absolute inset-x-2 bottom-2 flex flex-col items-center">
+              <span className="line-clamp-2 text-center text-xs font-black uppercase leading-tight text-white drop-shadow md:text-sm">
+                {game.title}
+              </span>
+              <span className="mt-1 text-center text-[9px] font-semibold uppercase tracking-wide text-white/80">
+                {game.provider}
+              </span>
+            </span>
+            <span className="pointer-events-none absolute inset-0 rounded-lg border border-white/5 transition-colors group-hover:border-[var(--cb-yellow)]" />
+          </Link>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function GameGrid({ ids, emptyMessage = 'No games in this category yet.' }: { ids: string[]; emptyMessage?: string }) {
   const [shown, setShown] = useState(48)
   const games = useMemo(
@@ -234,6 +290,7 @@ export function CasinoCategory() {
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-2 py-3 md:py-4">
       <CategoryStrip active={category} />
+      {isLobby && !searchTerm ? <FeaturedGameStrip /> : null}
       <CasinoFilterBar searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} />
 
       {searchTerm ? (
