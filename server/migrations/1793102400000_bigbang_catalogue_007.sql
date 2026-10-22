@@ -92,6 +92,19 @@ CREATE INDEX casino_catalog_sync_runs_latest_idx
   ON public.casino_catalog_sync_runs(source_code, started_at DESC, id DESC);
 
 -- Down Migration
+-- Rollback is permitted only while the sandbox catalogue tables contain no state.
+DO $phase6_down_guard$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.casino_catalog_sync_runs)
+     OR EXISTS (SELECT 1 FROM public.casino_game_categories)
+     OR EXISTS (SELECT 1 FROM public.casino_game_sources)
+     OR EXISTS (SELECT 1 FROM public.casino_games)
+     OR EXISTS (SELECT 1 FROM public.casino_providers) THEN
+    RAISE EXCEPTION 'Migration 007 Down refused: catalogue state exists; preserve the catalogue and use a reviewed recovery plan';
+  END IF;
+END
+$phase6_down_guard$;
+
 DROP TABLE public.casino_catalog_sync_runs;
 DROP TABLE public.casino_game_categories;
 DROP TABLE public.casino_game_sources;
