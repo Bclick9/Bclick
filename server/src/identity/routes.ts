@@ -150,7 +150,7 @@ interface PlayerCookieNames {
 
 function isPrivateLanIpv4(hostname: string): boolean {
   const parts = hostname.split('.');
-  if (parts.length !== 4 || parts.some((part) => !/^\\d{1,3}$/.test(part))) return false;
+  if (parts.length !== 4 || parts.some((part) => part.length === 0 || [...part].some((digit) => digit < '0' || digit > '9'))) return false;
   const octets = parts.map(Number);
   if (octets.some((octet) => octet < 0 || octet > 255)) return false;
   const [first, second] = octets;
