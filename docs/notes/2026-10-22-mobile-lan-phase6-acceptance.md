@@ -22,7 +22,7 @@ Player session and CSRF cookies deliberately remain `Secure; Path=/; no Domain`,
 
 4. Transfer only `frontend/.local-certs/mobile-rootCA.pem` to the phone, install it as a trusted CA using the phone OS trust settings, and enable full trust where the OS requires that. The certificate is for a private development LAN only.
 5. Do **not** transfer or share `frontend/.local-certs/phone-key.pem` or mkcert's `rootCA-key.pem`. The local certificate directory is ignored by Git.
-6. Rerun `.`start-bclick-local.ps1` after TLS setup so the API process loads the exact `https://<private-ip>:5173` Origin. The script refuses to continue when an old process is already listening on port 3000; stop that process first.
+6. Rerun `start-bclick-local.ps1` after TLS setup so the API process loads the exact `https://<private-ip>:5173` Origin. The script refuses to continue when an old process is already listening on port 3000; stop that process first.
 7. Restart the frontend with `npm run dev`; Vite enables HTTPS automatically when the local cert/key pair exists. Open the printed `https://<private-ip>:5173` URL on the phone.
 
 If the phone does not trust the certificate, do not bypass browser warnings for any production credential or real-money use. Local Identity is development-only while Q-011 remains open.
