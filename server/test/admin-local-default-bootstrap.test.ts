@@ -51,6 +51,11 @@ test('owner-requested default admin exists only in local development and is MFA-
       nonDevelopmentService.bootstrapLocalDefaultAdmin(),
       /permitted only in local development/,
     );
+    await assert.rejects(
+      service.bootstrapAdmin({ email: 'other-admin@example.test', displayName: 'Other Admin', password: 'admin' }),
+      /Bootstrap password must be unique, at least 16 characters/,
+      'the ordinary admin bootstrap must continue rejecting the default password',
+    );
 
     assert.equal(await service.bootstrapLocalDefaultAdmin(), 'created');
     assert.equal(await service.bootstrapLocalDefaultAdmin(), 'already-present');
