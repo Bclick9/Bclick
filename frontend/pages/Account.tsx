@@ -183,13 +183,13 @@ export default function AccountPage() {
                   <p className="mt-1 truncate text-sm font-bold text-[var(--cb-light-text)]">{statusLabel(player?.verificationStatus)}</p>
                 </div>
               </div>
+              <Link to="/account/wallet/balance" className="border border-[var(--cb-light-border)] bg-white p-4 transition-colors hover:border-[var(--cb-yellow)]">
+                <p className="text-xs text-[var(--cb-light-muted)]">Wallet balance</p>
+                <p className="mt-1 text-sm font-bold text-[var(--cb-light-text)]">View ledger balance</p>
+              </Link>
               <div className="border border-[var(--cb-light-border)] bg-white p-4">
-                <p className="text-xs text-[var(--cb-light-muted)]">Balance (demo)</p>
-                <p className="mt-1 text-sm font-bold text-[var(--cb-light-text)]">Not connected</p>
-              </div>
-              <div className="border border-[var(--cb-light-border)] bg-white p-4">
-                <p className="text-xs text-[var(--cb-light-muted)]">Bonus balance (demo)</p>
-                <p className="mt-1 text-sm font-bold text-[var(--cb-light-text)]">Not connected</p>
+                <p className="text-xs text-[var(--cb-light-muted)]">Bonus-restricted balance</p>
+                <p className="mt-1 text-sm font-bold text-[var(--cb-light-text)]">Not enabled</p>
               </div>
             </section>
 
