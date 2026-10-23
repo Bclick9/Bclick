@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { deflateSync } from 'node:zlib';
@@ -442,5 +442,34 @@ test('Skin Games uploads a validated persistent image and serves it without a bl
   } finally {
     await app.close();
     await rm(uploadDirectory,{recursive:true,force:true});
+  }
+});
+
+test('Skin Games image upload returns a safe generic error when persistent storage cannot be written', async () => {
+  const fixture = fakeDatabase();
+  const tempRoot = await mkdtemp(path.join(tmpdir(),'bclick-skin-games-write-failure-'));
+  const blockedDirectory = path.join(tempRoot,'not-a-directory');
+  await writeFile(blockedDirectory,'block the upload path');
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+    uploadDirectory: blockedDirectory,
+  });
+  try {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/image',
+      headers: { ...authHeaders(true), 'content-type': 'image/png' },
+      payload: validPng64(),
+    });
+    assert.equal(response.statusCode, 500, response.body);
+    assert.equal(response.json().error.code, 'INTERNAL_ERROR');
+    assert.equal(response.json().error.message, 'The Skin Games request could not be completed');
+    assert.doesNotMatch(response.body, /ENOTDIR|not-a-directory|skin-games-write-failure/);
+  } finally {
+    await app.close();
+    await rm(tempRoot,{recursive:true,force:true});
   }
 });
