@@ -481,7 +481,7 @@ paths:
             type:
               - string
               - 'null'
-            maxLength: 2048
+            maxLength: 512
         - name: page
           in: query
           required: false
@@ -502,6 +502,7 @@ paths:
           required: false
           description: Scope source categories to one Bclick storefront game type.
           schema: {type: string, enum: [casino, live-casino, crash-games]}
+        '400': {$ref: '#/components/responses/ValidationError'}
       operationId: getCasinoCategories
   /api/v1/casino/display-categories:
     get:
@@ -543,6 +544,7 @@ paths:
           headers:
             Cache-Control: {schema: {type: string, const: no-store}}
             X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+        '400': {$ref: '#/components/responses/ValidationError'}
       operationId: getCasinoDisplayCategories
   /api/v1/casino/providers:
     get:
@@ -567,7 +569,7 @@ paths:
             type:
               - string
               - 'null'
-            maxLength: 2048
+            maxLength: 512
         - name: page
           in: query
           required: false
@@ -583,6 +585,7 @@ paths:
             minimum: 1
             maximum: 100
             default: 25
+        '400': {$ref: '#/components/responses/ValidationError'}
       operationId: getCasinoProviders
   /api/v1/casino/games:
     get:
@@ -647,6 +650,7 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '404':
           $ref: '#/components/responses/NotFound'
+        '414': {$ref: '#/components/responses/UriTooLong'}
   /api/v1/casino/games/{gameId}:
     parameters:
       - name: gameId
@@ -666,6 +670,7 @@ paths:
           headers:
             X-Request-Id:
               $ref: '#/components/headers/XRequestId'
+        '400': {$ref: '#/components/responses/ValidationError'}
         '404': {$ref: '#/components/responses/NotFound'}
       parameters:
         - $ref: '#/components/parameters/XRequestId'
@@ -6537,6 +6542,11 @@ components:
   responses:
     ValidationError:
       description: Input rejected without financial side effects.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+    UriTooLong:
+      description: A path parameter exceeded the bounded router length. The response never reflects the request URL.
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorResponse'}
