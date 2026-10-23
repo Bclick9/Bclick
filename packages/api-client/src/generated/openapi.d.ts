@@ -832,7 +832,7 @@ export interface paths {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional untrusted client correlation ID. Preserve it only when it matches the API contract; invalid or absent IDs are replaced by a server-generated ID. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -847,7 +847,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Enable or disable a provider source tier */
+        /**
+         * Enable or disable a provider source tier
+         * @description Requires casino.provider-settings.manage, MFA, Origin and CSRF. Standard is available for the current Sandbox adapter. Premium deliberately returns 409 until authorized Premium sync and launch support are implemented.
+         */
         patch: operations["patchAdminBigBangProviderTier"];
         trace?: never;
     };
@@ -903,7 +906,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List real catalogue variants for Skin Games */
+        /**
+         * List real catalogue variants for Skin Games
+         * @description Requires casino.provider-settings.manage. Each BigBang source-tier variant is represented by its own canonical Bclick UUID. Premium rows may be displayed read-only but remain unavailable until its integration gate is accepted.
+         */
         get: operations["getAdminSkinGames"];
         put?: never;
         post?: never;
@@ -926,7 +932,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Persist order for two game variants in the same source tier */
+        /**
+         * Persist order for two game variants in the same source tier
+         * @description Requires casino.provider-settings.manage, MFA, Origin and CSRF. Canonical UUIDs must belong to the same source tier; the order mutation and audit are atomic.
+         */
         patch: operations["patchAdminSkinGamesReorder"];
         trace?: never;
     };
@@ -934,6 +943,7 @@ export interface paths {
         parameters: {
             query?: never;
             header?: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -947,7 +957,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Persist game availability and description override */
+        /**
+         * Persist game availability and description override
+         * @description Requires casino.provider-settings.manage, MFA, Origin and CSRF. Provider-owned identity remains immutable. Premium mutations are locked.
+         */
         patch: operations["patchAdminSkinGame"];
         trace?: never;
     };
@@ -955,6 +968,7 @@ export interface paths {
         parameters: {
             query?: never;
             header?: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -964,7 +978,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Upload persistent custom artwork for a canonical game UUID */
+        /**
+         * Upload persistent custom artwork for a canonical game UUID
+         * @description Requires casino.provider-settings.manage, MFA, Origin and CSRF. PNG/JPEG/WebP are validated from bytes, limited to 5 MiB, assigned a server-generated filename and stored on the configured persistent upload volume. blob URLs are never stored.
+         */
         post: operations["postAdminSkinGameImage"];
         delete?: never;
         options?: never;
@@ -979,7 +996,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read generated persistent game artwork */
+        /**
+         * Read generated persistent game artwork
+         * @description Serves only the current custom image referenced by the catalogue record.
+         */
         get: operations["getCasinoGamePersistentAsset"];
         put?: never;
         post?: never;
@@ -6740,7 +6760,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Providers represented by the Standard Sandbox catalogue. */
+            /** @description Providers with imported BigBang source rows and per-tier Bclick availability controls. Premium remains unavailable in the current Sandbox integration. */
             200: {
                 headers: {
                     "Cache-Control"?: "no-store";
@@ -6807,7 +6827,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -6822,6 +6844,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Source-tier control updated and audited. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6830,6 +6853,7 @@ export interface operations {
                     "application/json": {
                         data: {
                             code: string;
+                            /** @enum {string} */
                             mode: "standard" | "premium";
                             enabled: boolean;
                             /** Format: date-time */
@@ -6842,6 +6866,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description Premium tier is not enabled for the current integration. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -6948,6 +6973,7 @@ export interface operations {
                 sourceMode?: "standard" | "premium";
             };
             header?: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
@@ -6955,6 +6981,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Paginated canonical source variants and persisted presentation values. */
             200: {
                 headers: {
                     "Cache-Control"?: "no-store";
@@ -6964,10 +6991,15 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: {
+                            /** Format: uuid */
                             id: string;
                             slug: string;
                             title: string;
-                            provider: { code: string; name: string };
+                            provider: {
+                                code: string;
+                                name: string;
+                            };
+                            /** @enum {string} */
                             sourceMode: "standard" | "premium";
                             externalGameId: string;
                             isPremium: boolean;
@@ -6977,8 +7009,11 @@ export interface operations {
                             providerEnabled: boolean;
                             providerTierEnabled: boolean;
                             effectiveAvailable: boolean;
+                            /** Format: uri */
                             sourceImageUrl: string | null;
+                            /** Format: uri-reference */
                             customImageUrl: string | null;
+                            /** Format: uri-reference */
                             imageUrl: string | null;
                             description: string;
                             hasCustomDescription: boolean;
@@ -6995,7 +7030,7 @@ export interface operations {
                             nextPage: number | null;
                         };
                         integration: {
-                            /** @constant */
+                            /** @enum {string} */
                             selectedTier: "standard";
                             /** @constant */
                             premiumAvailable: false;
@@ -7005,8 +7040,11 @@ export interface operations {
                     };
                 };
             };
+            /** @description Invalid filter or pagination parameters. */
             400: {
-                headers: { [name: string]: unknown };
+                headers: {
+                    [name: string]: unknown;
+                };
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
@@ -7017,8 +7055,10 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                "X-Request-Id"?: components["parameters"]["XRequestId"];
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path?: never;
             cookie?: never;
@@ -7026,21 +7066,31 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
+                    /** Format: uuid */
                     gameId: string;
+                    /** Format: uuid */
                     targetGameId: string;
+                    /** @enum {string} */
                     position: "before" | "after";
                 };
             };
         };
         responses: {
+            /** @description Display order persisted and audit record written. */
             200: {
-                headers: { [name: string]: unknown };
+                headers: {
+                    [name: string]: unknown;
+                };
                 content: {
                     "application/json": {
                         data: {
+                            /** Format: uuid */
                             gameId: string;
+                            /** Format: uuid */
                             targetGameId: string;
+                            /** @enum {string} */
                             position: "before" | "after";
+                            /** @enum {string} */
                             sourceMode: "standard" | "premium";
                             displayOrder: number;
                         };
@@ -7048,7 +7098,13 @@ export interface operations {
                     };
                 };
             };
-            400: { headers: { [name: string]: unknown }; content?: never };
+            /** @description Invalid or identical canonical UUIDs. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -7058,10 +7114,14 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
-            path: { gameId: string };
+            path: {
+                gameId: string;
+            };
             cookie?: never;
         };
         requestBody: {
@@ -7074,11 +7134,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Availability or presentation update persisted with audit actor. */
             200: {
-                headers: { [name: string]: unknown };
+                headers: {
+                    [name: string]: unknown;
+                };
                 content: {
                     "application/json": {
                         data: {
+                            /** Format: uuid */
                             id: string;
                             slug: string;
                             enabled: boolean;
@@ -7089,22 +7153,37 @@ export interface operations {
                     };
                 };
             };
-            400: { headers: { [name: string]: unknown }; content?: never };
+            /** @description Invalid game UUID or body. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: { headers: { [name: string]: unknown }; content?: never };
+            /** @description Premium mutation or ineffective game enable was refused. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     postAdminSkinGameImage: {
         parameters: {
             query?: never;
             header: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
-                "Content-Type"?: "image/png" | "image/jpeg" | "image/webp";
             };
-            path: { gameId: string };
+            path: {
+                gameId: string;
+            };
             cookie?: never;
         };
         requestBody: {
@@ -7115,44 +7194,78 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Image stored persistently and audit record written. */
             201: {
-                headers: { [name: string]: unknown };
+                headers: {
+                    [name: string]: unknown;
+                };
                 content: {
                     "application/json": {
                         data: {
+                            /** Format: uuid */
                             gameId: string;
+                            /** Format: uri-reference */
                             customImageUrl: string;
+                            /** @enum {string} */
                             contentType: "image/png" | "image/jpeg" | "image/webp";
                         };
                         requestId: string;
                     };
                 };
             };
-            400: { headers: { [name: string]: unknown }; content?: never };
+            /** @description Invalid UUID. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: { headers: { [name: string]: unknown }; content?: never };
-            413: { headers: { [name: string]: unknown }; content?: never };
-            415: { headers: { [name: string]: unknown }; content?: never };
+            /** @description Premium artwork edits are locked. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Image exceeds the 5 MiB limit. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unsupported or invalid image bytes. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     getCasinoGamePersistentAsset: {
         parameters: {
             query?: never;
             header?: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
-            path: { gameId: string; fileName: string };
+            path: {
+                gameId: string;
+                fileName: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
+            /** @description Validated image bytes. */
             200: {
                 headers: {
                     "Cache-Control"?: "public, max-age=31536000, immutable";
                     "X-Content-Type-Options"?: "nosniff";
-                    "X-Request-Id"?: components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
                 content: {
