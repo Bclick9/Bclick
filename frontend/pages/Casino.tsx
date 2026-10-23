@@ -586,7 +586,7 @@ export function Providers() {
         {!loading && !error ? <span className="text-xs text-muted-foreground">{filteredProviders.length} providers available</span> : null}
       </div>
       {loading ? <p role="status" className="py-10 text-center text-sm text-muted-foreground">Loading available providers…</p> : null}
-      {!loading && error ? <div className="flex flex-col items-center gap-3 py-10 text-center"><p role="alert" className="max-w-lg text-sm text-muted-foreground">{error}</p><Button type="button" variant="outline" onClick={() => setReloadKey((value) => value + 1)}>Retry</Button></div> : null}
+      {!loading && error ? <div className="flex flex-col items-center gap-3 py-10 text-center"><p role="alert" className="max-w-lg text-sm text-muted-foreground">{error}</p><button type="button" onClick={() => setReloadKey((value) => value + 1)} className="rounded-lg bg-[var(--cb-card)] px-5 py-2.5 text-sm font-bold text-white hover:bg-[var(--cb-hover)]">Retry</button></div> : null}
       {!loading && !error && filteredProviders.length === 0 ? <p className="py-10 text-center text-sm text-muted-foreground">No providers currently have enabled Standard Sandbox games.</p> : null}
       {!loading && !error ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {filteredProviders.map((provider) => (
@@ -608,6 +608,7 @@ export function Providers() {
 export function ProviderPage() {
   const { provider = '' } = useParams()
   const [providerName, setProviderName] = useState('')
+  const [resolvedProviderCode, setResolvedProviderCode] = useState('')
   const [games, setGames] = useState<CasinoCatalogGame[]>([])
   const [total, setTotal] = useState(0)
   const [nextCursor, setNextCursor] = useState<string | null>(null)
@@ -631,6 +632,7 @@ export function ProviderPage() {
       )
       if (!selected) throw new Error('This provider has no currently enabled Standard Sandbox games.')
       setProviderName(selected.name)
+      setResolvedProviderCode(selected.code)
       return fetchCasinoGames({ provider: selected.code, pageSize: 48, signal: controller.signal })
     }).then((page) => {
       if (controller.signal.aborted) return
@@ -651,7 +653,7 @@ export function ProviderPage() {
     setLoadingMore(true)
     setError('')
     try {
-      const page = await fetchCasinoGames({ provider, pageSize: 48, cursor: nextCursor })
+      const page = await fetchCasinoGames({ provider: resolvedProviderCode || provider, pageSize: 48, cursor: nextCursor })
       setGames((current) => {
         const existing = new Set(current.map((game) => game.id))
         return [...current, ...page.data.filter((game) => !existing.has(game.id))]
