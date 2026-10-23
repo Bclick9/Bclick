@@ -1,5 +1,7 @@
 # Q-005 — Project Owner acceptance of the conservative legacy-alias disposition
 
+> **Historical decision superseded on 2026-10-23.** The Project Owner's latest instruction retires the outdated legacy links, superseding the 2026-10-22 direction to preserve them. Canonical game slugs/UUIDs remain the only live identity path. The Q-005 implementation branch adds canonical-only lookup and a forward-only cleanup migration; the count discrepancy is reported resolved and must not be investigated again.
+
 **Decision date:** 2026-10-22  
 **Decision basis:** Project Owner instruction to complete the Q-005 review and preserve correct game identity for legacy storefront URLs.  
 **Scope:** This accepts the evidence-backed alias disposition for the current BigBang Standard Sandbox snapshot. It is not closure of Q-005 and does not authorize a frontend cutover, Premium import, live-key use, Production release, Phase 8, or real-money operation.
