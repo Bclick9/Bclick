@@ -53,6 +53,18 @@ After the preview, return to **Q-005 (OPEN/P0)**: establish the provenance of th
 
 Q-006, Q-010, Q-011, Q-013 and Q-020 remain open; Phase 8 is NOT STARTED, and Premium import, live-key sync, payments, wagers, provider callbacks, wallet posting and all real-money flows remain disabled.
 
+## Authenticated player login redirect — follow-up fix
+
+The Owner clarified that an already signed-in player visiting the legacy `/login` URL must land on `/account`, not on the home page. PR #121 changes the safe default in `resolveLegacyAuthRoute` to `/account` while preserving a valid in-site `returnTo` from a protected route, and adds tests for both cases.
+
+This is separate from the normal successful sign-in path, which already navigates to `returnTo` or `/account` after the modal form succeeds. Local browser verification is still required after merge.
+
+## Casino catalogue refresh / caching decision
+
+The Lobby currently requests the normalized local API catalogue with `cache: 'no-store'`; the API also emits `Cache-Control: no-store`. The storefront deliberately refreshes when its tab becomes visible again, so a provider/game blocked in CMS does not remain visible indefinitely. A full browser refresh necessarily starts a new page and requests the catalogue again; this is not proof that the provider's entire catalogue is being re-synchronized.
+
+Do not add an unbounded browser cache while game availability and operator blocking need prompt propagation. A later measured performance task can introduce a short-lived server-side query cache or ETag/conditional validation for the normalized catalogue, with explicit invalidation/versioning on admin mutations and an always-server-side availability check at demo launch. Image bytes should use long-lived cache headers with versioned asset URLs. First collect timing/query evidence and finish Q-005 catalogue identity correctness; do not conflate UI/API response caching with provider sync or weaken the no-live-wallet/Standard-only gates.
+
 ## Local UI blockers reported 2026-10-23 — PR #120
 
 The Owner's first local preview after PR #119 reported:
