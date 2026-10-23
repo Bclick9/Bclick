@@ -248,19 +248,30 @@ export function CmsSkinGamesPage({ onNotify }: { onNotify: (message: string) => 
       setEditorError('Player-facing title must be 120 characters or fewer.')
       return
     }
+    const descriptionChanged = descriptionDraft !== editorGame.description
+    const displayTitleChanged = displayTitleDraft !== editorGame.title
+    const orderChanged = desiredOrderPosition !== editorGame.orderPosition
+    const imageChanged = Boolean(imageFile) || clearCustomImage
+    if (!descriptionChanged && !displayTitleChanged && !orderChanged && !imageChanged) {
+      setEditorError('There are no changes to save.')
+      return
+    }
     setEditorBusy(true)
     setEditorError('')
     try {
-      await requestAdminApi('/api/v1/admin/casino/skin-games/' + encodeURIComponent(editorGame.id), {
-        method: 'PATCH',
-        headers: getAdminCsrfHeaders(),
-        body: JSON.stringify({
-          description: descriptionDraft,
-          ...(displayTitleDraft !== editorGame.title ? { displayTitle: displayTitleDraft } : {}),
-          ...(!imageFile && clearCustomImage ? { clearCustomImage: true } : {}),
-        }),
-      })
-      if (desiredOrderPosition !== editorGame.orderPosition) {
+      const presentationPatch = {
+        ...(descriptionChanged ? { description: descriptionDraft } : {}),
+        ...(displayTitleChanged ? { displayTitle: displayTitleDraft } : {}),
+        ...(!imageFile && clearCustomImage ? { clearCustomImage: true } : {}),
+      }
+      if (Object.keys(presentationPatch).length > 0) {
+        await requestAdminApi('/api/v1/admin/casino/skin-games/' + encodeURIComponent(editorGame.id), {
+          method: 'PATCH',
+          headers: getAdminCsrfHeaders(),
+          body: JSON.stringify(presentationPatch),
+        })
+      }
+      if (orderChanged) {
         await requestAdminApi('/api/v1/admin/casino/skin-games/' + encodeURIComponent(editorGame.id) + '/order-position', {
           method: 'PATCH',
           headers: getAdminCsrfHeaders(),
