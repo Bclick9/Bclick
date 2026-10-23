@@ -433,19 +433,21 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
       log: () => undefined,
     });
     const migrationCount = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM pgmigrations');
-    assert.equal(migrationCount.rows[0]?.count, '18', 'The full migration chain through Migration 016 must apply in order');
+    assert.equal(migrationCount.rows[0]?.count, '19', 'The full migration chain through Migration 017 must apply in order');
     const retiredAliases = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM public.casino_game_legacy_slug_aliases');
     assert.equal(retiredAliases.rows[0]?.count, '0', 'Migration 014 must retire legacy storefront aliases');
-    const displayCategoryTables = await pool.query<{ categories: string | null; assignments: string | null; custom_icon_key: boolean }>(`
+    const displayCategoryTables = await pool.query<{ categories: string | null; assignments: string | null; custom_icon_key: boolean; type_scoping: boolean }>(`
       SELECT to_regclass('public.casino_display_categories')::text AS categories,
              to_regclass('public.casino_game_display_categories')::text AS assignments,
-             EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='casino_display_categories' AND column_name='custom_icon_key') AS custom_icon_key
+             EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='casino_display_categories' AND column_name='custom_icon_key') AS custom_icon_key,
+             EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='casino_display_categories' AND column_name='category_type') AS type_scoping
     `);
     assert.deepEqual(displayCategoryTables.rows[0], {
       categories: 'casino_display_categories',
       assignments: 'casino_game_display_categories',
       custom_icon_key: true,
-    }, 'Migrations 015–016 must create curated assignments and persistent icon metadata');
+      type_scoping: true,
+    }, 'Migrations 015–017 must create curated categories, persistent icons and game-type scope');
 
 
     const controlSchema = await pool.query<{ provider_enabled: string | null; game_enabled: string | null; tier: string | null; permission_links: string }>(`
