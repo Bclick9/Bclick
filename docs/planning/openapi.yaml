@@ -1595,7 +1595,7 @@ paths:
                       properties:
                         id: {type: string, format: uuid}
                         slug: {type: string}
-                        title: {type: string, maxLength: 120, description: Player-facing title; falls back to sourceTitle when titleOverride is null.}
+                        title: {type: string, maxLength: 120, description: 'Player-facing title; falls back to sourceTitle when titleOverride is null.'}
                         sourceTitle: {type: string}
                         titleOverride: {type: [string, 'null'], maxLength: 120}
                         orderPosition: {type: integer, minimum: 1}
@@ -1714,7 +1714,7 @@ paths:
               properties:
                 enabled: {type: boolean}
                 description: {type: string, maxLength: 2000}
-                displayTitle: {type: string, maxLength: 120, description: Player-facing title; empty string removes the override and restores the source title.}
+                displayTitle: {type: string, maxLength: 120, description: 'Player-facing title; empty string removes the override and restores the source title.'}
                 clearCustomImage: {type: boolean}
       responses:
         '200':
