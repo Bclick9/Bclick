@@ -98,6 +98,7 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
   const calls: Array<{ sql: string; values: unknown[] }> = [];
   const mode = options.mode ?? 'standard';
   let currentCustomImageKey: string | null = null;
+  let currentCategoryIconKey: string | null = null;
   const row: FakeGame = {
     id: mode === 'standard' ? GAME_ID : PREMIUM_GAME_ID,
     slug: mode === 'standard' ? 'hot-hot-fruit-habanero' : 'hot-hot-fruit-habanero-premium',
@@ -131,6 +132,18 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
       if (sql.includes('casino.provider-settings.access-denied')) {
         return { rows: [{ id: 'audit-id' }], rowCount: 1 };
       }
+      if (sql.includes('SELECT id::text AS id,custom_icon_key FROM public.casino_display_categories WHERE id=$1::uuid')) {
+        return { rows: [{ id: DISPLAY_CATEGORY_ID, custom_icon_key: currentCategoryIconKey }], rowCount: 1 };
+      }
+      if (sql.includes('WITH changed AS') && sql.includes('casino.display-category.icon-updated')) {
+        assert.match(sql, /INSERT INTO public\\.audit_events/);
+        assert.match(sql, /RETURNING id,custom_icon_key/);
+        currentCategoryIconKey = String(values[1]);
+        return { rows: [{ id: DISPLAY_CATEGORY_ID, custom_icon_key: currentCategoryIconKey }], rowCount: 1 };
+      }
+      if (sql.includes('SELECT id::text AS id FROM public.casino_display_categories WHERE id=$1::uuid AND custom_icon_key=$2')) {
+        return { rows: currentCategoryIconKey === values[1] ? [{ id: DISPLAY_CATEGORY_ID }] : [], rowCount: currentCategoryIconKey === values[1] ? 1 : 0 };
+      }
       if (sql.includes('WITH next_order AS MATERIALIZED') && sql.includes('INSERT INTO public.casino_display_categories')) {
         assert.match(sql, /ON CONFLICT \(slug\) DO NOTHING/);
         assert.match(sql, /INSERT INTO public\.audit_events/);
@@ -155,7 +168,7 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
       if (sql.includes('FROM public.casino_display_categories c') && sql.includes('LEFT JOIN public.casino_game_display_categories m')) {
         return { rows: [{
           id: DISPLAY_CATEGORY_ID, slug: 'trending-games', name: 'Trending Games', description: 'Hand-picked games',
-          icon: 'trending', visible: true, displayOrder: 100, items: 1,
+          icon: 'trending', iconUrl: null, customIconKey: currentCategoryIconKey, visible: true, displayOrder: 100, items: 1,
           createdAt: '2026-10-23T08:00:00.000Z', updatedAt: '2026-10-23T08:00:00.000Z',
         }], rowCount: 1 };
       }
@@ -435,6 +448,36 @@ test('administrator can delete a curated category without deleting its catalogue
     assert.match(deletion.sql, /ON DELETE CASCADE|DELETE FROM public\.casino_display_categories/);
   } finally {
     await app.close();
+  }
+});
+
+test('admin can upload a validated custom icon and serve only the active category icon key', async () => {
+  const fixture = fakeDatabase();
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(), 'bclick-category-icon-test-'));
+  const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config(), uploadDirectory });
+  try {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID + '/icon',
+      headers: { ...authHeaders(true), 'content-type': 'image/png' },
+      payload: validPng64(),
+    });
+    assert.equal(response.statusCode, 201, response.body);
+    assert.equal(response.json().data.categoryId, DISPLAY_CATEGORY_ID);
+    assert.equal(response.json().data.iconUrl.startsWith('/api/v1/assets/casino-display-categories/'), true);
+    const persisted = fixture.calls.find((call) => call.sql.includes('casino.display-category.icon-updated'));
+    assert.ok(persisted);
+    assert.match(persisted.sql, /INSERT INTO public\\.audit_events/);
+    assert.match(String(persisted.values[1]), /^casino-display-categories\\//);
+
+    const icon = await app.inject({ method: 'GET', url: response.json().data.iconUrl });
+    assert.equal(icon.statusCode, 200);
+    assert.equal(icon.headers['content-type'], 'image/png');
+    assert.equal(icon.headers['x-content-type-options'], 'nosniff');
+    assert.ok(icon.rawPayload.equals(validPng64()));
+  } finally {
+    await app.close();
+    await rm(uploadDirectory, { recursive: true, force: true });
   }
 });
 
