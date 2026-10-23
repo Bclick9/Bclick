@@ -579,10 +579,11 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
     assert.equal(nextPage.json().data.length, 1);
     assert.notEqual(firstPage.json().data[0].id, nextPage.json().data[0].id);
 
-    const search = await app.inject({ method: 'GET', url: '/api/v1/casino/games?query=Fruit' });
+    const search = await app.inject({ method: 'GET', url: '/api/v1/casino/games?type=casino&query=Fruit' });
     assert.equal(search.statusCode, 200, search.body);
     assert.equal(search.json().data.length, 1);
     assert.equal(search.json().data[0].title, 'Hot Hot Fruit');
+    const curatedGameId = String(search.json().data[0].id);
 
     const escapedSearch = await app.inject({ method: 'GET', url: '/api/v1/casino/games?query=%25' });
     assert.equal(escapedSearch.statusCode, 200, escapedSearch.body);
@@ -615,13 +616,13 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
     );
     await pool.query(
       'INSERT INTO public.casino_game_display_categories(category_id,game_id) VALUES ($1,$2)',
-      [integrationDisplayCategoryId,canonicalGameId],
+      [integrationDisplayCategoryId,curatedGameId],
     );
     const curatedShelf = await app.inject({ method: 'GET', url: '/api/v1/casino/display-categories' });
     assert.equal(curatedShelf.statusCode, 200, curatedShelf.body);
     const integrationShelf = curatedShelf.json().data.find((item: { id: string }) => item.id === integrationDisplayCategoryId);
     assert.ok(integrationShelf, 'an assigned visible category should be returned by the public Lobby API');
-    assert.equal(integrationShelf.games[0]?.id, canonicalGameId, 'the UUID-typed join should return the exact assigned canonical game');
+    assert.equal(integrationShelf.games[0]?.id, curatedGameId, 'the UUID-typed join should return the exact assigned canonical Casino game');
     await pool.query('DELETE FROM public.casino_display_categories WHERE id=$1', [integrationDisplayCategoryId]);
     await pool.query('UPDATE public.casino_providers SET bclick_enabled=false WHERE code=$1', [canonicalProviderCode]);
     const disabledProviderBrowse = await app.inject({ method: 'GET', url: '/api/v1/casino/games?provider=' + encodeURIComponent(canonicalProviderCode) });
