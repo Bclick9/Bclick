@@ -14,6 +14,29 @@ const ICONS: Record<string, LucideIcon> = {
   Home, Cherry, Ghost, Flame, Sparkles, Crown, ShoppingBag, Rocket, Gem, Spade, Trophy,
 }
 
+// When an admin changes availability in another tab, refresh current catalogue views
+// when this storefront becomes visible again. The API also sends Cache-Control: no-store.
+function useRefreshOnVisibility(refresh: () => void) {
+  const refreshRef = useRef(refresh)
+  useEffect(() => { refreshRef.current = refresh }, [refresh])
+  useEffect(() => {
+    let lastRefreshAt = 0
+    const handleReturn = () => {
+      if (document.visibilityState !== 'visible') return
+      const now = Date.now()
+      if (now - lastRefreshAt < 750) return
+      lastRefreshAt = now
+      refreshRef.current()
+    }
+    document.addEventListener('visibilitychange', handleReturn)
+    window.addEventListener('focus', handleReturn)
+    return () => {
+      document.removeEventListener('visibilitychange', handleReturn)
+      window.removeEventListener('focus', handleReturn)
+    }
+  }, [])
+}
+
 type CasinoFilterBarProps = {
   searchQuery: string
   onSearchQueryChange: (query: string) => void
@@ -165,6 +188,8 @@ function CategoryStrip({ active }: { active: string }) {
 function TrendingGames() {
   const [games, setGames] = useState<CasinoCatalogGame[]>([])
   const [loading, setLoading] = useState(true)
+  const [reloadKey, setReloadKey] = useState(0)
+  useRefreshOnVisibility(() => setReloadKey((value) => value + 1))
 
   useEffect(() => {
     const controller = new AbortController()
@@ -178,7 +203,7 @@ function TrendingGames() {
       if (!controller.signal.aborted) setLoading(false)
     })
     return () => controller.abort()
-  }, [])
+  }, [reloadKey])
 
   if (loading || games.length === 0) return null
   return (
@@ -384,6 +409,7 @@ export function CasinoCategory() {
   const [catalogError, setCatalogError] = useState('')
   const [catalogStale, setCatalogStale] = useState(false)
   const [catalogReloadKey, setCatalogReloadKey] = useState(0)
+  useRefreshOnVisibility(() => setCatalogReloadKey((value) => value + 1))
 
   const searchTerm = searchQuery.trim()
   const catalogBackedCategory = ['lobby', 'slot-games', 'live-casino', 'crash-games'].includes(category)
@@ -556,6 +582,7 @@ export function Providers() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
+  useRefreshOnVisibility(() => setReloadKey((value) => value + 1))
   const searchTerm = searchQuery.trim().toLocaleLowerCase()
   const filteredProviders = providers.filter((provider) =>
     !searchTerm || (provider.name + ' ' + provider.code).toLocaleLowerCase().includes(searchTerm),
@@ -617,6 +644,7 @@ export function ProviderPage() {
   const [error, setError] = useState('')
   const [stale, setStale] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  useRefreshOnVisibility(() => setReloadKey((value) => value + 1))
 
   useEffect(() => {
     const controller = new AbortController()
