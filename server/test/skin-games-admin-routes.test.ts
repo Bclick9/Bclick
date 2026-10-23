@@ -89,7 +89,7 @@ type FakeGame = {
   updatedBy: string | null;
 };
 
-function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?: boolean; providerTierEnabled?: boolean; sourceAvailable?: boolean; catalogAvailable?: boolean } = {}) {
+function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?: boolean; providerTierEnabled?: boolean; sourceAvailable?: boolean; catalogAvailable?: boolean; listFailure?: { code: string; message: string } } = {}) {
   const calls: Array<{ sql: string; values: unknown[] }> = [];
   const mode = options.mode ?? 'standard';
   let currentCustomImageKey: string | null = null;
@@ -123,6 +123,11 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
         return { rows: [{ id: 'audit-id' }], rowCount: 1 };
       }
       if (sql.includes('SELECT count(DISTINCT g.id)::text AS total')) {
+        if (options.listFailure) {
+          const failure = new Error(options.listFailure.message) as Error & { code: string };
+          failure.code = options.listFailure.code;
+          throw failure;
+        }
         return { rows: [{ total: '1' }], rowCount: 1 };
       }
       if (sql.includes("SELECT selected_mode FROM public.casino_integration_settings")) {
@@ -210,6 +215,24 @@ test('Skin Games list is authenticated and returns real canonical UUID/source st
     assert.equal(response.json().data[0].imageUrl, 'https://bigbangcasino.bet/frontend/Vegas/ico/Habanero/SGHotHotFruit.webp');
     assert.equal(response.json().data[0].effectiveAvailable, true);
     assert.equal(response.json().integration.premiumAvailable, false);
+  } finally {
+    await app.close();
+  }
+});
+
+test('Skin Games exposes a safe migration hint when local schema 012 is missing', async () => {
+  const fixture = fakeDatabase({ listFailure: { code: '42P01', message: 'relation public.casino_game_presentation does not exist' } });
+  const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config() });
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/casino/skin-games?page=1&pageSize=50',
+      headers: authHeaders(),
+    });
+    assert.equal(response.statusCode, 503, response.body);
+    assert.equal(response.json().error.code, 'SKIN_GAMES_SCHEMA_NOT_READY');
+    assert.match(response.json().error.message, /Migration 012/i);
+    assert.doesNotMatch(response.body, /relation public\.casino_game_presentation does not exist/);
   } finally {
     await app.close();
   }
