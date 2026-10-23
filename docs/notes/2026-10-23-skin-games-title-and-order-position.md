@@ -1,16 +1,16 @@
 # Skin Games numeric ordering and player-facing title
 
 **Date:** 2026-10-23  
-**Pull request:** [#123 — numeric game order and player-facing title](https://github.com/Bclick9/Bclick/pull/123)  
+**Pull request:** [#123 — numeric game order and player-facing title](https://github.com/Bclick9/Bclick/pull/123), merged as `093871d734b3b11ce1a5d1b5bd0172c9e1abf0f1`  
 **Branch:** `feat/skin-games-numeric-order-and-display-title`  
 **Starting point:** `main` at `3e982cf626122f9722b32496cb1b0472fd4fb3a9`  
-**Local acceptance:** pending Owner verification after merge.
+**Local acceptance:** pending Owner verification; CI passed.
 
 ## Owner request
 
 Drag-and-drop already works and correctly persists the casino public order, but moving games by repeatedly dragging rows through a 3,639-game Standard catalogue takes too long. The existing Edit Game modal should expose a numeric position. It should also allow changing the title players see, for example renaming “1Win Zeus the Thunderer Deluxe” to “Zeus the Thunderer Deluxe”, without changing provider/source identity.
 
-## Implementation in this branch
+## Implementation merged to main
 
 ### Numeric ordering
 
