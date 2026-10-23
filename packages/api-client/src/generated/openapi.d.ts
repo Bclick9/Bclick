@@ -6133,6 +6133,7 @@ export interface operations {
         parameters: {
             query?: {
                 category?: string;
+                displayCategory?: string;
                 provider?: string;
                 query?: string;
                 mode?: "demo" | "real";
