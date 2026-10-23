@@ -90,17 +90,24 @@ function LegacyAuthRedirect({ mode }: { mode: LegacyAuthMode }) {
     returnTo: state?.from,
   })
 
+  const decisionType = decision.type
+  const redirectTarget = decision.type === 'redirect' ? decision.to : null
+  const modalMode = decision.type === 'open-modal' ? decision.mode : null
+  const modalReturnTo = decision.type === 'open-modal' ? decision.returnTo : null
+
   useEffect(() => {
-    if (decision.type === 'wait') return
-    if (decision.type === 'open-modal') {
+    if (decisionType === 'wait') return
+    if (decisionType === 'open-modal' && modalMode) {
       window.dispatchEvent(new CustomEvent('cb:open-auth', {
-        detail: { mode: decision.mode, returnTo: decision.returnTo },
+        detail: { mode: modalMode, returnTo: modalReturnTo },
       }))
       navigate('/', { replace: true })
       return
     }
-    navigate(decision.to, { replace: true })
-  }, [decision, navigate])
+    if (decisionType === 'redirect' && redirectTarget) {
+      navigate(redirectTarget, { replace: true })
+    }
+  }, [decisionType, redirectTarget, modalMode, modalReturnTo, navigate])
 
   if (decision.type === 'wait') {
     return (
