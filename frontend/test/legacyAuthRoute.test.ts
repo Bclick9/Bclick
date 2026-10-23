@@ -10,10 +10,22 @@ test('legacy auth routes wait until the player session has been checked', () => 
   )
 })
 
-test('an authenticated player is redirected away from the login URL', () => {
+test('an authenticated player is redirected to the account page from the login URL', () => {
   assert.deepEqual(
     resolveLegacyAuthRoute({ mode: 'login', isLoading: false, authenticated: true }),
-    { type: 'redirect', to: '/' },
+    { type: 'redirect', to: '/account' },
+  )
+})
+
+test('an authenticated player can still follow a safe requested in-site path', () => {
+  assert.deepEqual(
+    resolveLegacyAuthRoute({
+      mode: 'login',
+      isLoading: false,
+      authenticated: true,
+      returnTo: '/sports/my-bets',
+    }),
+    { type: 'redirect', to: '/sports/my-bets' },
   )
 })
 

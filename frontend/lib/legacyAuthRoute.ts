@@ -30,7 +30,7 @@ export function resolveLegacyAuthRoute(input: {
 
   const returnTo = safeReturnPath(input.returnTo)
   if (input.authenticated) {
-    return { type: 'redirect', to: returnTo ?? '/' }
+    return { type: 'redirect', to: returnTo ?? '/account' }
   }
 
   return { type: 'open-modal', mode: input.mode, returnTo }
