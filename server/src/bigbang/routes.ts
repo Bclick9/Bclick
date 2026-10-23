@@ -282,7 +282,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
   app.get('/api/v1/casino/display-categories', async (request,reply) => {
     reply.header('Cache-Control','no-store');
     const result = await database.query<QueryResultRow & {
-      id:string;slug:string;name:string;description:string;icon:string;displayOrder:number|string;games:unknown;
+      id:string;slug:string;name:string;description:string;icon:string;customIconKey:string|null;displayOrder:number|string;games:unknown;
     }>(`
       WITH public_games AS (
         SELECT g.id::text AS id,g.game_slug AS slug,
@@ -323,7 +323,8 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
          WHERE category_rank <= 24
          GROUP BY category_id
       )
-      SELECT c.id::text AS id,c.slug,c.name,c.description,c.icon,c.display_order AS "displayOrder",gg.games
+      SELECT c.id::text AS id,c.slug,c.name,c.description,c.icon,c.custom_icon_key AS "customIconKey",
+             c.display_order AS "displayOrder",gg.games
         FROM public.casino_display_categories c
         JOIN grouped_games gg ON gg.category_id=c.id
        WHERE c.visible=true
@@ -332,6 +333,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
     return {
       data: result.rows.map((row) => ({
         id:row.id,slug:row.slug,name:row.name,description:row.description,icon:row.icon,
+        iconUrl:row.customIconKey ? '/api/v1/assets/'+row.customIconKey : null,
         displayOrder:Number(row.displayOrder),games:row.games,
       })),
       requestId:request.id,
