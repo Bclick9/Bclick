@@ -331,7 +331,7 @@ export interface paths {
         };
         /**
          * Search the local normalized catalogue; never call vendor for each card
-         * @description Every GameSummary includes its stable slug, provider and full source categories[] set. Use category for provider/source-category filtering and displayCategory for Bclick-managed category membership.
+         * @description Every GameSummary includes its stable slug, provider and full source categories[] set. Use category for provider/source-category filtering, displayCategory for Bclick-managed category membership, and type to scope Casino (slot), Live Casino (live), or Crash Games (crash) results.
          */
         get: operations["getCasinoGames"];
         put?: never;
@@ -6040,6 +6040,7 @@ export interface operations {
                 cursor?: string | null;
                 page?: number;
                 pageSize?: number;
+                type?: "casino" | "live-casino" | "crash-games";
             };
             header?: {
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
@@ -6064,7 +6065,9 @@ export interface operations {
     };
     getCasinoDisplayCategories: {
         parameters: {
-            query?: never;
+            query?: {
+                type?: "casino" | "live-casino" | "crash-games";
+            };
             header?: {
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
@@ -6090,6 +6093,7 @@ export interface operations {
                             name: string;
                             description: string;
                             icon: string;
+                            type: "casino" | "live-casino" | "crash-games";
                             /** Format: uri-reference */
                             iconUrl?: string | null;
                             displayOrder: number;
@@ -6134,8 +6138,10 @@ export interface operations {
             query?: {
                 /** @description Filter by provider/source category slug. */
                 category?: string;
-                /** @description Filter to currently visible games assigned to a Bclick-managed display category slug. */
+                /** @description Filter to currently visible games assigned to a Bclick-managed display category slug with matching game type. */
                 displayCategory?: string;
+                /** @description Restrict the catalogue to the selected storefront game type. @enum {string} */
+                type?: "casino" | "live-casino" | "crash-games";
                 provider?: string;
                 query?: string;
                 mode?: "demo" | "real";
@@ -7217,6 +7223,7 @@ export interface operations {
                             name: string;
                             description: string;
                             icon: string;
+                            type: "casino" | "live-casino" | "crash-games";
                             /** Format: uri-reference */
                             iconUrl?: string | null;
                             visible: boolean;
@@ -7254,6 +7261,8 @@ export interface operations {
                     description?: string;
                     /** @enum {string} */
                     icon?: "layers" | "gamepad" | "sparkles" | "trending" | "clock" | "users" | "money" | "gift" | "trophy" | "zap";
+                    /** @enum {string} @default casino */
+                    type?: "casino" | "live-casino" | "crash-games";
                     /** @default true */
                     visible?: boolean;
                 };
@@ -7417,6 +7426,8 @@ export interface operations {
                     description?: string;
                     /** @enum {string} */
                     icon?: "layers" | "gamepad" | "sparkles" | "trending" | "clock" | "users" | "money" | "gift" | "trophy" | "zap";
+                    /** @enum {string} */
+                    type?: "casino" | "live-casino" | "crash-games";
                     visible?: boolean;
                     displayOrder?: number;
                 };
