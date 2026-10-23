@@ -63,7 +63,7 @@ The next action is to pull the merged revision locally and let the repository st
 git fetch origin
 git pull --ff-only origin main
 git rev-parse --short HEAD
-.\\start-bclick-local.ps1
+.\start-bclick-local.ps1
 ```
 
 Do not run Migration 014 manually or roll back any migration. Verify API readiness, Lobby/search/category/provider pages, pagination/load-more without gaps/duplicates, that Top Picks/Halloween appear only when the API exposes those categories, that canonical slug/detail/demo still work, and that obsolete legacy slug `/casino/play/demo/lightning-roulette` safely returns 404 while canonical slugs continue working. Verify provider/game disable propagation and confirm Skin Games numeric order and custom-image persistence still work; Premium stays locked.
