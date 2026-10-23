@@ -183,8 +183,8 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
         assert.match(sql, /ON CONFLICT \(slug\) DO NOTHING/);
         assert.ok(sql.includes('INSERT INTO public.audit_events'));
         return { rows: [{
-          id: DISPLAY_CATEGORY_ID, slug: 'trending-games', name: 'Trending Games', description: 'Hand-picked games',
-          icon: 'trending', type: typeof values[9] === 'string' ? values[9] : 'casino', visible: true, displayOrder: 100, items: 0,
+          id: DISPLAY_CATEGORY_ID, slug: String(values[1]), name: String(values[2]), description: String(values[3]),
+          icon: String(values[4]), type: typeof values[9] === 'string' ? values[9] : 'casino', visible: values[5] === true, displayOrder: 100, items: 0,
         }], rowCount: 1 };
       }
       if (sql.includes('UPDATE public.casino_display_categories c') && sql.includes('casino.display-category.updated')) {
@@ -495,14 +495,17 @@ test('administrator can create a curated category and the request is audited', a
       method: 'POST',
       url: '/api/v1/admin/casino/display-categories',
       headers: { ...authHeaders(true), 'content-type': 'application/json' },
-      payload: { name: 'Trending Games', description: 'Hand-picked games', icon: 'trending', visible: true },
+      payload: { name: 'Live Roulettes', description: 'Roulette tables', icon: 'trending', type: 'live-casino', visible: true },
     });
     assert.equal(response.statusCode, 201, response.body);
-    assert.equal(response.json().data.slug, 'trending-games');
-    assert.equal(response.json().data.name, 'Trending Games');
+    assert.equal(response.json().data.slug, 'live-roulettes');
+    assert.equal(response.json().data.name, 'Live Roulettes');
+    assert.equal(response.json().data.type, 'live-casino');
     const insert = fixture.calls.find((call) => call.sql.includes('WITH next_order AS MATERIALIZED'));
     assert.ok(insert);
     assert.match(insert.sql, /ON CONFLICT \(slug\) DO NOTHING/);
+    assert.match(insert.sql, /category_type/);
+    assert.equal(insert.values[9], 'live-casino');
     assert.match(insert.sql, /RETURNING id,slug,name/);
     assert.match(insert.sql, /casino_display_category.*created.id/);
     assert.match(insert.sql, /casino.display-category.created/);
