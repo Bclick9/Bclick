@@ -565,14 +565,14 @@ export function registerSkinGamesAdminRoutes(
       const conditions=["s.source_code='bigbang'","s.source_mode='standard'"];
       const values:unknown[]=[];
       if(query.query?.trim()){
-        const searchValue='%'+query.query.trim().replace(/[\\%_]/g,'\\$&')+'%';
+        const searchValue='%'+query.query.trim()+'%';
         values.push(searchValue);
         const parameter='$'+values.length;
         conditions.push('('+
-          'COALESCE(NULLIF(pres.title_override,\'\'),g.title) ILIKE '+parameter+' ESCAPE E\'\\\\\\\\\' '+
-          'OR g.game_slug ILIKE '+parameter+' ESCAPE E\'\\\\\\\\\' '+
-          'OR p.name ILIKE '+parameter+' ESCAPE E\'\\\\\\\\\' '+
-          'OR p.code ILIKE '+parameter+' ESCAPE E\'\\\\\\\\\' '+
+          'COALESCE(NULLIF(pres.title_override,\\'\\'),g.title) ILIKE '+parameter+' '+
+          'OR g.game_slug ILIKE '+parameter+' '+
+          'OR p.name ILIKE '+parameter+' '+
+          'OR p.code ILIKE '+parameter+' '+
           'OR s.external_game_id::text ILIKE '+parameter+')');
       }
       const where=conditions.join(' AND ');
