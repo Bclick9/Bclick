@@ -958,8 +958,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Persist game availability and description override
-         * @description Requires casino.provider-settings.manage, MFA, Origin and CSRF. Provider-owned identity remains immutable. Premium mutations are locked.
+         * Persist availability and player-facing presentation overrides
+         * @description Requires casino.provider-settings.manage, MFA, Origin and CSRF. Provider-owned identity, source title, UUID, source IDs, slug and tier remain immutable. Player-facing title overrides persist in Skin Games and are not used as source identity. Premium mutations are locked.
          */
         patch: operations["patchAdminSkinGame"];
         trace?: never;
