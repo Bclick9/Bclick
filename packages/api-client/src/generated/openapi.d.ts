@@ -958,10 +958,35 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Persist game availability and description override
-         * @description Requires casino.provider-settings.manage, MFA, Origin and CSRF. Provider-owned identity remains immutable. Premium mutations are locked.
+         * Persist availability and player-facing presentation overrides
+         * @description Requires casino.provider-settings.manage, MFA, Origin and CSRF. Provider-owned identity, source title, UUID, source IDs, slug and tier remain immutable. Player-facing title overrides persist in Skin Games and are not used as source identity. Premium mutations are locked.
          */
         patch: operations["patchAdminSkinGame"];
+        trace?: never;
+    };
+    "/api/v1/admin/casino/skin-games/{gameId}/order-position": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path: {
+                gameId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Move a game to a numeric position within its source tier
+         * @description Requires casino.provider-settings.manage, MFA, Origin and CSRF. Position is one-based across all games in the same source tier; the update renumbers intervening games to keep a contiguous order and audits the administrator. Premium remains locked.
+         */
+        patch: operations["patchAdminSkinGameOrderPosition"];
         trace?: never;
     };
     "/api/v1/admin/casino/skin-games/{gameId}/image": {
@@ -6994,7 +7019,12 @@ export interface operations {
                             /** Format: uuid */
                             id: string;
                             slug: string;
+                            /** @description Player-facing title; falls back to sourceTitle when titleOverride is null. */
                             title: string;
+                            sourceTitle: string;
+                            titleOverride: string | null;
+                            orderPosition: number;
+                            tierTotal: number;
                             provider: {
                                 code: string;
                                 name: string;
@@ -7129,6 +7159,8 @@ export interface operations {
                 "application/json": {
                     enabled?: boolean;
                     description?: string;
+                    /** @description Player-facing title; empty string removes the override and restores the source title. */
+                    displayTitle?: string;
                     clearCustomImage?: boolean;
                 };
             };
@@ -7165,6 +7197,72 @@ export interface operations {
             404: components["responses"]["NotFound"];
             /** @description Premium mutation or ineffective game enable was refused. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    patchAdminSkinGameOrderPosition: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
+                "X-CSRF-Token": components["parameters"]["CsrfToken"];
+            };
+            path: {
+                gameId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    orderPosition: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Numeric order saved and all intervening positions updated atomically. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            /** Format: uuid */
+                            gameId: string;
+                            oldPosition: number;
+                            orderPosition: number;
+                            displayOrder: number;
+                        };
+                        requestId: string;
+                    };
+                };
+            };
+            /** @description Invalid game UUID or position. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Premium ordering is locked. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Position is out of range for the source tier. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

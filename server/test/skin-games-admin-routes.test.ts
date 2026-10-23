@@ -70,6 +70,9 @@ type FakeGame = {
   id: string;
   slug: string;
   title: string;
+  titleOverride: string | null;
+  orderPosition: number;
+  tierTotal: number;
   providerCode: string;
   providerName: string;
   sourceMode: 'standard' | 'premium';
@@ -97,6 +100,9 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
     id: mode === 'standard' ? GAME_ID : PREMIUM_GAME_ID,
     slug: mode === 'standard' ? 'hot-hot-fruit-habanero' : 'hot-hot-fruit-habanero-premium',
     title: 'Hot Hot Fruit',
+    titleOverride: null,
+    orderPosition: 1,
+    tierTotal: 1,
     providerCode: 'habanero',
     providerName: 'Habanero',
     sourceMode: mode,
@@ -150,11 +156,21 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
           rowCount: 1,
         };
       }
+      if (sql.includes('casino.skin-games.position-changed')) {
+        assert.match(sql, /INSERT INTO public\.audit_events/);
+        assert.match(sql, /row_number/);
+        assert.match(sql, /ON CONFLICT \(game_id\) DO UPDATE/);
+        assert.match(sql, /old_position < target.old_position/);
+        return { rows: [{ oldPosition: row.orderPosition, orderPosition: Number(values[1]), displayOrder: Number(values[1]) * 100 }], rowCount: 1 };
+      }
       if (sql.includes('WITH lock AS MATERIALIZED')) {
         assert.match(sql, /INSERT INTO public\.audit_events/);
         assert.match(sql, /bclick\.skin-games\.display-order/);
         assert.match(sql, /ON CONFLICT \(game_id\) DO UPDATE/);
         return { rows: [{ mode: row.sourceMode, displayOrder: 200 }], rowCount: 1 };
+      }
+      if (sql.includes('SELECT s.source_mode,') && sql.includes('tier_total')) {
+        return { rows: [{ source_mode: row.sourceMode, tier_total: row.tierTotal }], rowCount: 1 };
       }
       if (sql.includes('SELECT s.source_mode FROM public.casino_games g')) {
         return { rows: [{ source_mode: row.sourceMode }], rowCount: 1 };
@@ -265,7 +281,7 @@ test('Skin Games description and per-game availability are persisted with audit 
       method: 'PATCH',
       url: '/api/v1/admin/casino/skin-games/' + GAME_ID,
       headers: { ...authHeaders(true), 'content-type': 'application/json' },
-      payload: { enabled: false, description: 'Operator description' },
+      payload: { enabled: false, description: 'Operator description', displayTitle: 'Zeus the Thunderer Deluxe' },
     });
     assert.equal(response.statusCode, 200, response.body);
     assert.equal(response.json().data.id, GAME_ID);
@@ -273,8 +289,11 @@ test('Skin Games description and per-game availability are persisted with audit 
     assert.ok(update);
     assert.match(update.sql, /availability_updated_by=CASE/);
     assert.match(update.sql, /description_override=CASE/);
+    assert.match(update.sql, /title_override=CASE/);
+    assert.match(update.sql, /displayTitleChanged/);
     assert.match(update.sql, /INSERT INTO public\.audit_events/);
     assert.deepEqual(update.values.slice(0, 6), [GAME_ID, false, true, 'Operator description', false, ADMIN_ID]);
+    assert.deepEqual(update.values.slice(8), [true, 'Zeus the Thunderer Deluxe']);
   } finally {
     await app.close();
   }
@@ -330,6 +349,67 @@ test('Skin Games drag order is tier-scoped and writes the order audit', async ()
     assert.equal(response.statusCode, 200, response.body);
     assert.equal(response.json().data.sourceMode, 'standard');
     assert.equal(response.json().data.displayOrder, 200);
+  } finally {
+    await app.close();
+  }
+});
+
+test('Skin Games numeric order repositions a game and audits the administrator', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config() });
+  try {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/order-position',
+      headers: { ...authHeaders(true), 'content-type': 'application/json' },
+      payload: { orderPosition: 1 },
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.deepEqual(response.json().data, {
+      gameId: GAME_ID, oldPosition: 1, orderPosition: 1, displayOrder: 100,
+    });
+    const orderQuery = fixture.calls.find((call) => call.sql.includes('casino.skin-games.position-changed'));
+    assert.ok(orderQuery, 'numeric order query must write an audit event');
+    assert.deepEqual(orderQuery.values, [GAME_ID, 1, 'standard', ADMIN_ID, orderQuery.values[4], orderQuery.values[5]]);
+    assert.match(orderQuery.sql, /pg_advisory_xact_lock/);
+    assert.match(orderQuery.sql, /new_position\*100/);
+    assert.match(orderQuery.sql, /INSERT INTO public\.audit_events/);
+  } finally {
+    await app.close();
+  }
+});
+
+test('Skin Games numeric order rejects positions outside the tier bounds', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config() });
+  try {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/order-position',
+      headers: { ...authHeaders(true), 'content-type': 'application/json' },
+      payload: { orderPosition: 2 },
+    });
+    assert.equal(response.statusCode, 422, response.body);
+    assert.equal(response.json().error.code, 'ORDER_POSITION_OUT_OF_RANGE');
+    assert.equal(fixture.calls.length, 1, 'out-of-range position must be refused before the ordering/audit statement');
+  } finally {
+    await app.close();
+  }
+});
+
+test('Skin Games numeric order remains locked for Premium rows', async () => {
+  const fixture = fakeDatabase({ mode: 'premium' });
+  const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config() });
+  try {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/casino/skin-games/' + PREMIUM_GAME_ID + '/order-position',
+      headers: { ...authHeaders(true), 'content-type': 'application/json' },
+      payload: { orderPosition: 1 },
+    });
+    assert.equal(response.statusCode, 409, response.body);
+    assert.equal(response.json().error.code, 'PREMIUM_NOT_AVAILABLE');
+    assert.equal(fixture.calls.length, 1, 'Premium refusal must happen before any mutation');
   } finally {
     await app.close();
   }

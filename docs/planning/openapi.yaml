@@ -1591,11 +1591,15 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [id, slug, title, provider, sourceMode, externalGameId, isPremium, sourceAvailable, catalogAvailable, enabled, providerEnabled, providerTierEnabled, effectiveAvailable, sourceImageUrl, customImageUrl, imageUrl, description, hasCustomDescription, displayOrder, categories, updatedAt, updatedBy]
+                      required: [id, slug, title, sourceTitle, titleOverride, orderPosition, tierTotal, provider, sourceMode, externalGameId, isPremium, sourceAvailable, catalogAvailable, enabled, providerEnabled, providerTierEnabled, effectiveAvailable, sourceImageUrl, customImageUrl, imageUrl, description, hasCustomDescription, displayOrder, categories, updatedAt, updatedBy]
                       properties:
                         id: {type: string, format: uuid}
                         slug: {type: string}
-                        title: {type: string}
+                        title: {type: string, maxLength: 120, description: 'Player-facing title; falls back to sourceTitle when titleOverride is null.'}
+                        sourceTitle: {type: string}
+                        titleOverride: {type: [string, 'null'], maxLength: 120}
+                        orderPosition: {type: integer, minimum: 1, maximum: 100000}
+                        tierTotal: {type: integer, minimum: 1}
                         provider:
                           type: object
                           required: [code, name]
@@ -1695,8 +1699,8 @@ paths:
     patch:
       tags: [Backoffice]
       security: [adminSession: []]
-      summary: Persist game availability and description override
-      description: Requires casino.provider-settings.manage, MFA, Origin and CSRF. Provider-owned identity remains immutable. Premium mutations are locked.
+      summary: Persist availability and player-facing presentation overrides
+      description: Requires casino.provider-settings.manage, MFA, Origin and CSRF. Provider-owned identity, source title, UUID, source IDs, slug and tier remain immutable. Player-facing title overrides persist in Skin Games and are not used as source identity. Premium mutations are locked.
       parameters:
         - $ref: '#/components/parameters/CsrfToken'
       requestBody:
@@ -1710,6 +1714,7 @@ paths:
               properties:
                 enabled: {type: boolean}
                 description: {type: string, maxLength: 2000}
+                displayTitle: {type: string, maxLength: 120, description: 'Player-facing title; empty string removes the override and restores the source title.'}
                 clearCustomImage: {type: boolean}
       responses:
         '200':
@@ -1735,6 +1740,52 @@ paths:
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {description: Premium mutation or ineffective game enable was refused.}
       operationId: patchAdminSkinGame
+  /api/v1/admin/casino/skin-games/{gameId}/order-position:
+    parameters:
+      - {name: gameId, in: path, required: true, schema: {type: string, format: uuid}}
+      - $ref: '#/components/parameters/XRequestId'
+    patch:
+      tags: [Backoffice]
+      security: [adminSession: []]
+      summary: Move a game to a numeric position within its source tier
+      description: Requires casino.provider-settings.manage, MFA, Origin and CSRF. Position is one-based across all games in the same source tier; the update renumbers intervening games to keep a contiguous order and audits the administrator. Premium remains locked.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [orderPosition]
+              properties:
+                orderPosition: {type: integer, minimum: 1}
+      responses:
+        '200':
+          description: Numeric order saved and all intervening positions updated atomically.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, requestId]
+                properties:
+                  data:
+                    type: object
+                    required: [gameId, oldPosition, orderPosition, displayOrder]
+                    properties:
+                      gameId: {type: string, format: uuid}
+                      oldPosition: {type: integer, minimum: 1}
+                      orderPosition: {type: integer, minimum: 1}
+                      displayOrder: {type: integer, minimum: 100}
+                  requestId: {type: string}
+        '400': {description: Invalid game UUID or position.}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {description: Premium ordering is locked.}
+        '422': {description: Position is out of range for the source tier.}
+      operationId: patchAdminSkinGameOrderPosition
   /api/v1/admin/casino/skin-games/{gameId}/image:
     parameters:
       - {name: gameId, in: path, required: true, schema: {type: string, format: uuid}}

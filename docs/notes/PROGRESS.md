@@ -1,6 +1,6 @@
 # Bclick — Cumulative Progress and Roadmap Gate Checkpoint
 
-**Updated:** 2026-10-23, PR #122 merged as 46945fd; Skin Games SQLSTATE 08P01 pagination bug fixed; local game-order acceptance remains pending; Q-005 remains OPEN/P0  
+**Updated:** 2026-10-23, Skin Games title override + numeric position feature in validation; migration 013 added on a feature branch; Q-005 remains OPEN/P0  
 **Purpose:** Current implementation status and explicit stop conditions. This file reconciles current code with the planning roadmap; it does not replace the shared Library's `docs/planning/12-open-questions.md`.
 
 ## Current verified position
@@ -34,7 +34,7 @@
 - **Q-020 — P0, Open:** runtime contract evidence for each implemented route, alongside static OpenAPI checks. A CI fixture for an unimplemented or unexercised operation does not close this gate.
 - **Q-009 — Owner decision accepted; implementation verified locally/CI; PR #99 merged:** TND uses `0.01 TND = 10 millimes`, with no true third fractional digit. The shared money exponent is TND=2, wallet/API examples were updated, and guarded Migration 008 changes the database exponent from 3 to 2 only when no TND ledger entries exist and all projected TND balances are zero. The parser rejects values such as `12.345` rather than rounding. The Owner's local public.pgmigrations output records 1793188800000_tnd_provider_precision_008 as applied (id=10, on 2026-10-22 at 15:35), and precision/parser/migration-guard tests pass locally/CI. This confirms local development only; it does not establish that any staging/Production database was changed. For every non-local target, verify its own migration history, no TND ledger entries, and zero projected TND balances before applying anything. Real-money routing remains blocked by Q-006, Q-010, Q-011 and other release gates.
 
-## Immediate next task — validate Skin Games + player auth behavior, then resume Q-005
+## Immediate next task — validate numeric Skin Games order/title, then resume Q-005
 
 **PR #119 is merged into `main` as squash commit `c88139078cf2c8be413763223ecc6db703ffea07`; its implementation-head CI passed.** The branch includes Migration 012, protected list/edit/reorder/image APIs, durable custom-image storage, tier-scoped provider settings, updated OpenAPI/generated declarations, and the public catalogue `display_order` fix. The checkpoint and precise CI evidence are in `docs/notes/2026-10-23-skin-games-persistent-management.md`.
 
@@ -64,6 +64,16 @@ This is separate from the normal successful sign-in path, which already navigate
 The Lobby currently requests the normalized local API catalogue with `cache: 'no-store'`; the API also emits `Cache-Control: no-store`. The storefront deliberately refreshes when its tab becomes visible again, so a provider/game blocked in CMS does not remain visible indefinitely. A full browser refresh necessarily starts a new page and requests the catalogue again; this is not proof that the provider's entire catalogue is being re-synchronized.
 
 Do not add an unbounded browser cache while game availability and operator blocking need prompt propagation. A later measured performance task can introduce a short-lived server-side query cache or ETag/conditional validation for the normalized catalogue, with explicit invalidation/versioning on admin mutations and an always-server-side availability check at demo launch. Image bytes should use long-lived cache headers with versioned asset URLs. First collect timing/query evidence and finish Q-005 catalogue identity correctness; do not conflate UI/API response caching with provider sync or weaken the no-live-wallet/Standard-only gates.
+
+## Skin Games numeric ordering and player-facing title — implementation in validation
+
+The Owner confirmed that drag-and-drop works and changes public ordering correctly, but repositioning individual games across the 3,639-record Standard catalogue is too slow. The follow-up feature adds a one-based numeric **Display order position** input to the existing Edit Game modal. It computes the rank across the full source tier, bounds the value to 1..tier count, shifts intervening positions in one audited SQL mutation, and keeps the stored `display_order` values spaced by 100 for compatibility with drag-order operations. The table displays the one-based position rather than the internal multiples of 100.
+
+The same modal adds **Player-facing game title**. Migration 013 adds nullable `casino_game_presentation.title_override`; a blank value removes the override. The source title, canonical UUID, source game ID, provider, tier, and stable route slug are preserved. Public casino list/detail/slug APIs display the override when present and allow searching by it; sync identity never uses the new display title. Admin mutations are guarded by the existing MFA/CSRF/RBAC policy and logged to the audit table. Premium ordering/presentation remain locked.
+
+Implementation is in [PR #123](https://github.com/Bclick9/Bclick/pull/123) on branch `feat/skin-games-numeric-order-and-display-title`; code, OpenAPI, generated API client declarations, migration docs and regression tests are in CI. Owner-local acceptance remains pending. After merge, test a real Standard game: change its numeric position, refresh and confirm it remains there; then rename a game to `Zeus the Thunderer Deluxe`, verify the title in Lobby/search/details, refresh, and confirm provider source identity and legacy slug behavior did not change.
+
+**Roadmap after this bounded UI improvement:** return to Q-005 (OPEN/P0), the accepted project path item. Establish evidence explaining the 3,802 vs 3,639 Standard-game discrepancy and finish source/provider/category/legacy-route review. Do not start Phase 8 or close Q-gates due to the CMS changes.
 
 ## Skin Games pagination bind failure identified and fixed — PR #122 merged
 

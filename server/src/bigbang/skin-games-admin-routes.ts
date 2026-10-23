@@ -27,6 +27,8 @@ interface GameRow extends QueryResultRow {
   id: string;
   slug: string;
   title: string;
+  titleOverride: string | null;
+  orderPosition: string | number;
   providerCode: string;
   providerName: string;
   sourceMode: Tier;
@@ -228,7 +230,7 @@ export function registerSkinGamesAdminRoutes(
       if (query.category) conditions.push(`EXISTS (SELECT 1 FROM public.casino_game_categories gc WHERE gc.game_id=g.id AND gc.category_slug=${add(query.category)})`);
       if (query.query?.trim()) {
         const pattern = add('%' + query.query.trim().replace(/[\\%_]/g,'\\$&') + '%');
-        conditions.push(`(g.title ILIKE ${pattern} ESCAPE E'\\\\' OR p.name ILIKE ${pattern} ESCAPE E'\\\\' OR s.external_game_id::text ILIKE ${pattern})`);
+        conditions.push(`(g.title ILIKE ${pattern} ESCAPE E'\\\\' OR COALESCE((SELECT NULLIF(pres_search.title_override,'' ) FROM public.casino_game_presentation pres_search WHERE pres_search.game_id=g.id),g.title) ILIKE ${pattern} ESCAPE E'\\\\' OR p.name ILIKE ${pattern} ESCAPE E'\\\\' OR s.external_game_id::text ILIKE ${pattern})`);
       }
       const where = conditions.join(' AND ');
       const count = await database.query<{ total: string }>(`
@@ -241,7 +243,22 @@ export function registerSkinGamesAdminRoutes(
       const total = Number(count.rows[0]?.total ?? 0);
       const pageValues = [...values,pageSize,(page-1)*pageSize];
       const rows = await database.query<GameRow>(`
+        WITH tier_order AS MATERIALIZED (
+          SELECT g_order.id,
+                 row_number() OVER (
+                   PARTITION BY s_order.source_mode
+                   ORDER BY COALESCE(pres_order.display_order,0),lower(g_order.title),p_order.code,g_order.id
+                 )::integer AS order_position,
+                 count(*) OVER (PARTITION BY s_order.source_mode)::integer AS tier_total
+            FROM public.casino_games g_order
+            JOIN public.casino_providers p_order ON p_order.id=g_order.provider_id
+            JOIN public.casino_game_sources s_order ON s_order.game_id=g_order.id AND s_order.source_code='bigbang'
+            LEFT JOIN public.casino_game_presentation pres_order ON pres_order.game_id=g_order.id
+        )
         SELECT g.id::text AS id,g.game_slug AS slug,g.title,
+               pres.title_override AS "titleOverride",
+               tier_order.order_position AS "orderPosition",
+               tier_order.tier_total AS "tierTotal",
                p.code AS "providerCode",p.name AS "providerName",
                s.source_mode AS "sourceMode",s.external_game_id::text AS "externalGameId",
                s.is_premium AS "isPremium",s.available AS "sourceAvailable",
@@ -257,6 +274,7 @@ export function registerSkinGamesAdminRoutes(
           FROM public.casino_games g
           JOIN public.casino_providers p ON p.id=g.provider_id
           JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang'
+          JOIN tier_order ON tier_order.id=g.id
           LEFT JOIN public.casino_provider_tier_settings pt ON pt.provider_id=p.id AND pt.source_code='bigbang' AND pt.source_mode=s.source_mode
           LEFT JOIN public.casino_game_presentation pres ON pres.game_id=g.id
           LEFT JOIN public.admin_users pres_editor ON pres_editor.id=pres.updated_by
@@ -273,7 +291,11 @@ export function registerSkinGamesAdminRoutes(
         data: rows.rows.map((row) => ({
           id: row.id,
           slug: row.slug,
-          title: row.title,
+          title: row.titleOverride?.trim() || row.title,
+          sourceTitle: row.title,
+          titleOverride: row.titleOverride,
+          orderPosition: Number(row.orderPosition),
+          tierTotal: Number(row.tierTotal),
           provider: { code: row.providerCode, name: row.providerName },
           sourceMode: row.sourceMode,
           externalGameId: row.externalGameId,
@@ -386,6 +408,96 @@ export function registerSkinGamesAdminRoutes(
     }
   });
 
+  app.patch('/api/v1/admin/casino/skin-games/:gameId/order-position', {
+    schema: {
+      params: { type: 'object', additionalProperties: false, required: ['gameId'], properties: { gameId: { type: 'string', pattern: UUID.source } } },
+      body: {
+        type: 'object', additionalProperties: false, required: ['orderPosition'],
+        properties: { orderPosition: { type: 'integer', minimum: 1, maximum: 100000 } },
+      },
+    },
+  }, async (request,reply) => {
+    try {
+      const session=await authorizedAdmin(database,request,reply,options,true);
+      if(!session) return;
+      const {gameId}=request.params as {gameId:string};
+      const {orderPosition}=request.body as {orderPosition:number};
+      if(!UUID.test(gameId)) return sendError(reply,request,400,'VALIDATION_ERROR','Game ID must be a canonical UUID');
+
+      const source=await database.query<{source_mode:Tier;tier_total:number}>(`
+        SELECT s.source_mode,
+               (SELECT count(*)::int FROM public.casino_game_sources all_sources
+                 WHERE all_sources.source_code='bigbang' AND all_sources.source_mode=s.source_mode) AS tier_total
+          FROM public.casino_game_sources s
+         WHERE s.game_id=$1 AND s.source_code='bigbang'
+      `,[gameId]);
+      const sourceRow=source.rows[0];
+      if(!sourceRow) return sendError(reply,request,404,'NOT_FOUND','Canonical catalogue game UUID was not found');
+      if(sourceRow.source_mode==='premium') return sendError(reply,request,409,'PREMIUM_NOT_AVAILABLE','Premium ordering is locked until the Premium integration gate is approved');
+      if(!Number.isInteger(orderPosition) || orderPosition<1 || orderPosition>Number(sourceRow.tier_total)) {
+        return sendError(reply,request,422,'ORDER_POSITION_OUT_OF_RANGE','Order position must be between 1 and the number of games in the Standard tier ('+Number(sourceRow.tier_total)+')');
+      }
+
+      const auditId=randomUUID();
+      const result=await database.query<QueryResultRow & {oldPosition:number;orderPosition:number;displayOrder:number}>(`
+        WITH lock AS MATERIALIZED (
+          SELECT pg_advisory_xact_lock(hashtext('bclick.skin-games.display-order'))
+        ), tier_games AS MATERIALIZED (
+          SELECT g.id,
+                 row_number() OVER (
+                   ORDER BY COALESCE(pres.display_order,0),lower(g.title),p.code,g.id
+                 )::integer AS old_position
+            FROM public.casino_games g
+            JOIN public.casino_providers p ON p.id=g.provider_id
+            JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode=$3
+            LEFT JOIN public.casino_game_presentation pres ON pres.game_id=g.id
+            CROSS JOIN lock
+        ), target AS MATERIALIZED (
+          SELECT id,old_position FROM tier_games WHERE id=$1
+        ), reordered AS (
+          SELECT ordered_game.id,
+                 CASE
+                   WHEN ordered_game.id=$1 THEN $2::integer
+                   WHEN ordered_game.old_position < target.old_position AND ordered_game.old_position >= $2 THEN ordered_game.old_position+1
+                   WHEN ordered_game.old_position > target.old_position AND ordered_game.old_position <= $2 THEN ordered_game.old_position-1
+                   ELSE ordered_game.old_position
+                 END AS new_position
+            FROM tier_games ordered_game CROSS JOIN target
+           WHERE $2 BETWEEN 1 AND (SELECT count(*)::integer FROM tier_games)
+        ), saved AS (
+          INSERT INTO public.casino_game_presentation
+            (game_id,display_order,order_updated_by,order_updated_at)
+          SELECT id,(new_position*100)::bigint,$4,now() FROM reordered
+          ON CONFLICT (game_id) DO UPDATE SET
+            display_order=EXCLUDED.display_order,
+            order_updated_by=EXCLUDED.order_updated_by,
+            order_updated_at=now()
+          RETURNING game_id,display_order
+        ), audited AS (
+          INSERT INTO public.audit_events
+            (id,action,actor_type,actor_id,subject_type,subject_id,outcome,request_id,metadata,created_at)
+          SELECT $5,'casino.skin-games.position-changed','admin',$4,'casino_game_order',target.id,'success',$6,
+                 jsonb_build_object('sourceMode',$3,'oldPosition',target.old_position,'newPosition',$2),now()
+            FROM target
+           WHERE $2 BETWEEN 1 AND (SELECT count(*)::integer FROM tier_games)
+          RETURNING id
+        )
+        SELECT target.old_position AS "oldPosition",
+               $2::integer AS "orderPosition",
+               saved.display_order AS "displayOrder"
+          FROM target JOIN saved ON saved.game_id=target.id CROSS JOIN audited
+      `,[gameId,orderPosition,sourceRow.source_mode,session.principalId,auditId,request.id]);
+      const row=result.rows[0];
+      if(!row) return sendError(reply,request,422,'ORDER_POSITION_OUT_OF_RANGE','The Standard tier changed while reordering. Refresh and retry with a valid position.');
+      return reply.code(200).send({
+        data:{gameId,oldPosition:Number(row.oldPosition),orderPosition:Number(row.orderPosition),displayOrder:Number(row.displayOrder)},
+        requestId:request.id,
+      });
+    } catch(error) {
+      return unexpected(request,reply,error);
+    }
+  });
+
   app.patch('/api/v1/admin/casino/skin-games/:gameId', {
     schema: {
       params: { type: 'object', additionalProperties: false, required: ['gameId'], properties: { gameId: { type: 'string', pattern: UUID.source } } },
@@ -394,6 +506,7 @@ export function registerSkinGamesAdminRoutes(
         properties: {
           enabled: { type: 'boolean' },
           description: { type: 'string', maxLength: 2000 },
+          displayTitle: { type: 'string', maxLength: 120 },
           clearCustomImage: { type: 'boolean' },
         },
       },
@@ -404,11 +517,12 @@ export function registerSkinGamesAdminRoutes(
       if(!session) return;
       const {gameId}=request.params as {gameId:string};
       if(!UUID.test(gameId)) return sendError(reply,request,400,'VALIDATION_ERROR','Game ID must be a canonical UUID');
-      const body=request.body as {enabled?:boolean;description?:string;clearCustomImage?:boolean};
+      const body=request.body as {enabled?:boolean;description?:string;displayTitle?:string;clearCustomImage?:boolean};
       const changeEnabled=typeof body.enabled==='boolean';
       const changeDescription=typeof body.description==='string';
+      const changeDisplayTitle=typeof body.displayTitle==='string';
       const clearCustomImage=body.clearCustomImage===true;
-      if(!changeEnabled&&!changeDescription&&!clearCustomImage) return sendError(reply,request,400,'VALIDATION_ERROR','At least one supported field must change');
+      if(!changeEnabled&&!changeDescription&&!changeDisplayTitle&&!clearCustomImage) return sendError(reply,request,400,'VALIDATION_ERROR','At least one supported field must change');
       const source=await database.query<{
         source_mode:string; enabled:boolean; source_available:boolean; catalog_available:boolean;
         provider_enabled:boolean; provider_tier_enabled:boolean;
@@ -425,8 +539,8 @@ export function registerSkinGamesAdminRoutes(
       `,[gameId]);
       const sourceRow=source.rows[0];
       if(!sourceRow) return sendError(reply,request,404,'NOT_FOUND','Canonical catalogue game UUID was not found');
-      if(changeEnabled && sourceRow.source_mode==='premium') {
-        return sendError(reply,request,409,'PREMIUM_NOT_AVAILABLE','Premium game availability is read-only until the Premium integration gate is approved and implemented');
+      if(sourceRow.source_mode==='premium' && (changeEnabled || changeDescription || changeDisplayTitle || clearCustomImage)) {
+        return sendError(reply,request,409,'PREMIUM_NOT_AVAILABLE','Premium game availability and presentation are read-only until the Premium integration gate is approved and implemented');
       }
       if(body.enabled===true && (!sourceRow.source_available || !sourceRow.catalog_available || !sourceRow.provider_enabled || !sourceRow.provider_tier_enabled)) {
         return sendError(reply,request,409,'GAME_NOT_EFFECTIVELY_AVAILABLE','The source game, provider and source tier must all be available before enabling a game');
@@ -449,14 +563,18 @@ export function registerSkinGamesAdminRoutes(
           RETURNING g.id,g.bclick_enabled AS enabled,g.availability_updated_at AS "updatedAt"
         ), presentation_change AS (
           INSERT INTO public.casino_game_presentation
-            (game_id,description_override,custom_image_key,display_order,updated_by,updated_at)
-          SELECT t.id,CASE WHEN $3::boolean THEN NULLIF($4::text,'') ELSE NULL END,NULL,
+            (game_id,description_override,title_override,custom_image_key,display_order,updated_by,updated_at)
+          SELECT t.id,
+                 CASE WHEN $3::boolean THEN NULLIF(btrim($4::text),'') ELSE NULL END,
+                 CASE WHEN $9::boolean THEN NULLIF(btrim($10::text),'') ELSE NULL END,
+                 NULL,
                  COALESCE((SELECT display_order FROM public.casino_game_presentation WHERE game_id=t.id),0),
                  $6,now()
             FROM target t
-           WHERE $3::boolean OR $5::boolean
+           WHERE $3::boolean OR $5::boolean OR $9::boolean
           ON CONFLICT (game_id) DO UPDATE SET
-            description_override=CASE WHEN $3::boolean THEN NULLIF($4::text,'') ELSE public.casino_game_presentation.description_override END,
+            description_override=CASE WHEN $3::boolean THEN NULLIF(btrim($4::text),'') ELSE public.casino_game_presentation.description_override END,
+            title_override=CASE WHEN $9::boolean THEN NULLIF(btrim($10::text),'') ELSE public.casino_game_presentation.title_override END,
             custom_image_key=CASE WHEN $5::boolean THEN NULL ELSE public.casino_game_presentation.custom_image_key END,
             updated_by=$6,updated_at=now()
           RETURNING game_id
@@ -466,7 +584,8 @@ export function registerSkinGamesAdminRoutes(
           SELECT $7,'casino.skin-game.updated','admin',$6,'casino_game',t.id,'success',$8,
                  jsonb_build_object('slug',t.game_slug,'sourceMode',t.source_mode,
                    'enabledChanged',$2::boolean IS NOT NULL,'enabled',COALESCE($2::boolean,t.bclick_enabled),
-                   'descriptionChanged',$3::boolean,'customImageCleared',$5::boolean),now()
+                   'descriptionChanged',$3::boolean,'displayTitleChanged',$9::boolean,
+                   'customImageCleared',$5::boolean),now()
             FROM target t
           RETURNING id
         )
@@ -474,7 +593,7 @@ export function registerSkinGamesAdminRoutes(
                COALESCE(gc.enabled,t.bclick_enabled) AS enabled,
                COALESCE(gc."updatedAt",now()) AS "updatedAt"
           FROM target t LEFT JOIN game_change gc ON gc.id=t.id CROSS JOIN audited
-      `,[gameId,changeEnabled?body.enabled:null,changeDescription,body.description??'',clearCustomImage,session.principalId,actionId,request.id]);
+      `,[gameId,changeEnabled?body.enabled:null,changeDescription,body.description??'',clearCustomImage,session.principalId,actionId,request.id,changeDisplayTitle,body.displayTitle??'']);
       const row=result.rows[0];
       if(!row) return sendError(reply,request,404,'NOT_FOUND','Canonical catalogue game UUID was not found');
       return reply.code(200).send({data:{id:row.id,slug:row.slug,enabled:row.enabled,updatedAt:new Date(row.updatedAt).toISOString()},requestId:request.id});

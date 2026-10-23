@@ -97,6 +97,7 @@ jobs:
             "1793361600000_bigbang_tier_aware_source_identity_010.sql"
             "1793448000000_bigbang_provider_controls_011.sql"
             "1793534400000_casino_skin_games_presentation_012.sql"
+            "1793620800000_casino_skin_game_title_override_013.sql"
           )
           diff -u <(printf '%s\n' "${expected_migrations[@]}") <(printf '%s\n' "${actual_migrations[@]}")
       - name: Create exact two-migration baseline in disposable PostgreSQL
