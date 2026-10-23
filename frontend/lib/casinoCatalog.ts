@@ -175,6 +175,7 @@ export interface CasinoDemoLaunch {
 
 export interface CasinoCatalogQuery {
   category?: string;
+  displayCategory?: string;
   provider?: string;
   query?: string;
   cursor?: string | null;
@@ -208,6 +209,7 @@ export async function fetchCasinoGames(options: CasinoCatalogQuery = {}): Promis
   params.set('pageSize', String(options.pageSize ?? 48));
   if (options.cursor) params.set('cursor', options.cursor);
   if (options.category) params.set('category', options.category);
+  if (options.displayCategory) params.set('displayCategory', options.displayCategory);
   if (options.provider) params.set('provider', options.provider);
   if (options.query) params.set('query', options.query);
 
