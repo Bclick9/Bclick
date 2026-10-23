@@ -136,7 +136,7 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
         return { rows: [{ id: DISPLAY_CATEGORY_ID, custom_icon_key: currentCategoryIconKey }], rowCount: 1 };
       }
       if (sql.includes('WITH changed AS') && sql.includes('casino.display-category.icon-updated')) {
-        assert.match(sql, /INSERT INTO public\\.audit_events/);
+        assert.ok(sql.includes('INSERT INTO public.audit_events'));
         assert.match(sql, /RETURNING id,custom_icon_key/);
         currentCategoryIconKey = String(values[1]);
         return { rows: [{ id: DISPLAY_CATEGORY_ID, custom_icon_key: currentCategoryIconKey }], rowCount: 1 };
@@ -146,7 +146,7 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
       }
       if (sql.includes('WITH next_order AS MATERIALIZED') && sql.includes('INSERT INTO public.casino_display_categories')) {
         assert.match(sql, /ON CONFLICT \(slug\) DO NOTHING/);
-        assert.match(sql, /INSERT INTO public\.audit_events/);
+        assert.ok(sql.includes('INSERT INTO public.audit_events'));
         return { rows: [{
           id: DISPLAY_CATEGORY_ID, slug: 'trending-games', name: 'Trending Games', description: 'Hand-picked games',
           icon: 'trending', visible: true, displayOrder: 100, items: 0,
