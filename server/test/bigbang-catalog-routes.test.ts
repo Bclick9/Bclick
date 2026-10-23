@@ -309,7 +309,8 @@ test('public catalogue list returns and searches by the player-facing title over
     assert.equal(response.statusCode, 200, response.body);
     assert.equal(response.json().data[0].id, GAME_ID);
     assert.equal(response.json().data[0].title, 'Zeus the Thunderer Deluxe');
-    assert.match(fixture.calls[0]!.sql, /COALESCE\(NULLIF\(pres_search\.title_override,''\),g\.title\) ILIKE/);
+    assert.match(fixture.calls[0]!.sql, /pres_search\.title_override/);
+    assert.match(fixture.calls[0]!.sql, /ILIKE \$1/);
     assert.match(fixture.calls[1]!.sql, /COALESCE\(NULLIF\(pres\.title_override,''\),g\.title\) AS title/);
     assert.deepEqual(fixture.calls[0]!.values, ['%Zeus%']);
   } finally {
