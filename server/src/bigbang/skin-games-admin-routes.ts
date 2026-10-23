@@ -569,7 +569,7 @@ export function registerSkinGamesAdminRoutes(
         values.push(searchValue);
         const parameter='$'+values.length;
         conditions.push('('+
-          'COALESCE(NULLIF(pres.title_override,\\'\\'),g.title) ILIKE '+parameter+' '+
+          'COALESCE(NULLIF(pres.title_override,\'\'),g.title) ILIKE '+parameter+' '+
           'OR g.game_slug ILIKE '+parameter+' '+
           'OR p.name ILIKE '+parameter+' '+
           'OR p.code ILIKE '+parameter+' '+
