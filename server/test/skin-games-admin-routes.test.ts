@@ -132,15 +132,15 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
         return { rows: [{ id: 'audit-id' }], rowCount: 1 };
       }
       if (sql.includes('WITH next_order AS MATERIALIZED') && sql.includes('INSERT INTO public.casino_display_categories')) {
-        assert.match(sql, /ON CONFLICT \\(slug\\) DO NOTHING/);
-        assert.match(sql, /INSERT INTO public\\.audit_events/);
+        assert.match(sql, /ON CONFLICT \(slug\) DO NOTHING/);
+        assert.match(sql, /INSERT INTO public\.audit_events/);
         return { rows: [{
           id: DISPLAY_CATEGORY_ID, slug: 'trending-games', name: 'Trending Games', description: 'Hand-picked games',
           icon: 'trending', visible: true, displayOrder: 100, items: 0,
         }], rowCount: 1 };
       }
       if (sql.includes('UPDATE public.casino_display_categories c') && sql.includes('casino.display-category.updated')) {
-        assert.match(sql, /INSERT INTO public\\.audit_events/);
+        assert.match(sql, /INSERT INTO public\.audit_events/);
         return { rows: [{
           id: DISPLAY_CATEGORY_ID, slug: 'trending-games', name: values[2] || 'Trending Games',
           description: values[4] || 'Hand-picked games', icon: values[6] || 'trending', visible: values[8] ?? true,
@@ -148,8 +148,8 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
         }], rowCount: 1 };
       }
       if (sql.includes('DELETE FROM public.casino_display_categories c') && sql.includes('casino.display-category.deleted')) {
-        assert.match(sql, /DELETE FROM public\\.casino_display_categories/);
-        assert.match(sql, /INSERT INTO public\\.audit_events/);
+        assert.match(sql, /DELETE FROM public\.casino_display_categories/);
+        assert.match(sql, /INSERT INTO public\.audit_events/);
         return { rows: [{ id: DISPLAY_CATEGORY_ID }], rowCount: 1 };
       }
       if (sql.includes('FROM public.casino_display_categories c') && sql.includes('LEFT JOIN public.casino_game_display_categories m')) {
@@ -166,9 +166,9 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
         return { rows: [{ source_mode: row.sourceMode }], rowCount: 1 };
       }
       if (sql.includes('WITH target AS MATERIALIZED') && sql.includes('casino_game_display_categories')) {
-        assert.match(sql, /INSERT INTO public\\.audit_events/);
-        assert.match(sql, /casino\\.skin-game\\.display-categories-updated/);
-        assert.match(sql, /ON CONFLICT \\(category_id,game_id\\) DO NOTHING/);
+        assert.match(sql, /INSERT INTO public\.audit_events/);
+        assert.match(sql, /casino\.skin-game\.display-categories-updated/);
+        assert.match(sql, /ON CONFLICT \(category_id,game_id\) DO NOTHING/);
         return { rows: [{ gameId: row.id, categoryIds: values[1] }], rowCount: 1 };
       }
       if (sql.includes('SELECT count(DISTINCT g.id)::text AS total')) {
@@ -390,7 +390,7 @@ test('administrator can create a curated category and the request is audited', a
     assert.equal(response.json().data.name, 'Trending Games');
     const insert = fixture.calls.find((call) => call.sql.includes('WITH next_order AS MATERIALIZED'));
     assert.ok(insert);
-    assert.match(insert.sql, /ON CONFLICT \\(slug\\) DO NOTHING/);
+    assert.match(insert.sql, /ON CONFLICT \(slug\) DO NOTHING/);
     assert.match(insert.sql, /casino.display-category.created/);
   } finally {
     await app.close();
