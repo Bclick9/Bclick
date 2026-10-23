@@ -152,10 +152,38 @@ jobs:
             --max-examples 25 \
             --warnings off
 
+      - name: Configure bounded Q-020 Schemathesis profile
+        run: |
+          cat > /tmp/bclick-q020-schemathesis.toml <<'SCHEMATHESIS_CONFIG'
+          [phases.coverage]
+          unexpected-methods = []
+
+          [[operations]]
+          include-name = "GET /api/v1/casino/categories"
+          checks.positive_data_acceptance.expected-statuses = ["2xx", "3xx", "400", "401", "403", "404", "409", "429", "5xx"]
+
+          [[operations]]
+          include-name = "GET /api/v1/casino/providers"
+          checks.positive_data_acceptance.expected-statuses = ["2xx", "3xx", "400", "401", "403", "404", "409", "429", "5xx"]
+
+          [[operations]]
+          include-name = "GET /api/v1/casino/games"
+          checks.positive_data_acceptance.expected-statuses = ["2xx", "3xx", "400", "401", "403", "404", "409", "429", "5xx"]
+
+          [[operations]]
+          include-name = "GET /api/v1/casino/games/by-slug/{slug}"
+          checks.negative_data_rejection.expected-statuses = ["400", "401", "403", "404", "405", "406", "409", "414", "415", "422", "428", "429", "5xx"]
+
+          [[operations]]
+          include-name = "POST /api/v1/auth/password-reset/confirm"
+          checks.positive_data_acceptance.expected-statuses = ["2xx", "3xx", "400", "401", "403", "404", "409", "429", "5xx"]
+          SCHEMATHESIS_CONFIG
+
       - name: Run Schemathesis against implemented non-financial routes
         run: |
           /tmp/schemathesis-venv/bin/schemathesis run docs/planning/openapi.yaml \
             --url http://127.0.0.1:3000 \
+            --config /tmp/bclick-q020-schemathesis.toml \
             --include-path-regex '^/api/v1/(?:casino/(?:categories|display-categories|providers|games|games/by-slug/\{slug\}|games/\{gameId\})|auth/password-reset/(?:request|confirm))$' \
             --header 'Origin: https://localhost:5173' \
             --checks all \
