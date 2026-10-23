@@ -73,19 +73,41 @@ async function authorizedAdmin(
   return null;
 }
 
-function unexpected(request: FastifyRequest, reply: FastifyReply, cause?: unknown) {
+type FailureContext = {
+  readonly operation?: string;
+  readonly stage?: string;
+};
+
+function unexpected(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  cause?: unknown,
+  context?: FailureContext,
+) {
   const failure = cause && typeof cause === 'object' ? cause as Record<string, unknown> : {};
-  const sqlState = typeof failure.code === 'string' && /^[A-Z0-9]{5}$/.test(failure.code)
-    ? failure.code
+  const rawCode = typeof failure.code === 'string' ? failure.code : undefined;
+  const sqlState = rawCode && /^[A-Z0-9]{5}$/.test(rawCode) ? rawCode : undefined;
+  // Filesystem failures are common in image upload deployments (permissions, full disk,
+  // read-only volume, or a bad upload path). Keep the code but do not log the raw path/message.
+  const filesystemCode = rawCode && /^(EACCES|EPERM|EIO|ENOSPC|EROFS|ENOENT|ENOTDIR|EEXIST|EMFILE|EBUSY|EINVAL)$/.test(rawCode)
+    ? rawCode
     : undefined;
+  const diagnosticCode = sqlState ?? filesystemCode;
   const sqlMessage = sqlState && typeof failure.message === 'string'
     ? failure.message.slice(0, 240)
     : undefined;
+  const failureName = typeof failure.name === 'string' ? failure.name.slice(0, 80) : undefined;
 
-  // Preserve useful local diagnostics without returning raw database details to the browser.
+  // Preserve request-correlated, stage-aware server diagnostics without exposing internals to the browser.
   request.log.error({
     requestId: request.id,
-    failure: { code: sqlState ?? 'UNKNOWN', ...(sqlMessage ? { message: sqlMessage } : {}) },
+    ...(context?.operation ? { operation: context.operation } : {}),
+    ...(context?.stage ? { stage: context.stage } : {}),
+    failure: {
+      code: diagnosticCode ?? 'UNKNOWN',
+      ...(failureName ? { name: failureName } : {}),
+      ...(sqlMessage ? { message: sqlMessage } : {}),
+    },
   }, 'Skin Games admin request failed');
 
   if (sqlState && ['3F000', '42P01', '42703'].includes(sqlState)) {
@@ -606,10 +628,12 @@ export function registerSkinGamesAdminRoutes(
     schema: { params: { type: 'object', additionalProperties: false, required: ['gameId'], properties: { gameId: { type: 'string', pattern: UUID.source } } } },
   }, async (request,reply) => {
     let filePath: string | null = null;
+    let failureStage = 'authorize_admin';
     try {
       const session=await authorizedAdmin(database,request,reply,options,true);
       if(!session) return;
       const {gameId}=request.params as {gameId:string};
+      failureStage = 'validate_image';
       if(!UUID.test(gameId)) return sendError(reply,request,400,'VALIDATION_ERROR','Game ID must be a canonical UUID');
       if(!Buffer.isBuffer(request.body) || request.body.length<16 || request.body.length>MAX_IMAGE_BYTES) {
         return sendError(reply,request,413,'IMAGE_SIZE_INVALID','Image must be a supported image no larger than 5 MiB');
@@ -618,6 +642,7 @@ export function registerSkinGamesAdminRoutes(
       if(!info || requestImageType(request)!==info.contentType) {
         return sendError(reply,request,415,'IMAGE_TYPE_INVALID','Upload a valid PNG, JPEG or WebP image whose bytes match its Content-Type');
       }
+      failureStage = 'lookup_game';
       const exists=await database.query<{source_mode:string}>(`
         SELECT s.source_mode FROM public.casino_games g
         JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang'
@@ -629,9 +654,12 @@ export function registerSkinGamesAdminRoutes(
       const fileName=randomUUID()+'.'+info.extension;
       const relativeKey='casino-games/'+gameId.toLowerCase()+'/'+fileName;
       filePath=path.resolve(options.uploadDirectory,'casino-games',gameId.toLowerCase(),fileName);
+      failureStage = 'create_upload_directory';
       await mkdir(path.dirname(filePath),{recursive:true});
+      failureStage = 'write_image_file';
       await writeFile(filePath,request.body,{flag:'wx',mode:0o640});
       const auditId=randomUUID();
+      failureStage = 'persist_image_metadata_and_audit';
       const saved=await database.query<{game_id:string;custom_image_key:string}>(`
         WITH target AS MATERIALIZED (
           SELECT g.id,COALESCE(pres.display_order,0) AS display_order
@@ -659,9 +687,9 @@ export function registerSkinGamesAdminRoutes(
         return sendError(reply,request,404,'NOT_FOUND','Canonical catalogue game UUID was not found');
       }
       return reply.code(201).send({data:{gameId:saved.rows[0].game_id,customImageUrl:'/api/v1/assets/'+saved.rows[0].custom_image_key,contentType:info.contentType},requestId:request.id});
-    } catch {
+    } catch (error) {
       if(filePath) await unlink(filePath).catch(()=>undefined);
-      return unexpected(request,reply,'The image upload could not be persisted');
+      return unexpected(request,reply,error,{ operation:'skin_game_image_upload',stage:failureStage });
     }
   });
 
