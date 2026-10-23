@@ -63,7 +63,7 @@ export async function fetchCasinoDisplayCategories(signal?: AbortSignal, type?: 
   const params = new URLSearchParams();
   if (type) params.set('type', type);
   const query = params.toString();
-  const response = await fetch('/api/v1/casino/display-categories' + (query ? '?' + query : ''),
+  const response = await fetch('/api/v1/casino/display-categories' + (query ? '?' + query : ''), {
     method: 'GET',
     headers: { Accept: 'application/json' },
     signal,
