@@ -485,12 +485,21 @@ export function registerSkinGamesAdminRoutes(
             FROM target t
            WHERE c.id=t.id
           RETURNING c.id,c.slug,c.name,c.description,c.icon,c.category_type AS type,c.visible,c.display_order AS "displayOrder"
+        ), removed_incompatible AS (
+          DELETE FROM public.casino_game_display_categories m
+           USING changed t, public.casino_games g
+           WHERE m.category_id=t.id AND g.id=m.game_id AND $15::boolean
+             AND NOT ((t.type='casino' AND g.game_type='slot')
+               OR (t.type='live-casino' AND g.game_type='live')
+               OR (t.type='crash-games' AND g.game_type='crash'))
+          RETURNING m.game_id
         ), audited AS (
           INSERT INTO public.audit_events
             (id,action,actor_type,actor_id,subject_type,subject_id,outcome,request_id,metadata,created_at)
           SELECT $13,'casino.display-category.updated','admin',$12,'casino_display_category',changed.id,'success',$14,
                  jsonb_build_object('nameChanged',$2::boolean,'descriptionChanged',$4::boolean,'iconChanged',$6::boolean,
-                   'visibilityChanged',$8::boolean,'displayOrderChanged',$10::boolean,'typeChanged',$15::boolean),now()
+                   'visibilityChanged',$8::boolean,'displayOrderChanged',$10::boolean,'typeChanged',$15::boolean,
+                   'incompatibleAssignmentsRemoved',(SELECT count(*) FROM removed_incompatible)),now()
             FROM changed
           RETURNING id
         )
