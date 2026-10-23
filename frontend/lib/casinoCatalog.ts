@@ -72,6 +72,7 @@ export async function fetchCasinoGames(options: CasinoCatalogQuery = {}): Promis
     headers: { Accept: 'application/json' },
     signal: options.signal,
     credentials: 'same-origin',
+    cache: 'no-store',
   });
   const payload = await readJson(response);
   if (!response.ok) {
@@ -99,6 +100,7 @@ export async function fetchCasinoGameBySlug(slug: string, signal?: AbortSignal):
     headers: { Accept: 'application/json' },
     signal,
     credentials: 'same-origin',
+    cache: 'no-store',
   });
   const payload = await readJson(response);
   if (!response.ok) {
