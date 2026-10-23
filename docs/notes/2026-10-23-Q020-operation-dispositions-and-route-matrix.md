@@ -166,7 +166,7 @@
 | `GET` | `/api/v1/admin/auth/sessions` | `listAdminSessions` | PLANNED — no matching handler | Roadmap/owner intent review | Contract-only operation. Keep it unimplemented until the owning domain confirms target phase, authorization, response/error contract and runtime-test prerequisites. |
 | `POST` | `/api/v1/admin/auth/sessions/{sessionId}/revoke` | `revokeAdminSession` | PLANNED — no matching handler | Roadmap/owner intent review | Contract-only operation. Keep it unimplemented until the owning domain confirms target phase, authorization, response/error contract and runtime-test prerequisites. |
 
-### Disposition totals (each operation counted once)
+### Operation counts by API family
 
 | Family | Count |
 |---|---:|
