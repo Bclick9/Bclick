@@ -447,7 +447,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
       open={Boolean(pickerCategory)}
       onOpenChange={(open)=>{ if(!open && !pickerSaving) setPickerCategory(null) }}
       title={pickerCategory ? 'Select games — '+pickerCategory.name : 'Select games'}
-      description="Search the Standard catalogue and choose the games that should appear in this Lobby collection. Your selection is saved separately from provider categories."
+      description="Search the Standard catalogue for games matching this category's selected Type. Membership is saved separately from provider categories."
       size="wide"
       footer={
         <>
@@ -497,7 +497,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
       <div className="p-4">
         {error ? <div role="alert" className="mb-4 flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-800"><span className="flex-1">{error}</span><Button type="button" size="sm" variant="outline" onClick={() => void reload()}>Retry</Button></div> : null}
         {loading ? <p role="status" className="py-10 text-center text-xs text-slate-500"><LoaderCircle className="mr-2 inline h-4 w-4 animate-spin" />Loading categories from PostgreSQL…</p> : null}
-        {!loading && !error && categories.length === 0 ? <p className="rounded-lg border border-dashed border-slate-200 py-10 text-center text-xs text-slate-500">No custom Lobby collections yet. Create one above, then select the games you want to show in its Lobby shelf.</p> : null}
+        {!loading && !error && categories.length === 0 ? <p className="rounded-lg border border-dashed border-slate-200 py-10 text-center text-xs text-slate-500">No custom storefront categories yet. Create one above, choose its Type, then select its games.</p> : null}
         {!loading && filtered.length > 0 ? <div className="space-y-3">
           {filtered.map((category) => {
             const index = categories.findIndex((item) => item.id === category.id)
@@ -522,6 +522,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <Badge variant="info">{CMS_CATEGORY_TYPE_OPTIONS.find((option)=>option.value===category.type)?.label ?? category.type}</Badge>
+                    {draft.type !== category.type ? <p className="w-full text-[10px] leading-4 text-amber-700">Saving this Type removes assigned games that do not match it.</p> : null}
                     <Badge variant={category.visible?'success':'outline'}>{category.visible?'Visible':'Hidden'}</Badge>
                     <Badge variant="info">{category.items} assigned games</Badge>
                     <span className="font-mono text-[10px] text-slate-400">{category.slug}</span>
