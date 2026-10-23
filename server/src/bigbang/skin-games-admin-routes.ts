@@ -291,7 +291,7 @@ export function registerSkinGamesAdminRoutes(
           SELECT $1::uuid,$2,$3,$4,$5,$6,next_order.value,$7,$7,now(),now()
             FROM next_order
           ON CONFLICT (slug) DO NOTHING
-          RETURNING id::text AS id,slug,name,description,icon,visible,display_order AS "displayOrder",created_at AS "createdAt",updated_at AS "updatedAt"
+          RETURNING id,slug,name,description,icon,visible,display_order AS "displayOrder",created_at AS "createdAt",updated_at AS "updatedAt"
         ), audited AS (
           INSERT INTO public.audit_events
             (id,action,actor_type,actor_id,subject_type,subject_id,outcome,request_id,metadata,created_at)
@@ -300,7 +300,8 @@ export function registerSkinGamesAdminRoutes(
             FROM created
           RETURNING id
         )
-        SELECT created.*,0::integer AS items FROM created CROSS JOIN audited
+        SELECT created.id::text AS id,created.slug,created.name,created.description,created.icon,created.visible,
+               created."displayOrder",created."createdAt",created."updatedAt",0::integer AS items FROM created CROSS JOIN audited
       `,[id,slug,name,body.description?.trim() ?? '',body.icon ?? 'sparkles',body.visible ?? true,session.principalId,auditId,request.id]);
       const row = result.rows[0];
       if (!row) return sendError(reply,request,409,'DISPLAY_CATEGORY_EXISTS','A display category with this name/slug already exists');
@@ -357,7 +358,7 @@ export function registerSkinGamesAdminRoutes(
                  updated_by=$12,updated_at=now()
             FROM target t
            WHERE c.id=t.id
-          RETURNING c.id::text AS id,c.slug,c.name,c.description,c.icon,c.visible,c.display_order AS "displayOrder"
+          RETURNING c.id,c.slug,c.name,c.description,c.icon,c.visible,c.display_order AS "displayOrder"
         ), audited AS (
           INSERT INTO public.audit_events
             (id,action,actor_type,actor_id,subject_type,subject_id,outcome,request_id,metadata,created_at)
@@ -367,8 +368,8 @@ export function registerSkinGamesAdminRoutes(
             FROM changed
           RETURNING id
         )
-        SELECT changed.*,
-               (SELECT count(*)::integer FROM public.casino_game_display_categories m WHERE m.category_id=changed.id::uuid) AS items
+        SELECT changed.id::text AS id,changed.slug,changed.name,changed.description,changed.icon,changed.visible,changed."displayOrder",
+               (SELECT count(*)::integer FROM public.casino_game_display_categories m WHERE m.category_id=changed.id) AS items
           FROM changed CROSS JOIN audited
       `,[categoryId,nameChanged,name,descriptionChanged,body.description ?? '',iconChanged,body.icon ?? '',visibleChanged,body.visible ?? false,orderChanged,body.displayOrder ?? 0,session.principalId,auditId,request.id]);
       const row = result.rows[0];
@@ -390,10 +391,10 @@ export function registerSkinGamesAdminRoutes(
       const auditId = randomUUID();
       const result = await database.query<{id:string}>(`
         WITH target AS MATERIALIZED (
-          SELECT id::text AS id,slug,name FROM public.casino_display_categories WHERE id=$1::uuid
+          SELECT id,slug,name FROM public.casino_display_categories WHERE id=$1::uuid
         ), deleted AS (
           DELETE FROM public.casino_display_categories c USING target t
-           WHERE c.id=t.id::uuid RETURNING c.id::text AS id
+           WHERE c.id=t.id RETURNING c.id
         ), audited AS (
           INSERT INTO public.audit_events
             (id,action,actor_type,actor_id,subject_type,subject_id,outcome,request_id,metadata,created_at)
@@ -402,7 +403,7 @@ export function registerSkinGamesAdminRoutes(
             FROM deleted JOIN target ON target.id=deleted.id
           RETURNING id
         )
-        SELECT deleted.id FROM deleted CROSS JOIN audited
+        SELECT deleted.id::text AS id FROM deleted CROSS JOIN audited
       `,[categoryId,auditId,session.principalId,request.id]);
       if (!result.rows[0]) return sendError(reply,request,404,'NOT_FOUND','Display category was not found');
       return reply.code(204).send();
