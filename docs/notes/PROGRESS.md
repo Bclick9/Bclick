@@ -34,7 +34,7 @@
 - **Q-020 — P0, Open:** runtime contract evidence for each implemented route, alongside static OpenAPI checks. A CI fixture for an unimplemented or unexercised operation does not close this gate.
 - **Q-009 — Owner decision accepted; implementation verified locally/CI; PR #99 merged:** TND uses `0.01 TND = 10 millimes`, with no true third fractional digit. The shared money exponent is TND=2, wallet/API examples were updated, and guarded Migration 008 changes the database exponent from 3 to 2 only when no TND ledger entries exist and all projected TND balances are zero. The parser rejects values such as `12.345` rather than rounding. The Owner's local public.pgmigrations output records 1793188800000_tnd_provider_precision_008 as applied (id=10, on 2026-10-22 at 15:35), and precision/parser/migration-guard tests pass locally/CI. This confirms local development only; it does not establish that any staging/Production database was changed. For every non-local target, verify its own migration history, no TND ledger entries, and zero projected TND balances before applying anything. Real-money routing remains blocked by Q-006, Q-010, Q-011 and other release gates.
 
-## Immediate next task — validate PR #120 fixes, then resume Q-005
+## Immediate next task — validate Skin Games + player auth behavior, then resume Q-005
 
 **PR #119 is merged into `main` as squash commit `c88139078cf2c8be413763223ecc6db703ffea07`; its implementation-head CI passed.** The branch includes Migration 012, protected list/edit/reorder/image APIs, durable custom-image storage, tier-scoped provider settings, updated OpenAPI/generated declarations, and the public catalogue `display_order` fix. The checkpoint and precise CI evidence are in `docs/notes/2026-10-23-skin-games-persistent-management.md`.
 
@@ -65,7 +65,7 @@ The Lobby currently requests the normalized local API catalogue with `cache: 'no
 
 Do not add an unbounded browser cache while game availability and operator blocking need prompt propagation. A later measured performance task can introduce a short-lived server-side query cache or ETag/conditional validation for the normalized catalogue, with explicit invalidation/versioning on admin mutations and an always-server-side availability check at demo launch. Image bytes should use long-lived cache headers with versioned asset URLs. First collect timing/query evidence and finish Q-005 catalogue identity correctness; do not conflate UI/API response caching with provider sync or weaken the no-live-wallet/Standard-only gates.
 
-## Local UI blockers reported 2026-10-23 — PR #120
+## Local UI blockers reported 2026-10-23 — PR #120 merged; Owner validation pending
 
 The Owner's first local preview after PR #119 reported:
 
