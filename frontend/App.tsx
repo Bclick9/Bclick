@@ -8,7 +8,6 @@ import Home from './pages/Home'
 import { CasinoCategory, CasinoIndex, Providers, ProviderPage } from './pages/Casino'
 import CasinoPlay from './pages/CasinoPlay'
 import VirtualSportsKiron from './pages/VirtualSportsKiron'
-import LiveCasino from './pages/LiveCasino'
 import Sports, { SportsCategory } from './pages/Sports'
 import Promotions, { PromotionDetail } from './pages/Promotions'
 import Jackpots from './pages/Jackpots'
@@ -134,8 +133,12 @@ export default function App() {
         <Route path="casino/providers" element={<Providers />} />
         <Route path="casino/rng/brands" element={<Providers />} />
         <Route path="casino/providers/:provider" element={<ProviderPage />} />
-        <Route path="casino/:category" element={<CasinoCategory />} />
-        <Route path="live-casino" element={<LiveCasino />} />
+        <Route path="casino/slot-games" element={<Navigate to="/casino/lobby" replace />} />
+        <Route path="casino/:category" element={<CasinoCategory type="casino" routeBase="/casino" />} />
+        <Route path="live-casino" element={<CasinoCategory type="live-casino" routeBase="/live-casino" />} />
+        <Route path="live-casino/:category" element={<CasinoCategory type="live-casino" routeBase="/live-casino" />} />
+        <Route path="crash-games" element={<CasinoCategory type="crash-games" routeBase="/crash-games" />} />
+        <Route path="crash-games/:category" element={<CasinoCategory type="crash-games" routeBase="/crash-games" />} />
         <Route path="sports" element={<Sports />} />
         <Route path="sports/live" element={<Sports />} />
         <Route path="sports/favorites" element={<Sports />} />
