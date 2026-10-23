@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, Navigate } from 'react-router-dom'
 import {
   Home, Cherry, Ghost, Flame, Sparkles, Crown, ShoppingBag, Rocket, Gem, Spade,
-  Trophy, Search as SearchIcon, LayoutGrid, ChevronLeft, ChevronRight, Info, X,
+  Trophy, Search as SearchIcon, LayoutGrid, Layers, Gamepad2, TrendingUp, Clock3, Users, CircleDollarSign, Gift, Zap,
+  ChevronLeft, ChevronRight, Info, X,
   type LucideIcon,
 } from 'lucide-react'
 import { GameCard, Wireframe } from '../components/cards'
@@ -107,6 +108,8 @@ const ICONS: Record<string, LucideIcon> = {
   Home, Cherry, Ghost, Flame, Sparkles, Crown, ShoppingBag, Rocket, Gem, Spade, Trophy,
   home: Home, cherry: Cherry, ghost: Ghost, flame: Flame, sparkles: Sparkles,
   crown: Crown, 'shopping-bag': ShoppingBag, rocket: Rocket, gem: Gem, spade: Spade, trophy: Trophy,
+  layers: Layers, gamepad: Gamepad2, trending: TrendingUp, clock: Clock3, users: Users,
+  money: CircleDollarSign, gift: Gift, zap: Zap,
 };
 
 function CategoryStrip({ active, categories, displayCategories }: { active: string; categories: CasinoCatalogCategory[]; displayCategories: CasinoDisplayCategory[] }) {
@@ -158,7 +161,7 @@ function CategoryStrip({ active, categories, displayCategories }: { active: stri
           <ul ref={railRef} aria-label="Casino categories" className="no-scrollbar -ml-1 flex snap-x snap-mandatory scroll-smooth flex-row overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden">
             {items.map((item) => {
               const presentation = CATEGORY_PRESENTATION[item.slug]
-              const Icon = ICONS[presentation?.icon ?? item.icon ?? 'gem'] ?? Gem
+              const Icon = ICONS[(displayCategorySlugs.has(item.slug) ? item.icon : presentation?.icon ?? item.icon) ?? 'gem'] ?? Gem
               const isActive = item.slug === active
               return (
                 <li key={item.slug} className="min-w-0 shrink-0 grow-0 snap-start pl-1">
@@ -166,7 +169,7 @@ function CategoryStrip({ active, categories, displayCategories }: { active: stri
                     className={cn('block rounded-xl px-3 py-2 text-sm font-semibold text-slate-300 transition-colors hover:bg-[var(--cb-hover)]', isActive ? 'bg-[var(--cb-item-active)] text-white' : 'bg-[var(--cb-card)]')}>
                     <span className="flex items-center gap-x-1.5">
                       {item.iconUrl ? <img src={item.iconUrl} alt="" className="h-5 w-5 shrink-0 rounded object-cover" /> : <Icon className="h-5 w-5 shrink-0 mix-blend-plus-lighter" aria-hidden="true" />}
-                      <span className="whitespace-nowrap">{presentation?.label ?? item.title}</span>
+                      <span className="whitespace-nowrap">{displayCategorySlugs.has(item.slug) ? item.title : presentation?.label ?? item.title}</span>
                     </span>
                   </Link>
                 </li>
