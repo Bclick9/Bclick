@@ -24,6 +24,7 @@ test('provider directory reads only the same-origin active-catalogue API', async
     assert.equal(requestedUrl, '/api/v1/casino/providers?pageSize=100');
     assert.equal(requestInit?.method, 'GET');
     assert.equal(requestInit?.credentials, 'same-origin');
+    assert.equal(requestInit?.cache, 'no-store');
     assert.equal(new Headers(requestInit?.headers).get('accept'), 'application/json');
     assert.deepEqual(page.data, [{ code: 'habanero', name: 'Habanero' }]);
     assert.equal(page.page.total, 1);
