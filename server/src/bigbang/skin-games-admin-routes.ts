@@ -280,7 +280,7 @@ export function registerSkinGamesAdminRoutes(
       if (!session) return;
       const body = request.body as {name:string;description?:string;icon?:typeof displayCategoryIcons[number];type?:DisplayCategoryType;visible?:boolean};
       const name = body.name.trim();
-      const slug = name.normalize('NFKD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase()
+      const slug = name.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
         .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,100).replace(/-+$/g,'');
       if (!name || !slug) return sendError(reply,request,422,'DISPLAY_CATEGORY_NAME_INVALID','Enter a category name containing letters or numbers');
       if (name.length > 80) return sendError(reply,request,422,'DISPLAY_CATEGORY_NAME_INVALID','Category name must be 80 characters or fewer');
