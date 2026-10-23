@@ -77,7 +77,7 @@ function WelcomeBanner() {
   )
 }
 
-function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initialMode?: AuthMode; modal?: boolean; onClose?: () => void }) {
+function AuthScreen({ initialMode = 'login', modal = false, onClose, returnTo = null }: { initialMode?: AuthMode; modal?: boolean; onClose?: () => void; returnTo?: string | null }) {
   const location = useLocation()
   const navigate = useNavigate()
   const [mode, setMode] = useState<AuthMode>(initialMode)
@@ -142,7 +142,7 @@ function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initial
         })
       }
       onClose?.()
-      navigate('/account')
+      navigate(returnTo ?? '/account')
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Authentication failed. Please try again.')
     } finally {
@@ -436,21 +436,14 @@ function AuthScreen({ initialMode = 'login', modal = false, onClose }: { initial
 }
 
 
-export function LoginPage() {
-  return <AuthScreen initialMode="login" />
-}
-
-export function RegisterPage() {
-  return <AuthScreen initialMode="signup" />
-}
-
 export interface AuthModalProps {
   open: boolean
   initialMode: 'login' | 'signup'
   onClose: () => void
+  returnTo?: string | null
 }
 
-export function AuthModal({ open, initialMode, onClose }: AuthModalProps) {
+export function AuthModal({ open, initialMode, onClose, returnTo = null }: AuthModalProps) {
   useEffect(() => {
     if (!open) return
 
@@ -481,7 +474,7 @@ export function AuthModal({ open, initialMode, onClose }: AuthModalProps) {
         if (event.target === event.currentTarget) onClose()
       }}
     >
-      <AuthScreen key={initialMode} initialMode={initialMode} modal onClose={onClose} />
+      <AuthScreen key={initialMode} initialMode={initialMode} modal onClose={onClose} returnTo={returnTo} />
     </div>,
     document.body,
   )
