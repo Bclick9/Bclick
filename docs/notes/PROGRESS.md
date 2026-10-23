@@ -1,6 +1,6 @@
 # Bclick — Cumulative Progress and Roadmap Gate Checkpoint
 
-**Updated:** 2026-10-23, PR #120 opened for local UI blockers; Skin Games owner acceptance remains pending; Q-005 remains OPEN/P0  
+**Updated:** 2026-10-23, PR #120 merged as 12a438b; local Skin Games UI/order acceptance remains pending; Q-005 remains OPEN/P0  
 **Purpose:** Current implementation status and explicit stop conditions. This file reconciles current code with the planning roadmap; it does not replace the shared Library's `docs/planning/12-open-questions.md`.
 
 ## Current verified position
@@ -96,6 +96,6 @@ PR #119 implements the database-backed Skin Games editor and source-tier model. 
 
 The latest implementation-head CI passed API type/tests/typecheck/build and the migration chain through 012, OpenAPI lint/generated-client drift checks, storefront/admin builds, fresh local database/Identity route smoke tests, PowerShell syntax checking, and disposable PostgreSQL rehearsals for Migrations 001/002/003 and Wallet Migration 006. The CI references and local acceptance runbook are recorded in `docs/notes/2026-10-23-skin-games-persistent-management.md`.
 
-**Owner acceptance pending:** the Owner's local run exposed three blockers after PR #119: Skin Games returns a generic API error; Providers crashes because Card/CardContent are used without imports; and standalone /login remains reachable after sign-in. PR #120 (https://github.com/Bclick9/Bclick/pull/120) addresses the missing imports, adds a safe SQLSTATE/schema-readiness diagnostic for Skin Games, and routes legacy login/register URLs to the existing modal after session verification. CI and merge status are not local acceptance. Once PR #120 is merged, inspect the worktree before pulling main, confirm Migration 012 output/readiness, and verify the page works. If SKIN_GAMES_SCHEMA_NOT_READY appears, follow startup output and the migration ledger; never manually rerun or roll back the migration. Explicitly test Standard-tier drag order by reloading Skin Games and checking the public catalogue. Order acceptance stays pending until the Owner confirms the local result.
+**Owner acceptance pending:** PR #120 is merged into main as squash commit `12a438bca9dfa3bc7bb419ddc8a1c37b462fb6f8` ([PR #120](https://github.com/Bclick9/Bclick/pull/120)). Its CI passed API tests/typecheck/build, storefront/admin builds, OpenAPI checks, Windows PowerShell syntax and fresh local DB/Identity smoke tests. The Owner must still confirm the local worktree is safe before pulling, run `.\\start-bclick-local.ps1`, inspect Migration 012/readiness output, and verify Skin Games shows real rows. If `SKIN_GAMES_SCHEMA_NOT_READY` appears, follow startup output and the migration ledger; never manually rerun or roll back the migration. Explicitly test Standard-tier drag order by reloading Skin Games and checking public-catalogue order. The actual local UI/database acceptance is still pending.
 
 **Still gated:** Q-005/Q-006/Q-010/Q-011/Q-013/Q-020 remain open; persistent-upload backup/restore evidence remains required before Production; Premium remains read-only; Phase 8 and all real-money flows remain NOT STARTED.
