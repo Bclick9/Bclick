@@ -156,7 +156,7 @@ jobs:
         run: |
           /tmp/schemathesis-venv/bin/schemathesis run docs/planning/openapi.yaml \
             --url http://127.0.0.1:3000 \
-            --include-path-regex '^/api/v1/(?:casino/(?:categories|display-categories|providers|games|games/by-slug/\\{slug\\}|games/\\{gameId\\})|auth/password-reset/(?:request|confirm)) \
+            --include-path-regex '^/api/v1/(?:casino/(?:categories|display-categories|providers|games|games/by-slug/\{slug\}|games/\{gameId\})|auth/password-reset/(?:request|confirm))$' \
             --header 'Origin: https://localhost:5173' \
             --checks all \
             --max-examples 10 \
