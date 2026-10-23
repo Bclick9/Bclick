@@ -108,19 +108,21 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
     });
 
     const migrationCount = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM pgmigrations');
-    assert.equal(migrationCount.rows[0]?.count, '18', 'wallet, catalogue, TND precision, legacy link retirement, provider controls, Skin Games presentation, title override, curated categories and category icons migrations must apply in order');
+    assert.equal(migrationCount.rows[0]?.count, '19', 'wallet, catalogue, TND precision, legacy link retirement, provider controls, Skin Games presentation, title override, curated categories, icons and category type migrations must apply in order');
     const retiredAliases = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM public.casino_game_legacy_slug_aliases');
     assert.equal(retiredAliases.rows[0]?.count, '0', 'Migration 014 must remove obsolete legacy game links');
-    const categoryTables = await pool.query<{ categories: string | null; assignments: string | null; custom_icon_key: boolean }>(`
+    const categoryTables = await pool.query<{ categories: string | null; assignments: string | null; custom_icon_key: boolean; type_scoping: boolean }>(`
       SELECT to_regclass('public.casino_display_categories')::text AS categories,
              to_regclass('public.casino_game_display_categories')::text AS assignments,
-             EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='casino_display_categories' AND column_name='custom_icon_key') AS custom_icon_key
+             EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='casino_display_categories' AND column_name='custom_icon_key') AS custom_icon_key,
+             EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='casino_display_categories' AND column_name='category_type') AS type_scoping
     `);
     assert.deepEqual(categoryTables.rows[0], {
       categories: 'casino_display_categories',
       assignments: 'casino_game_display_categories',
       custom_icon_key: true,
-    }, 'Migrations 015–016 must create curated category tables and icon metadata');
+      type_scoping: true,
+    }, 'Migrations 015–017 must create curated category tables, icon metadata and game-type scope');
 
     const tndCurrency = await pool.query<{ decimal_places: number }>(
       "SELECT decimal_places FROM public.currencies WHERE code='TND'",

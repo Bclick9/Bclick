@@ -17,6 +17,7 @@ test('lobby curated collections are loaded only from the same-origin public disp
         name: 'Trending Games',
         description: 'Picked by our team',
         icon: 'trending',
+        type: 'casino',
         iconUrl: null,
         displayOrder: 100,
         games: [{
@@ -57,6 +58,7 @@ test('lobby curated collection loader rejects a malformed game entry rather than
       name: 'Trending Games',
       description: '',
       icon: 'trending',
+      type: 'casino',
       displayOrder: 100,
       games: [{ id: 'not-a-game-row' }],
     }],

@@ -433,19 +433,21 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
       log: () => undefined,
     });
     const migrationCount = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM pgmigrations');
-    assert.equal(migrationCount.rows[0]?.count, '18', 'The full migration chain through Migration 016 must apply in order');
+    assert.equal(migrationCount.rows[0]?.count, '19', 'The full migration chain through Migration 017 must apply in order');
     const retiredAliases = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM public.casino_game_legacy_slug_aliases');
     assert.equal(retiredAliases.rows[0]?.count, '0', 'Migration 014 must retire legacy storefront aliases');
-    const displayCategoryTables = await pool.query<{ categories: string | null; assignments: string | null; custom_icon_key: boolean }>(`
+    const displayCategoryTables = await pool.query<{ categories: string | null; assignments: string | null; custom_icon_key: boolean; type_scoping: boolean }>(`
       SELECT to_regclass('public.casino_display_categories')::text AS categories,
              to_regclass('public.casino_game_display_categories')::text AS assignments,
-             EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='casino_display_categories' AND column_name='custom_icon_key') AS custom_icon_key
+             EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='casino_display_categories' AND column_name='custom_icon_key') AS custom_icon_key,
+             EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='casino_display_categories' AND column_name='category_type') AS type_scoping
     `);
     assert.deepEqual(displayCategoryTables.rows[0], {
       categories: 'casino_display_categories',
       assignments: 'casino_game_display_categories',
       custom_icon_key: true,
-    }, 'Migrations 015–016 must create curated assignments and persistent icon metadata');
+      type_scoping: true,
+    }, 'Migrations 015–017 must create curated categories, persistent icons and game-type scope');
 
 
     const controlSchema = await pool.query<{ provider_enabled: string | null; game_enabled: string | null; tier: string | null; permission_links: string }>(`
@@ -577,10 +579,11 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
     assert.equal(nextPage.json().data.length, 1);
     assert.notEqual(firstPage.json().data[0].id, nextPage.json().data[0].id);
 
-    const search = await app.inject({ method: 'GET', url: '/api/v1/casino/games?query=Fruit' });
+    const search = await app.inject({ method: 'GET', url: '/api/v1/casino/games?type=casino&query=Fruit' });
     assert.equal(search.statusCode, 200, search.body);
     assert.equal(search.json().data.length, 1);
     assert.equal(search.json().data[0].title, 'Hot Hot Fruit');
+    const curatedGameId = String(search.json().data[0].id);
 
     const escapedSearch = await app.inject({ method: 'GET', url: '/api/v1/casino/games?query=%25' });
     assert.equal(escapedSearch.statusCode, 200, escapedSearch.body);
@@ -608,18 +611,18 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
 
     const integrationDisplayCategoryId = 'ee301f2e-3f2a-426d-900a-a1bd52ca3f80';
     await pool.query(
-      'INSERT INTO public.casino_display_categories(id,slug,name,visible,display_order) VALUES ($1,$2,$3,true,10)',
+      "INSERT INTO public.casino_display_categories(id,slug,name,visible,display_order,category_type) VALUES ($1,$2,$3,true,10,'casino')",
       [integrationDisplayCategoryId,'integration-test-shelf','Integration Test Shelf'],
     );
     await pool.query(
       'INSERT INTO public.casino_game_display_categories(category_id,game_id) VALUES ($1,$2)',
-      [integrationDisplayCategoryId,canonicalGameId],
+      [integrationDisplayCategoryId,curatedGameId],
     );
     const curatedShelf = await app.inject({ method: 'GET', url: '/api/v1/casino/display-categories' });
     assert.equal(curatedShelf.statusCode, 200, curatedShelf.body);
     const integrationShelf = curatedShelf.json().data.find((item: { id: string }) => item.id === integrationDisplayCategoryId);
-    assert.ok(integrationShelf, 'an assigned visible category should be returned by the public Lobby API');
-    assert.equal(integrationShelf.games[0]?.id, canonicalGameId, 'the UUID-typed join should return the exact assigned canonical game');
+    assert.ok(integrationShelf, 'an assigned visible Casino category should be returned by the public Casino API: ' + JSON.stringify(curatedShelf.json().data));
+    assert.equal(integrationShelf.games[0]?.id, curatedGameId, 'the UUID-typed join should return the exact assigned canonical Casino game');
     await pool.query('DELETE FROM public.casino_display_categories WHERE id=$1', [integrationDisplayCategoryId]);
     await pool.query('UPDATE public.casino_providers SET bclick_enabled=false WHERE code=$1', [canonicalProviderCode]);
     const disabledProviderBrowse = await app.inject({ method: 'GET', url: '/api/v1/casino/games?provider=' + encodeURIComponent(canonicalProviderCode) });

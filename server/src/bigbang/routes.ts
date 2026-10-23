@@ -5,6 +5,14 @@ import type { SqlExecutor } from '../identity/repository.js';
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+export const CASINO_DISPLAY_TYPES = ['casino','live-casino','crash-games'] as const;
+type CasinoDisplayType = typeof CASINO_DISPLAY_TYPES[number];
+const DISPLAY_TYPE_TO_GAME_TYPE: Record<CasinoDisplayType, 'slot' | 'live' | 'crash'> = {
+  casino: 'slot',
+  'live-casino': 'live',
+  'crash-games': 'crash',
+};
+
 interface GameRow extends QueryResultRow {
   id: string;
   slug: string;
@@ -27,6 +35,7 @@ interface SyncMetaRow extends QueryResultRow {
 interface QueryOptions {
   readonly category?: string;
   readonly displayCategory?: string;
+  readonly type?: CasinoDisplayType;
   readonly provider?: string;
   readonly query?: string;
   readonly mode?: 'demo' | 'real';
@@ -56,6 +65,7 @@ function readOptions(request: FastifyRequest, reply: any): QueryOptions | null {
   const page = query.page === undefined ? 1 : Number(query.page);
   const category = typeof query.category === 'string' ? query.category.trim() : undefined;
   const displayCategory = typeof query.displayCategory === 'string' ? query.displayCategory.trim() : undefined;
+  const type = typeof query.type === 'string' && (CASINO_DISPLAY_TYPES as readonly string[]).includes(query.type) ? query.type as CasinoDisplayType : undefined;
   const provider = typeof query.provider === 'string' ? query.provider.trim() : undefined;
   const search = typeof query.query === 'string' ? query.query.trim() : undefined;
   const mode = query.mode === 'demo' || query.mode === 'real' ? query.mode : undefined;
@@ -64,6 +74,7 @@ function readOptions(request: FastifyRequest, reply: any): QueryOptions | null {
     || !Number.isSafeInteger(page) || page < 1
     || (category !== undefined && (category.length < 1 || category.length > 80))
     || (displayCategory !== undefined && (displayCategory.length < 1 || displayCategory.length > 80))
+    || (query.type !== undefined && !type)
     || (provider !== undefined && (provider.length < 1 || provider.length > 80))
     || (search !== undefined && search.length > 100)) {
     errorResponse(reply, request, 400, 'VALIDATION_ERROR', 'Catalogue query parameters are invalid');
@@ -89,6 +100,7 @@ function readOptions(request: FastifyRequest, reply: any): QueryOptions | null {
   return {
     ...(category ? { category } : {}),
     ...(displayCategory ? { displayCategory } : {}),
+    ...(type ? { type } : {}),
     ...(provider ? { provider } : {}),
     ...(search ? { query: search } : {}),
     ...(mode ? { mode } : {}),
@@ -120,9 +132,12 @@ function whereClause(options: QueryOptions): { sql: string; values: unknown[] } 
     const p = add(options.category);
     conditions.push(`EXISTS (SELECT 1 FROM public.casino_game_categories gc WHERE gc.game_id=g.id AND gc.category_slug=${p})`);
   }
+  if (options.type) {
+    conditions.push(`g.game_type='${DISPLAY_TYPE_TO_GAME_TYPE[options.type]}'`);
+  }
   if (options.displayCategory) {
     const p = add(options.displayCategory);
-    conditions.push(`EXISTS (SELECT 1 FROM public.casino_game_display_categories dgc JOIN public.casino_display_categories dc ON dc.id=dgc.category_id WHERE dgc.game_id=g.id AND dc.slug=${p} AND dc.visible=true)`);
+    conditions.push(`EXISTS (SELECT 1 FROM public.casino_game_display_categories dgc JOIN public.casino_display_categories dc ON dc.id=dgc.category_id WHERE dgc.game_id=g.id AND dc.slug=${p} AND dc.visible=true AND ((dc.category_type='casino' AND g.game_type='slot') OR (dc.category_type='live-casino' AND g.game_type='live') OR (dc.category_type='crash-games' AND g.game_type='crash')))`);
   }
   if (options.provider) {
     // Provider is an identity filter, not free-text search. Resolve only the stored
@@ -185,14 +200,17 @@ function mapGame(row: GameRow) {
 interface CatalogPageOptions {
   readonly pageSize: number;
   readonly offset: number;
+  readonly type?: CasinoDisplayType;
 }
 
 function readCatalogPage(request: FastifyRequest, reply: any): CatalogPageOptions | null {
   const query = request.query as Record<string, unknown>;
   const pageSize = query.pageSize === undefined ? 25 : Number(query.pageSize);
   const page = query.page === undefined ? 1 : Number(query.page);
+  const type = typeof query.type === 'string' && (CASINO_DISPLAY_TYPES as readonly string[]).includes(query.type) ? query.type as CasinoDisplayType : undefined;
   if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100
-    || !Number.isSafeInteger(page) || page < 1) {
+    || !Number.isSafeInteger(page) || page < 1
+    || (query.type !== undefined && !type)) {
     errorResponse(reply, request, 400, 'VALIDATION_ERROR', 'Catalogue pagination parameters are invalid');
     return null;
   }
@@ -213,7 +231,7 @@ function readCatalogPage(request: FastifyRequest, reply: any): CatalogPageOption
     errorResponse(reply, request, 400, 'VALIDATION_ERROR', 'Catalogue page offset is invalid');
     return null;
   }
-  return { pageSize, offset };
+  return { pageSize, offset, ...(type ? { type } : {}) };
 }
 
 function listPage<T>(rows: readonly T[], total: number, options: CatalogPageOptions) {
@@ -250,20 +268,25 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
       pageSize: { type: 'integer', minimum: 1, maximum: 100, default: 25 },
     },
   };
+  const categoryPaginationSchema = {
+    ...paginationSchema,
+    properties: { ...paginationSchema.properties, type: { type: 'string', enum: [...CASINO_DISPLAY_TYPES] } },
+  };
 
   // These read-only endpoints query only the local normalized catalogue. They never contact BigBang.
-  app.get('/api/v1/casino/categories', { schema: { querystring: paginationSchema } }, async (request, reply) => {
+  app.get('/api/v1/casino/categories', { schema: { querystring: categoryPaginationSchema } }, async (request, reply) => {
     const options = readCatalogPage(request, reply);
     if (!options) return;
     // Availability is an operator kill switch. Do not retain responses past a mutation.
     reply.header('Cache-Control', 'no-store');
+    const typeClause = options.type ? ` AND g.game_type='${DISPLAY_TYPE_TO_GAME_TYPE[options.type]}'` : '';
     const count = await database.query<{ total: string }>(`
       SELECT count(DISTINCT gc.category_slug)::text AS total
         FROM public.casino_game_categories gc
         JOIN public.casino_games g ON g.id=gc.game_id
         JOIN public.casino_providers p ON p.id=g.provider_id
         JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
-       WHERE g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true AND EXISTS (SELECT 1 FROM public.casino_provider_tier_settings pt WHERE pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode AND pt.enabled=true)
+       WHERE g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true AND EXISTS (SELECT 1 FROM public.casino_provider_tier_settings pt WHERE pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode AND pt.enabled=true)${typeClause}
     `);
     const total = Number(count.rows[0]?.total ?? 0);
     const result = await database.query<{ slug: string }>(`
@@ -272,7 +295,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
         JOIN public.casino_games g ON g.id=gc.game_id
         JOIN public.casino_providers p ON p.id=g.provider_id
         JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
-       WHERE g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true AND EXISTS (SELECT 1 FROM public.casino_provider_tier_settings pt WHERE pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode AND pt.enabled=true)
+       WHERE g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true AND EXISTS (SELECT 1 FROM public.casino_provider_tier_settings pt WHERE pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode AND pt.enabled=true)${typeClause}
        ORDER BY gc.category_slug
        LIMIT $1 OFFSET $2
     `, [options.pageSize, options.offset]);
@@ -287,10 +310,17 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
 
   // Operator-managed storefront collections (e.g. Trending Games) are distinct
   // from provider-owned source categories returned by /casino/categories.
-  app.get('/api/v1/casino/display-categories', async (request,reply) => {
+  app.get('/api/v1/casino/display-categories', {
+    schema: { querystring: {
+      type: 'object', additionalProperties: false,
+      properties: { type: { type: 'string', enum: [...CASINO_DISPLAY_TYPES] } },
+    } },
+  }, async (request,reply) => {
+    const query = request.query as { type?: CasinoDisplayType };
+    const displayType = query.type;
     reply.header('Cache-Control','no-store');
     const result = await database.query<QueryResultRow & {
-      id:string;slug:string;name:string;description:string;icon:string;customIconKey:string|null;displayOrder:number|string;games:unknown;
+      id:string;slug:string;name:string;description:string;icon:string;type:CasinoDisplayType;customIconKey:string|null;displayOrder:number|string;games:unknown;
     }>(`
       WITH public_games AS (
         SELECT g.id AS id,g.game_slug AS slug,
@@ -300,7 +330,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
                COALESCE(pres.description_override,'') AS description,
                COALESCE(array_agg(DISTINCT source_categories.category_slug)
                  FILTER (WHERE source_categories.category_slug IS NOT NULL),ARRAY[]::text[]) AS categories,
-               g.demo_available,g.real_available,COALESCE(pres.display_order,0) AS display_order
+               g.game_type,g.demo_available,g.real_available,COALESCE(pres.display_order,0) AS display_order
           FROM public.casino_games g
           JOIN public.casino_providers p ON p.id=g.provider_id
           JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
@@ -309,7 +339,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
           LEFT JOIN public.casino_game_categories source_categories ON source_categories.game_id=g.id
          WHERE g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true
          GROUP BY g.id,g.game_slug,g.title,pres.title_override,p.code,p.name,pres.custom_image_key,g.image_url,
-                  pres.description_override,pres.display_order,g.demo_available,g.real_available
+                  pres.description_override,pres.display_order,g.game_type,g.demo_available,g.real_available
       ), ranked_games AS (
         SELECT cgm.category_id,pg.*,
                row_number() OVER (
@@ -319,6 +349,9 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
           FROM public.casino_game_display_categories cgm
           JOIN public.casino_display_categories c ON c.id=cgm.category_id AND c.visible=true
           JOIN public_games pg ON pg.id=cgm.game_id
+            AND ((c.category_type='casino' AND pg.game_type='slot')
+              OR (c.category_type='live-casino' AND pg.game_type='live')
+              OR (c.category_type='crash-games' AND pg.game_type='crash'))
       ), grouped_games AS (
         SELECT category_id,
                json_agg(json_build_object(
@@ -331,16 +364,16 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
          WHERE category_rank <= 24
          GROUP BY category_id
       )
-      SELECT c.id::text AS id,c.slug,c.name,c.description,c.icon,c.custom_icon_key AS "customIconKey",
+      SELECT c.id::text AS id,c.slug,c.name,c.description,c.icon,c.category_type AS type,c.custom_icon_key AS "customIconKey",
              c.display_order AS "displayOrder",gg.games
         FROM public.casino_display_categories c
         JOIN grouped_games gg ON gg.category_id=c.id
-       WHERE c.visible=true
+       WHERE c.visible=true AND ($1::text IS NULL OR c.category_type=$1)
        ORDER BY c.display_order,c.created_at,c.id
-    `);
+    `,[displayType ?? null]);
     return {
       data: result.rows.map((row) => ({
-        id:row.id,slug:row.slug,name:row.name,description:row.description,icon:row.icon,
+        id:row.id,slug:row.slug,name:row.name,description:row.description,icon:row.icon,type:row.type,
         iconUrl:row.customIconKey ? '/api/v1/assets/'+row.customIconKey : null,
         displayOrder:Number(row.displayOrder),games:row.games,
       })),
@@ -386,6 +419,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
     properties: {
       category: { type: 'string', minLength: 1, maxLength: 80 },
       displayCategory: { type: 'string', minLength: 1, maxLength: 80 },
+      type: { type: 'string', enum: [...CASINO_DISPLAY_TYPES] },
       provider: { type: 'string', minLength: 1, maxLength: 80 },
       query: { type: 'string', maxLength: 100 },
       mode: { type: 'string', enum: ['demo','real'] },

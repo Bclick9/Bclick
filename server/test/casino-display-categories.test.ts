@@ -17,6 +17,12 @@ function fakeCatalogDatabase() {
       if (sql.includes('SELECT g.id::text AS id,g.game_slug AS slug') && sql.includes('casino_game_display_categories')) {
         return { rows: [{ id: GAME_ID, slug: 'hot-hot-fruit-habanero', title: 'Hot Hot Fruit', provider_code: 'habanero', provider_name: 'Habanero', image_url: 'https://assets.example.test/hot-hot-fruit.webp', description: '', available: true, demo_available: false, real_available: false, categories: ['slot-games'] }], rowCount: 1 };
       }
+      if (sql.includes('count(DISTINCT gc.category_slug)::text AS total')) {
+        return { rows: [{ total: '1' }], rowCount: 1 };
+      }
+      if (sql.includes('SELECT DISTINCT gc.category_slug AS slug')) {
+        return { rows: [{ slug: 'live-roulettes' }], rowCount: 1 };
+      }
       if (sql.includes('FROM public.casino_catalog_sync_runs')) {
         return { rows: [{ latest_status: 'succeeded', fetched_at: null }], rowCount: 1 };
       }
@@ -28,6 +34,7 @@ function fakeCatalogDatabase() {
             name: 'Trending Games',
             description: 'Operator-selected casino highlights',
             icon: 'trending',
+            type: 'casino',
             iconUrl: null,
             customIconKey: null,
             displayOrder: 100,
@@ -78,6 +85,39 @@ test('catalogue displayCategory filter returns only assigned available Standard 
   }
 });
 
+
+test('type-scoped catalogue applies type and category-type membership filters server-side', async () => {
+  const fixture = fakeCatalogDatabase();
+  const app = buildApp({ database: null, catalogDatabase: fixture.database });
+  try {
+    const response = await app.inject({ method: 'GET', url: '/api/v1/casino/games?type=live-casino&displayCategory=live-roulettes&pageSize=12' });
+    assert.equal(response.statusCode, 200, response.body);
+    const membershipQueries = fixture.calls.filter((sql) => sql.includes('casino_game_display_categories dgc'));
+    assert.equal(membershipQueries.length, 2);
+    for (const sql of membershipQueries) {
+      assert.ok(sql.includes("g.game_type='live'"));
+      assert.ok(sql.includes("dc.category_type='live-casino'"));
+    }
+  } finally {
+    await app.close();
+  }
+});
+
+test('source categories only include rows matching the requested storefront type', async () => {
+  const fixture = fakeCatalogDatabase();
+  const app = buildApp({ database: null, catalogDatabase: fixture.database });
+  try {
+    const response = await app.inject({ method: 'GET', url: '/api/v1/casino/categories?type=live-casino&pageSize=25' });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.deepEqual(response.json().data.map((item: {slug:string}) => item.slug), ['live-roulettes']);
+    const categoryQueries = fixture.calls.filter((sql) => sql.includes('casino_game_categories gc'));
+    assert.equal(categoryQueries.length, 2);
+    for (const sql of categoryQueries) assert.ok(sql.includes("g.game_type='live'"));
+  } finally {
+    await app.close();
+  }
+});
+
 test('public curated categories return operator-selected canonical games and no-store headers', async () => {
   const fixture = fakeCatalogDatabase();
   const app = buildApp({ database: null, catalogDatabase: fixture.database });
@@ -88,6 +128,7 @@ test('public curated categories return operator-selected canonical games and no-
     const payload = response.json();
     assert.equal(payload.data.length, 1);
     assert.equal(payload.data[0].name, 'Trending Games');
+    assert.equal(payload.data[0].type, 'casino');
     assert.equal(payload.data[0].games[0].id, GAME_ID);
     assert.equal(payload.data[0].games[0].slug, 'hot-hot-fruit-habanero');
     assert.match(fixture.calls[0]!, /source_mode='standard'/);

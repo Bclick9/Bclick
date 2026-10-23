@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { GameCard, Wireframe } from '../components/cards'
 import type { Game } from '../data/catalog'
-import { fetchCasinoCategories, fetchCasinoDisplayCategories, fetchCasinoGames, fetchCasinoProviders, getCatalogErrorMessage, type CasinoCatalogCategory, type CasinoCatalogGame, type CasinoCatalogProvider, type CasinoDisplayCategory } from '../lib/casinoCatalog'
+import { fetchCasinoCategories, fetchCasinoDisplayCategories, fetchCasinoGames, fetchCasinoProviders, getCatalogErrorMessage, type CasinoCatalogCategory, type CasinoCatalogGame, type CasinoCatalogProvider, type CasinoDisplayCategory, type CasinoDisplayType } from '../lib/casinoCatalog'
 import { cn } from '../lib/shadcn/utils'
 
 // When an admin changes availability in another tab, refresh current catalogue views
@@ -112,7 +112,7 @@ const ICONS: Record<string, LucideIcon> = {
   money: CircleDollarSign, gift: Gift, zap: Zap,
 };
 
-function CategoryStrip({ active, categories, displayCategories }: { active: string; categories: CasinoCatalogCategory[]; displayCategories: CasinoDisplayCategory[] }) {
+function CategoryStrip({ active, categories, displayCategories, type, basePath }: { active: string; categories: CasinoCatalogCategory[]; displayCategories: CasinoDisplayCategory[]; type: CasinoDisplayType; basePath: string }) {
   const railRef = useRef<HTMLUListElement | null>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
@@ -143,14 +143,14 @@ function CategoryStrip({ active, categories, displayCategories }: { active: stri
   }
   // Curated Bclick categories belong immediately after Lobby; source categories follow them.
   // Game-type routes remain available directly, but are not mixed into this generic strip.
-  const gameTypeSlugs = new Set(['crash-games', 'live-casino', 'slot-games'])
-  const visibleDisplayCategories = displayCategories.filter((item) => item.slug !== 'lobby' && !gameTypeSlugs.has(item.slug))
+  const reservedTypeSlugs = new Set(['crash-games', 'live-casino', 'slot-games'])
+  const visibleDisplayCategories = displayCategories.filter((item) => item.slug !== 'lobby')
   const displayCategorySlugs = new Set(visibleDisplayCategories.map((item) => item.slug))
   const items = [
     { slug: 'lobby', title: 'Lobby', icon: 'home', iconUrl: null as string | null },
     ...visibleDisplayCategories.map((item) => ({ slug: item.slug, title: item.name, icon: item.icon, iconUrl: item.iconUrl })),
     ...categories
-      .filter((item) => item.slug !== 'lobby' && !gameTypeSlugs.has(item.slug) && !displayCategorySlugs.has(item.slug))
+      .filter((item) => item.slug !== 'lobby' && !reservedTypeSlugs.has(item.slug) && !displayCategorySlugs.has(item.slug))
       .map((item) => ({ slug: item.slug, title: item.title, icon: item.icon ?? 'gem', iconUrl: null as string | null })),
   ]
 
@@ -165,7 +165,7 @@ function CategoryStrip({ active, categories, displayCategories }: { active: stri
               const isActive = item.slug === active
               return (
                 <li key={item.slug} className="min-w-0 shrink-0 grow-0 snap-start pl-1">
-                  <Link to={'/casino/' + item.slug} aria-current={isActive ? 'page' : undefined} data-status={isActive ? 'active' : undefined}
+                  <Link to={item.slug === 'lobby' ? (type === 'casino' ? basePath + '/lobby' : basePath) : basePath + '/' + item.slug} aria-current={isActive ? 'page' : undefined} data-status={isActive ? 'active' : undefined}
                     className={cn('block rounded-xl px-3 py-2 text-sm font-semibold text-slate-300 transition-colors hover:bg-[var(--cb-hover)]', isActive ? 'bg-[var(--cb-item-active)] text-white' : 'bg-[var(--cb-card)]')}>
                     <span className="flex items-center gap-x-1.5">
                       {item.iconUrl ? <img src={item.iconUrl} alt="" className="h-5 w-5 shrink-0 rounded object-cover" /> : <Icon className="h-5 w-5 shrink-0 mix-blend-plus-lighter" aria-hidden="true" />}
@@ -283,72 +283,7 @@ function catalogGameToCardGame(catalogGame: CasinoCatalogGame): Game {
   }
 }
 
-function CatalogGameRail({ category, title, bannerImage }: { category: CasinoDisplayCategory; title?: string; bannerImage?: string }) {
-  const railRef = useRef<HTMLDivElement | null>(null)
-  const [canScrollLeft, setCanScrollLeft] = useState(false)
-  const [canScrollRight, setCanScrollRight] = useState(false)
-  const games = category.games
-  const heading = title ?? category.name
-
-  useEffect(() => {
-    const rail = railRef.current
-    if (!rail) return
-    const updateEdges = () => {
-      const maxScroll = rail.scrollWidth - rail.clientWidth
-      setCanScrollLeft(rail.scrollLeft > 2)
-      setCanScrollRight(maxScroll > 2 && rail.scrollLeft < maxScroll - 2)
-    }
-    updateEdges()
-    rail.addEventListener('scroll', updateEdges, { passive: true })
-    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateEdges) : null
-    observer?.observe(rail)
-    Array.from(rail.children).forEach((child) => observer?.observe(child))
-    return () => {
-      rail.removeEventListener('scroll', updateEdges)
-      observer?.disconnect()
-    }
-  }, [games])
-
-  if (games.length === 0) return null
-  const scroll = (direction: -1 | 1) => {
-    railRef.current?.scrollBy({ left: direction * Math.max(260, (railRef.current?.clientWidth ?? 400) * 0.7), behavior: 'smooth' })
-  }
-
-  return (
-    <section className="mb-8 overflow-hidden rounded-2xl border border-border bg-card" data-display-category={category.slug}>
-      {bannerImage ? <img src={bannerImage} alt={heading} loading="lazy" className="block aspect-[5.2/1] w-full object-cover" /> : null}
-      <div className="p-4 md:p-6">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              {category.iconUrl ? <img src={category.iconUrl} alt="" loading="lazy" className="h-8 w-8 rounded-md object-cover" /> : null}
-              <h2 className="text-lg font-extrabold text-foreground md:text-xl">{heading}</h2>
-            </div>
-            {category.description ? <p className="mt-1 text-xs text-muted-foreground">{category.description}</p> : null}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">{games.length} games</span>
-            <button type="button" aria-label={'Scroll ' + heading + ' left'} onClick={() => scroll(-1)} disabled={!canScrollLeft}
-              className="hidden h-9 w-9 items-center justify-center rounded-lg bg-secondary text-muted-foreground transition-colors enabled:hover:text-foreground disabled:opacity-40 md:flex">
-              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-            </button>
-            <button type="button" aria-label={'Scroll ' + heading + ' right'} onClick={() => scroll(1)} disabled={!canScrollRight}
-              className="hidden h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors disabled:opacity-40 md:flex">
-              <ChevronRight className="h-5 w-5" aria-hidden="true" />
-            </button>
-          </div>
-        </div>
-        <div ref={railRef} className="flex gap-3 overflow-x-auto no-scrollbar">
-          {games.map((catalogGame) => (
-            <GameCard key={catalogGame.id} game={catalogGameToCardGame(catalogGame)} href={'/casino/play/demo/' + encodeURIComponent(catalogGame.slug)} />
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-export function CasinoCategory() {
+export function CasinoCategory({ type = 'casino', routeBase = '/casino' }: { type?: CasinoDisplayType; routeBase?: string } = {}) {
   const { category = 'lobby' } = useParams()
   const [searchQuery, setSearchQuery] = useState('')
   const [catalogGames, setCatalogGames] = useState<CasinoCatalogGame[]>([])
@@ -368,7 +303,7 @@ export function CasinoCategory() {
 
   useEffect(() => {
     const controller = new AbortController()
-    void fetchCasinoDisplayCategories(controller.signal).then((categories) => {
+    void fetchCasinoDisplayCategories(controller.signal, type).then((categories) => {
       if (!controller.signal.aborted) setDisplayCategories(categories)
     }).catch(() => {
       // Curated shelves are optional on Home; an unavailable category list must not block all games.
@@ -377,13 +312,13 @@ export function CasinoCategory() {
       if (!controller.signal.aborted) setDisplayCategoriesLoading(false)
     })
     return () => controller.abort()
-  }, [catalogReloadKey])
+  }, [catalogReloadKey, type])
 
   useEffect(() => {
     const controller = new AbortController()
     setCategoriesLoading(true)
     setCategoriesError('')
-    void fetchCasinoCategories(controller.signal).then((page) => {
+    void fetchCasinoCategories(controller.signal, type).then((page) => {
       if (!controller.signal.aborted) setCatalogCategories(page.data)
     }).catch((error: unknown) => {
       if (!controller.signal.aborted) {
@@ -394,7 +329,7 @@ export function CasinoCategory() {
       if (!controller.signal.aborted) setCategoriesLoading(false)
     })
     return () => controller.abort()
-  }, [catalogReloadKey])
+  }, [catalogReloadKey, type])
 
   const searchTerm = searchQuery.trim()
   const isLobby = category === 'lobby'
@@ -416,6 +351,7 @@ export function CasinoCategory() {
 
     void fetchCasinoGames({
       pageSize: 48,
+      type,
       category: selectedCategory,
       displayCategory: searchTerm ? undefined : selectedDisplayCategory?.slug,
       query: searchTerm || undefined,
@@ -433,7 +369,7 @@ export function CasinoCategory() {
     })
 
     return () => controller.abort()
-  }, [category, searchTerm, useLiveCatalog, isLobby, selectedDisplayCategory?.slug, catalogReloadKey])
+  }, [category, searchTerm, useLiveCatalog, isLobby, selectedDisplayCategory?.slug, catalogReloadKey, type])
 
   if (category === 'providers') return <Providers />
   if (!known && !categoriesLoading && !displayCategoriesLoading) return <Navigate to="/casino" replace />
@@ -452,6 +388,7 @@ export function CasinoCategory() {
       const page = await fetchCasinoGames({
         pageSize: 48,
         cursor: catalogNextCursor,
+        type,
         category: searchTerm || isLobby || selectedDisplayCategory ? undefined : category,
         displayCategory: searchTerm ? undefined : selectedDisplayCategory?.slug,
         query: searchTerm || undefined,
@@ -473,11 +410,11 @@ export function CasinoCategory() {
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-5 md:py-6">
       <CasinoFilterBar searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} />
-      <CategoryStrip active={category} categories={catalogCategories} displayCategories={displayCategories} />
+      <CategoryStrip active={category} categories={catalogCategories} displayCategories={displayCategories} type={type} basePath={routeBase} />
 
       {categoriesError && catalogCategories.length === 0 ? (
         <div className="mb-4 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground" role="status">
-          Casino categories are temporarily unavailable. Game results are still loaded from the catalogue where possible.
+          Categories are temporarily unavailable. Game results are still loaded from the selected catalogue where possible.
         </div>
       ) : null}
 
@@ -496,11 +433,8 @@ export function CasinoCategory() {
         </div>
       ) : isLobby ? (
         <>
-          {displayCategories.map((displayCategory) => (
-            <CatalogGameRail key={displayCategory.id} category={displayCategory} />
-          ))}
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h1 className="text-lg font-extrabold text-white md:text-xl">All Games</h1>
+            <h1 className="text-lg font-extrabold text-white md:text-xl">{type === 'casino' ? 'All Games' : type === 'live-casino' ? 'All Live Casino Games' : 'All Crash Games'}</h1>
             <p className="shrink-0 text-sm text-muted-foreground" aria-live="polite">
               {catalogLoading ? 'Loading…' : catalogTotal + ' games'}
             </p>

@@ -1,3 +1,5 @@
+export type CasinoDisplayType = 'casino' | 'live-casino' | 'crash-games';
+
 export interface CasinoCatalogGame {
   id: string;
   slug: string;
@@ -51,13 +53,17 @@ export interface CasinoDisplayCategory {
   name: string;
   description: string;
   icon: string;
+  type: CasinoDisplayType;
   iconUrl: string | null;
   displayOrder: number;
   games: CasinoCatalogGame[];
 }
 
-export async function fetchCasinoDisplayCategories(signal?: AbortSignal): Promise<CasinoDisplayCategory[]> {
-  const response = await fetch('/api/v1/casino/display-categories', {
+export async function fetchCasinoDisplayCategories(signal?: AbortSignal, type?: CasinoDisplayType): Promise<CasinoDisplayCategory[]> {
+  const params = new URLSearchParams();
+  if (type) params.set('type', type);
+  const query = params.toString();
+  const response = await fetch('/api/v1/casino/display-categories' + (query ? '?' + query : ''), {
     method: 'GET',
     headers: { Accept: 'application/json' },
     signal,
@@ -76,6 +82,7 @@ export async function fetchCasinoDisplayCategories(signal?: AbortSignal): Promis
       && typeof category.id === 'string' && typeof category.slug === 'string'
       && typeof category.name === 'string' && typeof category.description === 'string'
       && typeof category.icon === 'string'
+      && (category.type === 'casino' || category.type === 'live-casino' || category.type === 'crash-games')
       && (typeof category.iconUrl === 'string' || category.iconUrl === null)
       && typeof category.displayOrder === 'number'
       && Array.isArray(category.games) && category.games.every(isCasinoCatalogGame))) {
@@ -84,7 +91,7 @@ export async function fetchCasinoDisplayCategories(signal?: AbortSignal): Promis
   return payload.data as unknown as CasinoDisplayCategory[];
 }
 
-export async function fetchCasinoCategories(signal?: AbortSignal): Promise<CasinoCatalogCategoryPage> {
+export async function fetchCasinoCategories(signal?: AbortSignal, type?: CasinoDisplayType): Promise<CasinoCatalogCategoryPage> {
   const pageSize = 100;
   let cursor: string | null = null;
   let pageNumber = 1;
@@ -99,6 +106,7 @@ export async function fetchCasinoCategories(signal?: AbortSignal): Promise<Casin
   while (pageNumber <= 100) {
     const params = new URLSearchParams({ pageSize: String(pageSize) });
     if (cursor) params.set('cursor', cursor);
+    if (type) params.set('type', type);
     const response = await fetch('/api/v1/casino/categories?' + params.toString(), {
       method: 'GET',
       headers: { Accept: 'application/json' },
@@ -176,6 +184,7 @@ export interface CasinoDemoLaunch {
 export interface CasinoCatalogQuery {
   category?: string;
   displayCategory?: string;
+  type?: CasinoDisplayType;
   provider?: string;
   query?: string;
   cursor?: string | null;
@@ -210,6 +219,7 @@ export async function fetchCasinoGames(options: CasinoCatalogQuery = {}): Promis
   if (options.cursor) params.set('cursor', options.cursor);
   if (options.category) params.set('category', options.category);
   if (options.displayCategory) params.set('displayCategory', options.displayCategory);
+  if (options.type) params.set('type', options.type);
   if (options.provider) params.set('provider', options.provider);
   if (options.query) params.set('query', options.query);
 

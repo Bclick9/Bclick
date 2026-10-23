@@ -133,10 +133,13 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
       if (sql.includes('casino.provider-settings.access-denied')) {
         return { rows: [{ id: 'audit-id' }], rowCount: 1 };
       }
+      if (sql.includes('SELECT id::text AS id,category_type AS type FROM public.casino_display_categories WHERE id=$1::uuid')) {
+        return { rows: [{ id: DISPLAY_CATEGORY_ID, type: 'casino' }], rowCount: 1 };
+      }
       if (sql.includes('SELECT id::text AS id FROM public.casino_display_categories WHERE id=$1::uuid')) {
         return { rows: [{ id: DISPLAY_CATEGORY_ID }], rowCount: 1 };
       }
-      if (sql.includes('SELECT COALESCE(array_agg(game_id::text ORDER BY game_id)')) {
+      if (sql.includes('SELECT COALESCE(array_agg(m.game_id::text ORDER BY m.game_id)')) {
         return { rows: [{ ids: categoryGameIds }], rowCount: 1 };
       }
       if (sql.includes('SELECT count(DISTINCT g.id)::integer AS total')) {
@@ -151,6 +154,11 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
       if (sql.includes('SELECT count(DISTINCT game_id)::integer AS count FROM public.casino_game_sources')) {
         const candidateIds = Array.isArray(values[0]) ? values[0] as string[] : [];
         const count = mode === 'standard' && candidateIds.every((id) => id === GAME_ID) ? candidateIds.length : 0;
+        return { rows: [{ count }], rowCount: 1 };
+      }
+      if (sql.includes('SELECT count(DISTINCT id)::integer AS count FROM public.casino_games WHERE id=ANY($1::uuid[]) AND game_type=$2')) {
+        const candidateIds = Array.isArray(values[0]) ? values[0] as string[] : [];
+        const count = mode === 'standard' && values[1] === 'slot' && candidateIds.every((id) => id === GAME_ID) ? candidateIds.length : 0;
         return { rows: [{ count }], rowCount: 1 };
       }
       if (sql.includes("casino.display-category.games-updated")) {
@@ -175,15 +183,15 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
         assert.match(sql, /ON CONFLICT \(slug\) DO NOTHING/);
         assert.ok(sql.includes('INSERT INTO public.audit_events'));
         return { rows: [{
-          id: DISPLAY_CATEGORY_ID, slug: 'trending-games', name: 'Trending Games', description: 'Hand-picked games',
-          icon: 'trending', visible: true, displayOrder: 100, items: 0,
+          id: DISPLAY_CATEGORY_ID, slug: String(values[1]), name: String(values[2]), description: String(values[3]),
+          icon: String(values[4]), type: typeof values[9] === 'string' ? values[9] : 'casino', visible: values[5] === true, displayOrder: 100, items: 0,
         }], rowCount: 1 };
       }
       if (sql.includes('UPDATE public.casino_display_categories c') && sql.includes('casino.display-category.updated')) {
         assert.match(sql, /INSERT INTO public\.audit_events/);
         return { rows: [{
           id: DISPLAY_CATEGORY_ID, slug: 'trending-games', name: values[2] || 'Trending Games',
-          description: values[4] || 'Hand-picked games', icon: values[6] || 'trending', visible: values[8] ?? true,
+          description: values[4] || 'Hand-picked games', icon: values[6] || 'trending', type: values[15] ?? 'casino', visible: values[8] ?? true,
           displayOrder: values[10] ?? 100, items: 1,
         }], rowCount: 1 };
       }
@@ -195,7 +203,7 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
       if (sql.includes('FROM public.casino_display_categories c') && sql.includes('LEFT JOIN public.casino_game_display_categories m')) {
         return { rows: [{
           id: DISPLAY_CATEGORY_ID, slug: 'trending-games', name: 'Trending Games', description: 'Hand-picked games',
-          icon: 'trending', iconUrl: null, customIconKey: currentCategoryIconKey, visible: true, displayOrder: 100, items: 1,
+          icon: 'trending', type: 'casino', iconUrl: null, customIconKey: currentCategoryIconKey, visible: true, displayOrder: 100, items: 1,
           createdAt: '2026-10-23T08:00:00.000Z', updatedAt: '2026-10-23T08:00:00.000Z',
         }], rowCount: 1 };
       }
@@ -487,14 +495,17 @@ test('administrator can create a curated category and the request is audited', a
       method: 'POST',
       url: '/api/v1/admin/casino/display-categories',
       headers: { ...authHeaders(true), 'content-type': 'application/json' },
-      payload: { name: 'Trending Games', description: 'Hand-picked games', icon: 'trending', visible: true },
+      payload: { name: 'Live Roulettes', description: 'Roulette tables', icon: 'trending', type: 'live-casino', visible: true },
     });
     assert.equal(response.statusCode, 201, response.body);
-    assert.equal(response.json().data.slug, 'trending-games');
-    assert.equal(response.json().data.name, 'Trending Games');
+    assert.equal(response.json().data.slug, 'live-roulettes');
+    assert.equal(response.json().data.name, 'Live Roulettes');
+    assert.equal(response.json().data.type, 'live-casino');
     const insert = fixture.calls.find((call) => call.sql.includes('WITH next_order AS MATERIALIZED'));
     assert.ok(insert);
     assert.match(insert.sql, /ON CONFLICT \(slug\) DO NOTHING/);
+    assert.match(insert.sql, /category_type/);
+    assert.equal(insert.values[9], 'live-casino');
     assert.match(insert.sql, /RETURNING id,slug,name/);
     assert.match(insert.sql, /casino_display_category.*created.id/);
     assert.match(insert.sql, /casino.display-category.created/);
@@ -511,15 +522,19 @@ test('administrator can update category metadata and visibility without changing
       method: 'PATCH',
       url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID,
       headers: { ...authHeaders(true), 'content-type': 'application/json' },
-      payload: { name: 'Featured Games', visible: false, displayOrder: 200 },
+      payload: { name: 'Featured Games', visible: false, displayOrder: 200, type: 'live-casino' },
     });
     assert.equal(response.statusCode, 200, response.body);
     assert.equal(response.json().data.slug, 'trending-games');
     assert.equal(response.json().data.name, 'Featured Games');
     assert.equal(response.json().data.visible, false);
+    assert.equal(response.json().data.type, 'live-casino');
     const update = fixture.calls.find((call) => call.sql.includes('casino.display-category.updated'));
     assert.ok(update);
     assert.match(update.sql, /nameChanged/);
+    assert.match(update.sql, /removed_incompatible/);
+    assert.match(update.sql, /incompatibleAssignmentsRemoved/);
+    assert.equal(update.values[15], 'live-casino');
     assert.match(update.sql, /visibilityChanged/);
     assert.match(update.sql, /RETURNING c.id,c.slug/);
     assert.match(update.sql, /casino_display_category.*changed.id/);
