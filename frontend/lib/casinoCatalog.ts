@@ -150,3 +150,53 @@ export function getCatalogErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) return error.message;
   return 'The casino catalogue is temporarily unavailable.';
 }
+
+
+export interface CasinoCatalogProvider {
+  code: string;
+  name: string;
+}
+
+export interface CasinoCatalogProviderPage {
+  data: CasinoCatalogProvider[];
+  page: {
+    page: number;
+    pageSize: number;
+    total: number;
+    nextCursor: string | null;
+  };
+  meta: {
+    resolvedLocale: string;
+    stale: boolean;
+    fetchedAt: string | null;
+  };
+}
+
+export async function fetchCasinoProviders(signal?: AbortSignal): Promise<CasinoCatalogProviderPage> {
+  const params = new URLSearchParams({ pageSize: '100' });
+  const response = await fetch('/api/v1/casino/providers?' + params.toString(), {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+    signal,
+    credentials: 'same-origin',
+  });
+  const payload = await readJson(response);
+  if (!response.ok) {
+    const message = isObject(payload) && isObject(payload.error) && typeof payload.error.message === 'string'
+      ? payload.error.message
+      : 'The casino providers could not be loaded.';
+    throw new Error(message);
+  }
+  if (!isObject(payload) || !Array.isArray(payload.data)
+    || !payload.data.every((provider) => isObject(provider)
+      && typeof provider.code === 'string' && provider.code.length > 0
+      && typeof provider.name === 'string' && provider.name.length > 0)
+    || !isObject(payload.page) || !Number.isSafeInteger(payload.page.total)
+    || !isObject(payload.meta) || typeof payload.meta.stale !== 'boolean') {
+    throw new Error('The casino API returned an invalid providers response.');
+  }
+  if (payload.data.length < Number(payload.page.total)) {
+    throw new Error('The provider list is paginated beyond the requested page size.');
+  }
+  return payload as unknown as CasinoCatalogProviderPage;
+}
