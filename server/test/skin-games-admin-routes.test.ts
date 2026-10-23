@@ -131,6 +131,27 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
       if (sql.includes('casino.provider-settings.access-denied')) {
         return { rows: [{ id: 'audit-id' }], rowCount: 1 };
       }
+      if (sql.includes('WITH next_order AS MATERIALIZED') && sql.includes('INSERT INTO public.casino_display_categories')) {
+        assert.match(sql, /ON CONFLICT \\(slug\\) DO NOTHING/);
+        assert.match(sql, /INSERT INTO public\\.audit_events/);
+        return { rows: [{
+          id: DISPLAY_CATEGORY_ID, slug: 'trending-games', name: 'Trending Games', description: 'Hand-picked games',
+          icon: 'trending', visible: true, displayOrder: 100, items: 0,
+        }], rowCount: 1 };
+      }
+      if (sql.includes('UPDATE public.casino_display_categories c') && sql.includes('casino.display-category.updated')) {
+        assert.match(sql, /INSERT INTO public\\.audit_events/);
+        return { rows: [{
+          id: DISPLAY_CATEGORY_ID, slug: 'trending-games', name: values[2] || 'Trending Games',
+          description: values[4] || 'Hand-picked games', icon: values[6] || 'trending', visible: values[8] ?? true,
+          displayOrder: values[10] ?? 100, items: 1,
+        }], rowCount: 1 };
+      }
+      if (sql.includes('DELETE FROM public.casino_display_categories c') && sql.includes('casino.display-category.deleted')) {
+        assert.match(sql, /DELETE FROM public\\.casino_display_categories/);
+        assert.match(sql, /INSERT INTO public\\.audit_events/);
+        return { rows: [{ id: DISPLAY_CATEGORY_ID }], rowCount: 1 };
+      }
       if (sql.includes('FROM public.casino_display_categories c') && sql.includes('LEFT JOIN public.casino_game_display_categories m')) {
         return { rows: [{
           id: DISPLAY_CATEGORY_ID, slug: 'trending-games', name: 'Trending Games', description: 'Hand-picked games',
@@ -349,6 +370,69 @@ test('Premium display-category assignments are refused before any assignment mut
     assert.equal(response.statusCode, 409, response.body);
     assert.equal(response.json().error.code, 'PREMIUM_NOT_AVAILABLE');
     assert.equal(fixture.calls.some((call) => call.sql.includes('casino.skin-game.display-categories-updated')), false);
+  } finally {
+    await app.close();
+  }
+});
+
+test('administrator can create a curated category and the request is audited', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config() });
+  try {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/casino/display-categories',
+      headers: { ...authHeaders(true), 'content-type': 'application/json' },
+      payload: { name: 'Trending Games', description: 'Hand-picked games', icon: 'trending', visible: true },
+    });
+    assert.equal(response.statusCode, 201, response.body);
+    assert.equal(response.json().data.slug, 'trending-games');
+    assert.equal(response.json().data.name, 'Trending Games');
+    const insert = fixture.calls.find((call) => call.sql.includes('WITH next_order AS MATERIALIZED'));
+    assert.ok(insert);
+    assert.match(insert.sql, /ON CONFLICT \\(slug\\) DO NOTHING/);
+    assert.match(insert.sql, /casino.display-category.created/);
+  } finally {
+    await app.close();
+  }
+});
+
+test('administrator can update category metadata and visibility without changing the stable slug', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config() });
+  try {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID,
+      headers: { ...authHeaders(true), 'content-type': 'application/json' },
+      payload: { name: 'Featured Games', visible: false, displayOrder: 200 },
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.equal(response.json().data.slug, 'trending-games');
+    assert.equal(response.json().data.name, 'Featured Games');
+    assert.equal(response.json().data.visible, false);
+    const update = fixture.calls.find((call) => call.sql.includes('casino.display-category.updated'));
+    assert.ok(update);
+    assert.match(update.sql, /nameChanged/);
+    assert.match(update.sql, /visibilityChanged/);
+  } finally {
+    await app.close();
+  }
+});
+
+test('administrator can delete a curated category without deleting its catalogue games', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config() });
+  try {
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID,
+      headers: authHeaders(true),
+    });
+    assert.equal(response.statusCode, 204, response.body);
+    const deletion = fixture.calls.find((call) => call.sql.includes('casino.display-category.deleted'));
+    assert.ok(deletion);
+    assert.match(deletion.sql, /ON DELETE CASCADE|DELETE FROM public\\.casino_display_categories/);
   } finally {
     await app.close();
   }
