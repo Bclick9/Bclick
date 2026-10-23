@@ -383,7 +383,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
   }
 
   return <div className="page-enter space-y-5">
-    <SectionHeading title="Categories" description="Create curated game collections such as Trending Games. Select the exact games for each collection from Skin Games → Edit Game." />
+    <SectionHeading title="Categories" description="Create curated game collections such as Trending Games, then use Select games to choose the exact Standard games for each collection." />
     <div className="grid gap-3 sm:grid-cols-3">
       {[{label:'Total collections',value:categories.length},{label:'Visible in Lobby',value:visibleCategories.length},{label:'Game assignments',value:assignedGames}].map((metric) => <Card key={metric.label}><CardContent className="p-4"><p className="text-xs text-slate-500">{metric.label}</p><p className="mt-1 font-display text-2xl font-extrabold text-slate-900">{loading ? '—' : metric.value}</p></CardContent></Card>)}
     </div>
@@ -391,7 +391,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
       open={createModalOpen}
       onOpenChange={(open)=>{ if(savingId!=='new') setCreateModalOpen(open) }}
       title="Add Lobby display category"
-      description="Create a custom collection, then choose the games for it in Skin Games → Edit Game."
+      description="Create a custom collection, then use Select games on its row to choose the games that appear in the Lobby."
       footer={
         <>
           <Button type="button" variant="outline" disabled={savingId==='new'} onClick={()=>setCreateModalOpen(false)}>Cancel</Button>
@@ -478,7 +478,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
       <div className="p-4">
         {error ? <div role="alert" className="mb-4 flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-800"><span className="flex-1">{error}</span><Button type="button" size="sm" variant="outline" onClick={() => void reload()}>Retry</Button></div> : null}
         {loading ? <p role="status" className="py-10 text-center text-xs text-slate-500"><LoaderCircle className="mr-2 inline h-4 w-4 animate-spin" />Loading categories from PostgreSQL…</p> : null}
-        {!loading && !error && categories.length === 0 ? <p className="rounded-lg border border-dashed border-slate-200 py-10 text-center text-xs text-slate-500">No custom Lobby collections yet. Create one above, then assign games in Skin Games → Edit Game.</p> : null}
+        {!loading && !error && categories.length === 0 ? <p className="rounded-lg border border-dashed border-slate-200 py-10 text-center text-xs text-slate-500">No custom Lobby collections yet. Create one above, then select the games you want to show in its Lobby shelf.</p> : null}
         {!loading && filtered.length > 0 ? <div className="space-y-3">
           {filtered.map((category) => {
             const index = categories.findIndex((item) => item.id === category.id)
