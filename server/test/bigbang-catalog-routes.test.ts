@@ -88,6 +88,7 @@ function expectedGame() {
     provider: { code: 'habanero', name: 'Habanero' },
     categories: ['classic-slots', 'slot-games'],
     imageUrl: 'https://assets.example.test/hot-hot-fruit.webp',
+    description: '',
     available: true,
     modes: { demo: false, real: false },
   };
