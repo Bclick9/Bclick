@@ -82,12 +82,22 @@ function fakeDatabase() {
             id: PROVIDER_ID, code: 'habanero', name: 'Habanero', enabled: true,
             updatedAt: '2026-10-22T10:00:00.000Z', totalGames: 20,
             sourceAvailableGames: 18, enabledGames: 17,
+            standardTierEnabled: true, standardSourceAvailableGames: 18,
+            premiumSourceAvailableGames: 0, premiumTierEnabled: false,
           }],
           rowCount: 1,
         };
       }
       if (sql.includes('FROM public.casino_games g') && sql.includes('count(DISTINCT g.id)::text AS total')) {
         return { rows: [{ total: '1' }], rowCount: 1 };
+      }
+      if (sql.includes('WITH changed AS') && sql.includes('UPDATE public.casino_provider_tier_settings')) {
+        assert.match(sql, /INSERT INTO public\.audit_events/);
+        assert.match(sql, /CROSS JOIN audited/);
+        return {
+          rows: [{ code: String(values[0]), enabled: values[2], updatedAt: '2026-10-23T08:10:00.000Z' }],
+          rowCount: 1,
+        };
       }
       if (sql.includes('WITH changed AS') && sql.includes('UPDATE public.casino_providers')) {
         assert.match(sql, /INSERT INTO public\.audit_events/);
@@ -275,6 +285,70 @@ test('game disable is persisted with an atomic audit record', async () => {
     assert.match(call.sql, /INSERT INTO public\.audit_events/);
     assert.deepEqual(call.values.slice(0, 3), [GAME_ID, false, ADMIN_ID]);
     assert.equal(call.values[4], 'casino.game.disabled');
+  } finally {
+    await app.close();
+  }
+});
+
+
+test('provider list exposes independent Standard and fail-closed Premium tier controls', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+  });
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/bigbang/providers',
+      headers: { cookie: SESSION_COOKIE },
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.equal(response.json().data[0].tiers.standard.enabled, true);
+    assert.equal(response.json().data[0].tiers.standard.sourceAvailableGames, 18);
+    assert.equal(response.json().data[0].tiers.premium.enabled, false);
+    assert.equal(response.json().data[0].tiers.premium.available, false);
+  } finally {
+    await app.close();
+  }
+});
+
+test('Standard provider tier can be disabled with an audit event, but Premium tier stays unavailable', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+  });
+  try {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/bigbang/providers/habanero/tiers/standard',
+      headers: authHeaders({ origin: ADMIN_ORIGIN }),
+      payload: { enabled: false },
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.deepEqual(response.json().data, {
+      code: 'habanero', mode: 'standard', enabled: false, updatedAt: '2026-10-23T08:10:00.000Z',
+    });
+    const tierMutation = fixture.calls.find((call) => call.sql.includes('UPDATE public.casino_provider_tier_settings'));
+    assert.ok(tierMutation);
+    assert.match(tierMutation.sql, /INSERT INTO public\.audit_events/);
+    assert.deepEqual(tierMutation.values.slice(0, 4), ['habanero', 'standard', false, ADMIN_ID]);
+
+    const callsBeforePremium = fixture.calls.length;
+    const premium = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/bigbang/providers/habanero/tiers/premium',
+      headers: authHeaders({ origin: ADMIN_ORIGIN }),
+      payload: { enabled: true },
+    });
+    assert.equal(premium.statusCode, 409);
+    assert.equal(premium.json().error.code, 'PREMIUM_NOT_AVAILABLE');
+    assert.equal(fixture.calls.length, callsBeforePremium);
   } finally {
     await app.close();
   }

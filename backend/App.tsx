@@ -20,7 +20,7 @@ import { CmsCategoriesPage } from './pages/cms/Categories'
 import { CmsBannersPage } from './pages/cms/Banners'
 import { CmsPromotionsPage } from './pages/cms/Promotions'
 import { CmsPagesPage } from './pages/cms/Pages'
-import { CmsSkinGamesPage, INITIAL_CMS_SKIN_GAMES, type CmsSkinGame } from './pages/cms/SkinGames'
+import { CmsSkinGamesPage } from './pages/cms/SkinGames'
 import { CmsProvidersPage } from './pages/cms/Providers'
 
 function AdminDashboard() {
@@ -32,7 +32,6 @@ function AdminDashboard() {
   const [activePage, setActivePage] = useState<PageKey>(() => pageFromPath(window.location.pathname))
   const [users, setUsers] = useState<UserRow[]>(INITIAL_USERS)
   const [bonuses, setBonuses] = useState<Offer[]>(INITIAL_BONUSES)
-  const [games, setGames] = useState<CmsSkinGame[]>(INITIAL_CMS_SKIN_GAMES)
   const [searchQuery, setSearchQuery] = useState('')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [notificationOpen, setNotificationOpen] = useState(false)
@@ -226,7 +225,7 @@ function AdminDashboard() {
             {workspace === 'cms' && activePage === 'cms-banners' ? <CmsBannersPage onNotify={notify} /> : null}
             {workspace === 'cms' && activePage === 'cms-promotions' ? <CmsPromotionsPage onNotify={notify} /> : null}
             {workspace === 'cms' && activePage === 'cms-pages' ? <CmsPagesPage onNotify={notify} /> : null}
-             {workspace === 'cms' && activePage === 'cms-skin-games' ? <CmsSkinGamesPage games={games} onSaveGame={(updatedGame) => setGames((current) => current.map((game) => game.id === updatedGame.id ? updatedGame : game))} onMoveGame={(draggedId, targetId) => setGames((current) => { const from = current.findIndex((game) => game.id === draggedId); if (from < 0) return current; const next = [...current]; const [moved] = next.splice(from, 1); if (!moved) return current; const to = next.findIndex((game) => game.id === targetId); if (to < 0) return current; next.splice(to, 0, moved); return next })} onNotify={notify} /> : null}
+            {workspace === 'cms' && activePage === 'cms-skin-games' ? <CmsSkinGamesPage onNotify={notify} /> : null}
             {workspace === 'cms' && activePage === 'cms-categories' ? <CmsCategoriesPage onNotify={notify} /> : null}
             {workspace === 'cms' && activePage === 'cms-providers' ? <CmsProvidersPage onNotify={notify} /> : null}
 

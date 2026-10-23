@@ -12,7 +12,9 @@ FROM node:22.16.0-bookworm-slim AS runtime
 
 ENV NODE_ENV=production
 WORKDIR /workspace
-RUN corepack enable && chown -R node:node /workspace
+RUN corepack enable \
+ && mkdir -p /var/lib/bclick/uploads \
+ && chown -R node:node /workspace /var/lib/bclick
 COPY --from=build --chown=node:node /workspace /workspace
 
 USER node

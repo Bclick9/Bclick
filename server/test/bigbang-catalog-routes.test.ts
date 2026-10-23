@@ -70,7 +70,7 @@ function catalogDatabase(options: {
       if (sql.includes('WHERE g.id=$1')) {
         return { rows: game && game.id === values[0] ? [game] : [], rowCount: game && game.id === values[0] ? 1 : 0 };
       }
-      if (sql.includes('ORDER BY lower(g.title),g.id')) {
+      if (sql.includes('ORDER BY COALESCE(pres.display_order,0),lower(g.title),g.id')) {
         return { rows: listRows, rowCount: listRows.length };
       }
       throw new Error('Unexpected catalogue SQL in test: ' + sql);
@@ -88,6 +88,7 @@ function expectedGame() {
     provider: { code: 'habanero', name: 'Habanero' },
     categories: ['classic-slots', 'slot-games'],
     imageUrl: 'https://assets.example.test/hot-hot-fruit.webp',
+    description: '',
     available: true,
     modes: { demo: false, real: false },
   };
@@ -255,6 +256,7 @@ test('catalogue category/search filters are parameterized and pagination retains
     assert.equal(fixture.calls.length, 3);
     assert.match(fixture.calls[0]!.sql, /EXISTS \(SELECT 1 FROM public\.casino_game_categories/);
     assert.match(fixture.calls[1]!.sql, /array_agg\(DISTINCT gc\.category_slug ORDER BY gc\.category_slug\)/);
+    assert.match(fixture.calls[1]!.sql, /ORDER BY COALESCE\(pres\.display_order,0\),lower\(g\.title\),g\.id/);
     assert.match(fixture.calls[0]!.sql, /g\.title ILIKE/);
     assert.deepEqual(fixture.calls[0]!.values, ['slot-games', '%Hot%']);
     assert.deepEqual(fixture.calls[1]!.values, ['slot-games', '%Hot%', 1, 0]);

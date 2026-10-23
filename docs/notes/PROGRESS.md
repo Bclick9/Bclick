@@ -1,6 +1,6 @@
 # Bclick — Cumulative Progress and Roadmap Gate Checkpoint
 
-**Updated:** 2026-10-23, after PR #117 merge and before the Owner's storefront visibility check; Q-005 remains OPEN/P0  
+**Updated:** 2026-10-23, after Skin Games implementation CI passed; Owner's local Skin Games acceptance is next; Q-005 remains OPEN/P0  
 **Purpose:** Current implementation status and explicit stop conditions. This file reconciles current code with the planning roadmap; it does not replace the shared Library's `docs/planning/12-open-questions.md`.
 
 ## Current verified position
@@ -34,25 +34,24 @@
 - **Q-020 — P0, Open:** runtime contract evidence for each implemented route, alongside static OpenAPI checks. A CI fixture for an unimplemented or unexercised operation does not close this gate.
 - **Q-009 — Owner decision accepted; implementation verified locally/CI; PR #99 merged:** TND uses `0.01 TND = 10 millimes`, with no true third fractional digit. The shared money exponent is TND=2, wallet/API examples were updated, and guarded Migration 008 changes the database exponent from 3 to 2 only when no TND ledger entries exist and all projected TND balances are zero. The parser rejects values such as `12.345` rather than rounding. The Owner's local public.pgmigrations output records 1793188800000_tnd_provider_precision_008 as applied (id=10, on 2026-10-22 at 15:35), and precision/parser/migration-guard tests pass locally/CI. This confirms local development only; it does not establish that any staging/Production database was changed. For every non-local target, verify its own migration history, no TND ledger entries, and zero projected TND balances before applying anything. Real-money routing remains blocked by Q-006, Q-010, Q-011 and other release gates.
 
-## Immediate next task — Owner's local storefront visibility acceptance, then Q-005
+## Immediate next task — Skin Games local acceptance, then resume Q-005
 
-**PR #117 is merged and CI passed; the local UI still needs Owner acceptance.** After pulling `main`, block a Standard Sandbox provider in `CMS → Providers`, return to `http://localhost:5173/casino/rng/brands`, and verify the provider is absent; re-enable it and verify it returns. Repeat with a reversible individual-game block and the API-backed Lobby/provider detail. The public routes now return `Cache-Control: no-store`, and the storefront refreshes when returning to the tab. **Generic static category cards and the Halloween shelf are not fixed by PR #117**; full cutover remains gated by Q-005.
+**PR #119 implements persistent CMS → Skin Games management and its implementation-head CI has passed.** The branch includes Migration 012, protected list/edit/reorder/image APIs, durable custom-image storage, tier-scoped provider settings, updated OpenAPI/generated declarations, and the public catalogue `display_order` fix. The checkpoint and precise CI evidence are in `docs/notes/2026-10-23-skin-games-persistent-management.md`.
 
-After that preview, keep the execution order:
-1. Close Q-005 evidence: establish the provenance of 3,802 vs the owner-evidenced 3,639 Standard rows and reconcile provider identity against BigBang's documented categories/provider slugs. Do not infer missing rows or merge records by title alone.
-2. Approve the Skin Games contract in `docs/notes/2026-10-23-storefront-skin-games-tier-review.md`, then implement the database-backed list/reorder/Edit Game flow using canonical UUIDs, audited server APIs and persistent image storage. Keep `CMS → Providers` for provider-level controls and avoid fake RTP/player-count/certificate values.
-3. Do not add a per-game Standard/Premium switch. Premium remains unavailable until a tier-aware integration/sync/credential/authorization and publication process is separately reviewed and accepted.
+After PR #119 lands on `main`, the Owner will verify the local branch/state first, then pull and start the local stack:
 
-Q-006, Q-010, Q-011, Q-013 and Q-020 remain open; do not start Phase 8 or activate real-money routes.
+```powershell
+git status -sb
+git pull --ff-only origin main
+git rev-parse --short HEAD
+.\start-bclick-local.ps1
+```
 
-1. **PR #107 is merged and local checks are recorded.** Migration 011 and Bclick-owned provider/game availability controls, Standard-only BigBang settings, MFA/session/CSRF-protected admin routes and audit events are on `main`. The Owner's local PostgreSQL ledger records Migrations 010/011, Postgres is healthy, readiness returned `{"status":"ok"}`, `pnpm api:typecheck` passed and `pnpm api:test` passed 54/54. The last reported `pnpm api:lint` validated both OpenAPI files but warned that `parameters-unique` was unused; config cleanup is on `main` and should be verified by the Owner if not already rerun.
-2. **PR #108 merged and CI passed.** The static title/provider fallback in `CasinoPlay` has been removed. Every route ID now resolves through the persistent by-slug/alias API and the demo endpoint receives only the returned canonical UUID. `pnpm frontend:test` covers UUID pinning and proves 404/409 lookup failures never call demo launch. Application/frontend builds, Backoffice build, OpenAPI/generated-client checks and API type/test/migration/health/Schemathesis CI all passed on the PR head.
-3. Keep **Q-005 OPEN/P0**. The Owner accepted the conservative 59-alias disposition: retain three pinned mappings and leave 56 unmatched. The count discrepancy (3,802 vs 3,639) still needs same-key/same-scope complete pagination evidence or a written BigBang explanation. This PR closes a client-side unsafe fallback only; it does not close the count, tier/source, categories, or future route-policy questions.
-4. **Next Q-005 evidence:** the provided read-only probe corroborates 3,639 for `type=standard&limit=5000&offset=0`; it does not establish the provenance of 3,802. Locate the original output/measurement for 3,802 (timestamp, key/shop label, tier, filters, requested limit/offset and pagination metadata) without exposing the secret. If the scopes differ, record that; otherwise obtain a complete same-scope run or written BigBang explanation. Do not infer 163 missing games from counts alone.
-5. **Q-006 remains OPEN/P0:** the pinned BigBang artifact already documents zero-amount round close, `round_end`, Sandbox marker and same-`transaction_id` replay; do not keep these marked as undocumented. Required next evidence is tests/fixtures for those variants, conflicting-payload semantics, a paired insufficient-balance request/response, and written `X-Body-Signature` applicability. WinHouse still needs cashout/cancel/refund/out-of-order wallet-event semantics and transaction mapping; its ticket statuses alone are not wallet movements. Record Owner/provider acceptance before callback work. No callback or wallet posting service is implemented.
-6. **Q-010 remains OPEN/P0:** DB tests cover balanced journals, immutability, no-overdraft and concurrent debits, but there is no accepted application posting service proving same-key/same-payload replay and conflicting-payload rejection under the normative principal/method/resource/key/digest scope.
-7. **Q-011 remains OPEN/P0:** `infra/restore-drill/last-drill.md` records `NOT RUN`; no actual base+WAL staging restore, independent archive freshness/failure alert test, or measured RPO/RTO is evidenced. **Q-013 remains OPEN/P0** until CSP/frame/host header policy is verified through a staging-like edge path. **Q-020 remains OPEN/P0** despite stronger API and frontend CI: route-by-route runtime contract coverage and provider-specific cases are not fully accepted.
-8. Keep Premium import, live-key sync, full storefront catalogue cutover, real Play, wallet posting, provider callbacks, payments, wagers, Phase 8 and all real-money flows disabled. Continue only the approved local/Sandbox work described above.
+If `git status -sb` shows uncommitted work, stop before pulling and inspect it rather than overwriting or discarding local files. Confirm that Migration 012 completed locally and the API is ready. In Backoffice, test real game UUID/source rows, Standard filtering, a reversible game block, persisted reordering, custom image upload and restore to the BigBang thumbnail, description persistence, and the provider-vs-game management split. Premium must stay locked. Record the actual local result and checked-out commit before declaring local acceptance; CI is not a substitute for this Owner test.
+
+After the preview, return to **Q-005 (OPEN/P0)**: establish the provenance of the 3,802 versus 3,639 Standard-game counts and reconcile provider identity/category/legacy-route semantics. Do not infer missing rows or merge records by title alone. Only after Q-005 evidence is accepted should broader storefront cutover be planned.
+
+Q-006, Q-010, Q-011, Q-013 and Q-020 remain open; Phase 8 is NOT STARTED, and Premium import, live-key sync, payments, wagers, provider callbacks, wallet posting and all real-money flows remain disabled.
 
 ## Completed engineering work (historical)
 
@@ -78,3 +77,13 @@ The existing Identity API remains authoritative for MFA/session/CSRF/RBAC. PR #1
 The Owner identified three linked gaps: static provider cards remained on `/casino/rng/brands`, provider/game cards could look stale after a disable, and individual game editing/order was still located in the provider screen while `CMS → Skin Games` remains mock data. PR #117 merged an incremental correction: the provider directory/detail and Lobby shelf are backed by the current Standard Sandbox API; provider filtering uses exact source identity instead of substring matching; availability-dependent catalogue responses use `no-store`; the frontend re-fetches on return to the tab; and regression tests cover pagination, malformed lists, exact provider filtering and no-store headers. **It is not a full storefront cutover:** generic static categories and Halloween cards remain static because Q-005 has not been accepted.
 
 The companion review note `docs/notes/2026-10-23-storefront-skin-games-tier-review.md` specifies the next Skin Games design: canonical game UUID; separate persisted presentation override (image/description/display order); existing provider/game enablement flags remain the sole enablement switches; audited admin APIs for editing/reordering; and persistent asset storage rather than `blob:` URLs. No Migration 012 or upload implementation is claimed by PR #117. It also records why Standard/Premium is an integration/source-tier control, never an arbitrary game checkbox. Current client/schema remains Standard Sandbox only.
+
+## Skin Games persistent management — implementation checkpoint 2026-10-23
+
+PR #119 implements the database-backed Skin Games editor and source-tier model. It adds Migration 012 for persisted presentation, per-tier provider settings and actor/audit metadata; protected APIs for game list, game availability/presentation edits, tier-scoped drag reordering and validated persistent image uploads; a named Docker upload volume; OpenAPI/generated client updates; and an ordered public catalogue query. Individual game controls now belong in CMS → Skin Games, while Providers retains provider-master and source-tier controls.
+
+The latest implementation-head CI passed API type/tests/typecheck/build and the migration chain through 012, OpenAPI lint/generated-client drift checks, storefront/admin builds, fresh local database/Identity route smoke tests, PowerShell syntax checking, and disposable PostgreSQL rehearsals for Migrations 001/002/003 and Wallet Migration 006. The CI references and local acceptance runbook are recorded in `docs/notes/2026-10-23-skin-games-persistent-management.md`.
+
+**Owner acceptance pending:** after the change reaches `main`, run `git status -sb`, `git pull --ff-only origin main`, `git rev-parse --short HEAD`, and `.\\start-bclick-local.ps1`; inspect Migration 012/runtime readiness and test the listed UI behaviors. The CI database was disposable only, and no external database was migrated by this implementation.
+
+**Still gated:** Q-005/Q-006/Q-010/Q-011/Q-013/Q-020 remain open; persistent-upload backup/restore evidence remains required before Production; Premium remains read-only; Phase 8 and all real-money flows remain NOT STARTED.

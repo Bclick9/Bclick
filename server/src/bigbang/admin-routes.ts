@@ -20,6 +20,10 @@ interface ProviderRow extends QueryResultRow {
   totalGames: number;
   sourceAvailableGames: number;
   enabledGames: number;
+  standardTierEnabled: boolean;
+  standardSourceAvailableGames: number;
+  premiumSourceAvailableGames: number;
+  premiumTierEnabled: boolean;
 }
 
 interface GameControlRow extends QueryResultRow {
@@ -133,17 +137,41 @@ export function registerBigBangAdminRoutes(
     try {
       const session = await authorizedAdmin(database,request,reply,identity,false);
       if (!session) return;
-      const result = await database.query<ProviderRow>(`
+      const result = await database.query<ProviderRow & QueryResultRow>(`
         SELECT p.id::text AS id,p.code,p.name,p.bclick_enabled AS enabled,
                p.availability_updated_at AS "updatedAt",
-               count(DISTINCT g.id)::int AS "totalGames",
-               count(DISTINCT g.id) FILTER (WHERE s.available=true AND g.available=true)::int AS "sourceAvailableGames",
-               count(DISTINCT g.id) FILTER (WHERE s.available=true AND g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true)::int AS "enabledGames"
+               COALESCE(std.total_games,0)::int AS "totalGames",
+               COALESCE(std.source_available_games,0)::int AS "sourceAvailableGames",
+               COALESCE(std.enabled_games,0)::int AS "enabledGames",
+               COALESCE(st.enabled,false) AS "standardTierEnabled",
+               COALESCE(std.source_available_games,0)::int AS "standardSourceAvailableGames",
+               COALESCE(prem.source_available_games,0)::int AS "premiumSourceAvailableGames",
+               COALESCE(pt.enabled,false) AS "premiumTierEnabled"
           FROM public.casino_providers p
-          JOIN public.casino_games g ON g.provider_id=p.id
-          JOIN public.casino_game_sources s
-            ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard'
-         GROUP BY p.id,p.code,p.name,p.bclick_enabled,p.availability_updated_at
+          LEFT JOIN LATERAL (
+            SELECT count(DISTINCT g.id)::int AS total_games,
+                   count(DISTINCT g.id) FILTER (WHERE s.available=true AND g.available=true)::int AS source_available_games,
+                   count(DISTINCT g.id) FILTER (WHERE s.available=true AND g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true AND COALESCE(st2.enabled,false))::int AS enabled_games
+              FROM public.casino_games g
+              JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard'
+              LEFT JOIN public.casino_provider_tier_settings st2 ON st2.provider_id=p.id AND st2.source_code='bigbang' AND st2.source_mode='standard'
+             WHERE g.provider_id=p.id
+          ) std ON true
+          LEFT JOIN public.casino_provider_tier_settings st
+            ON st.provider_id=p.id AND st.source_code='bigbang' AND st.source_mode='standard'
+          LEFT JOIN LATERAL (
+            SELECT count(DISTINCT g.id) FILTER (WHERE s.available=true AND g.available=true)::int AS source_available_games
+              FROM public.casino_games g
+              JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='premium'
+             WHERE g.provider_id=p.id
+          ) prem ON true
+          LEFT JOIN public.casino_provider_tier_settings pt
+            ON pt.provider_id=p.id AND pt.source_code='bigbang' AND pt.source_mode='premium'
+         WHERE EXISTS (
+           SELECT 1 FROM public.casino_games g
+           JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang'
+            WHERE g.provider_id=p.id
+         )
          ORDER BY lower(p.name),p.code
       `);
       reply.header('Cache-Control','no-store');
@@ -153,6 +181,10 @@ export function registerBigBangAdminRoutes(
           updatedAt: new Date(row.updatedAt).toISOString(),
           totalGames: row.totalGames, sourceAvailableGames: row.sourceAvailableGames,
           enabledGames: row.enabledGames,
+          tiers: {
+            standard: { enabled: row.standardTierEnabled, sourceAvailableGames: row.standardSourceAvailableGames },
+            premium: { enabled: row.premiumTierEnabled, sourceAvailableGames: row.premiumSourceAvailableGames, available: false },
+          },
         })),
         requestId: request.id,
       });
@@ -212,6 +244,63 @@ export function registerBigBangAdminRoutes(
         },
         requestId: request.id,
       });
+    } catch {
+      return errorFromUnexpected(request,reply);
+    }
+  });
+
+  app.patch('/api/v1/admin/bigbang/providers/:providerCode/tiers/:mode', {
+    schema: {
+      params: {
+        type: 'object', additionalProperties: false, required: ['providerCode','mode'],
+        properties: {
+          providerCode: { type: 'string', minLength: 1, maxLength: 120, pattern: PROVIDER_CODE_PATTERN.source },
+          mode: { type: 'string', enum: ['standard','premium'] },
+        },
+      },
+      body: {
+        type: 'object', additionalProperties: false, required: ['enabled'],
+        properties: { enabled: { type: 'boolean' } },
+      },
+    },
+  }, async (request,reply) => {
+    try {
+      const session = await authorizedAdmin(database,request,reply,identity,true);
+      if (!session) return;
+      const { providerCode,mode } = request.params as { providerCode:string; mode:'standard'|'premium' };
+      const { enabled } = request.body as { enabled:boolean };
+      if (mode !== 'standard') {
+        return sendError(reply,request,409,'PREMIUM_NOT_AVAILABLE','Premium provider controls remain locked until authorized Premium catalogue sync and launch support are implemented');
+      }
+      const result = await database.query<QueryResultRow & { code:string; enabled:boolean; updatedAt:string|Date }>(`
+        WITH changed AS (
+          UPDATE public.casino_provider_tier_settings pt
+             SET enabled=$3,updated_by=$4,updated_at=now()
+            FROM public.casino_providers p
+           WHERE p.id=pt.provider_id AND p.code=$1
+             AND pt.source_code='bigbang' AND pt.source_mode=$2
+             AND EXISTS (
+               SELECT 1 FROM public.casino_game_sources s
+               JOIN public.casino_games g ON g.id=s.game_id
+                WHERE g.provider_id=p.id AND s.source_code='bigbang' AND s.source_mode=$2
+             )
+           RETURNING p.code,pt.enabled,pt.updated_at AS "updatedAt",p.id
+        ), audited AS (
+          INSERT INTO public.audit_events
+            (id,action,actor_type,actor_id,subject_type,subject_id,outcome,request_id,metadata,created_at)
+          SELECT $5,CASE WHEN changed.enabled THEN 'casino.provider-tier.enabled' ELSE 'casino.provider-tier.disabled' END,
+                 'admin',$4,'casino_provider_tier',changed.id,'success',$6,
+                 jsonb_build_object('providerCode',changed.code,'sourceMode',$2,'enabled',changed.enabled),now()
+            FROM changed
+          RETURNING id
+        )
+        SELECT changed.code,changed.enabled,changed."updatedAt"
+          FROM changed CROSS JOIN audited
+      `,[providerCode,mode,enabled,session.principalId,randomUUID(),request.id]);
+      const row=result.rows[0];
+      if(!row) return sendError(reply,request,404,'NOT_FOUND','Provider has no imported source rows for that tier');
+      reply.header('Cache-Control','no-store');
+      return reply.code(200).send({data:{code:row.code,mode,enabled:row.enabled,updatedAt:new Date(row.updatedAt).toISOString()},requestId:request.id});
     } catch {
       return errorFromUnexpected(request,reply);
     }
