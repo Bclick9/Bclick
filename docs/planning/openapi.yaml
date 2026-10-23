@@ -1598,7 +1598,7 @@ paths:
                         title: {type: string, maxLength: 120, description: 'Player-facing title; falls back to sourceTitle when titleOverride is null.'}
                         sourceTitle: {type: string}
                         titleOverride: {type: [string, 'null'], maxLength: 120}
-                        orderPosition: {type: integer, minimum: 1}
+                        orderPosition: {type: integer, minimum: 1, maximum: 100000}
                         tierTotal: {type: integer, minimum: 1}
                         provider:
                           type: object
