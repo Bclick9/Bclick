@@ -71,9 +71,32 @@ async function authorizedAdmin(
   return null;
 }
 
-function unexpected(request: FastifyRequest, reply: FastifyReply, message = 'The Skin Games request could not be completed') {
-  request.log.error({ requestId: request.id }, 'Skin Games admin request failed');
-  return sendError(reply,request,500,'INTERNAL_ERROR',message);
+function unexpected(request: FastifyRequest, reply: FastifyReply, cause?: unknown) {
+  const failure = cause && typeof cause === 'object' ? cause as Record<string, unknown> : {};
+  const sqlState = typeof failure.code === 'string' && /^[A-Z0-9]{5}$/.test(failure.code)
+    ? failure.code
+    : undefined;
+  const sqlMessage = sqlState && typeof failure.message === 'string'
+    ? failure.message.slice(0, 240)
+    : undefined;
+
+  // Preserve useful local diagnostics without returning raw database details to the browser.
+  request.log.error({
+    requestId: request.id,
+    failure: { code: sqlState ?? 'UNKNOWN', ...(sqlMessage ? { message: sqlMessage } : {}) },
+  }, 'Skin Games admin request failed');
+
+  if (sqlState && ['3F000', '42P01', '42703'].includes(sqlState)) {
+    return sendError(
+      reply,
+      request,
+      503,
+      'SKIN_GAMES_SCHEMA_NOT_READY',
+      'Skin Games database schema is not ready. Confirm local Migration 012 completed successfully, then restart the local stack. Do not roll back or manually rerun migrations.',
+    );
+  }
+
+  return sendError(reply,request,500,'INTERNAL_ERROR','The Skin Games request could not be completed');
 }
 
 function imageInfo(bytes: Buffer): { extension: 'png' | 'jpg' | 'webp'; contentType: string; width: number; height: number } | null {
@@ -358,8 +381,8 @@ export function registerSkinGamesAdminRoutes(
       const row=result.rows[0];
       if(!row) return sendError(reply,request,404,'NOT_FOUND','Both games must exist in the same BigBang source tier');
       return reply.code(200).send({data:{gameId,targetGameId,position,sourceMode:row.mode,displayOrder:Number(row.displayOrder)},requestId:request.id});
-    } catch {
-      return unexpected(request,reply);
+    } catch (error) {
+      return unexpected(request,reply,error);
     }
   });
 
@@ -455,8 +478,8 @@ export function registerSkinGamesAdminRoutes(
       const row=result.rows[0];
       if(!row) return sendError(reply,request,404,'NOT_FOUND','Canonical catalogue game UUID was not found');
       return reply.code(200).send({data:{id:row.id,slug:row.slug,enabled:row.enabled,updatedAt:new Date(row.updatedAt).toISOString()},requestId:request.id});
-    } catch {
-      return unexpected(request,reply);
+    } catch (error) {
+      return unexpected(request,reply,error);
     }
   });
 
