@@ -113,7 +113,7 @@ async function getSyncMeta(db: SqlExecutor): Promise<{ stale: boolean; fetchedAt
 }
 
 function whereClause(options: QueryOptions): { sql: string; values: unknown[] } {
-  const conditions = ['g.available=true', 'g.bclick_enabled=true', 'p.bclick_enabled=true', 's.source_code=\'bigbang\'', 's.source_mode=\'standard\'', 's.available=true'];
+  const conditions = ['g.available=true', 'g.bclick_enabled=true', 'p.bclick_enabled=true', 's.source_code=\'bigbang\'', 's.source_mode=\'standard\'', 's.available=true', "EXISTS (SELECT 1 FROM public.casino_provider_tier_settings pt WHERE pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode AND pt.enabled=true)"];
   const values: unknown[] = [];
   const add = (value: unknown) => { values.push(value); return '$' + values.length; };
   if (options.category) {
@@ -287,7 +287,8 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
       SELECT count(DISTINCT p.id)::text AS total
         FROM public.casino_providers p
         JOIN public.casino_games g ON g.provider_id=p.id AND g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true
-         \n        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
+         
+        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
        WHERE EXISTS (SELECT 1 FROM public.casino_provider_tier_settings pt WHERE pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode AND pt.enabled=true)
     `);
     const total = Number(count.rows[0]?.total ?? 0);
@@ -295,7 +296,8 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
       SELECT DISTINCT p.code,p.name
         FROM public.casino_providers p
         JOIN public.casino_games g ON g.provider_id=p.id AND g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true
-         \n        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
+         
+        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
        WHERE EXISTS (SELECT 1 FROM public.casino_provider_tier_settings pt WHERE pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode AND pt.enabled=true)
        ORDER BY p.name,p.code
        LIMIT $1 OFFSET $2
