@@ -6,7 +6,7 @@
 - The newest Owner decision supersedes the 2026-10-22 historical acceptance of 59 legacy aliases. Current runtime slug identity is canonical-only; no title/provider fuzzy matching or alias remapping is permitted.
 - Standard Sandbox remains the only enabled BigBang tier; Premium remains read-only/locked and all real-money routes stay disabled.
 
-## Implementation in this branch
+## Implementation merged in PR #127
 
 - `frontend/lib/casinoCatalog.ts` adds complete, paginated `fetchCasinoCategories()` with API schema validation, duplicate/cursor checks, no-store reads, and fail-closed incomplete-page behavior.
 - `frontend/pages/Casino.tsx` builds the category strip from `GET /api/v1/casino/categories`. Every category grid and every card rail obtains game records from `GET /api/v1/casino/games`; static `GAMES`, `GameGrid`, and mock Halloween game assignments are removed. Top Picks/Halloween shelves render only if those slugs exist in the actual enabled API category set.
@@ -15,9 +15,9 @@
 - Migration 014 clears the old `casino_game_legacy_slug_aliases` inventory on local upgrade. Its down section refuses rollback so retired links cannot be silently restored from inferred titles/providers.
 - OpenAPI and catalogue-route tests are updated; frontend tests cover category paging/completeness and guard against reintroducing static game-card/category fallbacks.
 
-## Acceptance gate
+## Local acceptance gate
 
-Q-005 remains open until CI is green and the Owner tests this merged revision locally:
+PR #127 merged as `bd530088332f59f388e315e24c716e9ec2055a3b`. Required CI checks for application build, API/OpenAPI/generated client, local Compose, and disposable migrations passed. Q-005 remains open until the Owner tests this merged revision locally:
 1. Startup completes Migration 014 and API readiness is healthy.
 2. Lobby and search show only enabled canonical rows and paging has no gaps/duplicates.
 3. Categories shown in navigation are the API's actual categories; a category with no visible rows does not show mock games.
