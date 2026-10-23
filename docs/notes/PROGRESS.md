@@ -11,6 +11,16 @@
 - **Wallet foundation:** Migration 006, wallet balance/statement read endpoints and player wallet UI are merged (PRs #86 and #87). They are read-only. There is no accepted money-movement/posting service, deposit/withdrawal execution, wager settlement, or provider wallet callback.
 - **Production boundary:** development/Sandbox approval for catalogue and demo work does not close Q-011 and does not authorize a production deployment, provider wallet callbacks, wallet posting, payments, wagers or real-money launch.
 
+## Owner correction and repository reconciliation — 2026-10-23
+
+The Project Owner's latest update states that the 3,802-versus-3,639 count discrepancy was already explained and the old links were removed. Do not make repeating that count investigation or legacy-link cleanup the next task. The historical Q-005 notes below have not yet been reconciled with that update and must not be treated as the source of current truth for those two completed items.
+
+A source review of this exact `main` revision still finds two distinct mechanisms that need to be kept separate in the audit:
+- `server/src/bigbang/routes.ts` contains the by-slug legacy-alias resolver.
+- `frontend/pages/Casino.tsx` still maps static `GAMES` records in the generic `GameGrid` and `HalloweenBanner` surfaces, while the Lobby/selected catalogue views use the API.
+
+This does not justify reopening the count investigation; it means the repository’s current alias/API/static-card behavior must be compared against the Owner’s reported removal so the documentation says exactly what was removed. Do not mark Q-005 fully closed from this checkpoint alone while source/category/route behavior in the checked-in code still needs that reconciliation.
+
 ## Phase/acceptance ledger
 
 | Roadmap area | Actual state | What must happen before it can be called complete / before dependent work |
