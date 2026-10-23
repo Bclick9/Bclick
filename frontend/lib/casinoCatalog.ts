@@ -194,6 +194,7 @@ export async function fetchCasinoProviders(signal?: AbortSignal): Promise<Casino
       headers: { Accept: 'application/json' },
       signal,
       credentials: 'same-origin',
+      cache: 'no-store',
     });
     const payload = await readJson(response);
     if (!response.ok) {
