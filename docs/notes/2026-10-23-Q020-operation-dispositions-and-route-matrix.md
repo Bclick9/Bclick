@@ -253,7 +253,7 @@ The exact path-by-path disposition above is authoritative for this audit. Do not
 - The suite-to-route map needs a test-name/assertion-level crosswalk for every one of the 49 handlers; the current existence of `identity.test.ts`, catalog suites or Skin Games suites is not enough to claim full operation-level conformance.
 - Review direct route acceptance for admin recovery-code regeneration, email-verification request/confirm, balance/statement read parameters, Skin Games upload/icon/assets and provider-tier mutations. Add only route-level cases that are genuinely absent after examining existing test bodies.
 - For every implemented operation, finish comparing Fastify input schemas with OpenAPI path/query/body schemas, documented success/error codes, response schema/envelope, request ID headers/body, auth state, RBAC, MFA, Origin and CSRF expectations.
-- Expand Schemathesis beyond `Health` only after supported route groups have appropriate environment setup and the matrix identifies the correct target. Do not feed contract-only operations to runtime Schemathesis or broadly exclude negative cases.
+- This PR adds a bounded Schemathesis run for currently implemented public catalogue reads and the two password-reset operations, with CI-only Identity configuration and an explicit allowed Origin. Validate that exact target and triage any discovered contract/runtime gaps before broadening it further. Do not feed contract-only operations to runtime Schemathesis or broadly exclude negative cases.
 
 ## 4. Security and implementation boundaries
 
@@ -266,7 +266,7 @@ The exact path-by-path disposition above is authoritative for this audit. Do not
 
 1. Resolve the single likely obsolete contract path `PATCH /api/v1/admin/cms/skin-games/{gameId}/reorder`: compare consumers, documented body/security model, current `/api/v1/admin/casino/skin-games/reorder` and `/order-position` routes, and the owner's current CMS-skin scope. Do not add a duplicate route as a shortcut.
 2. Complete a true assertion-level crosswalk for all 49 operations, prioritize the uncovered identity/password/email/MFA and wallet-read operations, and add positive/negative cases only where tests are currently absent.
-3. After the matrix marks a stable, explicitly supported subset, add a CI Schemathesis job for that subset. Start with safe read-only / auth routes only where CI can provision required auth and catalog fixtures; keep the `Health` job and static guard mandatory.
+3. Validate the new path-filtered Schemathesis job against the supported catalogue/password-reset subset; fix demonstrated response/input contract gaps, then add other route groups only when CI has the correct auth and data fixtures. Keep the existing `Health` job and static guard mandatory.
 4. Update this matrix, `docs/notes/PROGRESS.md`, and Issue #56 with per-test evidence and CI job links. Keep Issue #56 open until Q-020 completion criteria are met.
 
 ## 6. Method / reproducibility
