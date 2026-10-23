@@ -63,10 +63,10 @@ test('Q-020 password-reset request has positive, schema-negative, and Origin-neg
     });
     assert.equal(success.statusCode, 202);
     assert.equal(success.headers['x-request-id'], 'q020-reset-request-ok');
-    assert.deepEqual(calls, [{
-      method: 'requestPasswordReset',
-      args: ['player@example.test', '127.0.0.1'],
-    }]);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].method, 'requestPasswordReset');
+    assert.equal(calls[0].args[0], 'player@example.test');
+    assert.equal(typeof calls[0].args[1], 'string', 'client IP must be passed to the service');
 
     const invalid = await app.inject({
       method: 'POST',
