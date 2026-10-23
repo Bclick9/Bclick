@@ -82,7 +82,7 @@ Do not run migrations manually or roll back any migration. Verify:
 5. Test `/live-casino` and `/crash-games`: both must use the same search, category strip, grid, count and pagination layout, but show only games/categories for the selected Type. Confirm `/casino/slot-games` redirects to `/casino/lobby`. Hide a curated category, refresh its Type page and confirm it disappears from the strip; show it again and verify it returns.
 6. Confirm the custom icon upload is retained under persistent Bclick storage, provider source categories remain unchanged, and Premium assignments/real-money flows remain locked.
 
-Q-005 remains open until local Migration 014 and storefront acceptance are confirmed; local acceptance of Migrations 015–016 and the category game picker is also pending. Do not repeat the resolved 3,802-versus-3,639 investigation. Q-006, Q-010, Q-011, Q-013 and Q-020 remain open; Phase 8 and all Premium/real-money flows remain blocked.
+Q-005 remains open until local Migration 014 and storefront acceptance are confirmed; local acceptance of Migrations 015–017 and type-scoped storefront acceptance is also pending. Do not repeat the resolved 3,802-versus-3,639 investigation. Q-006, Q-010, Q-011, Q-013 and Q-020 remain open; Phase 8 and all Premium/real-money flows remain blocked.
 
 ## Authenticated player login redirect — follow-up fix
 
