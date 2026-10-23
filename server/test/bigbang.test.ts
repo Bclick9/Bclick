@@ -433,7 +433,7 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
       log: () => undefined,
     });
     const migrationCount = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM pgmigrations');
-    assert.equal(migrationCount.rows[0]?.count, '14', 'The full migration chain through Migration 012 must apply in order');
+    assert.equal(migrationCount.rows[0]?.count, '15', 'The full migration chain through Migration 013 must apply in order');
 
     const controlSchema = await pool.query<{ provider_enabled: string | null; game_enabled: string | null; tier: string | null; permission_links: string }>(`
       SELECT
@@ -446,18 +446,20 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
       provider_enabled: 'bclick_enabled', game_enabled: 'bclick_enabled', tier: 'standard', permission_links: '1',
     });
 
-    const skinGamesSchema = await pool.query<{ presentation_table: string | null; tier_settings_table: string | null; order_actor_column: string | null; custom_image_column: string | null }>(`
+    const skinGamesSchema = await pool.query<{ presentation_table: string | null; tier_settings_table: string | null; order_actor_column: string | null; custom_image_column: string | null; title_override_column: string | null }>(`
       SELECT
         to_regclass('public.casino_game_presentation')::text AS presentation_table,
         to_regclass('public.casino_provider_tier_settings')::text AS tier_settings_table,
         (SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='casino_game_presentation' AND column_name='order_updated_by') AS order_actor_column,
-        (SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='casino_game_presentation' AND column_name='custom_image_key') AS custom_image_column
+        (SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='casino_game_presentation' AND column_name='custom_image_key') AS custom_image_column,
+        (SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='casino_game_presentation' AND column_name='title_override') AS title_override_column
     `);
     assert.deepEqual(skinGamesSchema.rows[0], {
       presentation_table: 'casino_game_presentation',
       tier_settings_table: 'casino_provider_tier_settings',
       order_actor_column: 'order_updated_by',
       custom_image_column: 'custom_image_key',
+      title_override_column: 'title_override',
     });
 
     const first = await service.sync();
