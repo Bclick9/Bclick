@@ -27,6 +27,8 @@ interface GameRow extends QueryResultRow {
   id: string;
   slug: string;
   title: string;
+  titleOverride: string | null;
+  orderPosition: string | number;
   providerCode: string;
   providerName: string;
   sourceMode: Tier;
@@ -228,7 +230,7 @@ export function registerSkinGamesAdminRoutes(
       if (query.category) conditions.push(`EXISTS (SELECT 1 FROM public.casino_game_categories gc WHERE gc.game_id=g.id AND gc.category_slug=${add(query.category)})`);
       if (query.query?.trim()) {
         const pattern = add('%' + query.query.trim().replace(/[\\%_]/g,'\\$&') + '%');
-        conditions.push(`(g.title ILIKE ${pattern} ESCAPE E'\\\\' OR p.name ILIKE ${pattern} ESCAPE E'\\\\' OR s.external_game_id::text ILIKE ${pattern})`);
+        conditions.push(`(g.title ILIKE ${pattern} ESCAPE E'\\\\' OR COALESCE((SELECT NULLIF(pres_search.title_override,'' ) FROM public.casino_game_presentation pres_search WHERE pres_search.game_id=g.id),g.title) ILIKE ${pattern} ESCAPE E'\\\\' OR p.name ILIKE ${pattern} ESCAPE E'\\\\' OR s.external_game_id::text ILIKE ${pattern})`);
       }
       const where = conditions.join(' AND ');
       const count = await database.query<{ total: string }>(`
@@ -241,7 +243,20 @@ export function registerSkinGamesAdminRoutes(
       const total = Number(count.rows[0]?.total ?? 0);
       const pageValues = [...values,pageSize,(page-1)*pageSize];
       const rows = await database.query<GameRow>(`
+        WITH tier_order AS MATERIALIZED (
+          SELECT g_order.id,
+                 row_number() OVER (
+                   PARTITION BY s_order.source_mode
+                   ORDER BY COALESCE(pres_order.display_order,0),lower(g_order.title),p_order.code,g_order.id
+                 )::integer AS order_position
+            FROM public.casino_games g_order
+            JOIN public.casino_providers p_order ON p_order.id=g_order.provider_id
+            JOIN public.casino_game_sources s_order ON s_order.game_id=g_order.id AND s_order.source_code='bigbang'
+            LEFT JOIN public.casino_game_presentation pres_order ON pres_order.game_id=g_order.id
+        )
         SELECT g.id::text AS id,g.game_slug AS slug,g.title,
+               pres.title_override AS "titleOverride",
+               tier_order.order_position AS "orderPosition",
                p.code AS "providerCode",p.name AS "providerName",
                s.source_mode AS "sourceMode",s.external_game_id::text AS "externalGameId",
                s.is_premium AS "isPremium",s.available AS "sourceAvailable",
@@ -257,6 +272,7 @@ export function registerSkinGamesAdminRoutes(
           FROM public.casino_games g
           JOIN public.casino_providers p ON p.id=g.provider_id
           JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang'
+          JOIN tier_order ON tier_order.id=g.id
           LEFT JOIN public.casino_provider_tier_settings pt ON pt.provider_id=p.id AND pt.source_code='bigbang' AND pt.source_mode=s.source_mode
           LEFT JOIN public.casino_game_presentation pres ON pres.game_id=g.id
           LEFT JOIN public.admin_users pres_editor ON pres_editor.id=pres.updated_by
@@ -264,7 +280,7 @@ export function registerSkinGamesAdminRoutes(
           LEFT JOIN public.admin_users availability_editor ON availability_editor.id=g.availability_updated_by
          WHERE ${where}
          ORDER BY s.source_mode,COALESCE(pres.display_order,0),lower(g.title),p.code,g.id
-         LIMIT $${values.length+1} OFFSET $${values.length+2}
+         LIMIT ${values.length+1} OFFSET ${values.length+2}
       `,pageValues);
       const settings = await database.query<{ selected_mode: string }>("SELECT selected_mode FROM public.casino_integration_settings WHERE source_code='bigbang'");
       const premiumAvailable = settings.rows[0]?.selected_mode === 'premium'; // migration 011 currently permits Standard only; stays false until a reviewed tier migration.
@@ -273,7 +289,10 @@ export function registerSkinGamesAdminRoutes(
         data: rows.rows.map((row) => ({
           id: row.id,
           slug: row.slug,
-          title: row.title,
+          title: row.titleOverride?.trim() || row.title,
+          sourceTitle: row.title,
+          titleOverride: row.titleOverride,
+          orderPosition: Number(row.orderPosition),
           provider: { code: row.providerCode, name: row.providerName },
           sourceMode: row.sourceMode,
           externalGameId: row.externalGameId,
