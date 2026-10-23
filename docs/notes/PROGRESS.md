@@ -1,6 +1,6 @@
 # Bclick — Cumulative Progress and Roadmap Gate Checkpoint
 
-**Updated:** 2026-10-23, PR #127 merged as bd53008; storefront catalogue cutover and legacy-link retirement implemented; required CI/disposable-DB checks passed; local Migration 014 and end-to-end storefront acceptance pending; count investigation closed by Owner decision  
+**Updated:** 2026-10-23, PR #127 merged as bd53008 (Migration 014/canonical storefront cutover); PR #130 merged as 18172a7 (Migration 015/curated Lobby categories and Edit Game assignment); CI checks passed; local Migration 014/015 acceptance pending; count investigation closed by Owner decision  
 **Purpose:** Current implementation status and explicit stop conditions. This file reconciles current code with the planning roadmap; it does not replace the shared Library's `docs/planning/12-open-questions.md`.
 
 ## Current verified position
@@ -44,31 +44,40 @@ This does not justify reopening the count investigation; it means the repository
 - **Q-020 — P0, Open:** runtime contract evidence for each implemented route, alongside static OpenAPI checks. A CI fixture for an unimplemented or unexercised operation does not close this gate.
 - **Q-009 — Owner decision accepted; implementation verified locally/CI; PR #99 merged:** TND uses `0.01 TND = 10 millimes`, with no true third fractional digit. The shared money exponent is TND=2, wallet/API examples were updated, and guarded Migration 008 changes the database exponent from 3 to 2 only when no TND ledger entries exist and all projected TND balances are zero. The parser rejects values such as `12.345` rather than rounding. The Owner's local public.pgmigrations output records 1793188800000_tnd_provider_precision_008 as applied (id=10, on 2026-10-22 at 15:35), and precision/parser/migration-guard tests pass locally/CI. This confirms local development only; it does not establish that any staging/Production database was changed. For every non-local target, verify its own migration history, no TND ledger entries, and zero projected TND balances before applying anything. Real-money routing remains blocked by Q-006, Q-010, Q-011 and other release gates.
 
-## Immediate next task — local acceptance of merged Q-005 storefront cutover
+## Immediate next task — local acceptance of merged Casino catalogue and display-category work
 
-PR #127 has merged into `main` as `bd530088332f59f388e315e24c716e9ec2055a3b`. It moves the Casino category strip, search/category grids, Top Picks and Halloween rails to the normalized API; canonical-only slug resolution is active, and forward-only Migration 014 clears obsolete alias rows. It does not change UUID/source identity or introduce fuzzy title/provider matching.
+PR #127 merged into `main` as `bd530088332f59f388e315e24c716e9ec2055a3b`; PR #130 merged as `18172a7d9e4c6994e7376043ad98fb5b26fe25d5`. The merged work has two separate category concepts:
+- Source/provider categories remain in `casino_game_categories` and supply the catalogue’s source-driven category navigation.
+- Bclick-owned curated display categories (e.g. Trending Games) are stored in `casino_display_categories`; explicit game UUID assignments are stored in `casino_game_display_categories`. CMS → Categories manages the collection; Skin Games → Edit Game assigns each Standard game to zero or more collections. These memberships never change provider categories or game identity.
 
-Required CI and disposable-environment checks passed:
-- [Application builds](https://github.com/Bclick9/Bclick/actions/runs/39960140176)
-- [API runtime tests, OpenAPI and generated client](https://github.com/Bclick9/Bclick/actions/runs/39960140147)
-- [Local Compose bootstrap and readiness](https://github.com/Bclick9/Bclick/actions/runs/39960140348)
-- [Wallet migration disposable-PostgreSQL rehearsal](https://github.com/Bclick9/Bclick/actions/runs/39960140716)
-- [Identity migration disposable-PostgreSQL rehearsal](https://github.com/Bclick9/Bclick/actions/runs/39960140142)
+Migration 014 retires obsolete game aliases. Migration 015 adds the curated display-category tables. Required CI checks for application builds, Backoffice build, OpenAPI/generated client, API tests, local Compose bootstrap and disposable PostgreSQL migration rehearsals passed:
+- [Application builds](https://github.com/Bclick9/Bclick/actions/runs/39965171543)
+- [Backoffice UI build](https://github.com/Bclick9/Bclick/actions/runs/39965172883)
+- [API runtime tests, OpenAPI and generated client](https://github.com/Bclick9/Bclick/actions/runs/39965171614)
+- [Local Compose bootstrap and readiness](https://github.com/Bclick9/Bclick/actions/runs/39965171608)
+- [Wallet migration disposable-PostgreSQL rehearsal](https://github.com/Bclick9/Bclick/actions/runs/39965171567)
+- [Identity migration disposable-PostgreSQL rehearsal](https://github.com/Bclick9/Bclick/actions/runs/39965171526)
 
-The legacy Neon-labelled PR workflows did not apply migrations to any external database; do not treat them as staging/Production evidence.
+The legacy Neon-labelled PR workflows did not apply migrations to an external database; do not treat them as staging/Production evidence.
 
-The next action is to pull the merged revision locally and let the repository startup script apply Migration 014. First run `git status -sb`; if the worktree is dirty, stop and review local changes before pulling. If clean:
+The next action is to pull the merged revisions locally and let `start-bclick-local.ps1` apply migrations 014 and 015 through the repository’s normal migration runner. First run `git status -sb`; if the worktree is dirty, stop and review local changes before pulling. If clean:
 
 ```powershell
 git fetch origin
 git pull --ff-only origin main
 git rev-parse --short HEAD
-.\start-bclick-local.ps1
+.\\start-bclick-local.ps1
 ```
 
-Do not run Migration 014 manually or roll back any migration. Verify API readiness, Lobby/search/category/provider pages, pagination/load-more without gaps/duplicates, that Top Picks/Halloween appear only when the API exposes those categories, that canonical slug/detail/demo still work, and that obsolete legacy slug `/casino/play/demo/lightning-roulette` safely returns 404 while canonical slugs continue working. Verify provider/game disable propagation and confirm Skin Games numeric order and custom-image persistence still work; Premium stays locked.
+Do not run either migration manually or roll back a migration. Verify:
+1. Startup completes migrations and API readiness is healthy.
+2. The Edit Game modal renders without `RotateCcw is not defined`; numeric order, image upload, description/title overrides still persist.
+3. In CMS → Categories, create a test collection named `Trending Games`; reload and confirm it persists. Hide/show it, edit its description/icon, change order and delete it after the assignment test.
+4. In CMS → Skin Games → Edit Game, assign two or more Standard games to `Trending Games`, save, close and reopen the editor, and verify the checkboxes are restored from PostgreSQL. Clear all assignments and verify they are removed persistently.
+5. In `/casino/lobby`, only that curated category’s selected, currently enabled games appear in its shelf; refreshing the page preserves selection. Hide the category and verify the shelf disappears. Disable one assigned game and verify that game disappears after refresh while its catalogue record remains.
+6. Provider-supplied source categories remain unchanged. The public shelf has no static/demo fallback, only canonical UUID game rows. Premium assignments stay locked.
 
-Q-005 remains open until this local migration and storefront acceptance pass is confirmed. Do not repeat the resolved 3,802-versus-3,639 investigation. Q-006, Q-010, Q-011, Q-013 and Q-020 remain open; Phase 8 and all Premium/real-money flows remain blocked.
+Q-005 remains open until local Migration 014 and storefront acceptance are confirmed; Migration 015’s category-management acceptance is also pending. Do not repeat the resolved 3,802-versus-3,639 investigation. Q-006, Q-010, Q-011, Q-013 and Q-020 remain open; Phase 8 and all Premium/real-money flows remain blocked.
 
 ## Authenticated player login redirect — follow-up fix
 
