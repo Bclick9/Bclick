@@ -36,8 +36,10 @@ PR #112 connected the protected BigBang provider-and-game enablement controls to
 - `/casino/rng/brands` reads the existing active-provider API instead of `GAMES.map(...)`. Providers without an enabled, available Standard Sandbox game are omitted, including Bclick-disabled providers.
 - `/casino/providers/:provider` resolves a current provider record and queries games using its exact stored Bclick provider code. It no longer builds a fake list from static `GAMES`.
 - The Lobby's former “Trending Games” shelf no longer displays hard-coded sample cards. It renders a small set of current API-backed available games and fails closed rather than falling back to the demo list.
+- Public provider/category/game/detail reads now set `Cache-Control: no-store`, and the frontend requests the catalogue with `cache: 'no-store'`. The prior games/detail routes allowed `max-age=30`; that was incompatible with an operator kill switch until there is a reviewed purge/invalidation mechanism.
+- Brands/provider pages/Lobby shelves re-fetch when the browser tab returns to the foreground so a provider/game change made in another tab is reflected after returning to the storefront.
 - The public `provider` filter is changed from substring matching to an exact stored provider code or exact display name. Search remains available via the separate `query` parameter. This avoids a provider detail page silently including a second provider whose name/code merely contains the same substring.
-- Added tests around the provider directory API client and exact provider filter.
+- Added tests around complete provider pagination, malformed/incomplete provider responses, public provider visibility/no-store headers, and exact provider filtering.
 - This is intentionally **not** a claim that every static category/Halloween shelf has been migrated. The remaining surfaces are recorded below, to avoid silently crossing the Q-005 storefront-cutover gate.
 
 ## 3. Recommended CMS Skin Games contract
