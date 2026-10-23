@@ -14,13 +14,21 @@ export type CmsCategory = {
   visible: boolean
   description: string
   icon: string
+  type: CasinoDisplayType
   iconUrl?: string | null
   displayOrder: number
   createdAt?: string
   updatedAt?: string
 }
 
-type CategoryDraft = { name: string; description: string; icon: string }
+type CasinoDisplayType = 'casino' | 'live-casino' | 'crash-games'
+type CategoryDraft = { name: string; description: string; icon: string; type: CasinoDisplayType }
+
+export const CMS_CATEGORY_TYPE_OPTIONS: { value: CasinoDisplayType; label: string }[] = [
+  { value: 'casino', label: 'Casino' },
+  { value: 'live-casino', label: 'Live Casino' },
+  { value: 'crash-games', label: 'Crash Games' },
+]
 
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof AdminApiError) return error.message
@@ -66,6 +74,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
   const [draftName, setDraftName] = useState('')
   const [draftDescription, setDraftDescription] = useState('')
   const [draftIcon, setDraftIcon] = useState('trending')
+  const [draftType, setDraftType] = useState<CasinoDisplayType>('casino')
   const [draftIconFile, setDraftIconFile] = useState<File | null>(null)
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -96,7 +105,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
         setCategories(response.data)
         setDrafts(Object.fromEntries(response.data.map((category) => [
           category.id,
-          { name: category.name, description: category.description, icon: category.icon },
+          { name: category.name, description: category.description, icon: category.icon, type: category.type },
         ])))
       })
       .catch((caught: unknown) => {
@@ -229,7 +238,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
       const response = await requestAdminApi<{ data: CmsCategory }>('/api/v1/admin/casino/display-categories', {
         method: 'POST',
         headers: getAdminCsrfHeaders(),
-        body: JSON.stringify({ name, description: draftDescription.trim(), icon: draftIcon, visible: true }),
+        body: JSON.stringify({ name, description: draftDescription.trim(), icon: draftIcon, type: draftType, visible: true }),
       })
       created = response.data
       if (draftIconFile) {
@@ -242,6 +251,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
       setDraftName('')
       setDraftDescription('')
       setDraftIcon('trending')
+      setDraftType('casino')
       setDraftIconFile(null)
       setCreateModalOpen(false)
       onNotify('Display category "' + response.data.name + '" saved to the database.')
@@ -251,6 +261,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
         setCreateModalOpen(false)
         setDraftName('')
         setDraftDescription('')
+        setDraftType('casino')
         setDraftIconFile(null)
         setError('Category "' + created.name + '" was created, but its icon upload failed: ' + errorMessage(caught, 'Please upload the icon again.'))
         await reload()
@@ -296,6 +307,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
       ...(draft.name.trim() !== category.name ? { name: draft.name.trim() } : {}),
       ...(draft.description !== category.description ? { description: draft.description } : {}),
       ...(draft.icon !== category.icon ? { icon: draft.icon } : {}),
+      ...(draft.type !== category.type ? { type: draft.type } : {}),
     }
     if (Object.keys(patch).length === 0) return
     if (!draft.name.trim()) {
@@ -383,15 +395,15 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
   }
 
   return <div className="page-enter space-y-5">
-    <SectionHeading title="Categories" description="Create curated game collections such as Trending Games, then use Select games to choose the exact Standard games for each collection." />
+    <SectionHeading title="Categories" description="Create curated storefront categories for Casino, Live Casino or Crash Games. Select Type controls the page where a category appears; Select games controls its exact Standard game membership." />
     <div className="grid gap-3 sm:grid-cols-3">
-      {[{label:'Total collections',value:categories.length},{label:'Visible in Lobby',value:visibleCategories.length},{label:'Game assignments',value:assignedGames}].map((metric) => <Card key={metric.label}><CardContent className="p-4"><p className="text-xs text-slate-500">{metric.label}</p><p className="mt-1 font-display text-2xl font-extrabold text-slate-900">{loading ? '—' : metric.value}</p></CardContent></Card>)}
+      {[{label:'Total categories',value:categories.length},{label:'Visible categories',value:visibleCategories.length},{label:'Game assignments',value:assignedGames}].map((metric) => <Card key={metric.label}><CardContent className="p-4"><p className="text-xs text-slate-500">{metric.label}</p><p className="mt-1 font-display text-2xl font-extrabold text-slate-900">{loading ? '—' : metric.value}</p></CardContent></Card>)}
     </div>
     <Modal
       open={createModalOpen}
       onOpenChange={(open)=>{ if(savingId!=='new') setCreateModalOpen(open) }}
-      title="Add Lobby display category"
-      description="Create a custom collection, then use Select games on its row to choose the games that appear in the Lobby."
+      title="Add storefront category"
+      description="Create a custom storefront category for Casino, Live Casino or Crash Games, then use Select games to choose its Standard catalogue games."
       footer={
         <>
           <Button type="button" variant="outline" disabled={savingId==='new'} onClick={()=>setCreateModalOpen(false)}>Cancel</Button>
@@ -404,6 +416,13 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
         <div className="space-y-1.5">
           <label htmlFor="new-display-category-name" className="text-xs font-semibold text-slate-700">Category name</label>
           <Input id="new-display-category-name" autoComplete="off" value={draftName} onChange={(event)=>setDraftName(event.target.value)} maxLength={80} required placeholder="e.g. Trending Games" disabled={savingId!==''}/>
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="new-display-category-type" className="text-xs font-semibold text-slate-700">Select Type</label>
+          <select id="new-display-category-type" value={draftType} onChange={(event)=>setDraftType(event.target.value as CasinoDisplayType)} disabled={savingId!==''} className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            {CMS_CATEGORY_TYPE_OPTIONS.map((option)=><option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+          <p className="text-[10px] text-slate-400">This category appears only on the selected game-type page.</p>
         </div>
         <div className="space-y-1.5">
           <label htmlFor="new-display-category-description" className="text-xs font-semibold text-slate-700">Description</label>
@@ -471,7 +490,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
         <div><CardTitle>Curated Lobby collections</CardTitle><CardDescription className="mt-1">These are Bclick display categories, separate from categories supplied by the game provider.</CardDescription></div>
         <div className="flex items-center gap-2">
           <div className="relative w-full sm:max-w-[230px]"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event)=>setSearch(event.target.value)} placeholder="Search collections…" className="pl-9" /></div>
-          <Button type="button" onClick={() => { setDraftName(''); setDraftDescription(''); setDraftIcon('trending'); setDraftIconFile(null); setError(''); setCreateModalOpen(true) }} disabled={savingId!==''}><Plus className="h-4 w-4" />Add category</Button>
+          <Button type="button" onClick={() => { setDraftName(''); setDraftDescription(''); setDraftIcon('trending'); setDraftType('casino'); setDraftIconFile(null); setError(''); setCreateModalOpen(true) }} disabled={savingId!==''}><Plus className="h-4 w-4" />Add category</Button>
           <Button type="button" variant="outline" size="sm" disabled={loading || savingId !== ''} onClick={() => void reload()} aria-label="Refresh collections"><RefreshCw className={cn('h-3.5 w-3.5',loading && 'animate-spin')} /></Button>
         </div>
       </div>
@@ -482,10 +501,10 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
         {!loading && filtered.length > 0 ? <div className="space-y-3">
           {filtered.map((category) => {
             const index = categories.findIndex((item) => item.id === category.id)
-            const draft = drafts[category.id] ?? {name:category.name,description:category.description,icon:category.icon}
+            const draft = drafts[category.id] ?? {name:category.name,description:category.description,icon:category.icon,type:category.type}
             const selectedIcon = CMS_CATEGORY_ICON_OPTIONS.find((option) => option.value === draft.icon) ?? CMS_CATEGORY_ICON_OPTIONS[0]!
             const CategoryIcon = selectedIcon.icon
-            const changed = draft.name.trim() !== category.name || draft.description !== category.description
+            const changed = draft.name.trim() !== category.name || draft.description !== category.description || draft.type !== category.type
             return <div key={category.id} className={cn('rounded-xl border p-3',category.visible?'border-slate-200 bg-white':'border-dashed border-slate-200 bg-slate-50/70')}>
               <div className="flex flex-wrap items-start gap-3">
                 <div className="flex shrink-0 items-center gap-1 sm:flex-col">
@@ -499,10 +518,14 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
                   <div className="grid gap-2 md:grid-cols-[minmax(180px,0.8fr)_minmax(220px,1.4fr)_140px]">
                     <Input value={draft.name} maxLength={80} aria-label={'Name for '+category.name} onChange={(event)=>setDrafts((current)=>({...current,[category.id]:{...draft,name:event.target.value}}))} disabled={savingId!==''} />
                     <Input value={draft.description} maxLength={500} aria-label={'Description for '+category.name} placeholder="Optional description" onChange={(event)=>setDrafts((current)=>({...current,[category.id]:{...draft,description:event.target.value}}))} disabled={savingId!==''} />
+                    <select value={draft.type} aria-label={'Type for '+category.name} onChange={(event)=>setDrafts((current)=>({...current,[category.id]:{...draft,type:event.target.value as CasinoDisplayType}}))} disabled={savingId!==''} className="h-10 rounded-md border border-input bg-white px-2 text-xs text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      {CMS_CATEGORY_TYPE_OPTIONS.map((option)=><option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
 
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <Badge variant={category.visible?'success':'outline'}>{category.visible?'Visible in Lobby':'Hidden from Lobby'}</Badge>
+                    <Badge variant="info">{CMS_CATEGORY_TYPE_OPTIONS.find((option)=>option.value===category.type)?.label ?? category.type}</Badge>
+                    <Badge variant={category.visible?'success':'outline'}>{category.visible?'Visible':'Hidden'}</Badge>
                     <Badge variant="info">{category.items} assigned games</Badge>
                     <span className="font-mono text-[10px] text-slate-400">{category.slug}</span>
                   </div>
