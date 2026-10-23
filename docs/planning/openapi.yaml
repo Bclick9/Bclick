@@ -498,6 +498,41 @@ paths:
             maximum: 100
             default: 25
       operationId: getCasinoCategories
+  /api/v1/casino/display-categories:
+    get:
+      tags: [Casino]
+      security: []
+      summary: List visible operator-curated storefront collections
+      description: Returns Bclick-owned Lobby shelves with up to 24 currently available Standard Sandbox canonical games per category. Separate from provider-owned source categories.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Visible curated collections.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, requestId]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, slug, name, description, icon, displayOrder, games]
+                      properties:
+                        id: {type: string, format: uuid}
+                        slug: {type: string}
+                        name: {type: string}
+                        description: {type: string}
+                        icon: {type: string}
+                        displayOrder: {type: integer}
+                        games: {type: array, maxItems: 24, items: {$ref: '#/components/schemas/GameSummary'}}
+                  requestId: {type: string}
+          headers:
+            Cache-Control: {schema: {type: string, const: no-store}}
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+      operationId: getCasinoDisplayCategories
   /api/v1/casino/providers:
     get:
       tags: [Casino]
@@ -1563,6 +1598,141 @@ paths:
         '404': {$ref: '#/components/responses/NotFound'}
         '500': {description: Update or audit persistence failed; the mutation is not reported as successful.}
       operationId: patchAdminBigBangGame
+  /api/v1/admin/casino/display-categories:
+    get:
+      tags: [Backoffice]
+      security: [adminSession: []]
+      summary: List Bclick-managed display categories
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: All curated categories for administration, including hidden or empty categories.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, requestId]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, slug, name, description, icon, visible, displayOrder, items, createdAt, updatedAt]
+                      properties:
+                        id: {type: string, format: uuid}
+                        slug: {type: string}
+                        name: {type: string, maxLength: 80}
+                        description: {type: string, maxLength: 500}
+                        icon: {type: string}
+                        visible: {type: boolean}
+                        displayOrder: {type: integer}
+                        items: {type: integer}
+                        createdAt: {type: string, format: date-time}
+                        updatedAt: {type: string, format: date-time}
+                  requestId: {type: string}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+      operationId: getAdminCasinoDisplayCategories
+    post:
+      tags: [Backoffice]
+      security: [adminSession: []]
+      summary: Create a curated Lobby category
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/XRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name: {type: string, minLength: 1, maxLength: 80}
+                description: {type: string, maxLength: 500}
+                icon: {type: string, enum: [layers, gamepad, sparkles, trending, clock, users, money, gift, trophy, zap]}
+                visible: {type: boolean, default: true}
+      responses:
+        '201': {description: Category created and audit event recorded.}
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {description: A category with this generated slug already exists.}
+      operationId: createAdminCasinoDisplayCategory
+  /api/v1/admin/casino/display-categories/{categoryId}:
+    parameters:
+      - {name: categoryId, in: path, required: true, schema: {type: string, format: uuid}}
+      - $ref: '#/components/parameters/XRequestId'
+    patch:
+      tags: [Backoffice]
+      security: [adminSession: []]
+      summary: Update category metadata, visibility or order
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                name: {type: string, minLength: 1, maxLength: 80}
+                description: {type: string, maxLength: 500}
+                icon: {type: string, enum: [layers, gamepad, sparkles, trending, clock, users, money, gift, trophy, zap]}
+                visible: {type: boolean}
+                displayOrder: {type: integer, minimum: 0, maximum: 100000000}
+      responses:
+        '200': {description: Category updated and audited.}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+      operationId: patchAdminCasinoDisplayCategory
+    delete:
+      tags: [Backoffice]
+      security: [adminSession: []]
+      summary: Delete a curated category and its assignments
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204': {description: Category and its game assignments deleted; catalogue games are preserved.}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+      operationId: deleteAdminCasinoDisplayCategory
+  /api/v1/admin/casino/skin-games/{gameId}/display-categories:
+    parameters:
+      - {name: gameId, in: path, required: true, schema: {type: string, format: uuid}}
+      - $ref: '#/components/parameters/XRequestId'
+    patch:
+      tags: [Backoffice]
+      security: [adminSession: []]
+      summary: Assign a game to curated Lobby categories
+      description: Requires casino.provider-settings.manage, MFA, Origin and CSRF. Replaces Bclick-managed memberships atomically. Premium assignment remains locked; provider-owned categories are untouched.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [categoryIds]
+              properties:
+                categoryIds: {type: array, maxItems: 100, uniqueItems: true, items: {type: string, format: uuid}}
+      responses:
+        '200': {description: Category assignment set saved and audited.}
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {description: One or more categories do not exist.}
+      operationId: assignSkinGameDisplayCategories
   /api/v1/admin/casino/skin-games:
     get:
       tags: [Backoffice]
@@ -1590,7 +1760,7 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [id, slug, title, sourceTitle, titleOverride, orderPosition, tierTotal, provider, sourceMode, externalGameId, isPremium, sourceAvailable, catalogAvailable, enabled, providerEnabled, providerTierEnabled, effectiveAvailable, sourceImageUrl, customImageUrl, imageUrl, description, hasCustomDescription, displayOrder, categories, updatedAt, updatedBy]
+                      required: [id, slug, title, sourceTitle, titleOverride, orderPosition, tierTotal, provider, sourceMode, externalGameId, isPremium, sourceAvailable, catalogAvailable, enabled, providerEnabled, providerTierEnabled, effectiveAvailable, sourceImageUrl, customImageUrl, imageUrl, description, hasCustomDescription, displayOrder, categories, displayCategoryIds, updatedAt, updatedBy]
                       properties:
                         id: {type: string, format: uuid}
                         slug: {type: string}
@@ -1621,6 +1791,7 @@ paths:
                         hasCustomDescription: {type: boolean}
                         displayOrder: {type: integer, minimum: 0}
                         categories: {type: array, items: {type: string}}
+                        displayCategoryIds: {type: array, uniqueItems: true, items: {type: string, format: uuid}}
                         updatedAt: {type: string, format: date-time}
                         updatedBy: {type: [string, 'null']}
                   page:

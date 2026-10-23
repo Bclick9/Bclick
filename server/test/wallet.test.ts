@@ -108,9 +108,18 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
     });
 
     const migrationCount = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM pgmigrations');
-    assert.equal(migrationCount.rows[0]?.count, '16', 'wallet, catalogue, TND precision, legacy link retirement, provider controls, Skin Games presentation and title override migrations must apply in order');
+    assert.equal(migrationCount.rows[0]?.count, '17', 'wallet, catalogue, TND precision, legacy link retirement, provider controls, Skin Games presentation, title override and curated display categories migrations must apply in order');
     const retiredAliases = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM public.casino_game_legacy_slug_aliases');
     assert.equal(retiredAliases.rows[0]?.count, '0', 'Migration 014 must remove obsolete legacy game links');
+    const categoryTables = await pool.query<{ categories: string | null; assignments: string | null }>(`
+      SELECT to_regclass('public.casino_display_categories')::text AS categories,
+             to_regclass('public.casino_game_display_categories')::text AS assignments
+    `);
+    assert.deepEqual(categoryTables.rows[0], {
+      categories: 'casino_display_categories',
+      assignments: 'casino_game_display_categories',
+    }, 'Migration 015 must create curated display category tables');
+
     const tndCurrency = await pool.query<{ decimal_places: number }>(
       "SELECT decimal_places FROM public.currencies WHERE code='TND'",
     );

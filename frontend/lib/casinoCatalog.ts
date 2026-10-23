@@ -45,6 +45,42 @@ export interface CasinoCatalogCategoryPage {
   };
 }
 
+export interface CasinoDisplayCategory {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  icon: string;
+  displayOrder: number;
+  games: CasinoCatalogGame[];
+}
+
+export async function fetchCasinoDisplayCategories(signal?: AbortSignal): Promise<CasinoDisplayCategory[]> {
+  const response = await fetch('/api/v1/casino/display-categories', {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+    signal,
+    credentials: 'same-origin',
+    cache: 'no-store',
+  });
+  const payload = await readJson(response);
+  if (!response.ok) {
+    const message = isObject(payload) && isObject(payload.error) && typeof payload.error.message === 'string'
+      ? payload.error.message
+      : 'The curated casino categories could not be loaded.';
+    throw new Error(message);
+  }
+  if (!isObject(payload) || !Array.isArray(payload.data)
+    || !payload.data.every((category) => isObject(category)
+      && typeof category.id === 'string' && typeof category.slug === 'string'
+      && typeof category.name === 'string' && typeof category.description === 'string'
+      && typeof category.icon === 'string' && typeof category.displayOrder === 'number'
+      && Array.isArray(category.games) && category.games.every(isCasinoCatalogGame))) {
+    throw new Error('The casino API returned invalid curated categories.');
+  }
+  return payload.data as unknown as CasinoDisplayCategory[];
+}
+
 export async function fetchCasinoCategories(signal?: AbortSignal): Promise<CasinoCatalogCategoryPage> {
   const pageSize = 100;
   let cursor: string | null = null;

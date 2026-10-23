@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { GameCard, SectionRow, Wireframe } from '../components/cards'
 import type { Game } from '../data/catalog'
-import { fetchCasinoCategories, fetchCasinoGames, fetchCasinoProviders, getCatalogErrorMessage, type CasinoCatalogCategory, type CasinoCatalogGame, type CasinoCatalogProvider } from '../lib/casinoCatalog'
+import { fetchCasinoCategories, fetchCasinoDisplayCategories, fetchCasinoGames, fetchCasinoProviders, getCatalogErrorMessage, type CasinoCatalogCategory, type CasinoCatalogGame, type CasinoCatalogProvider, type CasinoDisplayCategory } from '../lib/casinoCatalog'
 import { cn } from '../lib/shadcn/utils'
 
 // When an admin changes availability in another tab, refresh current catalogue views
@@ -307,28 +307,12 @@ function catalogGameToCardGame(catalogGame: CasinoCatalogGame): Game {
   }
 }
 
-function CatalogGameRail({ category, title, bannerImage }: { category: string; title: string; bannerImage?: string }) {
+function CatalogGameRail({ category, title, bannerImage }: { category: CasinoDisplayCategory; title?: string; bannerImage?: string }) {
   const railRef = useRef<HTMLDivElement | null>(null)
-  const [games, setGames] = useState<CasinoCatalogGame[]>([])
-  const [loading, setLoading] = useState(true)
-  const [reloadKey, setReloadKey] = useState(0)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
-  useRefreshOnVisibility(() => setReloadKey((value) => value + 1))
-
-  useEffect(() => {
-    const controller = new AbortController()
-    setLoading(true)
-    void fetchCasinoGames({ category, pageSize: 12, signal: controller.signal }).then((page) => {
-      if (!controller.signal.aborted) setGames(page.data)
-    }).catch(() => {
-      // The main catalogue has its own error state. Optional shelves fail closed.
-      if (!controller.signal.aborted) setGames([])
-    }).finally(() => {
-      if (!controller.signal.aborted) setLoading(false)
-    })
-    return () => controller.abort()
-  }, [category, reloadKey])
+  const games = category.games
+  const heading = title ?? category.name
 
   useEffect(() => {
     const rail = railRef.current
@@ -349,24 +333,27 @@ function CatalogGameRail({ category, title, bannerImage }: { category: string; t
     }
   }, [games])
 
-  if (loading || games.length === 0) return null
+  if (games.length === 0) return null
   const scroll = (direction: -1 | 1) => {
     railRef.current?.scrollBy({ left: direction * Math.max(260, (railRef.current?.clientWidth ?? 400) * 0.7), behavior: 'smooth' })
   }
 
   return (
-    <section className="mb-8 overflow-hidden rounded-2xl border border-border bg-card">
-      {bannerImage ? <img src={bannerImage} alt={title} loading="lazy" className="block aspect-[5.2/1] w-full object-cover" /> : null}
+    <section className="mb-8 overflow-hidden rounded-2xl border border-border bg-card" data-display-category={category.slug}>
+      {bannerImage ? <img src={bannerImage} alt={heading} loading="lazy" className="block aspect-[5.2/1] w-full object-cover" /> : null}
       <div className="p-4 md:p-6">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-extrabold text-foreground md:text-xl">{title}</h2>
+          <div className="min-w-0">
+            <h2 className="text-lg font-extrabold text-foreground md:text-xl">{heading}</h2>
+            {category.description ? <p className="mt-1 text-xs text-muted-foreground">{category.description}</p> : null}
+          </div>
           <div className="flex items-center gap-2">
-            <Link to={'/casino/' + category} className="text-xs font-semibold text-muted-foreground hover:text-foreground">View all</Link>
-            <button type="button" aria-label={'Scroll ' + title + ' left'} onClick={() => scroll(-1)} disabled={!canScrollLeft}
+            <span className="text-xs text-muted-foreground">{games.length} games</span>
+            <button type="button" aria-label={'Scroll ' + heading + ' left'} onClick={() => scroll(-1)} disabled={!canScrollLeft}
               className="hidden h-9 w-9 items-center justify-center rounded-lg bg-secondary text-muted-foreground transition-colors enabled:hover:text-foreground disabled:opacity-40 md:flex">
               <ChevronLeft className="h-5 w-5" aria-hidden="true" />
             </button>
-            <button type="button" aria-label={'Scroll ' + title + ' right'} onClick={() => scroll(1)} disabled={!canScrollRight}
+            <button type="button" aria-label={'Scroll ' + heading + ' right'} onClick={() => scroll(1)} disabled={!canScrollRight}
               className="hidden h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors disabled:opacity-40 md:flex">
               <ChevronRight className="h-5 w-5" aria-hidden="true" />
             </button>
@@ -394,9 +381,25 @@ export function CasinoCategory() {
   const [catalogStale, setCatalogStale] = useState(false)
   const [catalogReloadKey, setCatalogReloadKey] = useState(0)
   const [catalogCategories, setCatalogCategories] = useState<CasinoCatalogCategory[]>([])
+  const [displayCategories, setDisplayCategories] = useState<CasinoDisplayCategory[]>([])
+  const [displayCategoriesError, setDisplayCategoriesError] = useState('')
   const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [categoriesError, setCategoriesError] = useState('')
   useRefreshOnVisibility(() => setCatalogReloadKey((value) => value + 1))
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setDisplayCategoriesError('')
+    void fetchCasinoDisplayCategories(controller.signal).then((categories) => {
+      if (!controller.signal.aborted) setDisplayCategories(categories)
+    }).catch((error: unknown) => {
+      if (!controller.signal.aborted) {
+        setDisplayCategories([])
+        setDisplayCategoriesError(getCatalogErrorMessage(error))
+      }
+    })
+    return () => controller.abort()
+  }, [catalogReloadKey])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -513,6 +516,14 @@ export function CasinoCategory() {
         </div>
       ) : isLobby ? (
         <>
+          {displayCategories.map((displayCategory) => (
+            <CatalogGameRail key={displayCategory.id} category={displayCategory} />
+          ))}
+          {displayCategoriesError ? (
+            <p className="mb-4 text-xs text-muted-foreground" role="status">
+              Curated game collections are temporarily unavailable.
+            </p>
+          ) : null}
           <div className="mb-4 flex items-center justify-between gap-3">
             <h1 className="text-lg font-extrabold text-white md:text-xl">All Games</h1>
             <p className="shrink-0 text-sm text-muted-foreground" aria-live="polite">
@@ -523,13 +534,6 @@ export function CasinoCategory() {
             loading={catalogLoading} loadingMore={catalogLoadingMore} error={catalogError} stale={catalogStale}
             onLoadMore={loadMoreCatalog} onRetry={() => setCatalogReloadKey((key) => key + 1)}
             emptyMessage="No games are currently available in the catalogue." />
-          {catalogCategories.some((item) => item.slug === 'halloween-games') ? (
-            <CatalogGameRail category="halloween-games" title="Halloween Games"
-              bannerImage="https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/Halloween-2026.webp" />
-          ) : null}
-          {catalogCategories.some((item) => item.slug === 'top-picks') ? (
-            <CatalogGameRail category="top-picks" title="Top Picks" />
-          ) : null}
         </>
       ) : (
         <>
