@@ -1,6 +1,6 @@
 # Bclick — Cumulative Progress and Roadmap Gate Checkpoint
 
-**Updated:** 2026-10-23, PR #125 merged as ce30d1c; diagnosed and fixed Skin Games upload SQLSTATE 42P18; local upload acceptance pending; numeric order works; Q-005 count/old-link investigation reported resolved by Owner; remaining code/docs reconciliation open  
+**Updated:** 2026-10-23, Owner confirms Skin Games ordering and image upload work locally; Q-005 storefront cutover and legacy-link retirement are implemented on a review branch; count investigation is closed by Owner decision; local Migration 014/CI acceptance pending  
 **Purpose:** Current implementation status and explicit stop conditions. This file reconciles current code with the planning roadmap; it does not replace the shared Library's `docs/planning/12-open-questions.md`.
 
 ## Current verified position
@@ -36,7 +36,7 @@ This does not justify reopening the count investigation; it means the repository
 
 ## Open gates that control the next work
 
-- **Q-005 — P0, requires reconciliation rather than repeating the count investigation:** The Owner confirms (2026-10-23) that the `3,802`/`3,639` discrepancy was already explained and old links were removed. The checked-in historical alias notes still say to preserve 59 aliases, while current source still has a by-slug alias resolver; those artifacts must be aligned with the Owner's newer decision. `frontend/pages/Casino.tsx` also still uses static `GAMES` for generic `GameGrid` and `HalloweenBanner`, distinct from DB-backed catalogue routes. Reconcile the actual route/card contract and its tests with the recorded removal before declaring Q-005 closed. Do not re-run the already-completed count probe. Keep source-tier identity distinct and do not enable Premium or real Play. Historical references: `docs/notes/2026-10-22-Q005-alias-disposition.md`, `docs/notes/2026-10-22-Q005-owner-acceptance.md`.
+- **Q-005 — P0, implementation in review; count investigation is closed by Owner decision:** The Owner reports that the `3,802`/`3,639` discrepancy was explained and outdated links were removed; do not repeat that investigation. This branch cuts the Casino storefront over to API-backed games/categories, makes curated rails conditional on an actual API category, changes slug resolution to canonical slugs only, adds forward-only Migration 014 to clear old alias rows, and aligns tests/OpenAPI/notes. Q-005 remains open until CI passes, local Migration 014 runs through `start-bclick-local.ps1`, the Owner confirms lobby/category/provider/search/deep-link behavior, and all visible cards are verified as enabled canonical rows. Historical alias evidence remains in the two 2026-10-22 notes, now marked superseded; it is not current routing policy. No Premium or real-money paths.
 - **Q-006 — P0, Open (partially evidenced):** `docs/notes/2026-10-22-Q006-provider-spec-review.md` records the pinned BigBang/WinHouse artifacts and support-issued ordinary bet/win vectors. Tests verify ordinary BigBang body HMAC and the extra raw-body HMAC in the supplied fixture, plus WinHouse bet/win HMAC; these are fixture checks, not wallet-handler tests. BigBang's pinned artifact does document zero-amount close, `round_end`, Sandbox marker and replay of duplicate `transaction_id`; still missing are event-specific golden tests, the paired insufficient-balance request, conflicting-payload behavior and written `X-Body-Signature` applicability. WinHouse cashout/cancel/refund/out-of-order wallet movement semantics remain undocumented by its `action: bet|win` callback shape. Owner/provider acceptance is still required. No wallet implementation is enabled.
 - **Q-010 — P0, Open:** ledger lock/concurrency and normative idempotency scope, including same/different-payload replay and posting-service tests.
 - **Q-011 — P0, Open:** isolated base+WAL restore, integrity checks, independent alert evidence and measured RPO/RTO. No restore result is assumed.
@@ -44,24 +44,27 @@ This does not justify reopening the count investigation; it means the repository
 - **Q-020 — P0, Open:** runtime contract evidence for each implemented route, alongside static OpenAPI checks. A CI fixture for an unimplemented or unexercised operation does not close this gate.
 - **Q-009 — Owner decision accepted; implementation verified locally/CI; PR #99 merged:** TND uses `0.01 TND = 10 millimes`, with no true third fractional digit. The shared money exponent is TND=2, wallet/API examples were updated, and guarded Migration 008 changes the database exponent from 3 to 2 only when no TND ledger entries exist and all projected TND balances are zero. The parser rejects values such as `12.345` rather than rounding. The Owner's local public.pgmigrations output records 1793188800000_tnd_provider_precision_008 as applied (id=10, on 2026-10-22 at 15:35), and precision/parser/migration-guard tests pass locally/CI. This confirms local development only; it does not establish that any staging/Production database was changed. For every non-local target, verify its own migration history, no TND ledger entries, and zero projected TND balances before applying anything. Real-money routing remains blocked by Q-006, Q-010, Q-011 and other release gates.
 
-## Immediate next task — confirm the merged image-upload SQL fix locally
+## Immediate next task — accept the Q-005 storefront catalogue cutover
 
-**PR #119 is merged into `main` as squash commit `c88139078cf2c8be413763223ecc6db703ffea07`; its implementation-head CI passed.** The branch includes Migration 012, protected list/edit/reorder/image APIs, durable custom-image storage, tier-scoped provider settings, updated OpenAPI/generated declarations, and the public catalogue `display_order` fix. The checkpoint and precise CI evidence are in `docs/notes/2026-10-23-skin-games-persistent-management.md`.
+The Owner confirms that numeric Skin Games ordering and custom-image upload work locally. The next code task is Q-005 storefront cutover; implementation is on this branch and awaits CI review.
 
-Now that PR #119 is on `main`, the Owner should verify the local branch/state first, then pull and start the local stack:
+Scope of this branch:
+- Casino category navigation loads every page of `GET /api/v1/casino/categories`; incomplete/duplicate pagination fails closed.
+- Lobby, search and category pages use the normalized catalogue API. Static `GAMES` membership, `GameGrid`, and mock Halloween card assignments are removed.
+- Top Picks/Halloween rails render only when those categories actually exist in the enabled Standard API catalogue; their cards come from canonical API rows and link using canonical slug.
+- `GET /api/v1/casino/games/by-slug/{slug}` resolves canonical game slugs only. Migration 014 clears obsolete `casino_game_legacy_slug_aliases` rows; regression tests and OpenAPI are updated. IDs are not merged and no title/provider fuzzy matching is introduced.
+- Historical Q-005 alias notes are marked superseded by the Owner's 2026-10-23 decision. Do not repeat the count investigation.
 
+After this branch passes CI and merges, run:
 ```powershell
 git status -sb
 git pull --ff-only origin main
 git rev-parse --short HEAD
-.\start-bclick-local.ps1
+.\\start-bclick-local.ps1
 ```
+If `git status -sb` shows uncommitted work, stop before pulling. Let startup apply Migration 014; do not execute it manually or roll migrations back. Verify Lobby/category/provider/search, canonical game detail URLs, an obsolete legacy URL returning 404, provider/game disable propagation, pagination/load-more, and that Top Picks/Halloween appear only when actual API categories exist. Confirm Skin Games order/image still works and Premium stays locked.
 
-If `git status -sb` shows uncommitted work, stop before pulling and inspect it rather than overwriting or discarding local files. Confirm that Migration 012 completed locally and the API is ready. In Backoffice, test real game UUID/source rows, Standard filtering, a reversible game block, persisted reordering, custom image upload and restore to the BigBang thumbnail, description persistence, and the provider-vs-game management split. Premium must stay locked. Record the actual local result and checked-out commit before declaring local acceptance; CI is not a substitute for this Owner test.
-
-The Owner reports that numeric ordering works locally. PR #124 made upload errors diagnosable; the Owner then supplied SQLSTATE 42P18 at `persist_image_metadata_and_audit`, proving PostgreSQL could not infer the types of `$6`/`$7` in `jsonb_build_object`. PR #125 has merged explicit `$6::text` and `$7::integer` casts plus a regression assertion, with CI passing. Next: sync `main`, restart via `.\start-bclick-local.ps1`, retry image upload, and confirm persistence/readback. Do not manually rerun/roll back migrations. Separately reconcile the code/docs mismatch in Q-005; do not gather the same count evidence again.
-
-Q-006, Q-010, Q-011, Q-013 and Q-020 remain open; Phase 8 is NOT STARTED, and Premium import, live-key sync, payments, wagers, provider callbacks, wallet posting and all real-money flows remain disabled.
+Q-005 is not closed until CI and local acceptance pass. Q-006, Q-010, Q-011, Q-013 and Q-020 remain open; Phase 8 is NOT STARTED, and Premium import, live-key sync, payments, wagers, provider callbacks, wallet posting and all real-money flows remain disabled.
 
 ## Authenticated player login redirect — follow-up fix
 
