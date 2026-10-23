@@ -504,7 +504,8 @@ export function registerSkinGamesAdminRoutes(
           RETURNING id
         )
         SELECT changed.id::text AS id,changed.slug,changed.name,changed.description,changed.icon,changed.type,changed.visible,changed."displayOrder",
-               (SELECT count(*)::integer FROM public.casino_game_display_categories m WHERE m.category_id=changed.id) AS items
+               (SELECT count(*)::integer FROM public.casino_game_display_categories m WHERE m.category_id=changed.id
+                   AND NOT EXISTS (SELECT 1 FROM removed_incompatible removed WHERE removed.game_id=m.game_id)) AS items
           FROM changed CROSS JOIN audited
       `,[categoryId,nameChanged,name,descriptionChanged,body.description ?? '',iconChanged,body.icon ?? '',visibleChanged,body.visible ?? false,orderChanged,body.displayOrder ?? 0,session.principalId,auditId,request.id,typeChanged,body.type ?? 'casino']);
       const row = result.rows[0];
