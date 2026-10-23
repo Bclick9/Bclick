@@ -652,7 +652,7 @@ export function registerSkinGamesAdminRoutes(
 
       const validGames=await database.query<{count:number|string} & QueryResultRow>(
         'SELECT count(DISTINCT game_id)::integer AS count FROM public.casino_game_sources '+
-        'WHERE source_code=\'bigbang\' AND source_mode=\'standard\' AND game_id=ANY($1::uuid[])',
+        "WHERE source_code='bigbang' AND source_mode='standard' AND game_id=ANY($1::uuid[])",
         [gameIds]);
       if(Number(validGames.rows[0]?.count??0)!==gameIds.length) {
         return sendError(reply,request,422,'DISPLAY_CATEGORY_GAME_INVALID','Every selected game must be a canonical Standard game. Premium assignments remain locked.');
