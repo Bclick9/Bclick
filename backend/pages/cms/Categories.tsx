@@ -487,7 +487,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
     </Modal>
     <Card>
       <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div><CardTitle>Curated Lobby collections</CardTitle><CardDescription className="mt-1">These are Bclick display categories, separate from categories supplied by the game provider.</CardDescription></div>
+        <div><CardTitle>Curated storefront categories</CardTitle><CardDescription className="mt-1">Each category belongs to one selected Type and is separate from the game provider’s source categories.</CardDescription></div>
         <div className="flex items-center gap-2">
           <div className="relative w-full sm:max-w-[230px]"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event)=>setSearch(event.target.value)} placeholder="Search collections…" className="pl-9" /></div>
           <Button type="button" onClick={() => { setDraftName(''); setDraftDescription(''); setDraftIcon('trending'); setDraftType('casino'); setDraftIconFile(null); setError(''); setCreateModalOpen(true) }} disabled={savingId!==''}><Plus className="h-4 w-4" />Add category</Button>
