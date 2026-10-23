@@ -92,7 +92,7 @@ function fakeDatabase() {
         return { rows: [{ total: '1' }], rowCount: 1 };
       }
       if (sql.includes('WITH changed AS') && sql.includes('UPDATE public.casino_provider_tier_settings')) {
-        assert.match(sql, /INSERT INTO public\\.audit_events/);
+        assert.match(sql, /INSERT INTO public\.audit_events/);
         assert.match(sql, /CROSS JOIN audited/);
         return {
           rows: [{ code: String(values[0]), enabled: values[2], updatedAt: '2026-10-23T08:10:00.000Z' }],
@@ -336,7 +336,7 @@ test('Standard provider tier can be disabled with an audit event, but Premium ti
     });
     const tierMutation = fixture.calls.find((call) => call.sql.includes('UPDATE public.casino_provider_tier_settings'));
     assert.ok(tierMutation);
-    assert.match(tierMutation.sql, /INSERT INTO public\\.audit_events/);
+    assert.match(tierMutation.sql, /INSERT INTO public\.audit_events/);
     assert.deepEqual(tierMutation.values.slice(0, 4), ['habanero', 'standard', false, ADMIN_ID]);
 
     const callsBeforePremium = fixture.calls.length;
