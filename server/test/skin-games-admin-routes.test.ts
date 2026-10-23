@@ -99,6 +99,7 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
   const mode = options.mode ?? 'standard';
   let currentCustomImageKey: string | null = null;
   let currentCategoryIconKey: string | null = null;
+  let categoryGameIds: string[] = [GAME_ID];
   const row: FakeGame = {
     id: mode === 'standard' ? GAME_ID : PREMIUM_GAME_ID,
     slug: mode === 'standard' ? 'hot-hot-fruit-habanero' : 'hot-hot-fruit-habanero-premium',
@@ -131,6 +132,32 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
       calls.push({ sql, values });
       if (sql.includes('casino.provider-settings.access-denied')) {
         return { rows: [{ id: 'audit-id' }], rowCount: 1 };
+      }
+      if (sql.includes('SELECT id::text AS id FROM public.casino_display_categories WHERE id=$1::uuid')) {
+        return { rows: [{ id: DISPLAY_CATEGORY_ID }], rowCount: 1 };
+      }
+      if (sql.includes('SELECT COALESCE(array_agg(game_id::text ORDER BY game_id)')) {
+        return { rows: [{ ids: categoryGameIds }], rowCount: 1 };
+      }
+      if (sql.includes('SELECT count(DISTINCT g.id)::integer AS total')) {
+        return { rows: [{ total: '1' }], rowCount: 1 };
+      }
+      if (sql.includes('AS "imageUrl"') && sql.includes('casino_provider_tier_settings') && sql.includes("s.source_mode='standard'")) {
+        return { rows: [{
+          id: GAME_ID, slug: 'hot-hot-fruit-habanero', title: 'Hot Hot Fruit', provider: 'Habanero',
+          imageUrl: row.sourceImageUrl, available: row.sourceAvailable && row.catalogAvailable && row.providerEnabled && row.providerTierEnabled,
+        }], rowCount: 1 };
+      }
+      if (sql.includes('SELECT count(DISTINCT game_id)::integer AS count FROM public.casino_game_sources')) {
+        const candidateIds = Array.isArray(values[0]) ? values[0] as string[] : [];
+        const count = mode === 'standard' && candidateIds.every((id) => id === GAME_ID) ? candidateIds.length : 0;
+        return { rows: [{ count }], rowCount: 1 };
+      }
+      if (sql.includes("casino.display-category.games-updated")) {
+        assert.ok(sql.includes('INSERT INTO public.audit_events'));
+        assert.ok(sql.includes('casino_display_category'));
+        categoryGameIds = Array.isArray(values[1]) ? [...values[1] as string[]] : [];
+        return { rows: [{ categoryId: DISPLAY_CATEGORY_ID, gameIds: categoryGameIds }], rowCount: 1 };
       }
       if (sql.includes('SELECT id::text AS id,custom_icon_key FROM public.casino_display_categories WHERE id=$1::uuid')) {
         return { rows: [{ id: DISPLAY_CATEGORY_ID, custom_icon_key: currentCategoryIconKey }], rowCount: 1 };
