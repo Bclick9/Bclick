@@ -455,14 +455,14 @@ export function registerSkinGamesAdminRoutes(
         ), target AS MATERIALIZED (
           SELECT id,old_position FROM tier_games WHERE id=$1
         ), reordered AS (
-          SELECT current.id,
+          SELECT ordered_game.id,
                  CASE
-                   WHEN current.id=$1 THEN $2::integer
-                   WHEN current.old_position < target.old_position AND current.old_position >= $2 THEN current.old_position+1
-                   WHEN current.old_position > target.old_position AND current.old_position <= $2 THEN current.old_position-1
-                   ELSE current.old_position
+                   WHEN ordered_game.id=$1 THEN $2::integer
+                   WHEN ordered_game.old_position < target.old_position AND ordered_game.old_position >= $2 THEN ordered_game.old_position+1
+                   WHEN ordered_game.old_position > target.old_position AND ordered_game.old_position <= $2 THEN ordered_game.old_position-1
+                   ELSE ordered_game.old_position
                  END AS new_position
-            FROM tier_games current CROSS JOIN target
+            FROM tier_games ordered_game CROSS JOIN target
            WHERE $2 BETWEEN 1 AND (SELECT count(*)::integer FROM tier_games)
         ), saved AS (
           INSERT INTO public.casino_game_presentation
