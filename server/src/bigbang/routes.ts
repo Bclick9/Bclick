@@ -157,8 +157,8 @@ async function readGames(db: SqlExecutor, options: QueryOptions): Promise<{ data
       LEFT JOIN public.casino_game_categories gc ON gc.game_id=g.id
       LEFT JOIN public.casino_game_presentation pres ON pres.game_id=g.id
      WHERE ${filter.sql}
-     GROUP BY g.id,g.game_slug,g.title,p.code,p.name,g.image_url,pres.custom_image_key,pres.description_override,g.available,g.demo_available,g.real_available
-     ORDER BY lower(g.title),g.id
+     GROUP BY g.id,g.game_slug,g.title,p.code,p.name,g.image_url,pres.custom_image_key,pres.description_override,pres.display_order,g.available,g.demo_available,g.real_available
+     ORDER BY COALESCE(pres.display_order,0),lower(g.title),g.id
      LIMIT ${'$'}${filter.values.length + 1} OFFSET ${'$'}${filter.values.length + 2}
   `, [...filter.values,options.pageSize,options.offset]);
   return { data: result.rows, total };
