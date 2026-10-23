@@ -1,6 +1,6 @@
 # Bclick — Cumulative Progress and Roadmap Gate Checkpoint
 
-**Updated:** 2026-10-23, PR #127 (Migration 014), PR #130 (Migration 015), PR #132 (Migration 016), PR #134 (category game picker and public Lobby UUID join fix) and PR #136 (curated category navigation/filter) merged; required CI/disposable-DB checks passed; local Migration 014–016 acceptance pending; count investigation closed by Owner decision  
+**Updated:** 2026-10-23, PR #127 (Migration 014), PR #130 (Migration 015), PR #132 (Migration 016), PR #134 (category game picker and public UUID join fix), PR #136 (curated category navigation/filter), and PR #137 (type-scoped storefront/Migration 017) merged; required CI/disposable-DB checks passed; local Migration 014–017 acceptance pending; count investigation closed by Owner decision  
 **Purpose:** Current implementation status and explicit stop conditions. This file reconciles current code with the planning roadmap; it does not replace the shared Library's `docs/planning/12-open-questions.md`.
 
 ## Current verified position
