@@ -121,8 +121,10 @@ function whereClause(options: QueryOptions): { sql: string; values: unknown[] } 
     conditions.push(`EXISTS (SELECT 1 FROM public.casino_game_categories gc WHERE gc.game_id=g.id AND gc.category_slug=${p})`);
   }
   if (options.provider) {
-    const p = add('%' + options.provider + '%');
-    conditions.push(`(p.code ILIKE ${p} OR p.name ILIKE ${p})`);
+    // Provider is an identity filter, not free-text search. Resolve only the stored
+    // Bclick provider code or exact display name so similar names never bleed across rows.
+    const p = add(options.provider);
+    conditions.push(`(p.code = ${p} OR lower(p.name) = lower(${p}))`);
   }
   if (options.query) {
     const p = add('%' + options.query.replace(/[\\%_]/g, '\\$&') + '%');
@@ -247,6 +249,8 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
   app.get('/api/v1/casino/categories', { schema: { querystring: paginationSchema } }, async (request, reply) => {
     const options = readCatalogPage(request, reply);
     if (!options) return;
+    // Availability is an operator kill switch. Do not retain responses past a mutation.
+    reply.header('Cache-Control', 'no-store');
     const count = await database.query<{ total: string }>(`
       SELECT count(DISTINCT gc.category_slug)::text AS total
         FROM public.casino_game_categories gc
@@ -278,6 +282,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
   app.get('/api/v1/casino/providers', { schema: { querystring: paginationSchema } }, async (request, reply) => {
     const options = readCatalogPage(request, reply);
     if (!options) return;
+    reply.header('Cache-Control', 'no-store');
     const count = await database.query<{ total: string }>(`
       SELECT count(DISTINCT p.id)::text AS total
         FROM public.casino_providers p
@@ -319,11 +324,12 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
   app.get('/api/v1/casino/games', { schema: { querystring: querySchema } }, async (request, reply) => {
     const options = readOptions(request, reply);
     if (!options) return;
+    reply.header('Cache-Control', 'no-store');
     const result = await readGames(database, options);
     const meta = await getSyncMeta(database);
     const nextOffset = options.offset + result.data.length;
     const nextCursor = nextOffset < result.total ? Buffer.from(String(nextOffset)).toString('base64url') : null;
-    reply.header('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
+    reply.header('Cache-Control', 'no-store');
     return {
       data: result.data.map(mapGame),
       page: { page: Math.floor(options.offset / options.pageSize) + 1, pageSize: options.pageSize, total: result.total, nextCursor },
@@ -377,7 +383,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
     `, [lookupValue]);
     const row = filter.rows[0];
     if (!row) return errorResponse(reply, request, 404, 'NOT_FOUND', 'Game not found');
-    reply.header('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
+    reply.header('Cache-Control', 'no-store');
     return { data: mapGame(row), requestId: request.id };
   });
 
@@ -399,7 +405,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
     `, [id]);
     const row = filter.rows[0];
     if (!row) return errorResponse(reply, request, 404, 'NOT_FOUND', 'Game not found');
-    reply.header('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
+    reply.header('Cache-Control', 'no-store');
     return { data: mapGame(row), requestId: request.id };
   });
 }

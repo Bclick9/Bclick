@@ -46,6 +46,12 @@ function catalogDatabase(options: {
   const database = {
     async query(sql: string, values: unknown[] = []) {
       calls.push({ sql, values });
+      if (sql.includes('SELECT count(DISTINCT p.id)::text AS total')) {
+        return { rows: [{ total: '1' }], rowCount: 1 };
+      }
+      if (sql.includes('SELECT DISTINCT p.code,p.name')) {
+        return { rows: [{ code: ROW.provider_code, name: ROW.provider_name }], rowCount: 1 };
+      }
       if (sql.includes('SELECT count(DISTINCT g.id)::text AS total')) {
         return { rows: [{ total: String(total) }], rowCount: 1 };
       }
@@ -104,7 +110,7 @@ test('slug lookup resolves the canonical UUID and preserves every stored categor
     assert.match(fixture.calls[1]!.sql, /array_agg\(DISTINCT gc\.category_slug ORDER BY gc\.category_slug\)/);
     assert.deepEqual(fixture.calls[0]!.values, [GAME_SLUG]);
     assert.deepEqual(fixture.calls[1]!.values, [GAME_SLUG]);
-    assert.equal(response.headers['cache-control'], 'public, max-age=30, stale-while-revalidate=120');
+    assert.equal(response.headers['cache-control'], 'no-store');
   } finally {
     await app.close();
   }
@@ -267,6 +273,50 @@ test('game list uses only the database and never invokes an external provider ad
     assert.equal(response.json().data.length, 1);
     assert.ok(fixture.calls.every((call) => call.sql.includes('public.casino_')));
     assert.ok(fixture.calls.every((call) => !/https?:\/\//i.test(call.sql)));
+  } finally {
+    await app.close();
+  }
+});
+
+
+test('provider query is an exact Bclick provider identity, not a substring search', async () => {
+  const fixture = catalogDatabase();
+  const app = buildApp({ database: null, catalogDatabase: fixture.database });
+
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/casino/games?provider=habanero&pageSize=10',
+    });
+
+    assert.equal(response.statusCode, 200, response.body);
+    assert.deepEqual(response.json().data, [expectedGame()]);
+    assert.match(fixture.calls[0]!.sql, /\(p\.code = \$1 OR lower\(p\.name\) = lower\(\$1\)\)/);
+    assert.doesNotMatch(fixture.calls[0]!.sql, /p\.code ILIKE|p\.name ILIKE/);
+    assert.deepEqual(fixture.calls[0]!.values, ['habanero']);
+  } finally {
+    await app.close();
+  }
+});
+
+
+test('public provider directory returns only enabled Standard providers and forbids caching', async () => {
+  const fixture = catalogDatabase();
+  const app = buildApp({ database: null, catalogDatabase: fixture.database });
+
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/casino/providers?pageSize=10',
+    });
+
+    assert.equal(response.statusCode, 200, response.body);
+    assert.deepEqual(response.json().data, [{ code: 'habanero', name: 'Habanero' }]);
+    assert.equal(response.headers['cache-control'], 'no-store');
+    assert.match(fixture.calls[0]!.sql, /p\.bclick_enabled=true/);
+    assert.match(fixture.calls[0]!.sql, /g\.bclick_enabled=true/);
+    assert.match(fixture.calls[1]!.sql, /s\.source_mode='standard'/);
+    assert.match(fixture.calls[1]!.sql, /p\.bclick_enabled=true/);
   } finally {
     await app.close();
   }

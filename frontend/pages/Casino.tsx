@@ -7,11 +7,34 @@ import {
 } from 'lucide-react'
 import { GameCard, SectionRow, Wireframe } from '../components/cards'
 import { GAMES, CASINO_CATEGORIES, type Game } from '../data/catalog'
-import { fetchCasinoGames, getCatalogErrorMessage, type CasinoCatalogGame } from '../lib/casinoCatalog'
+import { fetchCasinoGames, fetchCasinoProviders, getCatalogErrorMessage, type CasinoCatalogGame, type CasinoCatalogProvider } from '../lib/casinoCatalog'
 import { cn } from '../lib/shadcn/utils'
 
 const ICONS: Record<string, LucideIcon> = {
   Home, Cherry, Ghost, Flame, Sparkles, Crown, ShoppingBag, Rocket, Gem, Spade, Trophy,
+}
+
+// When an admin changes availability in another tab, refresh current catalogue views
+// when this storefront becomes visible again. The API also sends Cache-Control: no-store.
+function useRefreshOnVisibility(refresh: () => void) {
+  const refreshRef = useRef(refresh)
+  useEffect(() => { refreshRef.current = refresh }, [refresh])
+  useEffect(() => {
+    let lastRefreshAt = 0
+    const handleReturn = () => {
+      if (document.visibilityState !== 'visible') return
+      const now = Date.now()
+      if (now - lastRefreshAt < 750) return
+      lastRefreshAt = now
+      refreshRef.current()
+    }
+    document.addEventListener('visibilitychange', handleReturn)
+    window.addEventListener('focus', handleReturn)
+    return () => {
+      document.removeEventListener('visibilitychange', handleReturn)
+      window.removeEventListener('focus', handleReturn)
+    }
+  }, [])
 }
 
 type CasinoFilterBarProps = {
@@ -162,20 +185,40 @@ function CategoryStrip({ active }: { active: string }) {
   )
 }
 
-const TRENDING_GAME_IDS = [
-  'zeus-vs-hades', 'lucky-ladys-charm', 'wild-clusters', 'raptor-doublemax',
-  'wealth-bells-40', 'le-bandit', 'big-bass-trophy-catch', 'silver-coins',
-  'eggs-of-fortune', 'blazing-coins',
-]
-
 function TrendingGames() {
-  const trending = TRENDING_GAME_IDS
-    .map((id) => GAMES.find((game) => game.id === id))
-    .filter((game): game is (typeof GAMES)[number] => Boolean(game))
+  const [games, setGames] = useState<CasinoCatalogGame[]>([])
+  const [loading, setLoading] = useState(true)
+  const [reloadKey, setReloadKey] = useState(0)
+  useRefreshOnVisibility(() => setReloadKey((value) => value + 1))
 
+  useEffect(() => {
+    const controller = new AbortController()
+    setLoading(true)
+    void fetchCasinoGames({ pageSize: 10, signal: controller.signal }).then((page) => {
+      if (!controller.signal.aborted) setGames(page.data)
+    }).catch(() => {
+      // Fail closed: do not fall back to the old hard-coded demo game list.
+      if (!controller.signal.aborted) setGames([])
+    }).finally(() => {
+      if (!controller.signal.aborted) setLoading(false)
+    })
+    return () => controller.abort()
+  }, [reloadKey])
+
+  if (loading || games.length === 0) return null
   return (
-    <SectionRow title="Trending Games" more="/casino/top-picks">
-      {trending.map((game) => <GameCard key={game.id} game={game} />)}
+    <SectionRow title="Available Games" more="/casino/lobby">
+      {games.map((catalogGame) => {
+        const game: Game = {
+          id: catalogGame.id,
+          title: catalogGame.title,
+          provider: catalogGame.provider.name,
+          image: catalogGame.imageUrl ?? undefined,
+          imageShowsTitle: true,
+          categories: catalogGame.categories,
+        }
+        return <GameCard key={catalogGame.id} game={game} href={'/casino/play/demo/' + encodeURIComponent(catalogGame.slug)} />
+      })}
     </SectionRow>
   )
 }
@@ -366,6 +409,7 @@ export function CasinoCategory() {
   const [catalogError, setCatalogError] = useState('')
   const [catalogStale, setCatalogStale] = useState(false)
   const [catalogReloadKey, setCatalogReloadKey] = useState(0)
+  useRefreshOnVisibility(() => setCatalogReloadKey((value) => value + 1))
 
   const searchTerm = searchQuery.trim()
   const catalogBackedCategory = ['lobby', 'slot-games', 'live-casino', 'crash-games'].includes(category)
@@ -534,86 +578,142 @@ export function CasinoIndex() {
 
 export function Providers() {
   const [searchQuery, setSearchQuery] = useState('')
-  const providerNames = [...new Set(GAMES.map((g) => g.provider))]
+  const [providers, setProviders] = useState<CasinoCatalogProvider[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
+  useRefreshOnVisibility(() => setReloadKey((value) => value + 1))
   const searchTerm = searchQuery.trim().toLocaleLowerCase()
-  const filteredProviders = providerNames.filter((provider) => !searchTerm || provider.toLocaleLowerCase().includes(searchTerm))
+  const filteredProviders = providers.filter((provider) =>
+    !searchTerm || (provider.name + ' ' + provider.code).toLocaleLowerCase().includes(searchTerm),
+  )
 
-  const providerArt: Record<string, string> = {
-    'Playson': 'https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/Playson.webp',
-    'Endorphina': 'https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/Endorphina.webp',
-    'Pateplay': 'https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/Pateplay.webp',
-    'Betsoft': 'https://campeonbet.io/assets/cms/87100fe1-7d84-4a62-a632-819515c15127/Betsoft.webp',
-    'Rubyplay': 'https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/RubyPlay.webp',
-    'Novomatic': 'https://campeonbet.io/assets/cms/87100fe1-7d84-4a62-a632-819515c15127/Novomatic.webp',
-  }
+  useEffect(() => {
+    const controller = new AbortController()
+    setLoading(true)
+    setError('')
+    void fetchCasinoProviders(controller.signal).then((page) => {
+      if (!controller.signal.aborted) setProviders(page.data)
+    }).catch((reason: unknown) => {
+      if (!controller.signal.aborted) {
+        setProviders([])
+        setError(getCatalogErrorMessage(reason))
+      }
+    }).finally(() => {
+      if (!controller.signal.aborted) setLoading(false)
+    })
+    return () => controller.abort()
+  }, [reloadKey])
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-6">
-      <TrendingGames />
       <CasinoFilterBar searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} providersActive />
-      <CategoryStrip active="" />
-      <div className="flex items-center gap-3 mb-6">
+      <div className="mb-6 flex items-center gap-3">
         <h1 className="text-xl md:text-2xl font-extrabold text-foreground">Providers</h1>
-        {searchTerm ? <span className="text-xs text-muted-foreground">{filteredProviders.length} providers found</span> : null}
+        {!loading && !error ? <span className="text-xs text-muted-foreground">{filteredProviders.length} providers available</span> : null}
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {filteredProviders.map((p) => (
+      {loading ? <p role="status" className="py-10 text-center text-sm text-muted-foreground">Loading available providers…</p> : null}
+      {!loading && error ? <div className="flex flex-col items-center gap-3 py-10 text-center"><p role="alert" className="max-w-lg text-sm text-muted-foreground">{error}</p><button type="button" onClick={() => setReloadKey((value) => value + 1)} className="rounded-lg bg-[var(--cb-card)] px-5 py-2.5 text-sm font-bold text-white hover:bg-[var(--cb-hover)]">Retry</button></div> : null}
+      {!loading && !error && filteredProviders.length === 0 ? <p className="py-10 text-center text-sm text-muted-foreground">No providers currently have enabled Standard Sandbox games.</p> : null}
+      {!loading && !error ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {filteredProviders.map((provider) => (
           <Link
-            key={p}
-            to={`/casino/providers/${encodeURIComponent(p.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}`}
-            className="rounded-xl bg-card border border-border hover:border-primary/60 transition-colors overflow-hidden"
+            key={provider.code}
+            to={`/casino/providers/${encodeURIComponent(provider.code)}`}
+            className="overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/60"
           >
-            {providerArt[p] ? (
-              <img src={providerArt[p]} alt={p} loading="lazy" className="aspect-[2/1] w-full object-cover" />
-            ) : (
-              <Wireframe className="aspect-[2/1] w-full rounded-none border-0" label={p} />
-            )}
-            <p className="text-xs font-bold text-foreground text-center px-2 py-3 truncate">{p}</p>
+            <Wireframe className="aspect-[2/1] w-full rounded-none border-0" label={provider.name} />
+            <p className="truncate px-2 py-3 text-center text-xs font-bold text-foreground">{provider.name}</p>
           </Link>
         ))}
-      </div>
+      </div> : null}
+      <p className="mt-4 text-[11px] text-muted-foreground">Only providers with available, enabled Standard Sandbox games are listed. Disabled providers are omitted by the Bclick catalogue API.</p>
     </div>
   )
 }
 
 export function ProviderPage() {
   const { provider = '' } = useParams()
-  const name = PROVIDER_NAMES[provider] ?? provider.replace(/-/g, ' ')
-  const games = GAMES.filter(
-    (g) => g.provider.toLowerCase().replace(/[^a-z0-9]+/g, '-') === provider,
-  )
+  const [providerName, setProviderName] = useState('')
+  const [resolvedProviderCode, setResolvedProviderCode] = useState('')
+  const [games, setGames] = useState<CasinoCatalogGame[]>([])
+  const [total, setTotal] = useState(0)
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [error, setError] = useState('')
+  const [stale, setStale] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
+  useRefreshOnVisibility(() => setReloadKey((value) => value + 1))
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setLoading(true)
+    setError('')
+    setGames([])
+    setTotal(0)
+    setNextCursor(null)
+    setStale(false)
+    void fetchCasinoProviders(controller.signal).then(async (page) => {
+      const selected = page.data.find((item) =>
+        item.code === provider || item.name.toLocaleLowerCase().replace(/[^a-z0-9]+/g, '-') === provider,
+      )
+      if (!selected) throw new Error('This provider has no currently enabled Standard Sandbox games.')
+      setProviderName(selected.name)
+      setResolvedProviderCode(selected.code)
+      return fetchCasinoGames({ provider: selected.code, pageSize: 48, signal: controller.signal })
+    }).then((page) => {
+      if (controller.signal.aborted) return
+      setGames(page.data)
+      setTotal(page.page.total)
+      setNextCursor(page.page.nextCursor)
+      setStale(page.meta.stale)
+    }).catch((reason: unknown) => {
+      if (!controller.signal.aborted) setError(getCatalogErrorMessage(reason))
+    }).finally(() => {
+      if (!controller.signal.aborted) setLoading(false)
+    })
+    return () => controller.abort()
+  }, [provider, reloadKey])
+
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return
+    setLoadingMore(true)
+    setError('')
+    try {
+      const page = await fetchCasinoGames({ provider: resolvedProviderCode || provider, pageSize: 48, cursor: nextCursor })
+      setGames((current) => {
+        const existing = new Set(current.map((game) => game.id))
+        return [...current, ...page.data.filter((game) => !existing.has(game.id))]
+      })
+      setTotal(page.page.total)
+      setNextCursor(page.page.nextCursor)
+      setStale(page.meta.stale)
+    } catch (reason) {
+      setError(getCatalogErrorMessage(reason))
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-6">
-      <Link to="/casino/providers" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
-        <ChevronLeft className="w-4 h-4" /> Providers
+      <Link to="/casino/providers" className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground">
+        <ChevronLeft className="h-4 w-4" /> Providers
       </Link>
-      <h1 className="text-xl md:text-2xl font-extrabold text-foreground mb-6 capitalize">{name}</h1>
-      <GameGrid ids={games.map((g) => g.id)} />
+      <h1 className="mb-6 text-xl font-extrabold text-foreground md:text-2xl">{providerName || provider.replace(/-/g, ' ')}</h1>
+      <CatalogGameGrid
+        games={games}
+        total={total}
+        nextCursor={nextCursor}
+        loading={loading}
+        loadingMore={loadingMore}
+        error={error}
+        stale={stale}
+        onLoadMore={loadMore}
+        onRetry={() => setReloadKey((value) => value + 1)}
+        emptyMessage="No enabled Standard Sandbox games are currently available for this provider."
+      />
     </div>
   )
-}
-
-const PROVIDER_NAMES: Record<string, string> = {
-  'pragmatic-play': 'Pragmatic Play',
-  netent: 'Netent',
-  'play-n-go': "Play'n GO",
-  bgaming: 'BGaming',
-  hacksaw: 'Hacksaw',
-  yggdrasil: 'Yggdrasil',
-  evoplay: 'EvoPlay',
-  novomatic: 'Novomatic',
-  betsoft: 'Betsoft',
-  playson: 'Playson',
-  pateplay: 'Pateplay',
-  popiplay: 'Popiplay',
-  'push-gaming': 'Push Gaming',
-  'nolimit-city': 'Nolimit City',
-  'relax-gaming': 'Relax Gaming',
-  evolution: 'Evolution',
-  playtech: 'Playtech',
-  'big-time-gaming': 'Big Time Gaming',
-  quickspin: 'Quickspin',
-  'bf-games': 'BF Games',
-  spribe: 'Spribe',
-  smartsoft: 'SmartSoft',
 }

@@ -72,6 +72,7 @@ export async function fetchCasinoGames(options: CasinoCatalogQuery = {}): Promis
     headers: { Accept: 'application/json' },
     signal: options.signal,
     credentials: 'same-origin',
+    cache: 'no-store',
   });
   const payload = await readJson(response);
   if (!response.ok) {
@@ -99,6 +100,7 @@ export async function fetchCasinoGameBySlug(slug: string, signal?: AbortSignal):
     headers: { Accept: 'application/json' },
     signal,
     credentials: 'same-origin',
+    cache: 'no-store',
   });
   const payload = await readJson(response);
   if (!response.ok) {
@@ -149,4 +151,108 @@ export async function launchCasinoSandboxDemo(gameId: string, language = 'en'): 
 export function getCatalogErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) return error.message;
   return 'The casino catalogue is temporarily unavailable.';
+}
+
+
+export interface CasinoCatalogProvider {
+  code: string;
+  name: string;
+}
+
+export interface CasinoCatalogProviderPage {
+  data: CasinoCatalogProvider[];
+  page: {
+    page: number;
+    pageSize: number;
+    total: number;
+    nextCursor: string | null;
+  };
+  meta: {
+    resolvedLocale: string;
+    stale: boolean;
+    fetchedAt: string | null;
+  };
+}
+
+export async function fetchCasinoProviders(signal?: AbortSignal): Promise<CasinoCatalogProviderPage> {
+  const pageSize = 100;
+  let cursor: string | null = null;
+  let pageNumber = 1;
+  let total = 0;
+  let firstPage: CasinoCatalogProviderPage | null = null;
+  const providers: CasinoCatalogProvider[] = [];
+  const seenCursors = new Set<string>();
+  const seenCodes = new Set<string>();
+
+  // The endpoint is keyset/offset-cursor paginated. Follow every page so the
+  // directory never silently treats a partial provider list as complete.
+  while (pageNumber <= 100) {
+    const params = new URLSearchParams({ pageSize: String(pageSize) });
+    if (cursor) params.set('cursor', cursor);
+    const response = await fetch('/api/v1/casino/providers?' + params.toString(), {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal,
+      credentials: 'same-origin',
+      cache: 'no-store',
+    });
+    const payload = await readJson(response);
+    if (!response.ok) {
+      const message = isObject(payload) && isObject(payload.error) && typeof payload.error.message === 'string'
+        ? payload.error.message
+        : 'The casino providers could not be loaded.';
+      throw new Error(message);
+    }
+    if (!isObject(payload) || !Array.isArray(payload.data)
+      || !payload.data.every((provider) => isObject(provider)
+        && typeof provider.code === 'string' && provider.code.length > 0
+        && typeof provider.name === 'string' && provider.name.length > 0)
+      || !isObject(payload.page) || !Number.isSafeInteger(payload.page.total)
+      || typeof payload.page.nextCursor !== 'string' && payload.page.nextCursor !== null
+      || !isObject(payload.meta) || typeof payload.meta.stale !== 'boolean') {
+      throw new Error('The casino API returned an invalid providers response.');
+    }
+
+    const current = payload as unknown as CasinoCatalogProviderPage;
+    if (pageNumber === 1) {
+      firstPage = current;
+      total = current.page.total;
+      if (total < current.data.length) {
+        throw new Error('The casino API returned an inconsistent provider count.');
+      }
+    } else if (current.page.total !== total) {
+      throw new Error('The provider list changed while it was being paged. Refresh and retry.');
+    }
+
+    for (const provider of current.data) {
+      if (seenCodes.has(provider.code)) {
+        throw new Error('The casino API returned a duplicate provider across pages.');
+      }
+      seenCodes.add(provider.code);
+      providers.push(provider);
+    }
+
+    cursor = current.page.nextCursor;
+    if (cursor === null) {
+      if (providers.length !== total) {
+        throw new Error('The provider list is incomplete. Refresh and retry.');
+      }
+      return {
+        data: providers,
+        page: { ...firstPage!.page, nextCursor: null },
+        meta: {
+          ...firstPage!.meta,
+          stale: firstPage!.meta.stale || current.meta.stale,
+          fetchedAt: current.meta.fetchedAt ?? firstPage!.meta.fetchedAt,
+        },
+      };
+    }
+    if (seenCursors.has(cursor)) {
+      throw new Error('The casino API returned a repeated provider-page cursor.');
+    }
+    seenCursors.add(cursor);
+    pageNumber += 1;
+  }
+
+  throw new Error('The provider list exceeded the safe pagination limit.');
 }
