@@ -104,7 +104,7 @@ test('slug lookup resolves the canonical UUID and preserves every stored categor
     assert.match(fixture.calls[1]!.sql, /array_agg\(DISTINCT gc\.category_slug ORDER BY gc\.category_slug\)/);
     assert.deepEqual(fixture.calls[0]!.values, [GAME_SLUG]);
     assert.deepEqual(fixture.calls[1]!.values, [GAME_SLUG]);
-    assert.equal(response.headers['cache-control'], 'public, max-age=30, stale-while-revalidate=120');
+    assert.equal(response.headers['cache-control'], 'no-store');
   } finally {
     await app.close();
   }
