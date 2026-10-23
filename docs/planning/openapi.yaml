@@ -1427,7 +1427,7 @@ paths:
         - $ref: '#/components/parameters/XRequestId'
       responses:
         '200':
-          description: Providers represented by the Standard Sandbox catalogue.
+          description: Providers with imported BigBang source rows and per-tier Bclick availability controls. Premium remains unavailable in the current Sandbox integration.
           content:
             application/json:
               schema: {$ref: '#/components/schemas/BigBangAdminProvidersResponse'}
@@ -1468,6 +1468,46 @@ paths:
         '404': {$ref: '#/components/responses/NotFound'}
         '500': {description: Update or audit persistence failed; the mutation is not reported as successful.}
       operationId: patchAdminBigBangProvider
+  /api/v1/admin/bigbang/providers/{providerCode}/tiers/{mode}:
+    parameters:
+      - {name: providerCode, in: path, required: true, schema: {type: string, minLength: 1, maxLength: 120, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'}}
+      - {name: mode, in: path, required: true, schema: {type: string, enum: [standard, premium]}}
+      - $ref: '#/components/parameters/XRequestId'
+    patch:
+      tags: [Backoffice]
+      security: [adminSession: []]
+      summary: Enable or disable a provider source tier
+      description: Requires casino.provider-settings.manage, MFA, Origin and CSRF. Standard is available for the current Sandbox adapter. Premium deliberately returns 409 until authorized Premium sync and launch support are implemented.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BigBangAdminControlPatchRequest'}
+      responses:
+        '200':
+          description: Source-tier control updated and audited.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, requestId]
+                properties:
+                  data:
+                    type: object
+                    required: [code, mode, enabled, updatedAt]
+                    properties:
+                      code: {type: string}
+                      mode: {type: string, enum: [standard, premium]}
+                      enabled: {type: boolean}
+                      updatedAt: {type: string, format: date-time}
+                  requestId: {type: string}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {description: Premium tier is not enabled for the current integration.}
+      operationId: patchAdminBigBangProviderTier
   /api/v1/admin/bigbang/games:
     get:
       tags: [Backoffice]
@@ -1524,6 +1564,240 @@ paths:
         '404': {$ref: '#/components/responses/NotFound'}
         '500': {description: Update or audit persistence failed; the mutation is not reported as successful.}
       operationId: patchAdminBigBangGame
+  /api/v1/admin/casino/skin-games:
+    get:
+      tags: [Backoffice]
+      security: [adminSession: []]
+      summary: List real catalogue variants for Skin Games
+      description: Requires casino.provider-settings.manage. Each BigBang source-tier variant is represented by its own canonical Bclick UUID. Premium rows may be displayed read-only but remain unavailable until its integration gate is accepted.
+      parameters:
+        - {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+        - {name: pageSize, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 50}}
+        - {name: query, in: query, schema: {type: string, maxLength: 120}}
+        - {name: providerCode, in: query, schema: {type: string, minLength: 1, maxLength: 120}}
+        - {name: category, in: query, schema: {type: string, minLength: 1, maxLength: 80}}
+        - {name: sourceMode, in: query, schema: {type: string, enum: [standard, premium]}}
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Paginated canonical source variants and persisted presentation values.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page, integration, requestId]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, slug, title, provider, sourceMode, externalGameId, isPremium, sourceAvailable, catalogAvailable, enabled, providerEnabled, providerTierEnabled, effectiveAvailable, sourceImageUrl, customImageUrl, imageUrl, description, hasCustomDescription, displayOrder, categories, updatedAt, updatedBy]
+                      properties:
+                        id: {type: string, format: uuid}
+                        slug: {type: string}
+                        title: {type: string}
+                        provider:
+                          type: object
+                          required: [code, name]
+                          properties:
+                            code: {type: string}
+                            name: {type: string}
+                        sourceMode: {type: string, enum: [standard, premium]}
+                        externalGameId: {type: string}
+                        isPremium: {type: boolean}
+                        sourceAvailable: {type: boolean}
+                        catalogAvailable: {type: boolean}
+                        enabled: {type: boolean}
+                        providerEnabled: {type: boolean}
+                        providerTierEnabled: {type: boolean}
+                        effectiveAvailable: {type: boolean}
+                        sourceImageUrl: {type: [string, 'null'], format: uri}
+                        customImageUrl: {type: [string, 'null']}
+                        imageUrl: {type: [string, 'null']}
+                        description: {type: string, maxLength: 2000}
+                        hasCustomDescription: {type: boolean}
+                        displayOrder: {type: integer, minimum: 0}
+                        categories: {type: array, items: {type: string}}
+                        updatedAt: {type: string, format: date-time}
+                        updatedBy: {type: [string, 'null']}
+                  page:
+                    type: object
+                    required: [page, pageSize, total, nextPage]
+                    properties:
+                      page: {type: integer, minimum: 1}
+                      pageSize: {type: integer, minimum: 1, maximum: 100}
+                      total: {type: integer, minimum: 0}
+                      nextPage: {type: [integer, 'null'], minimum: 1}
+                  integration:
+                    type: object
+                    required: [selectedTier, premiumAvailable, premiumReason]
+                    properties:
+                      selectedTier: {type: string, enum: [standard]}
+                      premiumAvailable: {type: boolean, const: false}
+                      premiumReason: {type: [string, 'null']}
+                  requestId: {type: string}
+          headers:
+            Cache-Control: {schema: {type: string, const: no-store}}
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+        '400': {description: Invalid filter or pagination parameters.}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+      operationId: getAdminSkinGames
+  /api/v1/admin/casino/skin-games/reorder:
+    patch:
+      tags: [Backoffice]
+      security: [adminSession: []]
+      summary: Persist order for two game variants in the same source tier
+      description: Requires casino.provider-settings.manage, MFA, Origin and CSRF. Canonical UUIDs must belong to the same source tier; the order mutation and audit are atomic.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/XRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [gameId, targetGameId, position]
+              properties:
+                gameId: {type: string, format: uuid}
+                targetGameId: {type: string, format: uuid}
+                position: {type: string, enum: [before, after]}
+      responses:
+        '200':
+          description: Display order persisted and audit record written.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, requestId]
+                properties:
+                  data:
+                    type: object
+                    required: [gameId, targetGameId, position, sourceMode, displayOrder]
+                    properties:
+                      gameId: {type: string, format: uuid}
+                      targetGameId: {type: string, format: uuid}
+                      position: {type: string, enum: [before, after]}
+                      sourceMode: {type: string, enum: [standard, premium]}
+                      displayOrder: {type: integer, minimum: 0}
+                  requestId: {type: string}
+        '400': {description: Invalid or identical canonical UUIDs.}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+      operationId: patchAdminSkinGamesReorder
+  /api/v1/admin/casino/skin-games/{gameId}:
+    parameters:
+      - {name: gameId, in: path, required: true, schema: {type: string, format: uuid}}
+      - $ref: '#/components/parameters/XRequestId'
+    patch:
+      tags: [Backoffice]
+      security: [adminSession: []]
+      summary: Persist game availability and description override
+      description: Requires casino.provider-settings.manage, MFA, Origin and CSRF. Provider-owned identity remains immutable. Premium mutations are locked.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                enabled: {type: boolean}
+                description: {type: string, maxLength: 2000}
+                clearCustomImage: {type: boolean}
+      responses:
+        '200':
+          description: Availability or presentation update persisted with audit actor.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, requestId]
+                properties:
+                  data:
+                    type: object
+                    required: [id, slug, enabled, updatedAt]
+                    properties:
+                      id: {type: string, format: uuid}
+                      slug: {type: string}
+                      enabled: {type: boolean}
+                      updatedAt: {type: string, format: date-time}
+                  requestId: {type: string}
+        '400': {description: Invalid game UUID or body.}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {description: Premium mutation or ineffective game enable was refused.}
+      operationId: patchAdminSkinGame
+  /api/v1/admin/casino/skin-games/{gameId}/image:
+    parameters:
+      - {name: gameId, in: path, required: true, schema: {type: string, format: uuid}}
+      - $ref: '#/components/parameters/XRequestId'
+    post:
+      tags: [Backoffice]
+      security: [adminSession: []]
+      summary: Upload persistent custom artwork for a canonical game UUID
+      description: Requires casino.provider-settings.manage, MFA, Origin and CSRF. PNG/JPEG/WebP are validated from bytes, limited to 5 MiB, assigned a server-generated filename and stored on the configured persistent upload volume. blob URLs are never stored.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          image/png: {schema: {type: string, format: binary}}
+          image/jpeg: {schema: {type: string, format: binary}}
+          image/webp: {schema: {type: string, format: binary}}
+      responses:
+        '201':
+          description: Image stored persistently and audit record written.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, requestId]
+                properties:
+                  data:
+                    type: object
+                    required: [gameId, customImageUrl, contentType]
+                    properties:
+                      gameId: {type: string, format: uuid}
+                      customImageUrl: {type: string, format: uri}
+                      contentType: {type: string, enum: [image/png, image/jpeg, image/webp]}
+                  requestId: {type: string}
+        '400': {description: Invalid UUID.}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {description: Premium artwork edits are locked.}
+        '413': {description: Image exceeds the 5 MiB limit.}
+        '415': {description: Unsupported or invalid image bytes.}
+      operationId: postAdminSkinGameImage
+  /api/v1/assets/casino-games/{gameId}/{fileName}:
+    get:
+      tags: [Casino catalogue]
+      summary: Read generated persistent game artwork
+      description: Serves only the current custom image referenced by the catalogue record.
+      parameters:
+        - {name: gameId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: fileName, in: path, required: true, schema: {type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\.(png|jpg|webp)$'}}
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Validated image bytes.
+          content:
+            image/png: {schema: {type: string, format: binary}}
+            image/jpeg: {schema: {type: string, format: binary}}
+            image/webp: {schema: {type: string, format: binary}}
+          headers:
+            Cache-Control: {schema: {type: string, const: "public, max-age=31536000, immutable"}}
+            X-Content-Type-Options: {schema: {type: string, const: nosniff}}
+        '404': {$ref: '#/components/responses/NotFound'}
+      operationId: getCasinoGamePersistentAsset
   /api/v1/admin/providers/{providerCode}/catalog-sync:
     parameters:
       - name: providerCode
@@ -5946,7 +6220,7 @@ components:
     BigBangAdminProvider:
       type: object
       additionalProperties: false
-      required: [id, code, name, enabled, updatedAt, totalGames, sourceAvailableGames, enabledGames]
+      required: [id, code, name, enabled, updatedAt, totalGames, sourceAvailableGames, enabledGames, tiers]
       properties:
         id: {type: string, format: uuid}
         code: {type: string}
@@ -5956,6 +6230,26 @@ components:
         totalGames: {type: integer, minimum: 0}
         sourceAvailableGames: {type: integer, minimum: 0}
         enabledGames: {type: integer, minimum: 0}
+        tiers:
+          type: object
+          additionalProperties: false
+          required: [standard, premium]
+          properties:
+            standard:
+              type: object
+              additionalProperties: false
+              required: [enabled, sourceAvailableGames]
+              properties:
+                enabled: {type: boolean}
+                sourceAvailableGames: {type: integer, minimum: 0}
+            premium:
+              type: object
+              additionalProperties: false
+              required: [enabled, sourceAvailableGames, available]
+              properties:
+                enabled: {type: boolean}
+                sourceAvailableGames: {type: integer, minimum: 0}
+                available: {type: boolean, const: false}
     BigBangAdminProvidersResponse:
       type: object
       additionalProperties: false
