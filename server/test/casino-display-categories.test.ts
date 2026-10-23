@@ -57,6 +57,9 @@ test('public curated categories return operator-selected canonical games and no-
     assert.equal(payload.data[0].games[0].slug, 'hot-hot-fruit-habanero');
     assert.match(fixture.calls[0]!, /source_mode='standard'/);
     assert.match(fixture.calls[0]!, /casino_game_display_categories/);
+    assert.match(fixture.calls[0]!, /SELECT g\.id AS id,g\.game_slug AS slug/);
+    assert.match(fixture.calls[0]!, /JOIN public_games pg ON pg\.id=cgm\.game_id/);
+    assert.doesNotMatch(fixture.calls[0]!, /SELECT g\.id::text AS id,g\.game_slug AS slug/);
     assert.match(fixture.calls[0]!, /c.visible=true/);
     assert.match(fixture.calls[0]!, /g.bclick_enabled=true/);
     assert.match(fixture.calls[0]!, /p.bclick_enabled=true/);

@@ -285,7 +285,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
       id:string;slug:string;name:string;description:string;icon:string;customIconKey:string|null;displayOrder:number|string;games:unknown;
     }>(`
       WITH public_games AS (
-        SELECT g.id::text AS id,g.game_slug AS slug,
+        SELECT g.id AS id,g.game_slug AS slug,
                COALESCE(NULLIF(pres.title_override,''),g.title) AS title,
                p.code AS provider_code,p.name AS provider_name,
                COALESCE('/api/v1/assets/' || pres.custom_image_key,g.image_url) AS image_url,

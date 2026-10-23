@@ -531,6 +531,138 @@ export function registerSkinGamesAdminRoutes(
     }
   });
 
+  const categoryGamesParams = {
+    type:'object',additionalProperties:false,
+    properties:{
+      page:{type:'integer',minimum:1,default:1},
+      pageSize:{type:'integer',minimum:1,maximum:100,default:50},
+      query:{type:'string',maxLength:120},
+    },
+  };
+
+  app.get('/api/v1/admin/casino/display-categories/:categoryId/games', {
+    schema:{
+      params:{type:'object',additionalProperties:false,required:['categoryId'],properties:{categoryId:{type:'string',pattern:UUID.source}}},
+      querystring:categoryGamesParams,
+    },
+  }, async (request,reply) => {
+    try {
+      const session=await authorizedAdmin(database,request,reply,options,false);
+      if(!session) return;
+      const {categoryId}=request.params as {categoryId:string};
+      if(!UUID.test(categoryId)) return sendError(reply,request,400,'VALIDATION_ERROR','Category ID must be a UUID');
+      const query=request.query as {page?:number;pageSize?:number;query?:string};
+      const page=query.page??1;
+      const pageSize=query.pageSize??50;
+      const category=await database.query<{id:string} & QueryResultRow>(
+        'SELECT id::text AS id FROM public.casino_display_categories WHERE id=$1::uuid',[categoryId]);
+      if(!category.rows[0]) return sendError(reply,request,404,'NOT_FOUND','Display category was not found');
+
+      const assigned=await database.query<{ids:string[]} & QueryResultRow>(
+        'SELECT COALESCE(array_agg(game_id::text ORDER BY game_id),ARRAY[]::text[]) AS ids FROM public.casino_game_display_categories WHERE category_id=$1::uuid',
+        [categoryId]);
+
+      const conditions=["s.source_code='bigbang'","s.source_mode='standard'"];
+      const values:unknown[]=[];
+      if(query.query?.trim()){
+        const searchValue='%'+query.query.trim()+'%';
+        values.push(searchValue);
+        const parameter='$'+values.length;
+        conditions.push('('+
+          'COALESCE(NULLIF(pres.title_override,\'\'),g.title) ILIKE '+parameter+' '+
+          'OR g.game_slug ILIKE '+parameter+' '+
+          'OR p.name ILIKE '+parameter+' '+
+          'OR p.code ILIKE '+parameter+' '+
+          'OR s.external_game_id::text ILIKE '+parameter+')');
+      }
+      const where=conditions.join(' AND ');
+      const count=await database.query<{total:number|string} & QueryResultRow>(
+        'SELECT count(DISTINCT g.id)::integer AS total '+
+        'FROM public.casino_games g JOIN public.casino_providers p ON p.id=g.provider_id '+
+        'JOIN public.casino_game_sources s ON s.game_id=g.id '+
+        'LEFT JOIN public.casino_game_presentation pres ON pres.game_id=g.id '+
+        'WHERE '+where,
+        values);
+      const total=Number(count.rows[0]?.total??0);
+      const pageValues=[...values,pageSize,(page-1)*pageSize];
+      const rows=await database.query<{
+        id:string;slug:string;title:string;provider:string;imageUrl:string|null;available:boolean;
+      } & QueryResultRow>(
+        'SELECT g.id::text AS id,g.game_slug AS slug,'+
+        'COALESCE(NULLIF(pres.title_override,\'\'),g.title) AS title,p.name AS provider,'+
+        'COALESCE(\'/api/v1/assets/\' || pres.custom_image_key,g.image_url) AS "imageUrl",'+
+        '(g.available AND g.bclick_enabled AND p.bclick_enabled AND s.available AND COALESCE(pt.enabled,false)) AS available '+
+        'FROM public.casino_games g JOIN public.casino_providers p ON p.id=g.provider_id '+
+        'JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code=\'bigbang\' AND s.source_mode=\'standard\' '+
+        'LEFT JOIN public.casino_provider_tier_settings pt ON pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode '+
+        'LEFT JOIN public.casino_game_presentation pres ON pres.game_id=g.id '+
+        'WHERE '+where+' ORDER BY COALESCE(pres.display_order,0),lower(COALESCE(NULLIF(pres.title_override,\'\'),g.title)),p.code,g.id '+
+        'LIMIT $'+(pageValues.length-1)+' OFFSET $'+pageValues.length,
+        pageValues);
+      reply.header('Cache-Control','no-store');
+      return reply.code(200).send({
+        data:rows.rows,
+        selectedGameIds:assigned.rows[0]?.ids??[],
+        page:{page,pageSize,total,nextPage:page*pageSize<total?page+1:null},
+        requestId:request.id,
+      });
+    } catch(error) {
+      if(error&&typeof error==='object'&&'statusCode' in error&&typeof (error as {statusCode:unknown}).statusCode==='number') {
+        return sendError(reply,request,400,'VALIDATION_ERROR','Category game query parameters are invalid');
+      }
+      return unexpected(request,reply,error,{operation:'display_category_games_list'});
+    }
+  });
+
+  app.put('/api/v1/admin/casino/display-categories/:categoryId/games', {
+    schema:{
+      params:{type:'object',additionalProperties:false,required:['categoryId'],properties:{categoryId:{type:'string',pattern:UUID.source}}},
+      body:{type:'object',additionalProperties:false,required:['gameIds'],properties:{gameIds:{type:'array',maxItems:5000,uniqueItems:true,items:{type:'string',pattern:UUID.source}}}},
+    },
+  }, async (request,reply) => {
+    try {
+      const session=await authorizedAdmin(database,request,reply,options,true);
+      if(!session) return;
+      const {categoryId}=request.params as {categoryId:string};
+      if(!UUID.test(categoryId)) return sendError(reply,request,400,'VALIDATION_ERROR','Category ID must be a UUID');
+      const {gameIds}=request.body as {gameIds:string[]};
+      const category=await database.query<{id:string} & QueryResultRow>(
+        'SELECT id::text AS id FROM public.casino_display_categories WHERE id=$1::uuid',[categoryId]);
+      if(!category.rows[0]) return sendError(reply,request,404,'NOT_FOUND','Display category was not found');
+
+      const validGames=await database.query<{count:number|string} & QueryResultRow>(
+        'SELECT count(DISTINCT game_id)::integer AS count FROM public.casino_game_sources '+
+        'WHERE source_code=\'bigbang\' AND source_mode=\'standard\' AND game_id=ANY($1::uuid[])',
+        [gameIds]);
+      if(Number(validGames.rows[0]?.count??0)!==gameIds.length) {
+        return sendError(reply,request,422,'DISPLAY_CATEGORY_GAME_INVALID','Every selected game must be a canonical Standard game. Premium assignments remain locked.');
+      }
+
+      const auditId=randomUUID();
+      const saved=await database.query<{categoryId:string;gameIds:string[]} & QueryResultRow>(
+        'WITH target AS MATERIALIZED (SELECT id FROM public.casino_display_categories WHERE id=$1::uuid), '+
+        'removed AS (DELETE FROM public.casino_game_display_categories m USING target t '+
+        'WHERE m.category_id=t.id AND NOT (m.game_id=ANY($2::uuid[])) RETURNING m.game_id), '+
+        'added AS (INSERT INTO public.casino_game_display_categories(category_id,game_id,assigned_by,assigned_at) '+
+        'SELECT t.id,selected.game_id,$3,now() FROM target t CROSS JOIN unnest($2::uuid[]) AS selected(game_id) '+
+        'ON CONFLICT (category_id,game_id) DO NOTHING RETURNING game_id), '+
+        'audited AS (INSERT INTO public.audit_events '+
+        '(id,action,actor_type,actor_id,subject_type,subject_id,outcome,request_id,metadata,created_at) '+
+        'SELECT $4,\'casino.display-category.games-updated\',\'admin\',$3,\'casino_display_category\',t.id,\'success\',$5,'+
+        'jsonb_build_object(\'gameCount\',cardinality($2::uuid[])),now() FROM target t RETURNING id) '+
+        'SELECT t.id::text AS "categoryId",ARRAY(SELECT m.game_id::text FROM public.casino_game_display_categories m '+
+        'WHERE m.category_id=t.id ORDER BY m.game_id) AS "gameIds" FROM target t CROSS JOIN audited',
+        [categoryId,gameIds,session.principalId,auditId,request.id]);
+      if(!saved.rows[0]) return sendError(reply,request,404,'NOT_FOUND','Display category was not found');
+      return reply.code(200).send({data:saved.rows[0],requestId:request.id});
+    } catch(error) {
+      if(error&&typeof error==='object'&&'statusCode' in error&&typeof (error as {statusCode:unknown}).statusCode==='number') {
+        return sendError(reply,request,400,'VALIDATION_ERROR','Category game selection is invalid');
+      }
+      return unexpected(request,reply,error,{operation:'display_category_games_update'});
+    }
+  });
+
   app.patch('/api/v1/admin/casino/skin-games/:gameId/display-categories', {
     schema:{
       params:{type:'object',additionalProperties:false,required:['gameId'],properties:{gameId:{type:'string',pattern:UUID.source}}},

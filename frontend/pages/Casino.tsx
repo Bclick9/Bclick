@@ -138,7 +138,10 @@ function CategoryStrip({ active, categories }: { active: string; categories: Cas
     if (!rail) return
     rail.scrollBy({ left: direction * Math.max(240, rail.clientWidth * 0.65), behavior: 'smooth' })
   }
-  const items = [{ slug: 'lobby', title: 'Lobby', icon: 'home' }, ...categories.filter((item) => item.slug !== 'lobby')]
+  // These routes are game types, not operator-defined categories. Keep direct routes working
+  // while excluding the type pages from the category strip and curated category list.
+  const gameTypeSlugs = new Set(['crash-games', 'live-casino', 'slot-games'])
+  const items = [{ slug: 'lobby', title: 'Lobby', icon: 'home' }, ...categories.filter((item) => item.slug !== 'lobby' && !gameTypeSlugs.has(item.slug))]
 
   return (
     <section className="mb-6">

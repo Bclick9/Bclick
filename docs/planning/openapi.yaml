@@ -1770,6 +1770,96 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
       operationId: deleteAdminCasinoDisplayCategory
+  /api/v1/admin/casino/display-categories/{categoryId}/games:
+    parameters:
+      - {name: categoryId, in: path, required: true, schema: {type: string, format: uuid}}
+      - $ref: '#/components/parameters/XRequestId'
+    get:
+      tags: [Backoffice]
+      security: [adminSession: []]
+      summary: Search Standard games and read membership for a curated Lobby category
+      description: Requires casino.provider-settings.manage. Search is paginated over canonical Standard game UUIDs only. selectedGameIds always contains every game currently assigned to this category, independent of current search or page.
+      parameters:
+        - {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+        - {name: pageSize, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 50}}
+        - {name: query, in: query, schema: {type: string, maxLength: 120}}
+      responses:
+        '200':
+          description: Search results and complete persisted membership for this category.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, selectedGameIds, page, requestId]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, slug, title, provider, imageUrl, available]
+                      properties:
+                        id: {type: string, format: uuid}
+                        slug: {type: string}
+                        title: {type: string}
+                        provider: {type: string}
+                        imageUrl: {type: [string, 'null'], format: uri-reference}
+                        available: {type: boolean}
+                  selectedGameIds:
+                    type: array
+                    description: Complete set of canonical Standard UUIDs already assigned to this category.
+                    items: {type: string, format: uuid}
+                  page:
+                    type: object
+                    required: [page, pageSize, total, nextPage]
+                    properties:
+                      page: {type: integer}
+                      pageSize: {type: integer}
+                      total: {type: integer}
+                      nextPage: {type: [integer, 'null']}
+                  requestId: {type: string}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+      operationId: getAdminCasinoDisplayCategoryGames
+    put:
+      tags: [Backoffice]
+      security: [adminSession: []]
+      summary: Replace game membership for a curated Lobby category
+      description: Requires casino.provider-settings.manage, MFA, Origin and CSRF. Atomically replaces the selected category's memberships and records an audit event. Only canonical Standard games are accepted; Premium assignments remain locked. Other curated categories, provider-owned categories and game identity are unaffected.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [gameIds]
+              properties:
+                gameIds: {type: array, maxItems: 5000, uniqueItems: true, items: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Membership replaced and audited.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, requestId]
+                properties:
+                  data:
+                    type: object
+                    required: [categoryId, gameIds]
+                    properties:
+                      categoryId: {type: string, format: uuid}
+                      gameIds: {type: array, items: {type: string, format: uuid}}
+                  requestId: {type: string}
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {description: One or more selected UUIDs are not canonical Standard games.}
+      operationId: replaceAdminCasinoDisplayCategoryGames
   /api/v1/admin/casino/skin-games/{gameId}/display-categories:
     parameters:
       - {name: gameId, in: path, required: true, schema: {type: string, format: uuid}}
