@@ -1,8 +1,8 @@
 # Local Skin Games, Providers and player auth fixes
 
 **Date:** 2026-10-23  
-**Branch:** fix/skin-games-ui-and-auth-modal  
-**Pull request:** [#120 — fix: restore Skin Games admin and keep player auth modal-only](https://github.com/Bclick9/Bclick/pull/120)  
+**Branch:** fix/skin-games-ui-and-auth-modal (merged to main)  
+**Pull request:** [#120 — fix: restore Skin Games admin and keep player auth modal-only](https://github.com/Bclick9/Bclick/pull/120), merged as `12a438bca9dfa3bc7bb419ddc8a1c37b462fb6f8`  
 **Starting point:** main at 7535185910df26fa60e00b44347df3babf0d868b
 
 ## Owner-reported symptoms
@@ -35,7 +35,7 @@ Pure regression tests cover session-check waiting, signed-in redirect, modal mod
 
 ## Required local acceptance
 
-After PR #120 merges, inspect the working tree before pulling main, then use the repository's normal local workflow (Docker Compose PostgreSQL + host-side API, not Neon):
+Now that PR #120 is merged, inspect the working tree before pulling main, then use the repository's normal local workflow (Docker Compose PostgreSQL + host-side API, not Neon):
 
 ~~~powershell
 git status -sb
@@ -58,4 +58,4 @@ Owner acceptance of Skin Games ordering remains **pending** until these local ch
 
 ## Roadmap guardrails
 
-PR #120 does not close Q-005, Q-006, Q-010, Q-011, Q-013 or Q-020. Q-005 still blocks full catalogue cutover; Premium sync/launch and Phase 8 remain blocked. No payment, wager, wallet callback, ledger posting or other real-money feature is enabled.
+PR #120 is merged but does not close Q-005, Q-006, Q-010, Q-011, Q-013 or Q-020. Q-005 still blocks full catalogue cutover; Premium sync/launch and Phase 8 remain blocked. No payment, wager, wallet callback, ledger posting or other real-money feature is enabled.
