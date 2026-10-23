@@ -264,7 +264,7 @@ export function registerSkinGamesAdminRoutes(
           LEFT JOIN public.admin_users availability_editor ON availability_editor.id=g.availability_updated_by
          WHERE ${where}
          ORDER BY s.source_mode,COALESCE(pres.display_order,0),lower(g.title),p.code,g.id
-         LIMIT ${values.length+1} OFFSET ${values.length+2}
+         LIMIT $${values.length+1} OFFSET $${values.length+2}
       `,pageValues);
       const settings = await database.query<{ selected_mode: string }>("SELECT selected_mode FROM public.casino_integration_settings WHERE source_code='bigbang'");
       const premiumAvailable = settings.rows[0]?.selected_mode === 'premium'; // migration 011 currently permits Standard only; stays false until a reviewed tier migration.

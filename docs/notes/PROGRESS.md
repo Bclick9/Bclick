@@ -1,6 +1,6 @@
 # Bclick — Cumulative Progress and Roadmap Gate Checkpoint
 
-**Updated:** 2026-10-23, PR #121 merged as 0808963; authenticated /login now defaults to /account; local Skin Games UI/order acceptance remains pending; Q-005 remains OPEN/P0  
+**Updated:** 2026-10-23, exact Skin Games failure diagnosed as SQLSTATE 08P01; pagination bind fix in validation; local ordering acceptance remains pending; Q-005 remains OPEN/P0  
 **Purpose:** Current implementation status and explicit stop conditions. This file reconciles current code with the planning roadmap; it does not replace the shared Library's `docs/planning/12-open-questions.md`.
 
 ## Current verified position
@@ -64,6 +64,12 @@ This is separate from the normal successful sign-in path, which already navigate
 The Lobby currently requests the normalized local API catalogue with `cache: 'no-store'`; the API also emits `Cache-Control: no-store`. The storefront deliberately refreshes when its tab becomes visible again, so a provider/game blocked in CMS does not remain visible indefinitely. A full browser refresh necessarily starts a new page and requests the catalogue again; this is not proof that the provider's entire catalogue is being re-synchronized.
 
 Do not add an unbounded browser cache while game availability and operator blocking need prompt propagation. A later measured performance task can introduce a short-lived server-side query cache or ETag/conditional validation for the normalized catalogue, with explicit invalidation/versioning on admin mutations and an always-server-side availability check at demo launch. Image bytes should use long-lived cache headers with versioned asset URLs. First collect timing/query evidence and finish Q-005 catalogue identity correctness; do not conflate UI/API response caching with provider sync or weaken the no-live-wallet/Standard-only gates.
+
+## Skin Games pagination bind failure identified — fix in progress
+
+The Owner's latest local API log provided the root cause for the previously generic Skin Games failure: SQLSTATE `08P01`, message `bind message supplies 2 parameters, but prepared statement "" requires 0`. In `server/src/bigbang/skin-games-admin-routes.ts`, the list endpoint passed page-size/offset (and optional filter parameters) to node-postgres, but the SQL interpolated the calculated LIMIT/OFFSET indices as literal integers rather than PostgreSQL placeholders. The current fix changes these to positional placeholders (`LIMIT $n OFFSET $n+1` using the runtime filter count) and adds tests for both the unfiltered page and provider-filtered page.
+
+This is a query binding bug, not evidence of missing catalogue records or a broken Migration 012. Do not manually rerun/rollback migrations. After the fix lands, restart the host-side API and verify the real local request returns canonical UUID rows; only then proceed to the Standard-tier ordering and persistence checks. Until that succeeds, drag-order acceptance is still blocked.
 
 ## Authenticated player redirect and catalogue caching — PR #121 merged
 

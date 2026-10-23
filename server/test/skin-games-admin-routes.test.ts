@@ -215,6 +215,25 @@ test('Skin Games list is authenticated and returns real canonical UUID/source st
     assert.equal(response.json().data[0].imageUrl, 'https://bigbangcasino.bet/frontend/Vegas/ico/Habanero/SGHotHotFruit.webp');
     assert.equal(response.json().data[0].effectiveAvailable, true);
     assert.equal(response.json().integration.premiumAvailable, false);
+
+    const listQuery = fixture.calls.find((call) =>
+      call.sql.includes('SELECT g.id::text AS id,g.game_slug AS slug,g.title'));
+    assert.ok(listQuery, 'expected the paginated game-list query');
+    assert.match(listQuery.sql, /LIMIT \$1 OFFSET \$2/);
+    assert.deepEqual(listQuery.values, [50, 0]);
+
+    const filteredResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/casino/skin-games?page=2&pageSize=20&providerCode=habanero',
+      headers: authHeaders(),
+    });
+    assert.equal(filteredResponse.statusCode, 200, filteredResponse.body);
+    const filteredListQuery = fixture.calls.filter((call) =>
+      call.sql.includes('SELECT g.id::text AS id,g.game_slug AS slug,g.title')).at(-1);
+    assert.ok(filteredListQuery, 'expected the filtered paginated game-list query');
+    assert.match(filteredListQuery.sql, /p\.code=\$1/);
+    assert.match(filteredListQuery.sql, /LIMIT \$2 OFFSET \$3/);
+    assert.deepEqual(filteredListQuery.values, ['habanero', 20, 20]);
   } finally {
     await app.close();
   }
