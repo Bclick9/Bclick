@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
 import Fastify from 'fastify';
+import type { FastifyError } from 'fastify';
 
 import { registerIdentityRoutes } from './identity/routes.js';
 import type { IdentityConfig } from './identity/config.js';
@@ -97,7 +98,7 @@ export function buildApp(options: BuildAppOptions) {
     }
   });
 
-  app.setErrorHandler((error, request, reply) => {
+  app.setErrorHandler((error: FastifyError, request, reply) => {
     const isRequestValidationError = Boolean(error.validation && error.validationContext !== 'response');
     const statusCode = isRequestValidationError
       ? 400
