@@ -41,10 +41,11 @@ function Logo({ compact = false }: { compact?: boolean }) {
 function AuthActions({ compact = false }: { compact?: boolean }) {
   const [searchOpen, setSearchOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null)
+  const [authReturnTo, setAuthReturnTo] = useState<string | null>(null)
   const [logoutError, setLogoutError] = useState('')
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const { player, isLoading, logout } = useAuth()
-  const closeAuth = useCallback(() => setAuthMode(null), [])
+  const closeAuth = useCallback(() => { setAuthMode(null); setAuthReturnTo(null) }, [])
   const handleLogout = async () => {
     setLogoutError('')
     try {
@@ -56,8 +57,17 @@ function AuthActions({ compact = false }: { compact?: boolean }) {
 
   useEffect(() => {
     const openSearchDialog = () => setSearchOpen(true)
+    const openAuthDialog = (event: Event) => {
+      const detail = (event as CustomEvent<{ mode?: 'login' | 'signup'; returnTo?: string | null }>).detail
+      setAuthReturnTo(typeof detail?.returnTo === 'string' ? detail.returnTo : null)
+      setAuthMode(detail?.mode === 'signup' ? 'signup' : 'login')
+    }
     window.addEventListener('cb:open-search', openSearchDialog)
-    return () => window.removeEventListener('cb:open-search', openSearchDialog)
+    window.addEventListener('cb:open-auth', openAuthDialog)
+    return () => {
+      window.removeEventListener('cb:open-search', openSearchDialog)
+      window.removeEventListener('cb:open-auth', openAuthDialog)
+    }
   }, [])
 
   return (
@@ -118,7 +128,7 @@ function AuthActions({ compact = false }: { compact?: boolean }) {
             <>
               <button
                 type="button"
-                onClick={() => setAuthMode('login')}
+                onClick={() => { setAuthReturnTo(null); setAuthMode('login') }}
                 aria-haspopup="dialog"
                 className={compact
                   ? 'inline-flex items-center justify-center rounded-[10px] border border-[var(--cb-line)] px-3 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[var(--cb-hover)] outline-none'
@@ -128,7 +138,7 @@ function AuthActions({ compact = false }: { compact?: boolean }) {
               </button>
               <button
                 type="button"
-                onClick={() => setAuthMode('signup')}
+                onClick={() => { setAuthReturnTo(null); setAuthMode('signup') }}
                 aria-haspopup="dialog"
                 className={compact
                   ? 'inline-flex items-center justify-center rounded-[10px] border border-[var(--cb-yellow)] bg-[var(--cb-yellow)] px-3 py-2.5 text-xs font-bold text-[#00151e] transition-colors hover:brightness-105 outline-none'
@@ -147,6 +157,7 @@ function AuthActions({ compact = false }: { compact?: boolean }) {
         open={authMode !== null}
         initialMode={authMode ?? 'login'}
         onClose={closeAuth}
+        returnTo={authReturnTo}
       />
     </>
   )
