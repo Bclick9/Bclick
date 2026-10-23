@@ -32,6 +32,10 @@ type SkinGame = {
   id: string
   slug: string
   title: string
+  sourceTitle: string
+  titleOverride: string | null
+  orderPosition: number
+  tierTotal: number
   provider: { code: string; name: string }
   sourceMode: Tier
   externalGameId: string
@@ -108,6 +112,8 @@ export function CmsSkinGamesPage({ onNotify }: { onNotify: (message: string) => 
 
   const [editorGame, setEditorGame] = useState<SkinGame | null>(null)
   const [descriptionDraft, setDescriptionDraft] = useState('')
+  const [displayTitleDraft, setDisplayTitleDraft] = useState('')
+  const [orderPositionDraft, setOrderPositionDraft] = useState('1')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState('')
   const [clearCustomImage, setClearCustomImage] = useState(false)
@@ -210,6 +216,8 @@ export function CmsSkinGamesPage({ onNotify }: { onNotify: (message: string) => 
   function openEditor(game: SkinGame): void {
     setEditorGame(game)
     setDescriptionDraft(game.description)
+    setDisplayTitleDraft(game.title)
+    setOrderPositionDraft(String(game.orderPosition))
     setImageFile(null)
     setImagePreview('')
     setClearCustomImage(false)
@@ -231,6 +239,15 @@ export function CmsSkinGamesPage({ onNotify }: { onNotify: (message: string) => 
       setEditorError('Only PNG, JPEG and WebP images are supported.')
       return
     }
+    const desiredOrderPosition = Number(orderPositionDraft)
+    if (!Number.isSafeInteger(desiredOrderPosition) || desiredOrderPosition < 1 || desiredOrderPosition > editorGame.tierTotal) {
+      setEditorError('Order position must be a whole number between 1 and ' + editorGame.tierTotal.toLocaleString() + '.')
+      return
+    }
+    if (displayTitleDraft.trim().length > 120) {
+      setEditorError('Player-facing title must be 120 characters or fewer.')
+      return
+    }
     setEditorBusy(true)
     setEditorError('')
     try {
@@ -239,9 +256,17 @@ export function CmsSkinGamesPage({ onNotify }: { onNotify: (message: string) => 
         headers: getAdminCsrfHeaders(),
         body: JSON.stringify({
           description: descriptionDraft,
+          ...(displayTitleDraft !== editorGame.title ? { displayTitle: displayTitleDraft } : {}),
           ...(!imageFile && clearCustomImage ? { clearCustomImage: true } : {}),
         }),
       })
+      if (desiredOrderPosition !== editorGame.orderPosition) {
+        await requestAdminApi('/api/v1/admin/casino/skin-games/' + encodeURIComponent(editorGame.id) + '/order-position', {
+          method: 'PATCH',
+          headers: getAdminCsrfHeaders(),
+          body: JSON.stringify({ orderPosition: desiredOrderPosition }),
+        })
+      }
       if (imageFile) {
         await requestAdminApi('/api/v1/admin/casino/skin-games/' + encodeURIComponent(editorGame.id) + '/image', {
           method: 'POST',
@@ -252,10 +277,10 @@ export function CmsSkinGamesPage({ onNotify }: { onNotify: (message: string) => 
       setEditorGame(null)
       setImageFile(null)
       setImagePreview('')
-      onNotify('Game presentation saved to the database and audit log.')
+      onNotify('Game title, presentation and requested order saved to the database and audit log.')
       loadAgain()
     } catch (caught) {
-      setEditorError(errorMessage(caught, 'Could not save game presentation. If the description saved before an image error, retry the image upload.'))
+      setEditorError(errorMessage(caught, 'Could not save all game changes. Earlier fields may already be saved; refresh the editor before retrying.'))
       loadAgain()
     } finally {
       setEditorBusy(false)
@@ -357,7 +382,7 @@ export function CmsSkinGamesPage({ onNotify }: { onNotify: (message: string) => 
                   <td className="px-3 py-3"><Badge variant={game.sourceMode === 'standard' ? 'info' : 'warning'}>{game.sourceMode.toUpperCase()}</Badge><p className="mt-1 text-[10px] text-slate-400">ID {game.externalGameId}</p></td>
                   <td className="px-3 py-3"><div className="flex flex-wrap gap-1"><Badge variant={game.sourceAvailable ? 'success' : 'danger'}>{game.sourceAvailable ? 'Source on' : 'Source off'}</Badge><Badge variant={game.catalogAvailable ? 'success' : 'danger'}>{game.catalogAvailable ? 'Listed' : 'Not listed'}</Badge><Badge variant={game.providerTierEnabled ? 'success' : 'warning'}>{game.providerTierEnabled ? 'Tier on' : 'Tier off'}</Badge></div></td>
                   <td className="px-3 py-3"><Badge variant={state.tone}>{state.label}</Badge>{!game.enabled ? <p className="mt-1 text-[10px] text-slate-400">Game toggle off</p> : null}{!game.providerEnabled ? <p className="mt-1 text-[10px] text-slate-400">Provider master off</p> : null}</td>
-                  <td className="px-3 py-3"><p className="font-medium tabular-nums text-slate-700">{game.displayOrder.toLocaleString()}</p><p className="mt-1 text-[10px] text-slate-400">{game.categories.slice(0,2).join(', ') || 'No categories'}</p></td>
+                  <td className="px-3 py-3"><p className="font-medium tabular-nums text-slate-700">{game.orderPosition.toLocaleString()}</p><p className="mt-1 text-[10px] text-slate-400">of {game.tierTotal.toLocaleString()} · {game.categories.slice(0,1).join(', ') || 'No categories'}</p></td>
                   <td className="px-3 py-3"><div className="flex flex-col items-end gap-2">
                     <Button type="button" size="sm" variant="outline" disabled={savingId !== '' || !modeWritable} onClick={() => openEditor(game)}><Pencil className="h-3.5 w-3.5" /> Edit Game</Button>
                     <Button type="button" size="sm" variant={game.enabled ? 'destructive' : 'default'} disabled={savingId !== '' || !toggleAllowed} title={!modeWritable ? 'Premium requires an approved integration' : !game.providerEnabled ? 'Enable provider first' : !game.providerTierEnabled ? 'Enable this provider tier first' : !game.sourceAvailable ? 'Source is unavailable' : !game.catalogAvailable ? 'The source game is not listed' : ''} onClick={() => void toggleGame(game)}>{savingId === game.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : null}{game.enabled ? 'Disable game' : 'Enable game'}</Button>
@@ -386,12 +411,14 @@ export function CmsSkinGamesPage({ onNotify }: { onNotify: (message: string) => 
           </div>
           <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1"><p className="text-[11px] text-slate-500">Game title</p><p className="text-sm font-semibold text-slate-900">{editorGame.title}</p></div>
+              <div className="space-y-1"><p className="text-[11px] text-slate-500">Original source title</p><p className="text-sm font-semibold text-slate-900">{editorGame.sourceTitle}</p></div>
               <div className="space-y-1"><p className="text-[11px] text-slate-500">Provider</p><p className="text-sm font-semibold text-slate-900">{editorGame.provider.name}</p></div>
               <div className="space-y-1"><p className="text-[11px] text-slate-500">Source mode</p><Badge variant={editorGame.sourceMode === 'standard' ? 'info' : 'warning'}>{editorGame.sourceMode.toUpperCase()}</Badge></div>
               <div className="space-y-1"><p className="text-[11px] text-slate-500">BigBang source game ID</p><p className="font-mono text-xs text-slate-700">{editorGame.externalGameId}</p></div>
               <div className="space-y-1 sm:col-span-2"><p className="text-[11px] text-slate-500">Canonical Bclick UUID</p><code className="block break-all rounded-md bg-slate-50 p-2 font-mono text-[11px] text-slate-700">{editorGame.id}</code></div>
             </div>
+            <div className="space-y-1.5"><label htmlFor="skin-game-display-title" className="text-xs font-medium text-slate-700">Player-facing game title</label><Input id="skin-game-display-title" value={displayTitleDraft} maxLength={120} disabled={editorBusy} onChange={(event) => setDisplayTitleDraft(event.target.value)} placeholder={editorGame.sourceTitle} /><p className="text-[10px] leading-4 text-slate-400">This is the title players see. Provider identity, UUID and original source title stay unchanged. Clear the field to restore the source title.</p></div>
+            <div className="space-y-1.5"><label htmlFor="skin-game-order-position" className="text-xs font-medium text-slate-700">Display order position</label><input id="skin-game-order-position" type="number" min={1} max={editorGame.tierTotal} step={1} inputMode="numeric" required value={orderPositionDraft} disabled={editorBusy || editorGame.sourceMode !== 'standard'} onChange={(event) => setOrderPositionDraft(event.target.value)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 disabled:bg-slate-100" /><p className="text-[10px] leading-4 text-slate-400">Enter a position from 1 to {editorGame.tierTotal.toLocaleString()} within the Standard tier. Other games shift automatically; no need to drag many rows.</p></div>
             <div className="space-y-1.5"><label htmlFor="skin-game-description" className="text-xs font-medium text-slate-700">Description override</label><textarea id="skin-game-description" maxLength={2000} rows={7} value={descriptionDraft} disabled={editorBusy} onChange={(event) => setDescriptionDraft(event.target.value)} placeholder="Optional description shown instead of the default source description…" className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm leading-5 text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100" /><p className="text-[10px] text-slate-400">{descriptionDraft.length}/2000 characters · Leave blank to use the source default.</p></div>
             <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-[11px] leading-5 text-slate-600"><p><strong>Original thumbnail:</strong> {editorGame.sourceImageUrl ? <a className="underline" href={editorGame.sourceImageUrl} target="_blank" rel="noreferrer">Open BigBang image</a> : 'Not supplied by the source'}</p><p className="mt-1"><strong>Current presentation editor:</strong> {editorGame.updatedBy || 'No edit recorded'} · {formatDate(editorGame.updatedAt)}</p></div>
           </div>
