@@ -229,6 +229,7 @@ export function registerSkinGamesAdminRoutes(
   const displayCategoryIcons = ['layers','gamepad','sparkles','trending','clock','users','money','gift','trophy','zap'] as const;
   const displayCategoryTypes = ['casino','live-casino','crash-games'] as const;
   type DisplayCategoryType = typeof displayCategoryTypes[number];
+  const displayCategoryGameTypes: Record<DisplayCategoryType,'slot'|'live'|'crash'> = { casino:'slot', 'live-casino':'live', 'crash-games':'crash' };
 
   app.get('/api/v1/admin/casino/display-categories', async (request,reply) => {
     try {
@@ -560,16 +561,18 @@ export function registerSkinGamesAdminRoutes(
       const query=request.query as {page?:number;pageSize?:number;query?:string};
       const page=query.page??1;
       const pageSize=query.pageSize??50;
-      const category=await database.query<{id:string} & QueryResultRow>(
-        'SELECT id::text AS id FROM public.casino_display_categories WHERE id=$1::uuid',[categoryId]);
+      const category=await database.query<{id:string;type:DisplayCategoryType} & QueryResultRow>(
+        'SELECT id::text AS id,category_type AS type FROM public.casino_display_categories WHERE id=$1::uuid',[categoryId]);
       if(!category.rows[0]) return sendError(reply,request,404,'NOT_FOUND','Display category was not found');
+      const gameType=displayCategoryGameTypes[category.rows[0].type];
 
       const assigned=await database.query<{ids:string[]} & QueryResultRow>(
-        'SELECT COALESCE(array_agg(game_id::text ORDER BY game_id),ARRAY[]::text[]) AS ids FROM public.casino_game_display_categories WHERE category_id=$1::uuid',
-        [categoryId]);
+        'SELECT COALESCE(array_agg(m.game_id::text ORDER BY m.game_id),ARRAY[]::text[]) AS ids '+
+        'FROM public.casino_game_display_categories m JOIN public.casino_games g ON g.id=m.game_id '+
+        'WHERE m.category_id=$1::uuid AND g.game_type=$2',[categoryId,gameType]);
 
-      const conditions=["s.source_code='bigbang'","s.source_mode='standard'"];
-      const values:unknown[]=[];
+      const conditions=["s.source_code='bigbang'","s.source_mode='standard'","g.game_type=$1"];
+      const values:unknown[]=[gameType];
       if(query.query?.trim()){
         const searchValue='%'+query.query.trim()+'%';
         values.push(searchValue);
@@ -632,16 +635,18 @@ export function registerSkinGamesAdminRoutes(
       const {categoryId}=request.params as {categoryId:string};
       if(!UUID.test(categoryId)) return sendError(reply,request,400,'VALIDATION_ERROR','Category ID must be a UUID');
       const {gameIds}=request.body as {gameIds:string[]};
-      const category=await database.query<{id:string} & QueryResultRow>(
-        'SELECT id::text AS id FROM public.casino_display_categories WHERE id=$1::uuid',[categoryId]);
+      const category=await database.query<{id:string;type:DisplayCategoryType} & QueryResultRow>(
+        'SELECT id::text AS id,category_type AS type FROM public.casino_display_categories WHERE id=$1::uuid',[categoryId]);
       if(!category.rows[0]) return sendError(reply,request,404,'NOT_FOUND','Display category was not found');
+      const gameType=displayCategoryGameTypes[category.rows[0].type];
 
       const validGames=await database.query<{count:number|string} & QueryResultRow>(
-        'SELECT count(DISTINCT game_id)::integer AS count FROM public.casino_game_sources '+
-        'WHERE source_code=\'bigbang\' AND source_mode=\'standard\' AND game_id=ANY($1::uuid[])',
-        [gameIds]);
+        'SELECT count(DISTINCT gs.game_id)::integer AS count FROM public.casino_game_sources gs '+
+        'JOIN public.casino_games g ON g.id=gs.game_id '+
+        'WHERE gs.source_code=\'bigbang\' AND gs.source_mode=\'standard\' AND gs.game_id=ANY($1::uuid[]) AND g.game_type=$2',
+        [gameIds,gameType]);
       if(Number(validGames.rows[0]?.count??0)!==gameIds.length) {
-        return sendError(reply,request,422,'DISPLAY_CATEGORY_GAME_INVALID','Every selected game must be a canonical Standard game. Premium assignments remain locked.');
+        return sendError(reply,request,422,'DISPLAY_CATEGORY_GAME_TYPE_INVALID','Every selected game must be a canonical Standard game matching this category Type. Premium assignments remain locked.');
       }
 
       const auditId=randomUUID();
