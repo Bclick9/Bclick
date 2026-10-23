@@ -1612,8 +1612,8 @@ paths:
                         providerTierEnabled: {type: boolean}
                         effectiveAvailable: {type: boolean}
                         sourceImageUrl: {type: [string, 'null'], format: uri}
-                        customImageUrl: {type: [string, 'null']}
-                        imageUrl: {type: [string, 'null']}
+                        customImageUrl: {type: [string, 'null'], format: uri-reference}
+                        imageUrl: {type: [string, 'null'], format: uri-reference}
                         description: {type: string, maxLength: 2000}
                         hasCustomDescription: {type: boolean}
                         displayOrder: {type: integer, minimum: 0}
@@ -1766,7 +1766,7 @@ paths:
                     required: [gameId, customImageUrl, contentType]
                     properties:
                       gameId: {type: string, format: uuid}
-                      customImageUrl: {type: string, format: uri}
+                      customImageUrl: {type: string, format: uri-reference}
                       contentType: {type: string, enum: [image/png, image/jpeg, image/webp]}
                   requestId: {type: string}
         '400': {description: Invalid UUID.}
