@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, LoaderCircle, RefreshCw, Search, ShieldCheck, ShieldX, LockKeyhole } from 'lucide-react'
-import { Badge, Button, Input } from '../../components/ui'
+import { Badge, Button, Card, CardContent, Input } from '../../components/ui'
 import { useAdminAuth } from '../../components/AdminAuthGate'
 import { AdminApiError, getAdminCsrfHeaders, requestAdminApi } from '../../lib/adminApi'
 import { cn } from '../../lib/utils'
