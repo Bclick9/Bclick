@@ -277,6 +277,67 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
     };
   });
 
+  // Operator-managed storefront collections (e.g. Trending Games) are distinct
+  // from provider-owned source categories returned by /casino/categories.
+  app.get('/api/v1/casino/display-categories', async (request,reply) => {
+    reply.header('Cache-Control','no-store');
+    const result = await database.query<QueryResultRow & {
+      id:string;slug:string;name:string;description:string;icon:string;displayOrder:number|string;games:unknown;
+    }>(`
+      WITH public_games AS (
+        SELECT g.id::text AS id,g.game_slug AS slug,
+               COALESCE(NULLIF(pres.title_override,''),g.title) AS title,
+               p.code AS provider_code,p.name AS provider_name,
+               COALESCE('/api/v1/assets/' || pres.custom_image_key,g.image_url) AS image_url,
+               COALESCE(pres.description_override,'') AS description,
+               COALESCE(array_agg(DISTINCT source_categories.category_slug)
+                 FILTER (WHERE source_categories.category_slug IS NOT NULL),ARRAY[]::text[]) AS categories,
+               g.demo_available,g.real_available,COALESCE(pres.display_order,0) AS display_order
+          FROM public.casino_games g
+          JOIN public.casino_providers p ON p.id=g.provider_id
+          JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
+          JOIN public.casino_provider_tier_settings pt ON pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode AND pt.enabled=true
+          LEFT JOIN public.casino_game_presentation pres ON pres.game_id=g.id
+          LEFT JOIN public.casino_game_categories source_categories ON source_categories.game_id=g.id
+         WHERE g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true
+         GROUP BY g.id,g.game_slug,g.title,pres.title_override,p.code,p.name,pres.custom_image_key,g.image_url,
+                  pres.description_override,pres.display_order,g.demo_available,g.real_available
+      ), ranked_games AS (
+        SELECT cgm.category_id,pg.*,
+               row_number() OVER (
+                 PARTITION BY cgm.category_id
+                 ORDER BY pg.display_order,lower(pg.title),pg.id
+               ) AS category_rank
+          FROM public.casino_game_display_categories cgm
+          JOIN public.casino_display_categories c ON c.id=cgm.category_id AND c.visible=true
+          JOIN public_games pg ON pg.id=cgm.game_id
+      ), grouped_games AS (
+        SELECT category_id,
+               json_agg(json_build_object(
+                 'id',id,'slug',slug,'title',title,
+                 'provider',json_build_object('code',provider_code,'name',provider_name),
+                 'categories',categories,'imageUrl',image_url,'description',description,'available',true,
+                 'modes',json_build_object('demo',demo_available,'real',real_available)
+               ) ORDER BY category_rank) AS games
+          FROM ranked_games
+         WHERE category_rank <= 24
+         GROUP BY category_id
+      )
+      SELECT c.id::text AS id,c.slug,c.name,c.description,c.icon,c.display_order AS "displayOrder",gg.games
+        FROM public.casino_display_categories c
+        JOIN grouped_games gg ON gg.category_id=c.id
+       WHERE c.visible=true
+       ORDER BY c.display_order,c.created_at,c.id
+    `);
+    return {
+      data: result.rows.map((row) => ({
+        id:row.id,slug:row.slug,name:row.name,description:row.description,icon:row.icon,
+        displayOrder:Number(row.displayOrder),games:row.games,
+      })),
+      requestId:request.id,
+    };
+  });
+
   app.get('/api/v1/casino/providers', { schema: { querystring: paginationSchema } }, async (request, reply) => {
     const options = readCatalogPage(request, reply);
     if (!options) return;
