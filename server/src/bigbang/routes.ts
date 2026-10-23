@@ -257,7 +257,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
         JOIN public.casino_games g ON g.id=gc.game_id
         JOIN public.casino_providers p ON p.id=g.provider_id
         JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
-       WHERE g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true
+       WHERE g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true AND EXISTS (SELECT 1 FROM public.casino_provider_tier_settings pt WHERE pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode AND pt.enabled=true)
     `);
     const total = Number(count.rows[0]?.total ?? 0);
     const result = await database.query<{ slug: string }>(`
@@ -266,7 +266,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
         JOIN public.casino_games g ON g.id=gc.game_id
         JOIN public.casino_providers p ON p.id=g.provider_id
         JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
-       WHERE g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true
+       WHERE g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true AND EXISTS (SELECT 1 FROM public.casino_provider_tier_settings pt WHERE pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode AND pt.enabled=true)
        ORDER BY gc.category_slug
        LIMIT $1 OFFSET $2
     `, [options.pageSize, options.offset]);
@@ -287,6 +287,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
       SELECT count(DISTINCT p.id)::text AS total
         FROM public.casino_providers p
         JOIN public.casino_games g ON g.provider_id=p.id AND g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true
+         AND EXISTS (SELECT 1 FROM public.casino_provider_tier_settings pt WHERE pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode AND pt.enabled=true)
         JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
     `);
     const total = Number(count.rows[0]?.total ?? 0);
@@ -294,6 +295,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
       SELECT DISTINCT p.code,p.name
         FROM public.casino_providers p
         JOIN public.casino_games g ON g.provider_id=p.id AND g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true
+         AND EXISTS (SELECT 1 FROM public.casino_provider_tier_settings pt WHERE pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode AND pt.enabled=true)
         JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
        ORDER BY p.name,p.code
        LIMIT $1 OFFSET $2
@@ -378,6 +380,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
         JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
         LEFT JOIN public.casino_game_categories gc ON gc.game_id=g.id
        WHERE ${lookupPredicate} AND g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true
+         AND EXISTS (SELECT 1 FROM public.casino_provider_tier_settings pt WHERE pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode AND pt.enabled=true)
        GROUP BY g.id,g.game_slug,g.title,p.code,p.name,g.image_url,g.available,g.demo_available,g.real_available
        LIMIT 1
     `, [lookupValue]);
@@ -400,6 +403,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
         JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
         LEFT JOIN public.casino_game_categories gc ON gc.game_id=g.id
        WHERE g.id=$1 AND g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true
+         AND EXISTS (SELECT 1 FROM public.casino_provider_tier_settings pt WHERE pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode AND pt.enabled=true)
        GROUP BY g.id,g.game_slug,g.title,p.code,p.name,g.image_url,g.available,g.demo_available,g.real_available
        LIMIT 1
     `, [id]);
