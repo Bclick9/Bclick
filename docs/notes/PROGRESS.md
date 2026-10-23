@@ -55,12 +55,13 @@ The category concepts stay separate:
 - Bclick-owned curated categories such as Trending Games are stored in `casino_display_categories` with `category_type`; memberships are stored in `casino_game_display_categories`. CMS → Categories → **Select Type** determines where a category appears, and **Select games** chooses canonical Standard game UUIDs matching that Type. The picker remains searchable/paginated and loads the complete saved selection independent of search/page. Type changes remove only incompatible memberships in that category and record the removed count in the audit event. Provider-owned categories and canonical game identity are never modified. Curated category games appear in the main grid after selection; Lobby no longer renders duplicate curated game rails.
 - The public shelf query must keep `public_games.id` UUID-typed until it joins `casino_game_display_categories.game_id`. Previously it cast the UUID to text before the join; this could fail the public display-category endpoint while the all-games catalogue continued loading. PR #134 adds a disposable-PostgreSQL integration test for the assignment-to-public-shelf round trip.
 
-Migration 014 retires obsolete game aliases, Migration 015 creates curated category/assignment tables, and Migration 016 adds persistent custom icon metadata. Required CI for the latest PR #134 head passed:
-- [Application builds](https://github.com/Bclick9/Bclick/actions/runs/39975693042)
-- [Backoffice UI build](https://github.com/Bclick9/Bclick/actions/runs/39975693055)
-- [API tests, PostgreSQL integration, OpenAPI and generated client](https://github.com/Bclick9/Bclick/actions/runs/39975693183)
-- [Local Compose bootstrap and readiness](https://github.com/Bclick9/Bclick/actions/runs/39975693206)
-- [Wallet migration disposable-PostgreSQL rehearsal](https://github.com/Bclick9/Bclick/actions/runs/39975693116)
+Migration 014 retires obsolete game aliases, Migration 015 creates curated category/assignment tables, Migration 016 adds persistent custom icon metadata, and Migration 017 adds the persisted `category_type` with existing categories defaulted to Casino. Required CI for the PR #137 head passed:
+- [Application builds](https://github.com/Bclick9/Bclick/actions/runs/39987631748)
+- [Backoffice UI build](https://github.com/Bclick9/Bclick/actions/runs/39987631653)
+- [API tests, typecheck, PostgreSQL integration, OpenAPI and generated client](https://github.com/Bclick9/Bclick/actions/runs/39987631749)
+- [Local Compose bootstrap and readiness](https://github.com/Bclick9/Bclick/actions/runs/39987631635)
+- [Wallet migration disposable-PostgreSQL rehearsal](https://github.com/Bclick9/Bclick/actions/runs/39987631836)
+- [Identity Migration 001 disposable-PostgreSQL rehearsal](https://github.com/Bclick9/Bclick/actions/runs/39987631666)
 
 The legacy Neon-labelled PR workflows are not evidence that migrations were applied to the local PostgreSQL or an external staging/Production database.
 
