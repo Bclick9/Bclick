@@ -67,11 +67,11 @@ test('catalogue displayCategory filter returns only assigned available Standard 
     const membershipQueries = fixture.calls.filter((sql) => sql.includes('casino_game_display_categories dgc'));
     assert.equal(membershipQueries.length, 2, 'the count and page queries must both filter by category membership');
     for (const sql of membershipQueries) {
-      assert.match(sql, /dc\\.slug=\\$1/);
-      assert.match(sql, /dc\\.visible=true/);
-      assert.match(sql, /dgc\\.game_id=g\\.id/);
-      assert.match(sql, /s\\.source_mode='standard'/);
-      assert.match(sql, /g\\.available=true/);
+      assert.ok(sql.includes('dc.slug=$1'));
+      assert.ok(sql.includes('dc.visible=true'));
+      assert.ok(sql.includes('dgc.game_id=g.id'));
+      assert.ok(sql.includes("s.source_mode='standard'"));
+      assert.ok(sql.includes('g.available=true'));
     }
   } finally {
     await app.close();
