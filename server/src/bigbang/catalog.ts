@@ -269,6 +269,30 @@ export class BigBangCatalogService {
           }
         }
 
+        // Add a deterministic initial Skin Games order for newly discovered variants.
+        // Existing operator order is preserved across every subsequent sync.
+        await tx.query(`
+          WITH missing AS (
+            SELECT g.id,
+                   row_number() OVER (ORDER BY lower(g.title),p.code,g.game_slug,g.id) AS ordinal
+              FROM public.casino_games g
+              JOIN public.casino_providers p ON p.id=g.provider_id
+              JOIN public.casino_game_sources s ON s.game_id=g.id
+               AND s.source_code='bigbang' AND s.source_mode=$1
+              LEFT JOIN public.casino_game_presentation pres ON pres.game_id=g.id
+             WHERE pres.game_id IS NULL
+          ), maximum AS (
+            SELECT COALESCE(max(pres.display_order),0)::bigint AS max_order
+              FROM public.casino_game_presentation pres
+              JOIN public.casino_game_sources s ON s.game_id=pres.game_id
+             WHERE s.source_code='bigbang' AND s.source_mode=$1
+          )
+          INSERT INTO public.casino_game_presentation(game_id,display_order)
+          SELECT missing.id,maximum.max_order + missing.ordinal*100
+            FROM missing CROSS JOIN maximum
+          ON CONFLICT (game_id) DO NOTHING
+        `, [syncMode]);
+
         // Legacy storefront aliases belong to Standard catalogue identity. A future Premium
         // sync must not re-evaluate or resolve aliases from the old player UI list.
         if (syncMode === 'standard') {
