@@ -476,7 +476,7 @@ export function registerSkinGamesAdminRoutes(
         filePath=null;
         return sendError(reply,request,404,'NOT_FOUND','Canonical catalogue game UUID was not found');
       }
-      return reply.code(201).send({data:{gameId:saved.rows[0].game_id,customImageUrl:'/api/v1/assets/'+saved.rows[0].custom_image_key,sourceImageUrl:info.contentType},requestId:request.id});
+      return reply.code(201).send({data:{gameId:saved.rows[0].game_id,customImageUrl:'/api/v1/assets/'+saved.rows[0].custom_image_key,contentType:info.contentType},requestId:request.id});
     } catch {
       if(filePath) await unlink(filePath).catch(()=>undefined);
       return unexpected(request,reply,'The image upload could not be persisted');
