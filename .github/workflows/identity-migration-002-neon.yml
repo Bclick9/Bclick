@@ -91,6 +91,7 @@ jobs:
             ["server/migrations/1793275200000_bigbang_legacy_slug_aliases_009.sql"]="695a0411f463b93648830fa59e8c6b4935b9e163"
             ["server/migrations/1793361600000_bigbang_tier_aware_source_identity_010.sql"]="31adba70e09eb15f0be28d037b860a8087470c83"
             ["server/migrations/1793448000000_bigbang_provider_controls_011.sql"]="4839645140752a913863ec6f75d02db12be6ec42"
+            ["server/migrations/1793534400000_casino_skin_games_presentation_012.sql"]="7278a04053384c77c6ece3bf28a4130d183ad45f"
           )
           for path in "${!expected_blobs[@]}"; do
             actual="$(git hash-object "$path")"
@@ -111,6 +112,7 @@ jobs:
             "server/migrations/1793275200000_bigbang_legacy_slug_aliases_009.sql"
             "server/migrations/1793361600000_bigbang_tier_aware_source_identity_010.sql"
             "server/migrations/1793448000000_bigbang_provider_controls_011.sql"
+            "server/migrations/1793534400000_casino_skin_games_presentation_012.sql"
           )
           diff -u <(printf '%s\n' "${expected_migrations[@]}") <(printf '%s\n' "${actual_migrations[@]}")
       - name: Create the exact three-migration pre-Migration-002 checkpoint on disposable PostgreSQL
