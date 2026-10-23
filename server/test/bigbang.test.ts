@@ -433,7 +433,7 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
       log: () => undefined,
     });
     const migrationCount = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM pgmigrations');
-    assert.equal(migrationCount.rows[0]?.count, '13', 'The full migration chain through Migration 011 must apply in order');
+    assert.equal(migrationCount.rows[0]?.count, '14', 'The full migration chain through Migration 012 must apply in order');
 
     const controlSchema = await pool.query<{ provider_enabled: string | null; game_enabled: string | null; tier: string | null; permission_links: string }>(`
       SELECT
@@ -444,6 +444,20 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
     `);
     assert.deepEqual(controlSchema.rows[0], {
       provider_enabled: 'bclick_enabled', game_enabled: 'bclick_enabled', tier: 'standard', permission_links: '1',
+    });
+
+    const skinGamesSchema = await pool.query<{ presentation_table: string | null; tier_settings_table: string | null; order_actor_column: string | null; custom_image_column: string | null }>(`
+      SELECT
+        to_regclass('public.casino_game_presentation')::text AS presentation_table,
+        to_regclass('public.casino_provider_tier_settings')::text AS tier_settings_table,
+        (SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='casino_game_presentation' AND column_name='order_updated_by') AS order_actor_column,
+        (SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='casino_game_presentation' AND column_name='custom_image_key') AS custom_image_column
+    `);
+    assert.deepEqual(skinGamesSchema.rows[0], {
+      presentation_table: 'casino_game_presentation',
+      tier_settings_table: 'casino_provider_tier_settings',
+      order_actor_column: 'order_updated_by',
+      custom_image_column: 'custom_image_key',
     });
 
     const first = await service.sync();
@@ -459,6 +473,19 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
     assert.equal(newRowsHidden.json().page.total, 0, 'newly synced rows default to hidden until Bclick enables them');
     await pool.query('UPDATE public.casino_providers SET bclick_enabled=true');
     await pool.query('UPDATE public.casino_games SET bclick_enabled=true');
+
+    // The public browse API must honor the order managed in CMS → Skin Games,
+    // not revert to alphabetical order. Put Lightning Roulette before Hot Hot Fruit.
+    await pool.query(`
+      UPDATE public.casino_game_presentation pres
+         SET display_order=CASE s.external_game_id WHEN 4822 THEN 100 WHEN 4821 THEN 200 END
+        FROM public.casino_game_sources s
+       WHERE s.game_id=pres.game_id AND s.source_code='bigbang' AND s.source_mode='standard'
+         AND s.external_game_id IN (4821,4822)
+    `);
+    const persistedOrder = await app.inject({ method: 'GET', url: '/api/v1/casino/games' });
+    assert.equal(persistedOrder.statusCode, 200, persistedOrder.body);
+    assert.deepEqual(persistedOrder.json().data.map((item: { title: string }) => item.title), ['Lightning Roulette', 'Hot Hot Fruit']);
 
     const legacyAlias = await pool.query<{
       resolution_status: string;
