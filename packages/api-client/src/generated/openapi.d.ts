@@ -285,6 +285,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/casino/display-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List visible operator-curated storefront collections
+         * @description Returns Bclick-owned Lobby shelves with up to 24 currently available Standard Sandbox canonical games per category. Separate from provider-owned source categories.
+         */
+        get: operations["getCasinoDisplayCategories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/casino/providers": {
         parameters: {
             query?: never;
@@ -897,6 +917,72 @@ export interface paths {
          * @description Requires casino.provider-settings.manage, a fully authenticated MFA admin session, exact allowed Origin, and the admin CSRF token. The state change and audit record are atomic.
          */
         patch: operations["patchAdminBigBangGame"];
+        trace?: never;
+    };
+    "/api/v1/admin/casino/display-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Bclick-managed display categories */
+        get: operations["getAdminCasinoDisplayCategories"];
+        put?: never;
+        /** Create a curated Lobby category */
+        post: operations["createAdminCasinoDisplayCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/casino/display-categories/{categoryId}": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path: {
+                categoryId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a curated category and its assignments */
+        delete: operations["deleteAdminCasinoDisplayCategory"];
+        options?: never;
+        head?: never;
+        /** Update category metadata, visibility or order */
+        patch: operations["patchAdminCasinoDisplayCategory"];
+        trace?: never;
+    };
+    "/api/v1/admin/casino/skin-games/{gameId}/display-categories": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path: {
+                gameId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Assign a game to curated Lobby categories
+         * @description Requires casino.provider-settings.manage, MFA, Origin and CSRF. Replaces Bclick-managed memberships atomically. Premium assignment remains locked; provider-owned categories are untouched.
+         */
+        patch: operations["assignSkinGameDisplayCategories"];
         trace?: never;
     };
     "/api/v1/admin/casino/skin-games": {
@@ -5899,6 +5985,43 @@ export interface operations {
             };
         };
     };
+    getCasinoDisplayCategories: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Visible curated collections. */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            /** Format: uuid */
+                            id: string;
+                            slug: string;
+                            name: string;
+                            description: string;
+                            icon: string;
+                            displayOrder: number;
+                            games: components["schemas"]["GameSummary"][];
+                        }[];
+                        requestId: string;
+                    };
+                };
+            };
+        };
+    };
     getCasinoProviders: {
         parameters: {
             query?: {
@@ -6986,6 +7109,202 @@ export interface operations {
             };
         };
     };
+    getAdminCasinoDisplayCategories: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All curated categories for administration, including hidden or empty categories. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            /** Format: uuid */
+                            id: string;
+                            slug: string;
+                            name: string;
+                            description: string;
+                            icon: string;
+                            visible: boolean;
+                            displayOrder: number;
+                            items: number;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                        }[];
+                        requestId: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createAdminCasinoDisplayCategory: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
+                "X-CSRF-Token": components["parameters"]["CsrfToken"];
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    description?: string;
+                    /** @enum {string} */
+                    icon?: "layers" | "gamepad" | "sparkles" | "trending" | "clock" | "users" | "money" | "gift" | "trophy" | "zap";
+                    /** @default true */
+                    visible?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Category created and audit event recorded. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description A category with this generated slug already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteAdminCasinoDisplayCategory: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
+                "X-CSRF-Token": components["parameters"]["CsrfToken"];
+            };
+            path: {
+                categoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Category and its game assignments deleted; catalogue games are preserved. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    patchAdminCasinoDisplayCategory: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
+                "X-CSRF-Token": components["parameters"]["CsrfToken"];
+            };
+            path: {
+                categoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name?: string;
+                    description?: string;
+                    /** @enum {string} */
+                    icon?: "layers" | "gamepad" | "sparkles" | "trending" | "clock" | "users" | "money" | "gift" | "trophy" | "zap";
+                    visible?: boolean;
+                    displayOrder?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Category updated and audited. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    assignSkinGameDisplayCategories: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
+                "X-CSRF-Token": components["parameters"]["CsrfToken"];
+            };
+            path: {
+                gameId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    categoryIds: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description Category assignment set saved and audited. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description One or more categories do not exist. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     getAdminSkinGames: {
         parameters: {
             query?: {
@@ -7048,6 +7367,7 @@ export interface operations {
                             hasCustomDescription: boolean;
                             displayOrder: number;
                             categories: string[];
+                            displayCategoryIds: string[];
                             /** Format: date-time */
                             updatedAt: string;
                             updatedBy: string | null;
