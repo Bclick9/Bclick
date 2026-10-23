@@ -386,15 +386,27 @@ export function registerSkinGamesAdminRoutes(
       const changeDescription=typeof body.description==='string';
       const clearCustomImage=body.clearCustomImage===true;
       if(!changeEnabled&&!changeDescription&&!clearCustomImage) return sendError(reply,request,400,'VALIDATION_ERROR','At least one supported field must change');
-      const source=await database.query<{source_mode:string;enabled:boolean}>(`
-        SELECT s.source_mode,g.bclick_enabled AS enabled
-          FROM public.casino_games g JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang'
+      const source=await database.query<{
+        source_mode:string; enabled:boolean; source_available:boolean; catalog_available:boolean;
+        provider_enabled:boolean; provider_tier_enabled:boolean;
+      }>(`
+        SELECT s.source_mode,g.bclick_enabled AS enabled,s.available AS source_available,
+               g.available AS catalog_available,p.bclick_enabled AS provider_enabled,
+               COALESCE(pt.enabled,false) AS provider_tier_enabled
+          FROM public.casino_games g
+          JOIN public.casino_providers p ON p.id=g.provider_id
+          JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang'
+          LEFT JOIN public.casino_provider_tier_settings pt
+            ON pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode
          WHERE g.id=$1
       `,[gameId]);
       const sourceRow=source.rows[0];
       if(!sourceRow) return sendError(reply,request,404,'NOT_FOUND','Canonical catalogue game UUID was not found');
       if(changeEnabled && sourceRow.source_mode==='premium') {
         return sendError(reply,request,409,'PREMIUM_NOT_AVAILABLE','Premium game availability is read-only until the Premium integration gate is approved and implemented');
+      }
+      if(body.enabled===true && (!sourceRow.source_available || !sourceRow.catalog_available || !sourceRow.provider_enabled || !sourceRow.provider_tier_enabled)) {
+        return sendError(reply,request,409,'GAME_NOT_EFFECTIVELY_AVAILABLE','The source game, provider and source tier must all be available before enabling a game');
       }
 
       const actionId=randomUUID();
@@ -523,7 +535,15 @@ export function registerSkinGamesAdminRoutes(
       const {gameId,fileName}=request.params as {gameId:string;fileName:string};
       if(!UUID.test(gameId)||!FILE_NAME.test(fileName)) return sendError(reply,request,404,'NOT_FOUND','Image was not found');
       const safeRoot=path.resolve(options.uploadDirectory,'casino-games');
-      const filePath=path.resolve(safeRoot,gameId.toLowerCase(),fileName.toLowerCase());
+      const normalizedGameId=gameId.toLowerCase();
+      const normalizedFileName=fileName.toLowerCase();
+      const imageKey='casino-games/'+normalizedGameId+'/'+normalizedFileName;
+      const active=await database.query<{ game_id:string }>(`
+        SELECT game_id::text AS game_id FROM public.casino_game_presentation
+         WHERE game_id=$1 AND custom_image_key=$2
+      `,[normalizedGameId,imageKey]);
+      if(!active.rows[0]) return sendError(reply,request,404,'NOT_FOUND','Image was not found');
+      const filePath=path.resolve(safeRoot,normalizedGameId,normalizedFileName);
       if(!filePath.startsWith(safeRoot+path.sep)) return sendError(reply,request,404,'NOT_FOUND','Image was not found');
       const metadata=await stat(filePath);
       if(!metadata.isFile() || metadata.size<16 || metadata.size>MAX_IMAGE_BYTES) return sendError(reply,request,404,'NOT_FOUND','Image was not found');
