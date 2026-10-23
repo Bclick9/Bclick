@@ -415,6 +415,70 @@ test('Premium display-category assignments are refused before any assignment mut
   }
 });
 
+test('category game picker searches canonical Standard games and returns the full saved selection', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config() });
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID + '/games?page=1&pageSize=25&query=fruit',
+      headers: authHeaders(false),
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.equal(response.headers['cache-control'], 'no-store');
+    assert.deepEqual(response.json().selectedGameIds, [GAME_ID]);
+    assert.equal(response.json().data[0].id, GAME_ID);
+    assert.equal(response.json().data[0].provider, 'Habanero');
+    assert.equal(response.json().page.total, 1);
+    const listing = fixture.calls.find((call) => call.sql.includes('AS "imageUrl"') && call.sql.includes('casino_provider_tier_settings'));
+    assert.ok(listing);
+    assert.match(listing.sql, /s\.source_mode='standard'/);
+    assert.match(listing.sql, /LIMIT \$\d+ OFFSET \$\d+/);
+  } finally {
+    await app.close();
+  }
+});
+
+test('category game picker replaces only this category’s memberships and writes an audit event', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config() });
+  try {
+    const response = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID + '/games',
+      headers: { ...authHeaders(true), 'content-type': 'application/json' },
+      payload: { gameIds: [GAME_ID] },
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.deepEqual(response.json().data, { categoryId: DISPLAY_CATEGORY_ID, gameIds: [GAME_ID] });
+    const update = fixture.calls.find((call) => call.sql.includes('casino.display-category.games-updated'));
+    assert.ok(update);
+    assert.match(update.sql, /casino_game_display_categories/);
+    assert.match(update.sql, /casino_display_category/);
+    assert.deepEqual(update.values.slice(0, 3), [DISPLAY_CATEGORY_ID, [GAME_ID], ADMIN_ID]);
+  } finally {
+    await app.close();
+  }
+});
+
+test('category game picker refuses Premium UUIDs', async () => {
+  const fixture = fakeDatabase({ mode: 'premium' });
+  const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config() });
+  try {
+    const response = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID + '/games',
+      headers: { ...authHeaders(true), 'content-type': 'application/json' },
+      payload: { gameIds: [PREMIUM_GAME_ID] },
+    });
+    assert.equal(response.statusCode, 422, response.body);
+    assert.equal(response.json().error.code, 'DISPLAY_CATEGORY_GAME_INVALID');
+    assert.equal(fixture.calls.some((call) => call.sql.includes('casino.display-category.games-updated')), false);
+  } finally {
+    await app.close();
+  }
+});
+
 test('administrator can create a curated category and the request is audited', async () => {
   const fixture = fakeDatabase();
   const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config() });
