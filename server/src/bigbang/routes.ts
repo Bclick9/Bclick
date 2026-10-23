@@ -287,16 +287,16 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
       SELECT count(DISTINCT p.id)::text AS total
         FROM public.casino_providers p
         JOIN public.casino_games g ON g.provider_id=p.id AND g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true
-         AND EXISTS (SELECT 1 FROM public.casino_provider_tier_settings pt WHERE pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode AND pt.enabled=true)
-        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
+         \n        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
+       WHERE EXISTS (SELECT 1 FROM public.casino_provider_tier_settings pt WHERE pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode AND pt.enabled=true)
     `);
     const total = Number(count.rows[0]?.total ?? 0);
     const result = await database.query<{ code: string; name: string }>(`
       SELECT DISTINCT p.code,p.name
         FROM public.casino_providers p
         JOIN public.casino_games g ON g.provider_id=p.id AND g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true
-         AND EXISTS (SELECT 1 FROM public.casino_provider_tier_settings pt WHERE pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode AND pt.enabled=true)
-        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
+         \n        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
+       WHERE EXISTS (SELECT 1 FROM public.casino_provider_tier_settings pt WHERE pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode AND pt.enabled=true)
        ORDER BY p.name,p.code
        LIMIT $1 OFFSET $2
     `, [options.pageSize, options.offset]);
