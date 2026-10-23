@@ -1,6 +1,6 @@
 # Bclick — Cumulative Progress and Roadmap Gate Checkpoint
 
-**Updated:** 2026-10-23, after Skin Games implementation CI passed; Owner's local Skin Games acceptance is next; Q-005 remains OPEN/P0  
+**Updated:** 2026-10-23, PR #119 merged to main; Owner's local Skin Games acceptance is next; Q-005 remains OPEN/P0  
 **Purpose:** Current implementation status and explicit stop conditions. This file reconciles current code with the planning roadmap; it does not replace the shared Library's `docs/planning/12-open-questions.md`.
 
 ## Current verified position
@@ -36,9 +36,9 @@
 
 ## Immediate next task — Skin Games local acceptance, then resume Q-005
 
-**PR #119 implements persistent CMS → Skin Games management and its implementation-head CI has passed.** The branch includes Migration 012, protected list/edit/reorder/image APIs, durable custom-image storage, tier-scoped provider settings, updated OpenAPI/generated declarations, and the public catalogue `display_order` fix. The checkpoint and precise CI evidence are in `docs/notes/2026-10-23-skin-games-persistent-management.md`.
+**PR #119 is merged into `main` as squash commit `c88139078cf2c8be413763223ecc6db703ffea07`; its implementation-head CI passed.** The branch includes Migration 012, protected list/edit/reorder/image APIs, durable custom-image storage, tier-scoped provider settings, updated OpenAPI/generated declarations, and the public catalogue `display_order` fix. The checkpoint and precise CI evidence are in `docs/notes/2026-10-23-skin-games-persistent-management.md`.
 
-After PR #119 lands on `main`, the Owner will verify the local branch/state first, then pull and start the local stack:
+Now that PR #119 is on `main`, the Owner should verify the local branch/state first, then pull and start the local stack:
 
 ```powershell
 git status -sb
@@ -84,6 +84,6 @@ PR #119 implements the database-backed Skin Games editor and source-tier model. 
 
 The latest implementation-head CI passed API type/tests/typecheck/build and the migration chain through 012, OpenAPI lint/generated-client drift checks, storefront/admin builds, fresh local database/Identity route smoke tests, PowerShell syntax checking, and disposable PostgreSQL rehearsals for Migrations 001/002/003 and Wallet Migration 006. The CI references and local acceptance runbook are recorded in `docs/notes/2026-10-23-skin-games-persistent-management.md`.
 
-**Owner acceptance pending:** after the change reaches `main`, run `git status -sb`, `git pull --ff-only origin main`, `git rev-parse --short HEAD`, and `.\\start-bclick-local.ps1`; inspect Migration 012/runtime readiness and test the listed UI behaviors. The CI database was disposable only, and no external database was migrated by this implementation.
+**Owner acceptance pending:** PR #119 is merged as `c88139078cf2c8be413763223ecc6db703ffea07`; now run `git status -sb`, `git pull --ff-only origin main`, `git rev-parse --short HEAD`, and `.\\start-bclick-local.ps1`; inspect Migration 012/runtime readiness and test the listed UI behaviors. The CI database was disposable only, and no external database was migrated by this implementation.
 
 **Still gated:** Q-005/Q-006/Q-010/Q-011/Q-013/Q-020 remain open; persistent-upload backup/restore evidence remains required before Production; Premium remains read-only; Phase 8 and all real-money flows remain NOT STARTED.
