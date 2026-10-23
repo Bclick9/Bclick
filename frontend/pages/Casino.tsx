@@ -534,6 +534,7 @@ export function CasinoCategory() {
             loading={catalogLoading} loadingMore={catalogLoadingMore} error={catalogError} stale={catalogStale}
             onLoadMore={loadMoreCatalog} onRetry={() => setCatalogReloadKey((key) => key + 1)}
             emptyMessage="No games are currently available in the catalogue." />
+        </>
       ) : (
         <>
           <div className="mb-4 flex items-center justify-between gap-3">
