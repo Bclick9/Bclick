@@ -22,3 +22,7 @@ Thumbs.db
 
 # Local-only Identity email sink may contain single-use tokens.
 .local-mail-sink.jsonl
+
+# Persistent local development uploads (custom game artwork)
+.local/uploads/
+server/.local/uploads/
