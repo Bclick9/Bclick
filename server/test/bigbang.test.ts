@@ -433,7 +433,9 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
       log: () => undefined,
     });
     const migrationCount = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM pgmigrations');
-    assert.equal(migrationCount.rows[0]?.count, '15', 'The full migration chain through Migration 013 must apply in order');
+    assert.equal(migrationCount.rows[0]?.count, '16', 'The full migration chain through Migration 014 must apply in order');
+    const retiredAliases = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM public.casino_game_legacy_slug_aliases');
+    assert.equal(retiredAliases.rows[0]?.count, '0', 'Migration 014 must retire legacy storefront aliases');
 
     const controlSchema = await pool.query<{ provider_enabled: string | null; game_enabled: string | null; tier: string | null; permission_links: string }>(`
       SELECT
@@ -489,35 +491,21 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
     assert.equal(persistedOrder.statusCode, 200, persistedOrder.body);
     assert.deepEqual(persistedOrder.json().data.map((item: { title: string }) => item.title), ['Lightning Roulette', 'Hot Hot Fruit']);
 
-    const legacyAlias = await pool.query<{
-      resolution_status: string;
-      game_id: string;
-      game_slug: string;
-      external_game_id: string;
-    }>(`
-      SELECT a.resolution_status,g.id::text AS game_id,g.game_slug,
-             s.external_game_id::text AS external_game_id
-        FROM public.casino_game_legacy_slug_aliases a
-        JOIN public.casino_games g ON g.id=a.game_id
-        JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang'
-       WHERE a.alias_slug='lightning-roulette'
-    `);
-    assert.deepEqual(legacyAlias.rows[0], {
-      resolution_status: 'resolved',
-      game_id: legacyAlias.rows[0]?.game_id,
-      game_slug: 'lightning-roulette-evolution',
-      external_game_id: '4822',
+    const canonicalRoute = await app.inject({
+      method: 'GET',
+      url: '/api/v1/casino/games/by-slug/lightning-roulette-evolution',
     });
-    assert.match(legacyAlias.rows[0]?.game_id ?? '', /^[0-9a-f-]{36}$/i);
+    assert.equal(canonicalRoute.statusCode, 200, canonicalRoute.body);
+    assert.match(canonicalRoute.json().data.id, /^[0-9a-f-]{36}$/i);
+    assert.equal(canonicalRoute.json().data.slug, 'lightning-roulette-evolution');
+    assert.equal(canonicalRoute.json().data.title, 'Lightning Roulette');
 
-    const legacyRoute = await app.inject({
+    const retiredRoute = await app.inject({
       method: 'GET',
       url: '/api/v1/casino/games/by-slug/lightning-roulette',
     });
-    assert.equal(legacyRoute.statusCode, 200, legacyRoute.body);
-    assert.equal(legacyRoute.json().data.id, legacyAlias.rows[0]?.game_id);
-    assert.equal(legacyRoute.json().data.slug, 'lightning-roulette-evolution');
-    assert.equal(legacyRoute.json().data.title, 'Lightning Roulette');
+    assert.equal(retiredRoute.statusCode, 404, retiredRoute.body);
+    assert.equal(retiredRoute.json().error.code, 'NOT_FOUND');
 
     const second = await service.sync();
     assert.equal(second.createdCount, 0);

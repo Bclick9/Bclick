@@ -19,11 +19,6 @@ interface GameRow extends QueryResultRow {
   real_available: boolean;
 }
 
-interface LegacyAliasRow extends QueryResultRow {
-  resolution_status: 'pending' | 'resolved' | 'unmatched' | 'ambiguous';
-  game_id: string | null;
-}
-
 interface SyncMetaRow extends QueryResultRow {
   latest_status: string | null;
   fetched_at: string | null;
@@ -351,30 +346,8 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
       return errorResponse(reply, request, 400, 'VALIDATION_ERROR', 'Game slug is invalid');
     }
 
-    // A known legacy slug takes precedence over canonical-slug lookup. Unresolved
-    // legacy routes never fall through to a different game that happens to reuse
-    // the same text slug.
-    const aliasResult = await database.query<LegacyAliasRow>(`
-      SELECT resolution_status,game_id::text AS game_id
-        FROM public.casino_game_legacy_slug_aliases
-       WHERE alias_slug=$1
-    `, [slug]);
-    const alias = aliasResult.rows[0];
-    if (alias?.resolution_status === 'ambiguous') {
-      return errorResponse(reply, request, 409, 'LEGACY_SLUG_AMBIGUOUS', 'This legacy game URL matches more than one catalogue game');
-    }
-    if (alias && alias.resolution_status !== 'resolved') {
-      return errorResponse(reply, request, 404, 'NOT_FOUND', 'Game not found');
-    }
-    if (alias?.resolution_status === 'resolved' && !alias.game_id) {
-      return errorResponse(reply, request, 409, 'LEGACY_SLUG_MAPPING_INVALID', 'This legacy game URL needs catalogue reconciliation');
-    }
-
-    const lookupValue = alias ? alias.game_id : slug;
-    if (typeof lookupValue !== 'string') {
-      return errorResponse(reply, request, 409, 'LEGACY_SLUG_MAPPING_INVALID', 'This legacy game URL needs catalogue reconciliation');
-    }
-    const lookupPredicate = alias ? 'g.id=$1' : 'g.game_slug=$1';
+    // Resolve canonical slugs only. Retired legacy storefront aliases are not
+    // a source of game identity; stale URLs fail closed instead of retargeting.
     const filter = await database.query<GameRow>(`
       SELECT g.id::text AS id,g.game_slug AS slug,COALESCE(NULLIF(pres.title_override,''),g.title) AS title,
              p.code AS provider_code,p.name AS provider_name,
@@ -385,11 +358,11 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
         JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
         LEFT JOIN public.casino_game_categories gc ON gc.game_id=g.id
         LEFT JOIN public.casino_game_presentation pres ON pres.game_id=g.id
-       WHERE ${lookupPredicate} AND g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true
+       WHERE g.game_slug=$1 AND g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true
          AND EXISTS (SELECT 1 FROM public.casino_provider_tier_settings pt WHERE pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode AND pt.enabled=true)
        GROUP BY g.id,g.game_slug,g.title,pres.title_override,p.code,p.name,g.image_url,pres.custom_image_key,pres.description_override,g.available,g.demo_available,g.real_available
        LIMIT 1
-    `, [lookupValue]);
+    `, [slug]);
     const row = filter.rows[0];
     if (!row) return errorResponse(reply, request, 404, 'NOT_FOUND', 'Game not found');
     reply.header('Cache-Control', 'no-store');

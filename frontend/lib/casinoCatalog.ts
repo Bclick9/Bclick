@@ -24,6 +24,111 @@ export interface CasinoCatalogPage {
   };
 }
 
+export interface CasinoCatalogCategory {
+  slug: string;
+  title: string;
+  icon: string | null;
+}
+
+export interface CasinoCatalogCategoryPage {
+  data: CasinoCatalogCategory[];
+  page: {
+    page: number;
+    pageSize: number;
+    total: number;
+    nextCursor: string | null;
+  };
+  meta: {
+    resolvedLocale: string;
+    stale: boolean;
+    fetchedAt: string | null;
+  };
+}
+
+export async function fetchCasinoCategories(signal?: AbortSignal): Promise<CasinoCatalogCategoryPage> {
+  const pageSize = 100;
+  let cursor: string | null = null;
+  let pageNumber = 1;
+  let total = 0;
+  let firstPage: CasinoCatalogCategoryPage | null = null;
+  const categories: CasinoCatalogCategory[] = [];
+  const seenCursors = new Set<string>();
+  const seenSlugs = new Set<string>();
+
+  // Only categories actually attached to visible, enabled Standard source rows are returned.
+  // Follow every page and fail closed rather than publishing a partial category strip.
+  while (pageNumber <= 100) {
+    const params = new URLSearchParams({ pageSize: String(pageSize) });
+    if (cursor) params.set('cursor', cursor);
+    const response = await fetch('/api/v1/casino/categories?' + params.toString(), {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal,
+      credentials: 'same-origin',
+      cache: 'no-store',
+    });
+    const payload = await readJson(response);
+    if (!response.ok) {
+      const message = isObject(payload) && isObject(payload.error) && typeof payload.error.message === 'string'
+        ? payload.error.message
+        : 'The casino categories could not be loaded.';
+      throw new Error(message);
+    }
+    if (!isObject(payload) || !Array.isArray(payload.data)
+      || !payload.data.every((category) => isObject(category)
+        && typeof category.slug === 'string' && category.slug.length > 0
+        && typeof category.title === 'string' && category.title.length > 0
+        && (typeof category.icon === 'string' || category.icon === null))
+      || !isObject(payload.page) || !Number.isSafeInteger(payload.page.total)
+      || typeof payload.page.nextCursor !== 'string' && payload.page.nextCursor !== null
+      || !isObject(payload.meta) || typeof payload.meta.stale !== 'boolean') {
+      throw new Error('The casino API returned an invalid categories response.');
+    }
+
+    const current = payload as unknown as CasinoCatalogCategoryPage;
+    if (pageNumber === 1) {
+      firstPage = current;
+      total = current.page.total;
+      if (total < current.data.length) {
+        throw new Error('The casino API returned an inconsistent category count.');
+      }
+    } else if (current.page.total !== total) {
+      throw new Error('The category list changed while it was being paged. Refresh and retry.');
+    }
+
+    for (const category of current.data) {
+      if (seenSlugs.has(category.slug)) {
+        throw new Error('The casino API returned a duplicate category across pages.');
+      }
+      seenSlugs.add(category.slug);
+      categories.push(category);
+    }
+
+    cursor = current.page.nextCursor;
+    if (cursor === null) {
+      if (categories.length !== total) {
+        throw new Error('The casino category list is incomplete. Refresh and retry.');
+      }
+      return {
+        data: categories,
+        page: { ...firstPage!.page, nextCursor: null },
+        meta: {
+          ...firstPage!.meta,
+          stale: firstPage!.meta.stale || current.meta.stale,
+          fetchedAt: current.meta.fetchedAt ?? firstPage!.meta.fetchedAt,
+        },
+      };
+    }
+    if (seenCursors.has(cursor)) {
+      throw new Error('The casino API returned a repeated category-page cursor.');
+    }
+    seenCursors.add(cursor);
+    pageNumber += 1;
+  }
+
+  throw new Error('The casino category list exceeded the safe pagination limit.');
+}
+
 export interface CasinoDemoLaunch {
   gameUrl: string;
   gameName: string;

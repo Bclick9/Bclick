@@ -106,11 +106,10 @@ test('slug lookup resolves the canonical UUID and preserves every stored categor
 
     assert.equal(response.statusCode, 200, response.body);
     assert.deepEqual(response.json().data, expectedGame());
-    assert.match(fixture.calls[0]!.sql, /FROM public\.casino_game_legacy_slug_aliases/);
-    assert.match(fixture.calls[1]!.sql, /WHERE g\.game_slug=\$1/);
-    assert.match(fixture.calls[1]!.sql, /array_agg\(DISTINCT gc\.category_slug ORDER BY gc\.category_slug\)/);
+    assert.equal(fixture.calls.length, 1);
+    assert.match(fixture.calls[0]!.sql, /WHERE g\.game_slug=\$1/);
+    assert.match(fixture.calls[0]!.sql, /array_agg\(DISTINCT gc\.category_slug ORDER BY gc\.category_slug\)/);
     assert.deepEqual(fixture.calls[0]!.values, [GAME_SLUG]);
-    assert.deepEqual(fixture.calls[1]!.values, [GAME_SLUG]);
     assert.equal(response.headers['cache-control'], 'no-store');
   } finally {
     await app.close();
@@ -128,13 +127,13 @@ test('player-facing title overrides are returned by canonical slug routes withou
     assert.equal(response.json().data.id, GAME_ID);
     assert.equal(response.json().data.slug, GAME_SLUG);
     assert.equal(response.json().data.title, 'Zeus the Thunderer Deluxe');
-    assert.match(fixture.calls[1]!.sql, /COALESCE\(NULLIF\(pres\.title_override,''\),g\.title\) AS title/);
+    assert.match(fixture.calls[0]!.sql, /COALESCE\(NULLIF\(pres\.title_override,''\),g\.title\) AS title/);
   } finally {
     await app.close();
   }
 });
 
-test('legacy slug resolves to the pinned canonical UUID and returns the canonical slug', async () => {
+test('retired legacy slug is not resolved even when historical alias data exists', async () => {
   const fixture = catalogDatabase({
     alias: { alias_slug: 'lightning-roulette', resolution_status: 'resolved', game_id: GAME_ID },
   });
@@ -146,51 +145,12 @@ test('legacy slug resolves to the pinned canonical UUID and returns the canonica
       url: '/api/v1/casino/games/by-slug/lightning-roulette',
     });
 
-    assert.equal(response.statusCode, 200, response.body);
-    assert.deepEqual(response.json().data, expectedGame());
-    assert.match(fixture.calls[0]!.sql, /FROM public\.casino_game_legacy_slug_aliases/);
-    assert.match(fixture.calls[1]!.sql, /WHERE g\.id=\$1/);
-    assert.deepEqual(fixture.calls[1]!.values, [GAME_ID]);
-  } finally {
-    await app.close();
-  }
-});
-
-test('ambiguous legacy slug fails closed without guessing a canonical game', async () => {
-  const fixture = catalogDatabase({
-    alias: { alias_slug: 'lightning-roulette', resolution_status: 'ambiguous', game_id: null },
-  });
-  const app = buildApp({ database: null, catalogDatabase: fixture.database });
-
-  try {
-    const response = await app.inject({
-      method: 'GET',
-      url: '/api/v1/casino/games/by-slug/lightning-roulette',
-    });
-
-    assert.equal(response.statusCode, 409);
-    assert.equal(response.json().error.code, 'LEGACY_SLUG_AMBIGUOUS');
-    assert.equal(fixture.calls.length, 1);
-  } finally {
-    await app.close();
-  }
-});
-
-test('unmatched legacy slug returns 404 instead of falling back to title-based lookup', async () => {
-  const fixture = catalogDatabase({
-    alias: { alias_slug: 'legacy-hot-fruit', resolution_status: 'unmatched', game_id: null },
-  });
-  const app = buildApp({ database: null, catalogDatabase: fixture.database });
-
-  try {
-    const response = await app.inject({
-      method: 'GET',
-      url: '/api/v1/casino/games/by-slug/legacy-hot-fruit',
-    });
-
     assert.equal(response.statusCode, 404);
     assert.equal(response.json().error.code, 'NOT_FOUND');
     assert.equal(fixture.calls.length, 1);
+    assert.match(fixture.calls[0]!.sql, /WHERE g\.game_slug=\$1/);
+    assert.doesNotMatch(fixture.calls[0]!.sql, /casino_game_legacy_slug_aliases/);
+    assert.deepEqual(fixture.calls[0]!.values, ['lightning-roulette']);
   } finally {
     await app.close();
   }
@@ -242,9 +202,9 @@ test('invalid slug is rejected before any database query and unknown slug return
     assert.equal(missing.statusCode, 404);
     assert.equal(missing.json().error.code, 'NOT_FOUND');
     assert.equal(missing.json().error.message, 'Game not found');
-    assert.match(missingFixture.calls[0]!.sql, /FROM public\.casino_game_legacy_slug_aliases/);
+    assert.equal(missingFixture.calls.length, 1);
+    assert.match(missingFixture.calls[0]!.sql, /WHERE g\.game_slug=\$1/);
     assert.deepEqual(missingFixture.calls[0]!.values, ['unknown-game']);
-    assert.deepEqual(missingFixture.calls[1]!.values, ['unknown-game']);
   } finally {
     await missingApp.close();
   }
