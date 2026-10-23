@@ -99,7 +99,7 @@ export function buildApp(options: BuildAppOptions) {
   });
 
   app.setErrorHandler((error: FastifyError, request, reply) => {
-    const isRequestValidationError = Boolean(error.validation && error.validationContext !== 'response');
+    const isRequestValidationError = Boolean(error.validation);
     const statusCode = isRequestValidationError
       ? 400
       : typeof error.statusCode === 'number' && error.statusCode >= 400 && error.statusCode < 600
