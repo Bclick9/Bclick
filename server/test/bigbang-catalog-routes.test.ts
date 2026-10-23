@@ -271,3 +271,24 @@ test('game list uses only the database and never invokes an external provider ad
     await app.close();
   }
 });
+
+
+test('provider query is an exact Bclick provider identity, not a substring search', async () => {
+  const fixture = catalogDatabase();
+  const app = buildApp({ database: null, catalogDatabase: fixture.database });
+
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/casino/games?provider=habanero&pageSize=10',
+    });
+
+    assert.equal(response.statusCode, 200, response.body);
+    assert.deepEqual(response.json().data, [expectedGame()]);
+    assert.match(fixture.calls[0]!.sql, /\(p\.code = \$1 OR lower\(p\.name\) = lower\(\$1\)\)/);
+    assert.doesNotMatch(fixture.calls[0]!.sql, /p\.code ILIKE|p\.name ILIKE/);
+    assert.deepEqual(fixture.calls[0]!.values, ['habanero']);
+  } finally {
+    await app.close();
+  }
+});
