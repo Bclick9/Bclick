@@ -3,7 +3,7 @@
 **Date:** 2026-10-23  
 **Implementation branch:** `feat/cms-skin-games-persistent-catalogue-management`  
 **Pull request:** [#119 — feat(cms): persist Skin Games management and tier-aware controls](https://github.com/Bclick9/Bclick/pull/119)  
-**Checkpoint:** CI passed for the implementation head. The Owner's local Sandbox preview is the next acceptance step after this change reaches `main`.
+**Checkpoint:** CI passed for the implementation head. PR #119 was squash-merged into `main` as `c88139078cf2c8be413763223ecc6db703ffea07`; the Owner's local Sandbox preview is now the next acceptance step.
 
 ## Scope completed
 
