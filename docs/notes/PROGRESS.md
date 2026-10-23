@@ -1,6 +1,6 @@
 # Bclick — Cumulative Progress and Roadmap Gate Checkpoint
 
-**Updated:** 2026-10-23, PR #120 merged as 12a438b; local Skin Games UI/order acceptance remains pending; Q-005 remains OPEN/P0  
+**Updated:** 2026-10-23, PR #121 merged as 0808963; authenticated /login now defaults to /account; local Skin Games UI/order acceptance remains pending; Q-005 remains OPEN/P0  
 **Purpose:** Current implementation status and explicit stop conditions. This file reconciles current code with the planning roadmap; it does not replace the shared Library's `docs/planning/12-open-questions.md`.
 
 ## Current verified position
@@ -64,6 +64,14 @@ This is separate from the normal successful sign-in path, which already navigate
 The Lobby currently requests the normalized local API catalogue with `cache: 'no-store'`; the API also emits `Cache-Control: no-store`. The storefront deliberately refreshes when its tab becomes visible again, so a provider/game blocked in CMS does not remain visible indefinitely. A full browser refresh necessarily starts a new page and requests the catalogue again; this is not proof that the provider's entire catalogue is being re-synchronized.
 
 Do not add an unbounded browser cache while game availability and operator blocking need prompt propagation. A later measured performance task can introduce a short-lived server-side query cache or ETag/conditional validation for the normalized catalogue, with explicit invalidation/versioning on admin mutations and an always-server-side availability check at demo launch. Image bytes should use long-lived cache headers with versioned asset URLs. First collect timing/query evidence and finish Q-005 catalogue identity correctness; do not conflate UI/API response caching with provider sync or weaken the no-live-wallet/Standard-only gates.
+
+## Authenticated player redirect and catalogue caching — PR #121 merged
+
+PR #121 is merged into main as `08089637b2264fa50343fe560cbc5a17ef247c94`. A player who is already authenticated and visits the legacy `/login`, `/register`, or `/signup` route is now redirected to `/account` by default, while a safe same-site return path from a protected route is preserved. The focused regression tests and storefront/admin CI build passed. The exact local browser result remains to be confirmed.
+
+The Lobby catalogue JSON currently uses `cache: 'no-store'` in the frontend and `Cache-Control: no-store` from the API. This deliberately favors fresh game/provider availability after CMS edits; returning to the tab also triggers a refresh. A full browser reload therefore fetches normalized catalogue JSON again, but does not itself initiate a BigBang catalogue synchronization. A future performance task should first measure query/response timings and then consider bounded server-side/ETag caching with mutation-version invalidation, plus long-lived caching of versioned immutable image assets. Do not add indefinite local availability caching or weaken server-side checks at demo launch.
+
+**Still pending:** the Owner's latest screenshot shows `/cms/providers` fixed but `/cms/skin-games` still returning a generic request error and zero rows. Drag ordering cannot be tested until the API request succeeds. PR #120 adds request-correlated SQLSTATE diagnostics for this endpoint; the next diagnostic input must come from the local API terminal using the request ID for `GET /api/v1/admin/casino/skin-games`. Do not manually rerun or roll back Migration 012. The precise local failure remains undetermined from the screenshot alone.
 
 ## Local UI blockers reported 2026-10-23 — PR #120 merged; Owner validation pending
 
