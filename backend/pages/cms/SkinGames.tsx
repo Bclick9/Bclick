@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
-  AlertTriangle, BadgeCheck, ChevronLeft, ChevronRight, FileImage, GripVertical, Image as ImageIcon,
-  LoaderCircle, Pencil, RefreshCw, Search, ShieldX, Upload, X,
+  AlertTriangle, BadgeCheck, ChevronLeft, ChevronRight, GripVertical, Image as ImageIcon,
+  LoaderCircle, Pencil, RefreshCw, Search, ShieldX,
 } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Modal } from '../../components/ui'
 import { useAdminAuth } from '../../components/AdminAuthGate'
@@ -183,7 +183,7 @@ export function CmsSkinGamesPage({ onNotify }: { onNotify: (message: string) => 
 
   async function toggleGame(game: SkinGame): Promise<void> {
     const enabled = !game.enabled
-    if (game.sourceMode !== 'standard' || !integration.premiumAvailable && game.sourceMode === 'premium') return
+    if (game.sourceMode === 'premium' && !integration.premiumAvailable) return
     if (enabled && (!game.sourceAvailable || !game.catalogAvailable || !game.providerEnabled || !game.providerTierEnabled)) {
       setActionError('Enable the provider/tier and confirm the source is available before enabling this game.')
       return
@@ -325,7 +325,7 @@ export function CmsSkinGamesPage({ onNotify }: { onNotify: (message: string) => 
       <CardHeader className="pb-3"><div className="flex items-center justify-between gap-3"><div><CardTitle>Game filters</CardTitle><CardDescription className="mt-1">Filter source variants using real provider records and source mode.</CardDescription></div><Button type="button" size="sm" variant="outline" onClick={() => { setQuery(''); setProviderCode(''); setModeFilter('all'); setPage(1) }}>Reset filters</Button></div></CardHeader>
       <CardContent className="grid gap-3 pt-0 lg:grid-cols-[minmax(240px,1fr)_240px_180px]">
         <div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }} placeholder="Search title, provider or source ID…" className="pl-9" /></div>
-        <select aria-label="Filter games by provider" value={providerCode} onChange={(event) => { setProviderCode(event.target.value); setPage(1) }} className="h-10 rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-700"><option value="">All providers</option>{providers.map((provider) => <option key={provider.code} value={provider.code}>{provider.name}</option>)}</select>
+        <select aria-label="Filter games by provider" value={providerCode} disabled={providerLoading} onChange={(event) => { setProviderCode(event.target.value); setPage(1) }} className="h-10 rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-700"><option value="">All providers</option>{providers.map((provider) => <option key={provider.code} value={provider.code}>{provider.name}</option>)}</select>
         <div className="flex gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
           {(['all','standard','premium'] as const).map((mode) => <button key={mode} type="button" onClick={() => { setModeFilter(mode); setPage(1) }} className={cn('flex-1 rounded-md px-2 py-2 text-xs font-semibold capitalize transition-colors', modeFilter === mode ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-white')}>{mode === 'all' ? 'All' : mode === 'standard' ? 'Standard' : 'Premium'}</button>)}
         </div>
