@@ -1,245 +1,403 @@
-import { useState, type FormEvent } from 'react'
-import { ChevronDown, Filter, Search, X, Check, Play, Pencil, RotateCcw, GripVertical } from 'lucide-react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import {
+  AlertTriangle, BadgeCheck, ChevronLeft, ChevronRight, FileImage, GripVertical, Image as ImageIcon,
+  LoaderCircle, Pencil, RefreshCw, Search, ShieldX, Upload, X,
+} from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Modal } from '../../components/ui'
+import { useAdminAuth } from '../../components/AdminAuthGate'
+import { AdminApiError, getAdminCsrfHeaders, requestAdminApi } from '../../lib/adminApi'
 import { cn } from '../../lib/utils'
 
-export type CmsSkinGame = {
+const PERMISSION = 'casino.provider-settings.manage'
+const PAGE_SIZE = 50
+
+type Tier = 'standard' | 'premium'
+type ModeFilter = 'all' | Tier
+
+type Provider = {
   id: string
-  title: string
-  provider: string
-  category: string
-  rtp: string
-  players: string
-  categories: string[]
-  categoryExpirations: Record<string, string>
-  showOnPage: string[]
-  gameParameters: string[]
-  badge: string
-  active: boolean
-  description: string
-  iconImage: string
-  backgroundImage: string
-  certificateNumber: string
-  betLimitCurrency: string
-  betLimitMin: string
-  betLimitMax: string
-  skin: string
-  status: 'Active' | 'Draft' | 'Paused'
-  art: string
-  updated: string
+  code: string
+  name: string
+  enabled: boolean
+  totalGames: number
+  sourceAvailableGames: number
+  enabledGames: number
+  tiers?: {
+    standard: { enabled: boolean; sourceAvailableGames: number }
+    premium: { enabled: boolean; sourceAvailableGames: number; available: boolean }
+  }
 }
-export const INITIAL_CMS_SKIN_GAMES: CmsSkinGame[] = [
-  { id: 'GM-001', title: 'Zeus vs Hades', provider: 'Demo Studio', category: 'Slots', rtp: '96.40%', players: '1,248', categories: ['Video Slots', 'New', 'Popular Games'], categoryExpirations: {}, showOnPage: ['Home'], gameParameters: ['Play Now', 'For Fun'], badge: 'new', active: true, description: 'A mythology-themed slot adventure.', iconImage: '', backgroundImage: '', certificateNumber: '', betLimitCurrency: 'EUR', betLimitMin: '', betLimitMax: '', skin: 'Mythology Gold', status: 'Active', art: 'from-indigo-950 via-violet-800 to-amber-500', updated: '18 Oct 2026' },
-  { id: 'GM-002', title: 'Wild Clusters', provider: 'Play’n GO', category: 'Slots', rtp: '96.10%', players: '982', categories: ['Video Slots', 'Megaways'], categoryExpirations: {}, showOnPage: ['Home'], gameParameters: ['Play Now', 'For Fun'], badge: '', active: true, description: 'A cascading reel slot game.', iconImage: '', backgroundImage: '', certificateNumber: '', betLimitCurrency: 'EUR', betLimitMin: '', betLimitMax: '', skin: 'Emerald Reels', status: 'Active', art: 'from-emerald-950 via-green-800 to-lime-500', updated: '17 Oct 2026' },
-  { id: 'GM-003', title: 'Roulette Royale', provider: 'Evolution', category: 'Live casino', rtp: '97.30%', players: '764', categories: ['Live Dealer', 'Table Games'], categoryExpirations: {}, showOnPage: [], gameParameters: ['Play Now'], badge: 'top', active: true, description: 'Live roulette from a royal gaming table.', iconImage: '', backgroundImage: '', certificateNumber: '', betLimitCurrency: 'EUR', betLimitMin: '', betLimitMax: '', skin: 'Royal Table', status: 'Active', art: 'from-slate-950 via-red-950 to-amber-600', updated: '16 Oct 2026' },
-  { id: 'GM-004', title: 'Lightning Blackjack', provider: 'Evolution', category: 'Live casino', rtp: '99.10%', players: '538', categories: ['Live Dealer', 'Table Games'], categoryExpirations: {}, showOnPage: ['Home'], gameParameters: ['Play Now'], badge: '', active: true, description: 'Live blackjack with fast-paced rounds.', iconImage: '', backgroundImage: '', certificateNumber: '', betLimitCurrency: 'EUR', betLimitMin: '', betLimitMax: '', skin: 'Royal Table', status: 'Active', art: 'from-slate-950 via-red-950 to-amber-600', updated: '16 Oct 2026' },
-  { id: 'GM-005', title: 'Rocket Rush', provider: 'Demo Studio', category: 'Crash', rtp: '97.00%', players: '1,105', categories: ['Crash Games', 'New'], categoryExpirations: {}, showOnPage: ['Home'], gameParameters: ['Play Now', 'For Fun'], badge: 'promo', active: false, description: 'A fast-paced crash-style game.', iconImage: '', backgroundImage: '', certificateNumber: '', betLimitCurrency: 'EUR', betLimitMin: '', betLimitMax: '', skin: 'Neon Rush', status: 'Paused', art: 'from-blue-950 via-cyan-800 to-fuchsia-500', updated: '14 Oct 2026' },
-  { id: 'GM-006', title: 'Golden Pharaoh', provider: 'Pragmatic Play', category: 'Slots', rtp: '96.50%', players: '416', categories: ['Video Slots', 'Jackpots'], categoryExpirations: {}, showOnPage: ['Home'], gameParameters: ['Play Now', 'For Fun'], badge: 'jackpot', active: true, description: 'An Egyptian-themed slot adventure.', iconImage: '', backgroundImage: '', certificateNumber: '', betLimitCurrency: 'EUR', betLimitMin: '', betLimitMax: '', skin: 'Mythology Gold', status: 'Active', art: 'from-amber-950 via-yellow-800 to-orange-500', updated: '15 Oct 2026' },
-]
-const SKIN_GAME_CATEGORY_OPTIONS = [
-  'Achievements Slots', 'Age of the Gods', 'All', 'All Games', 'Arcade Games', 'Autumn Slots',
-  'Award Winners', 'Betting Games', 'BFTH Casino', 'BFTH Live Casino', 'BFTH Live Dealer', 'BFTH Slots',
-  'Buy Bonus', 'Choice', 'Crash Games', 'Drops & Wins Slots', 'EGT Black Friday', 'Exclusive', 'Finished',
-  'Fire Blaze Jackpots', 'Fishing & Hunting', 'From R$0,01', 'Halloween', 'Hidden', 'Highest Multiplier',
-  'Instant Game', 'Jackpot Mania', 'Jackpots', 'LAUNCH GAMES', 'Live Dealer', 'Lottery Games', 'Mega jackpot',
-  'Megaways', 'Mini Games', 'Must Drop Jackpots', 'New', 'Olimpiada Sloturilor', 'Ongoing', 'PG Soft',
-  'Popular Games', 'Prize and Drops', 'Scratch Games', 'Skill Games', 'SLOTS FOR BONUSES', 'Table Games',
-  'Tiki Ques', 'Tv Games', 'Upcoming', 'Video Bingo', 'Video Poker', 'Video Slots', 'Virtual Betting',
-]
-const SKIN_GAME_PROVIDER_OPTIONS = [
-  '7777 Gaming', '77GAMING', 'Aardvark', 'AGT', 'AMAtic', 'AVIATRIX', 'AbraCadabra', 'Arcadem',
-  'CT INTERACTIVE', 'Armadillo Studios', 'Advant Play', 'FBastard', 'Thunderspin', 'AGTsoftware',
-  'Air Dice', 'Amigo Gaming', 'MASCOT', 'Apollo Games', 'Apparat', 'Suprema Games', 'BETCONSTRUCT',
-  'Spinoro', 'Aspect Gaming', 'SYnot', 'Amatic', 'TomHorn', 'Atlas-V', 'Aura Gaming', 'AvatarUX',
-  'Aviator Studio', 'Aviatrix', 'Babylon', 'Banana Games', 'BETgames', 'Barbara Bang', 'BOOMing Games',
-  'Big Daddy', 'Endorphina', 'Betora', 'Netent', 'EVOlution', 'EZugi', 'BF GAMES', 'Big Time Gaming',
-  'Bragg', 'BGaming', '3 Oaks Gaming', 'GreenTube', 'BIG TIME GAMING', 'Bahatika', 'F*Bastards',
-  'KAGaming', 'National Lottery', 'Lagio Studio', 'Blueprint', 'Belatra', 'BOOMING Games', '3 Oaks GAMING',
-  'Play’n Go', 'PLAYTECH', 'PLAYTECH LIVE', 'Bitville Roulette', 'BetRadarLotto', 'RED TIGER', 'Kiron',
-  'Smartsoft', 'Betradar', 'Slot Builder', 'SPribe', 'BETSOFT', 'BetGames BetShop', 'SA Gaming',
-  'Superlotto', 'Splitthepot', 'TV BET', 'BETGAMES', 'ICONIC21', 'Betsolutions', 'Lucky Numbers',
-  'VIVO Gaming', 'Bally Wulff', 'Betxpro', 'Caleta', 'CandleBets', 'Comtrade Gaming', 'Champion',
-  'Kiss Live Casino', 'Celestar', 'Spinexis', 'Capecod', 'CP Games', 'COLOSSUS', 'CT Interactive',
-  'Clawbuster', 'CasinoWM', 'Cozmo Play', 'Dubibet', 'DLV', 'Dream Gaming', 'Dream Play',
-  'Darpha Studios', 'Player Bets', 'EURASIAN Gaming', 'Eclipse', 'EYECON', 'Merkur games',
-  'ENDORPHINA', 'EZUGI', 'EVOLUTION', 'The Better Platform', 'EGT Digital', 'E-Gaming', 'AMUSNET',
-  'ELA Games', 'Elbet', 'ELK Studios', 'Spearhead', 'EvoPersia', 'Esa Gaming', 'Demo Studio',
-  'Play’n GO', 'Evolution', 'Pragmatic Play', 'NetEnt',
-]
-const SKIN_GAME_ART_PRESETS = [
-  { label: 'Mythology Gold', art: 'from-indigo-950 via-violet-800 to-amber-500' },
-  { label: 'Emerald Reels', art: 'from-emerald-950 via-green-800 to-lime-500' },
-  { label: 'Royal Table', art: 'from-slate-950 via-red-950 to-amber-600' },
-  { label: 'Neon Rush', art: 'from-blue-950 via-cyan-800 to-fuchsia-500' },
-  { label: 'Midnight Gold', art: 'from-slate-950 via-slate-800 to-yellow-600' },
-  { label: 'Minimal Light', art: 'from-slate-100 via-slate-200 to-slate-400' },
-]
-const SKIN_GAME_BADGES = [
-  { value: '', label: 'None' }, { value: 'new', label: 'New' }, { value: 'promo', label: 'Promo' },
-  { value: 'jackpot', label: 'Jackpot' }, { value: 'top', label: 'Top' }, { value: 'exclusive', label: 'Exclusive' },
-  { value: 'vpn', label: 'VPN' }, { value: 'tournament', label: 'Tournament' }, { value: 'hot', label: 'Hot' },
-  { value: 'ortak', label: 'Ortak' }, { value: 'trending', label: 'Trending' },
-]
-export function CmsSkinGamesPage({ games, onSaveGame, onMoveGame, onNotify }: { games: CmsSkinGame[]; onSaveGame: (game: CmsSkinGame) => void; onMoveGame: (draggedId: string, targetId: string) => void; onNotify: (message: string) => void }) {
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'All' | CmsSkinGame['status']>('All')
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
-  const [selectedProviders, setSelectedProviders] = useState<string[]>([])
-  const [openFilter, setOpenFilter] = useState<'categories' | 'providers' | null>(null)
-  const [categorySearch, setCategorySearch] = useState('')
-  const [providerSearch, setProviderSearch] = useState('')
-  const [draggedGameId, setDraggedGameId] = useState<string | null>(null)
-  const [editDraft, setEditDraft] = useState<CmsSkinGame | null>(null)
-  const [editCategorySearch, setEditCategorySearch] = useState('')
-  const [showEditCategoryPicker, setShowEditCategoryPicker] = useState(false)
-  const [showBetLimits, setShowBetLimits] = useState(false)
-  const [showRegulationInfo, setShowRegulationInfo] = useState(false)
-  const categoryOptions = SKIN_GAME_CATEGORY_OPTIONS.filter((item) => item.toLowerCase().includes(categorySearch.toLowerCase()))
-  const providerOptions = SKIN_GAME_PROVIDER_OPTIONS.filter((item, index, all) => all.indexOf(item) === index).filter((item) => item.toLowerCase().includes(providerSearch.toLowerCase()))
-  const editCategoryOptions = SKIN_GAME_CATEGORY_OPTIONS.filter((item) => item.toLowerCase().includes(editCategorySearch.toLowerCase()))
-  const shown = games.filter((item) =>
-    (statusFilter === 'All' || item.status === statusFilter)
-    && (selectedCategories.length === 0 || item.categories.some((category) => selectedCategories.includes(category)))
-    && (selectedProviders.length === 0 || selectedProviders.includes(item.provider))
-    && (item.title + ' ' + item.provider + ' ' + item.category + ' ' + item.categories.join(' ') + ' ' + item.skin).toLowerCase().includes(search.toLowerCase())
-  )
-  const toggleCategory = (category: string) => setSelectedCategories((current) => current.includes(category) ? current.filter((item) => item !== category) : [...current, category])
-  const toggleProvider = (provider: string) => setSelectedProviders((current) => current.includes(provider) ? current.filter((item) => item !== provider) : [...current, provider])
-  const openEditor = (game: CmsSkinGame) => {
-    setEditDraft({ ...game, categories: [...game.categories], categoryExpirations: { ...game.categoryExpirations }, showOnPage: [...game.showOnPage], gameParameters: [...game.gameParameters] })
-    setEditCategorySearch('')
-    setShowEditCategoryPicker(false)
-    setShowBetLimits(false)
-    setShowRegulationInfo(false)
-  }
-  const patchDraft = (patch: Partial<CmsSkinGame>) => setEditDraft((current) => current ? { ...current, ...patch } : current)
-  const toggleDraftArray = (key: 'categories' | 'showOnPage' | 'gameParameters', value: string) => setEditDraft((current) => {
-    if (!current) return current
-    const currentValues = current[key]
-    const nextValues = currentValues.includes(value) ? currentValues.filter((item) => item !== value) : [...currentValues, value]
-    if (key === 'categories') {
-      const categoryExpirations = { ...current.categoryExpirations }
-      if (currentValues.includes(value)) delete categoryExpirations[value]
-      return { ...current, categories: nextValues, category: nextValues[0] || '', categoryExpirations }
-    }
-    return { ...current, [key]: nextValues }
+
+type SkinGame = {
+  id: string
+  slug: string
+  title: string
+  provider: { code: string; name: string }
+  sourceMode: Tier
+  externalGameId: string
+  isPremium: boolean
+  sourceAvailable: boolean
+  catalogAvailable: boolean
+  enabled: boolean
+  providerEnabled: boolean
+  providerTierEnabled: boolean
+  effectiveAvailable: boolean
+  sourceImageUrl: string | null
+  customImageUrl: string | null
+  imageUrl: string | null
+  description: string
+  hasCustomDescription: boolean
+  displayOrder: number
+  categories: string[]
+  updatedAt: string
+  updatedBy: string | null
+}
+
+type SkinGameListResponse = {
+  data: SkinGame[]
+  page: { page: number; pageSize: number; total: number; nextPage: number | null }
+  integration: { selectedTier: string; premiumAvailable: boolean; premiumReason: string | null }
+  requestId: string
+}
+
+type ErrorEnvelope = { error?: { code?: unknown; message?: unknown } }
+
+function errorMessage(error: unknown, fallback: string): string {
+  if (error instanceof AdminApiError) return error.message
+  if (error instanceof Error && error.message) return error.message
+  return fallback
+}
+
+function sourceState(game: SkinGame): { label: string; tone: 'success' | 'danger' | 'warning' | 'outline' } {
+  if (!game.sourceAvailable || !game.catalogAvailable) return { label: 'Source unavailable', tone: 'danger' }
+  if (!game.providerEnabled) return { label: 'Provider blocked', tone: 'warning' }
+  if (!game.providerTierEnabled) return { label: 'Tier disabled', tone: 'warning' }
+  if (!game.enabled) return { label: 'Game blocked', tone: 'danger' }
+  if (game.sourceMode === 'premium') return { label: 'Premium locked', tone: 'warning' }
+  return { label: 'Available', tone: 'success' }
+}
+
+function formatDate(value: string | null | undefined): string {
+  if (!value) return 'Not recorded'
+  const date = new Date(value)
+  return Number.isFinite(date.getTime()) ? date.toLocaleString() : 'Not recorded'
+}
+
+export function CmsSkinGamesPage({ onNotify }: { onNotify: (message: string) => void }) {
+  const auth = useAdminAuth()
+  const permitted = auth.permissions.includes(PERMISSION)
+  const [games, setGames] = useState<SkinGame[]>([])
+  const [providers, setProviders] = useState<Provider[]>([])
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(PAGE_SIZE)
+  const [query, setQuery] = useState('')
+  const [providerCode, setProviderCode] = useState('')
+  const [modeFilter, setModeFilter] = useState<ModeFilter>('all')
+  const [loading, setLoading] = useState(true)
+  const [providerLoading, setProviderLoading] = useState(true)
+  const [savingId, setSavingId] = useState('')
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const [actionError, setActionError] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
+  const [resultPage, setResultPage] = useState<SkinGameListResponse['page']>({ page: 1, pageSize: PAGE_SIZE, total: 0, nextPage: null })
+  const [integration, setIntegration] = useState<SkinGameListResponse['integration']>({
+    selectedTier: 'standard', premiumAvailable: false,
+    premiumReason: 'Premium import and launch support have not been approved.',
   })
-  const saveEditedGame = (event: FormEvent<HTMLFormElement>) => {
+
+  const [editorGame, setEditorGame] = useState<SkinGame | null>(null)
+  const [descriptionDraft, setDescriptionDraft] = useState('')
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState('')
+  const [clearCustomImage, setClearCustomImage] = useState(false)
+  const [editorError, setEditorError] = useState('')
+  const [editorBusy, setEditorBusy] = useState(false)
+
+  useEffect(() => {
+    if (!permitted) return
+    const controller = new AbortController()
+    void requestAdminApi<{ data: Provider[] }>('/api/v1/admin/bigbang/providers', { signal: controller.signal })
+      .then((result) => { if (!controller.signal.aborted) setProviders(result.data) })
+      .catch((caught: unknown) => {
+        if (!controller.signal.aborted) setActionError(errorMessage(caught, 'Could not load provider filters.'))
+      })
+      .finally(() => { if (!controller.signal.aborted) setProviderLoading(false) })
+    return () => controller.abort()
+  }, [permitted])
+
+  useEffect(() => {
+    if (!permitted) return
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      setLoading(true)
+      setError('')
+      const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
+      if (query.trim()) params.set('query', query.trim())
+      if (providerCode) params.set('providerCode', providerCode)
+      if (modeFilter !== 'all') params.set('sourceMode', modeFilter)
+      void requestAdminApi<SkinGameListResponse>('/api/v1/admin/casino/skin-games?' + params.toString(), {
+        signal: controller.signal,
+      }).then((result) => {
+        if (controller.signal.aborted) return
+        setGames(result.data)
+        setResultPage(result.page)
+        setIntegration(result.integration)
+      }).catch((caught: unknown) => {
+        if (!controller.signal.aborted) setError(errorMessage(caught, 'Could not load catalogue games from the API.'))
+      }).finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+    }, 160)
+    return () => {
+      controller.abort()
+      window.clearTimeout(timer)
+    }
+  }, [permitted, page, pageSize, query, providerCode, modeFilter, reloadKey])
+
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreview('')
+      return
+    }
+    let active = true
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (active && typeof reader.result === 'string') setImagePreview(reader.result)
+    }
+    reader.onerror = () => { if (active) setEditorError('The selected image could not be previewed.') }
+    reader.readAsDataURL(imageFile)
+    return () => {
+      active = false
+      reader.abort()
+    }
+  }, [imageFile])
+
+  const modeCounts = useMemo(() => ({
+    standard: games.filter((game) => game.sourceMode === 'standard').length,
+    premium: games.filter((game) => game.sourceMode === 'premium').length,
+    blocked: games.filter((game) => !game.effectiveAvailable).length,
+  }), [games])
+
+  const loadAgain = () => setReloadKey((value) => value + 1)
+
+  async function toggleGame(game: SkinGame): Promise<void> {
+    const enabled = !game.enabled
+    if (game.sourceMode !== 'standard' || !integration.premiumAvailable && game.sourceMode === 'premium') return
+    if (enabled && (!game.sourceAvailable || !game.catalogAvailable || !game.providerEnabled || !game.providerTierEnabled)) {
+      setActionError('Enable the provider/tier and confirm the source is available before enabling this game.')
+      return
+    }
+    const action = enabled ? 'enable' : 'block'
+    if (!window.confirm('Are you sure you want to ' + action + ' "' + game.title + '" (' + game.sourceMode.toUpperCase() + ') from ' + game.provider.name + '?')) return
+    setSavingId(game.id)
+    setActionError('')
+    try {
+      await requestAdminApi('/api/v1/admin/casino/skin-games/' + encodeURIComponent(game.id), {
+        method: 'PATCH',
+        headers: getAdminCsrfHeaders(),
+        body: JSON.stringify({ enabled }),
+      })
+      onNotify('Game "' + game.title + '" ' + (enabled ? 'enabled' : 'blocked') + ' and saved.')
+      loadAgain()
+    } catch (caught) {
+      setActionError(errorMessage(caught, 'Could not save game availability.'))
+    } finally {
+      setSavingId('')
+    }
+  }
+
+  function openEditor(game: SkinGame): void {
+    setEditorGame(game)
+    setDescriptionDraft(game.description)
+    setImageFile(null)
+    setImagePreview('')
+    setClearCustomImage(false)
+    setEditorError('')
+  }
+
+  async function saveEditor(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault()
-    if (!editDraft) return
-    const saved: CmsSkinGame = { ...editDraft, category: editDraft.categories[0] || '', status: !editDraft.active ? 'Paused' : (editDraft.status === 'Paused' ? 'Active' : editDraft.status), updated: '19 Oct 2026' }
-    onSaveGame(saved)
-    setEditDraft(null)
-    setShowEditCategoryPicker(false)
-    onNotify('Game details saved in this local CMS preview. Publishing is not connected.')
+    if (!editorGame) return
+    if (editorGame.sourceMode === 'premium' && !integration.premiumAvailable) {
+      setEditorError('Premium editing is locked until the Premium integration gate is approved.')
+      return
+    }
+    if (imageFile && imageFile.size > 5 * 1024 * 1024) {
+      setEditorError('Choose an image no larger than 5 MiB.')
+      return
+    }
+    if (imageFile && !['image/png', 'image/jpeg', 'image/webp'].includes(imageFile.type)) {
+      setEditorError('Only PNG, JPEG and WebP images are supported.')
+      return
+    }
+    setEditorBusy(true)
+    setEditorError('')
+    try {
+      await requestAdminApi('/api/v1/admin/casino/skin-games/' + encodeURIComponent(editorGame.id), {
+        method: 'PATCH',
+        headers: getAdminCsrfHeaders(),
+        body: JSON.stringify({
+          description: descriptionDraft,
+          ...(!imageFile && clearCustomImage ? { clearCustomImage: true } : {}),
+        }),
+      })
+      if (imageFile) {
+        await requestAdminApi('/api/v1/admin/casino/skin-games/' + encodeURIComponent(editorGame.id) + '/image', {
+          method: 'POST',
+          headers: { ...getAdminCsrfHeaders(), 'Content-Type': imageFile.type },
+          body: imageFile,
+        })
+      }
+      setEditorGame(null)
+      setImageFile(null)
+      setImagePreview('')
+      onNotify('Game presentation saved to the database and audit log.')
+      loadAgain()
+    } catch (caught) {
+      setEditorError(errorMessage(caught, 'Could not save game presentation. If the description saved before an image error, retry the image upload.'))
+      loadAgain()
+    } finally {
+      setEditorBusy(false)
+    }
   }
-  const resetFilters = () => {
-    setSelectedCategories([])
-    setSelectedProviders([])
-    setCategorySearch('')
-    setProviderSearch('')
-    setSearch('')
-    setStatusFilter('All')
-    setOpenFilter(null)
+
+  async function reorderGame(game: SkinGame, target: SkinGame, position: 'before' | 'after'): Promise<void> {
+    if (modeFilter === 'all' || game.sourceMode !== modeFilter || target.sourceMode !== modeFilter) {
+      setActionError('Choose a single source tier before reordering, so Standard and Premium variants are never interleaved.')
+      return
+    }
+    if (modeFilter === 'premium' && !integration.premiumAvailable) return
+    setSavingId('order:' + game.id)
+    setActionError('')
+    try {
+      await requestAdminApi('/api/v1/admin/casino/skin-games/reorder', {
+        method: 'PATCH',
+        headers: getAdminCsrfHeaders(),
+        body: JSON.stringify({ gameId: game.id, targetGameId: target.id, position }),
+      })
+      loadAgain()
+      onNotify('Display order saved to the database.')
+    } catch (caught) {
+      setActionError(errorMessage(caught, 'Could not persist the new game order.'))
+    } finally {
+      setSavingId('')
+      setDraggedId(null)
+    }
   }
-  const multiSelectButtonClass = 'flex h-10 w-full items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 text-left text-xs text-slate-700 shadow-sm transition hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200'
-  const fieldClass = 'h-9 w-full rounded-md border border-input bg-white px-3 text-xs text-slate-700 outline-none focus:ring-2 focus:ring-slate-100'
-  const labelClass = 'mb-1.5 block text-[11px] font-medium text-slate-600'
-  const sectionClass = 'rounded-lg border border-slate-200 bg-white p-4'
-  const inlineCheckClass = 'flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-xs text-slate-600 hover:bg-slate-50'
-  return <div className="page-enter space-y-5">
+
+  if (!permitted) {
+    return <div className="mx-auto max-w-xl rounded-xl border border-rose-200 bg-white p-6">
+      <div className="flex items-start gap-3"><ShieldX className="h-6 w-6 shrink-0 text-rose-600" /><div><h2 className="text-base font-semibold text-slate-900">Skin Games permission required</h2><p className="mt-2 text-sm leading-6 text-slate-600">Your administrator account needs the <code>{PERMISSION}</code> permission. No changes were made.</p></div></div>
+    </div>
+  }
+
+  const resultStart = resultPage.total === 0 ? 0 : (page - 1) * pageSize + 1
+  const resultEnd = Math.min(page * pageSize, resultPage.total)
+
+  return <div className="page-enter min-w-0 space-y-5">
+    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+      <div>
+        <div className="flex flex-wrap items-center gap-2"><h1 className="text-base font-semibold text-slate-900">Skin Games</h1><Badge variant="info">Live API</Badge></div>
+        <p className="mt-1 text-xs leading-5 text-slate-500">Manage canonical games, tier-specific availability, display order, custom image and description. Changes are stored in PostgreSQL.</p>
+        <p className="mt-1 text-[11px] text-slate-400">Signed in as {auth.admin.displayName || auth.admin.email || 'Administrator'}</p>
+      </div>
+      <Button type="button" variant="outline" onClick={loadAgain} disabled={loading || savingId !== ''}><RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} /> Refresh</Button>
+    </div>
+
+    <div className="rounded-lg border border-sky-200 bg-sky-50 p-4">
+      <div className="flex items-start gap-3"><BadgeCheck className="mt-0.5 h-5 w-5 shrink-0 text-sky-800" /><div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2"><p className="text-sm font-semibold text-sky-950">Standard Sandbox is active</p><Badge variant="success">Standard</Badge><Badge variant="warning">Premium locked</Badge></div>
+        <p className="mt-1 text-xs leading-5 text-sky-900">{integration.premiumReason || 'Premium remains locked until the authorized tier-specific sync and launch path is accepted.'} The API preserves each Standard/Premium source variant as a separate UUID; matching titles are not merged automatically.</p>
+      </div></div>
+    </div>
+
+    {error ? <div role="alert" className="flex gap-2 rounded-md border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-800"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{error}</div> : null}
+    {actionError ? <div role="alert" className="flex gap-2 rounded-md border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-800"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{actionError}</div> : null}
+
+    <div className="grid gap-3 sm:grid-cols-3">
+      <Card><CardContent className="p-4"><p className="text-xs text-slate-500">Matching games</p><p className="mt-2 text-2xl font-semibold text-slate-900">{loading ? '—' : resultPage.total.toLocaleString()}</p><p className="mt-1 text-[11px] text-slate-400">Actual canonical UUID records</p></CardContent></Card>
+      <Card><CardContent className="p-4"><p className="text-xs text-slate-500">Rows on this page</p><p className="mt-2 text-2xl font-semibold text-slate-900">{loading ? '—' : games.length}</p><p className="mt-1 text-[11px] text-slate-400">{modeCounts.standard} Standard · {modeCounts.premium} Premium</p></CardContent></Card>
+      <Card><CardContent className="p-4"><p className="text-xs text-slate-500">Unavailable on this page</p><p className="mt-2 text-2xl font-semibold text-amber-700">{loading ? '—' : modeCounts.blocked}</p><p className="mt-1 text-[11px] text-slate-400">Source, provider, tier or game can block a row</p></CardContent></Card>
+    </div>
+
     <Card>
-      <CardHeader className="pb-3"><div className="flex items-center justify-between gap-3"><div><CardTitle>Game filters</CardTitle><CardDescription className="mt-1">Filter the website game catalogue by category and provider.</CardDescription></div><Button type="button" variant="outline" size="sm" onClick={resetFilters}><RotateCcw className="h-3.5 w-3.5" /> Reset filters</Button></div></CardHeader>
-      <CardContent className="grid gap-4 pt-0 md:grid-cols-2">
-        <div className="relative min-w-0">
-          <label className="mb-1.5 block text-xs font-medium text-slate-600">Categories</label>
-          <button type="button" aria-expanded={openFilter === 'categories'} onClick={() => setOpenFilter((current) => current === 'categories' ? null : 'categories')} className={multiSelectButtonClass}>
-            <span className="truncate">{selectedCategories.length === 0 ? '0 selected' : selectedCategories.length + ' selected'}</span><ChevronDown className={cn('h-4 w-4 shrink-0 text-slate-400 transition-transform', openFilter === 'categories' && 'rotate-180')} />
-          </button>
-          {openFilter === 'categories' ? <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
-            <div className="border-b border-slate-100 p-2.5"><div className="relative"><Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><input value={categorySearch} onChange={(event) => setCategorySearch(event.target.value)} placeholder="Search categories…" className="h-8 w-full rounded-md border border-slate-200 pl-8 pr-2 text-xs outline-none focus:border-slate-400" /></div>
-              <label className="mt-2 flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"><input type="checkbox" checked={categoryOptions.length > 0 && categoryOptions.every((item) => selectedCategories.includes(item))} onChange={() => setSelectedCategories((current) => categoryOptions.every((item) => current.includes(item)) ? current.filter((item) => !categoryOptions.includes(item)) : [...new Set([...current, ...categoryOptions])])} className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-800" /> Select All</label>
-            </div>
-            <ul className="max-h-56 overflow-y-auto p-1.5">{categoryOptions.map((category) => <li key={category}><label className={inlineCheckClass}><input type="checkbox" checked={selectedCategories.includes(category)} onChange={() => toggleCategory(category)} className="h-3.5 w-3.5 accent-slate-800" /><span>{category}</span></label></li>)}{categoryOptions.length === 0 ? <li className="px-2 py-5 text-center text-xs text-slate-400">No categories match your search.</li> : null}</ul>
-          </div> : null}
-        </div>
-        <div className="relative min-w-0">
-          <label className="mb-1.5 block text-xs font-medium text-slate-600">Providers</label>
-          <button type="button" aria-expanded={openFilter === 'providers'} onClick={() => setOpenFilter((current) => current === 'providers' ? null : 'providers')} className={multiSelectButtonClass}>
-            <span className="truncate">{selectedProviders.length === 0 ? '0 selected' : selectedProviders.length + ' selected'}</span><ChevronDown className={cn('h-4 w-4 shrink-0 text-slate-400 transition-transform', openFilter === 'providers' && 'rotate-180')} />
-          </button>
-          {openFilter === 'providers' ? <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
-            <div className="border-b border-slate-100 p-2.5"><div className="relative"><Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><input value={providerSearch} onChange={(event) => setProviderSearch(event.target.value)} placeholder="Search providers…" className="h-8 w-full rounded-md border border-slate-200 pl-8 pr-2 text-xs outline-none focus:border-slate-400" /></div>
-              <label className="mt-2 flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"><input type="checkbox" checked={providerOptions.length > 0 && providerOptions.every((item) => selectedProviders.includes(item))} onChange={() => setSelectedProviders((current) => providerOptions.every((item) => current.includes(item)) ? current.filter((item) => !providerOptions.includes(item)) : [...new Set([...current, ...providerOptions])])} className="h-3.5 w-3.5 accent-slate-800" /> Select All</label>
-            </div>
-            <ul className="max-h-56 overflow-y-auto p-1.5">{providerOptions.map((provider) => <li key={provider}><label className={inlineCheckClass}><input type="checkbox" checked={selectedProviders.includes(provider)} onChange={() => toggleProvider(provider)} className="h-3.5 w-3.5 accent-slate-800" /><span>{provider}</span></label></li>)}{providerOptions.length === 0 ? <li className="px-2 py-5 text-center text-xs text-slate-400">No providers match your search.</li> : null}</ul>
-          </div> : null}
+      <CardHeader className="pb-3"><div className="flex items-center justify-between gap-3"><div><CardTitle>Game filters</CardTitle><CardDescription className="mt-1">Filter source variants using real provider records and source mode.</CardDescription></div><Button type="button" size="sm" variant="outline" onClick={() => { setQuery(''); setProviderCode(''); setModeFilter('all'); setPage(1) }}>Reset filters</Button></div></CardHeader>
+      <CardContent className="grid gap-3 pt-0 lg:grid-cols-[minmax(240px,1fr)_240px_180px]">
+        <div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }} placeholder="Search title, provider or source ID…" className="pl-9" /></div>
+        <select aria-label="Filter games by provider" value={providerCode} onChange={(event) => { setProviderCode(event.target.value); setPage(1) }} className="h-10 rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-700"><option value="">All providers</option>{providers.map((provider) => <option key={provider.code} value={provider.code}>{provider.name}</option>)}</select>
+        <div className="flex gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
+          {(['all','standard','premium'] as const).map((mode) => <button key={mode} type="button" onClick={() => { setModeFilter(mode); setPage(1) }} className={cn('flex-1 rounded-md px-2 py-2 text-xs font-semibold capitalize transition-colors', modeFilter === mode ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-white')}>{mode === 'all' ? 'All' : mode === 'standard' ? 'Standard' : 'Premium'}</button>)}
         </div>
       </CardContent>
     </Card>
-    <Card><CardContent className="p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="relative w-full sm:max-w-xs"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search games by name, provider, category…" className="pl-9" /></div><div className="flex items-center gap-2"><span className="text-xs text-slate-500">Status</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)} className={fieldClass}><option>All</option><option>Active</option><option>Draft</option><option>Paused</option></select></div></div><p className="mt-3 text-[11px] text-slate-400">Showing {shown.length} of {games.length} games</p>
-       <div className="mt-4 overflow-x-auto">
-         <table className="w-full min-w-[860px] table-fixed text-left">
-           <thead><tr className="border-y border-slate-200 bg-slate-50 text-[11px] text-slate-500"><th className="w-10 px-2 py-2.5" aria-label="Reorder games"></th><th className="w-[26%] px-3 py-2.5 font-medium">Game</th><th className="w-[15%] px-3 py-2.5 font-medium">Provider</th><th className="w-[17%] px-3 py-2.5 font-medium">Categories</th><th className="w-[15%] px-3 py-2.5 font-medium">Skin</th><th className="w-[10%] px-3 py-2.5 font-medium">Status</th><th className="w-[14%] px-3 py-2.5 text-right">Action</th></tr></thead>
-           <tbody>{shown.map((game) => <tr key={game.id} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move" }} onDrop={(event) => { event.preventDefault(); const movingId = event.dataTransfer.getData("text/plain") || draggedGameId; if (movingId && movingId !== game.id) { onMoveGame(movingId, game.id); onNotify("Game order updated in the local CMS preview.") } setDraggedGameId(null) }} className={cn("group/game-row border-b border-slate-100 text-xs transition-colors hover:bg-slate-50/80", draggedGameId === game.id && "opacity-40")}>
-             <td className="px-2 py-3"><span draggable role="button" tabIndex={0} aria-label={"Drag to reorder " + game.title} title="Drag to reorder" onDragStart={(event) => { event.dataTransfer.setData("text/plain", game.id); event.dataTransfer.effectAllowed = "move"; setDraggedGameId(game.id) }} onDragEnd={() => setDraggedGameId(null)} className="inline-flex cursor-grab items-center justify-center rounded p-1 text-slate-300 transition hover:bg-slate-100 hover:text-slate-600 active:cursor-grabbing"><GripVertical className="h-4 w-4" /></span></td>
-             <td className="px-3 py-3"><div className="flex items-center gap-3"><div className={cn("h-10 w-14 shrink-0 overflow-hidden rounded-md bg-gradient-to-br", game.art)}>{game.iconImage ? <img src={game.iconImage} alt="" className="h-full w-full object-cover" /> : null}</div><div className="min-w-0"><p className="truncate font-semibold text-slate-800">{game.title}</p><p className="mt-1 font-mono text-[9px] text-slate-400">{game.id}</p></div></div></td>
-             <td className="px-3 py-3 text-slate-600">{game.provider}</td>
-             <td className="px-3 py-3"><div className="flex flex-wrap gap-1">{game.categories.slice(0, 2).map((category) => <span key={category} className="rounded bg-slate-100 px-1.5 py-1 text-[9px] text-slate-600">{category}</span>)}{game.categories.length > 2 ? <span className="text-[9px] text-slate-400">+{game.categories.length - 2}</span> : null}</div></td>
-             <td className="px-3 py-3 text-slate-600">{game.skin}</td>
-             <td className="px-3 py-3"><Badge variant={game.status === "Active" ? "success" : game.status === "Draft" ? "warning" : "outline"}>{game.status}</Badge><p className="mt-1 text-[9px] text-slate-400">{game.active ? "Enabled" : "Inactive"}</p></td>
-             <td className="px-3 py-3 text-right"><Button size="sm" variant="outline" onClick={() => openEditor(game)}><Pencil className="h-3.5 w-3.5" /> Edit Game</Button></td>
-           </tr>)}</tbody>
-         </table>
-         {shown.length === 0 ? <div className="py-12 text-center text-xs text-slate-400">No games match these filters.</div> : null}
-         <p className="mt-3 border-t border-slate-100 pt-3 text-[10px] text-slate-400">Drag the grip beside a game to change its order. Game ordering remains local to this preview.</p>
-       </div>
-     </CardContent></Card>
 
-    <Modal open={!!editDraft} onOpenChange={(open) => { if (!open) { setEditDraft(null); setShowEditCategoryPicker(false) } }} title={editDraft ? 'Edit Game - ' + editDraft.title : 'Edit Game'} description={editDraft ? editDraft.provider + ' · ' + editDraft.id : undefined} size="full" footer={editDraft ? <><Button type="button" variant="outline" onClick={() => { setEditDraft(null); setShowEditCategoryPicker(false) }}>Cancel</Button><Button type="submit" form="skin-game-edit-form"><Check className="h-4 w-4" /> Save</Button></> : null}>
-      {editDraft ? <form id="skin-game-edit-form" onSubmit={saveEditedGame} className="space-y-4">
-        <div className="grid gap-4 xl:grid-cols-3">
-          <section className={sectionClass}>
-            <h3 className="text-sm font-semibold text-slate-900">Categories</h3>
-            <p className="mt-1 text-[10px] leading-4 text-slate-500">Assign categories and optional expiration dates.</p>
-            <button type="button" onClick={() => setShowEditCategoryPicker((open) => !open)} className={cn(fieldClass, 'mt-3 flex items-center justify-between text-left')}><span>Add categories</span><ChevronDown className={cn('h-4 w-4 transition-transform', showEditCategoryPicker && 'rotate-180')} /></button>
-            {showEditCategoryPicker ? <div className="mt-2 overflow-hidden rounded-md border border-slate-200">
-              <div className="border-b border-slate-100 p-2"><div className="relative"><Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><input value={editCategorySearch} onChange={(event) => setEditCategorySearch(event.target.value)} placeholder="Search categories…" className="h-8 w-full rounded-md border border-slate-200 pl-8 pr-2 text-xs outline-none focus:border-slate-400" /></div>
-                <label className={cn(inlineCheckClass, 'mt-1 font-medium')}><input type="checkbox" checked={editCategoryOptions.length > 0 && editCategoryOptions.every((item) => editDraft.categories.includes(item))} onChange={() => setEditDraft((current) => { if (!current) return current; const addAll = !editCategoryOptions.every((item) => current.categories.includes(item)); const categories = addAll ? [...new Set([...current.categories, ...editCategoryOptions])] : current.categories.filter((item) => !editCategoryOptions.includes(item)); return { ...current, categories, category: categories[0] || '', categoryExpirations: Object.fromEntries(Object.entries(current.categoryExpirations).filter(([key]) => categories.includes(key))) } })} className="h-3.5 w-3.5 accent-slate-800" /> Select All</label>
-              </div>
-              <div className="max-h-44 overflow-y-auto p-1">{editCategoryOptions.map((category) => <label key={category} className={inlineCheckClass}><input type="checkbox" checked={editDraft.categories.includes(category)} onChange={() => toggleDraftArray('categories', category)} className="h-3.5 w-3.5 accent-slate-800" /><span>{category}</span></label>)}{editCategoryOptions.length === 0 ? <p className="px-2 py-4 text-center text-xs text-slate-400">No categories match.</p> : null}</div>
-            </div> : null}
-            <div className="mt-3 space-y-2">{editDraft.categories.map((category) => <div key={category} className="rounded-md border border-slate-200 p-2.5"><div className="flex items-center justify-between gap-2"><span className="text-xs font-medium text-slate-700">{category}</span><button type="button" aria-label={'Remove ' + category} onClick={() => toggleDraftArray('categories', category)} className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><X className="h-3.5 w-3.5" /></button></div><label className="mt-2 block"><span className="mb-1 block text-[10px] text-slate-500">Expiration date (optional)</span><input type="date" value={editDraft.categoryExpirations[category] || ''} onChange={(event) => patchDraft({ categoryExpirations: { ...editDraft.categoryExpirations, [category]: event.target.value } })} className={fieldClass} /></label></div>)}{editDraft.categories.length === 0 ? <p className="rounded-md border border-dashed border-slate-200 px-3 py-4 text-center text-[11px] text-slate-400">No categories assigned.</p> : null}</div>
-          </section>
-
-          <section className={sectionClass}>
-            <h3 className="text-sm font-semibold text-slate-900">Display settings</h3>
-            <div className="mt-3"><p className={labelClass}>Show on Page</p><div className="space-y-1 rounded-md border border-slate-200 p-2">{['Home'].map((pageName) => <label key={pageName} className={inlineCheckClass}><input type="checkbox" checked={editDraft.showOnPage.includes(pageName)} onChange={() => toggleDraftArray('showOnPage', pageName)} className="h-3.5 w-3.5 accent-slate-800" /><span>{pageName}</span></label>)}</div></div>
-            <div className="mt-4"><p className={labelClass}>Game Parameters</p><div className="space-y-1 rounded-md border border-slate-200 p-2">{['Play Now', 'For Fun', 'View Mode'].map((parameter) => <label key={parameter} className={cn(inlineCheckClass, parameter === 'View Mode' && 'cursor-not-allowed opacity-50')}><input type="checkbox" disabled={parameter === 'View Mode'} checked={editDraft.gameParameters.includes(parameter)} onChange={() => toggleDraftArray('gameParameters', parameter)} className="h-3.5 w-3.5 accent-slate-800" /><span>{parameter}</span>{parameter === 'View Mode' ? <span className="ml-auto text-[9px]">Unavailable</span> : null}</label>)}</div></div>
-            <div className="mt-4"><label className="block"><span className={labelClass}>Badge</span><select value={editDraft.badge} onChange={(event) => patchDraft({ badge: event.target.value })} className={fieldClass}>{SKIN_GAME_BADGES.map((badge) => <option key={badge.value || 'none'} value={badge.value}>{badge.label}</option>)}</select></label></div>
-            <label className="mt-4 flex cursor-pointer items-center justify-between rounded-md border border-slate-200 px-3 py-3"><span><span className="block text-xs font-semibold text-slate-800">Active</span><span className="mt-1 block text-[10px] text-slate-500">Make this game available on the website.</span></span><input type="checkbox" checked={editDraft.active} onChange={(event) => patchDraft({ active: event.target.checked })} className="h-4 w-4 accent-slate-900" /></label>
-            <div className="mt-4"><label className="block"><span className={labelClass}>Skin preset</span><select value={editDraft.skin} onChange={(event) => { const preset = SKIN_GAME_ART_PRESETS.find((item) => item.label === event.target.value); patchDraft({ skin: event.target.value, art: preset?.art || editDraft.art }) }} className={fieldClass}>{[editDraft.skin, ...SKIN_GAME_ART_PRESETS.map((item) => item.label)].filter((item, index, all) => all.indexOf(item) === index).map((item) => <option key={item}>{item}</option>)}</select></label></div>
-          </section>
-
-          <section className={sectionClass}>
-            <h3 className="text-sm font-semibold text-slate-900">Game details</h3>
-            <div className="mt-3"><p className={labelClass}>Game</p><p className="rounded-md bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-800">{editDraft.title}</p><p className="mt-1 text-[10px] text-slate-400">ID: {editDraft.id} · Provider: {editDraft.provider}</p></div>
-            <label className="mt-4 block"><span className={labelClass}>Description</span><textarea rows={7} value={editDraft.description} onChange={(event) => patchDraft({ description: event.target.value })} placeholder="Game description…" className="w-full resize-y rounded-md border border-input bg-white px-3 py-2.5 text-xs leading-5 outline-none focus:ring-2 focus:ring-slate-100" /></label>
-            <div className="mt-4"><button type="button" aria-expanded={showBetLimits} onClick={() => setShowBetLimits((open) => !open)} className="flex w-full items-center justify-between border-t border-slate-200 py-3 text-left text-xs font-semibold text-slate-700"><span>Bet Limits</span><ChevronDown className={cn('h-4 w-4 transition-transform', showBetLimits && 'rotate-180')} /></button>{showBetLimits ? <div className="grid gap-2 sm:grid-cols-3"><label><span className={labelClass}>Currency</span><select value={editDraft.betLimitCurrency} onChange={(event) => patchDraft({ betLimitCurrency: event.target.value })} className={fieldClass}>{['EUR','USD','GBP','BRL'].map((currency) => <option key={currency}>{currency}</option>)}</select></label><label><span className={labelClass}>Minimum</span><Input type="number" min="0" value={editDraft.betLimitMin} onChange={(event) => patchDraft({ betLimitMin: event.target.value })} placeholder="Min bet" className="h-9 text-xs" /></label><label><span className={labelClass}>Maximum</span><Input type="number" min="0" value={editDraft.betLimitMax} onChange={(event) => patchDraft({ betLimitMax: event.target.value })} placeholder="Max bet" className="h-9 text-xs" /></label></div> : null}</div>
-            <div><button type="button" aria-expanded={showRegulationInfo} onClick={() => setShowRegulationInfo((open) => !open)} className="flex w-full items-center justify-between border-t border-slate-200 py-3 text-left text-xs font-semibold text-slate-700"><span>Regulation Info</span><ChevronDown className={cn('h-4 w-4 transition-transform', showRegulationInfo && 'rotate-180')} /></button>{showRegulationInfo ? <label className="block"><span className={labelClass}>Certification Report Number</span><Input value={editDraft.certificateNumber} onChange={(event) => patchDraft({ certificateNumber: event.target.value })} placeholder="Certification report number" className="h-9 text-xs" /></label> : null}</div>
-          </section>
+    <Card>
+      <CardHeader className="pb-3"><CardTitle>Catalogue games</CardTitle><CardDescription className="mt-1">UUID is the canonical Bclick identity. Source ID, mode and source state remain separate fields. Drag order is available after selecting one tier.</CardDescription></CardHeader>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1120px] table-fixed text-left">
+            <thead><tr className="border-y border-slate-200 bg-slate-50 text-[11px] text-slate-600">
+              <th className="w-10 px-2 py-3" aria-label="Reorder"></th><th className="w-[25%] px-3 py-3">Game / UUID</th><th className="w-[15%] px-3 py-3">Provider</th><th className="w-[10%] px-3 py-3">Source tier</th><th className="w-[17%] px-3 py-3">Source state</th><th className="w-[13%] px-3 py-3">Effective state</th><th className="w-[9%] px-3 py-3">Order</th><th className="w-[14%] px-3 py-3 text-right">Actions</th>
+            </tr></thead>
+            <tbody>
+              {games.map((game) => {
+                const state = sourceState(game)
+                const modeWritable = game.sourceMode === 'standard' || integration.premiumAvailable
+                const toggleAllowed = modeWritable && game.sourceAvailable && game.catalogAvailable && game.providerEnabled && game.providerTierEnabled
+                return <tr key={game.id} draggable={modeFilter !== 'all' && modeFilter === game.sourceMode && modeWritable}
+                  onDragStart={(event) => { if (modeFilter === 'all' || modeFilter !== game.sourceMode || !modeWritable) { event.preventDefault(); return } event.dataTransfer.setData('text/plain', game.id); event.dataTransfer.effectAllowed = 'move'; setDraggedId(game.id) }}
+                  onDragOver={(event) => { if (draggedId && draggedId !== game.id && modeFilter === game.sourceMode) { event.preventDefault(); event.dataTransfer.dropEffect = 'move' } }}
+                  onDrop={(event) => { event.preventDefault(); const moving = games.find((item) => item.id === (event.dataTransfer.getData('text/plain') || draggedId)); if (moving && moving.id !== game.id) void reorderGame(moving,game,'before'); setDraggedId(null) }}
+                  onDragEnd={() => setDraggedId(null)}
+                  className={cn('border-b border-slate-100 text-xs transition-colors hover:bg-slate-50/80', draggedId === game.id && 'opacity-40')}>
+                  <td className="px-2 py-3"><span title={modeFilter === 'all' ? 'Choose Standard or Premium before reordering' : 'Drag to reorder'} className={cn('inline-flex rounded p-1 text-slate-300', modeFilter !== 'all' && modeWritable ? 'cursor-grab hover:bg-slate-100 hover:text-slate-600' : 'cursor-not-allowed opacity-40')}><GripVertical className="h-4 w-4" /></span></td>
+                  <td className="px-3 py-3"><div className="flex items-center gap-3"><div className="h-12 w-16 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-50">{game.imageUrl ? <img src={game.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center"><ImageIcon className="h-5 w-5 text-slate-300" /></div>}</div><div className="min-w-0"><p className="font-semibold text-slate-800">{game.title}</p><p className="mt-1 break-all font-mono text-[9px] text-slate-500" title={game.id}>{game.id}</p><p className="mt-1 truncate font-mono text-[9px] text-slate-400">{game.slug}</p></div></div></td>
+                  <td className="px-3 py-3"><p className="font-medium text-slate-700">{game.provider.name}</p><p className="mt-1 font-mono text-[10px] text-slate-400">{game.provider.code}</p></td>
+                  <td className="px-3 py-3"><Badge variant={game.sourceMode === 'standard' ? 'info' : 'warning'}>{game.sourceMode.toUpperCase()}</Badge><p className="mt-1 text-[10px] text-slate-400">ID {game.externalGameId}</p></td>
+                  <td className="px-3 py-3"><div className="flex flex-wrap gap-1"><Badge variant={game.sourceAvailable ? 'success' : 'danger'}>{game.sourceAvailable ? 'Source on' : 'Source off'}</Badge><Badge variant={game.catalogAvailable ? 'success' : 'danger'}>{game.catalogAvailable ? 'Listed' : 'Not listed'}</Badge><Badge variant={game.providerTierEnabled ? 'success' : 'warning'}>{game.providerTierEnabled ? 'Tier on' : 'Tier off'}</Badge></div></td>
+                  <td className="px-3 py-3"><Badge variant={state.tone}>{state.label}</Badge>{!game.enabled ? <p className="mt-1 text-[10px] text-slate-400">Game toggle off</p> : null}{!game.providerEnabled ? <p className="mt-1 text-[10px] text-slate-400">Provider master off</p> : null}</td>
+                  <td className="px-3 py-3"><p className="font-medium tabular-nums text-slate-700">{game.displayOrder.toLocaleString()}</p><p className="mt-1 text-[10px] text-slate-400">{game.categories.slice(0,2).join(', ') || 'No categories'}</p></td>
+                  <td className="px-3 py-3"><div className="flex flex-col items-end gap-2">
+                    <Button type="button" size="sm" variant="outline" disabled={savingId !== '' || !modeWritable} onClick={() => openEditor(game)}><Pencil className="h-3.5 w-3.5" /> Edit Game</Button>
+                    <Button type="button" size="sm" variant={game.enabled ? 'destructive' : 'default'} disabled={savingId !== '' || !toggleAllowed} title={!modeWritable ? 'Premium requires an approved integration' : !game.providerEnabled ? 'Enable provider first' : !game.providerTierEnabled ? 'Enable this provider tier first' : !game.sourceAvailable ? 'Source is unavailable' : !game.catalogAvailable ? 'The source game is not listed' : ''} onClick={() => void toggleGame(game)}>{savingId === game.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : null}{game.enabled ? 'Disable game' : 'Enable game'}</Button>
+                  </div></td>
+                </tr>
+              })}
+              {!loading && games.length === 0 ? <tr><td colSpan={8} className="px-4 py-12 text-center text-xs text-slate-400">No real catalogue games match these filters.</td></tr> : null}
+              {loading ? <tr><td colSpan={8} className="px-4 py-10 text-center text-xs text-slate-500"><LoaderCircle className="mr-2 inline h-4 w-4 animate-spin" />Loading games from PostgreSQL…</td></tr> : null}
+            </tbody>
+          </table>
         </div>
+        <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-[11px] text-slate-500">Showing {resultStart.toLocaleString()}–{resultEnd.toLocaleString()} of {resultPage.total.toLocaleString()} records · Page {page}</p><div className="flex items-center justify-end gap-2"><Button type="button" variant="outline" size="sm" disabled={loading || page <= 1} onClick={() => setPage((value) => Math.max(1,value-1))}><ChevronLeft className="h-3.5 w-3.5" /> Previous</Button><Button type="button" variant="outline" size="sm" disabled={loading || resultPage.nextPage === null} onClick={() => setPage((value) => value+1)}>Next <ChevronRight className="h-3.5 w-3.5" /></Button></div></div>
+      </CardContent>
+    </Card>
 
-        <section className={sectionClass}>
-          <h3 className="text-sm font-semibold text-slate-900">Images</h3>
-          <p className="mt-1 text-[10px] text-slate-500">Choose a preview style or upload an image (440 × 310).</p>
-          <div className="mt-3 grid gap-4 lg:grid-cols-2">
-            <div><p className={labelClass}>Game icon (440 × 310)</p><div className="grid grid-cols-3 gap-2">{SKIN_GAME_ART_PRESETS.map((preset) => <button key={preset.label} type="button" onClick={() => patchDraft({ iconImage: '', art: preset.art })} className={cn('overflow-hidden rounded-md border p-1.5 text-left', editDraft.art === preset.art && !editDraft.iconImage ? 'border-slate-900 ring-1 ring-slate-900' : 'border-slate-200 hover:border-slate-400')}><div className={cn('h-14 rounded bg-gradient-to-br', preset.art)} /><span className="mt-1 block truncate text-[9px] text-slate-600">{preset.label}</span></button>)}</div><label className="mt-3 block"><span className="sr-only">Upload game icon</span><input type="file" accept="image/*" onChange={(event) => { const file = event.currentTarget.files?.[0]; if (file) patchDraft({ iconImage: URL.createObjectURL(file) }) }} className="block w-full text-[10px] text-slate-500 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-medium file:text-slate-700" /></label>{editDraft.iconImage ? <img src={editDraft.iconImage} alt="Game icon preview" className="mt-2 h-20 w-28 rounded-md border border-slate-200 object-cover" /> : null}</div>
-            <div><p className={labelClass}>Background</p><div className="grid grid-cols-3 gap-2">{SKIN_GAME_ART_PRESETS.map((preset) => <button key={preset.label} type="button" onClick={() => patchDraft({ backgroundImage: preset.art })} className={cn('overflow-hidden rounded-md border p-1.5 text-left', editDraft.backgroundImage === preset.art ? 'border-slate-900 ring-1 ring-slate-900' : 'border-slate-200 hover:border-slate-400')}><div className={cn('h-14 rounded bg-gradient-to-br', preset.art)} /><span className="mt-1 block truncate text-[9px] text-slate-600">{preset.label}</span></button>)}</div><label className="mt-3 block"><span className="sr-only">Upload background image</span><input type="file" accept="image/*" onChange={(event) => { const file = event.currentTarget.files?.[0]; if (file) patchDraft({ backgroundImage: URL.createObjectURL(file) }) }} className="block w-full text-[10px] text-slate-500 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-medium file:text-slate-700" /></label>{editDraft.backgroundImage && editDraft.backgroundImage.startsWith('blob:') ? <img src={editDraft.backgroundImage} alt="Background preview" className="mt-2 h-20 w-full rounded-md border border-slate-200 object-cover" /> : null}</div>
+    <p className="text-[11px] leading-5 text-slate-400">The original BigBang image is always the default. Uploading replaces it with a validated local persistent asset and stores only the server-generated key; no blob URL is saved. Every availability, presentation, image and order mutation is audited with the authenticated administrator ID.</p>
+
+    <Modal open={Boolean(editorGame)} onOpenChange={(open) => { if (!open && !editorBusy) { setEditorGame(null); setImageFile(null); setImagePreview('') } }} title="Edit Game" description="Edits are persisted for this exact canonical UUID. The provider-owned identity and source tier are read-only." size="wide" footer={<><Button type="button" variant="outline" disabled={editorBusy} onClick={() => setEditorGame(null)}>Cancel</Button><Button type="submit" form="skin-game-edit-form" disabled={editorBusy || !editorGame}>{editorBusy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}Save changes</Button></>}>
+      {editorGame ? <form id="skin-game-edit-form" onSubmit={(event) => void saveEditor(event)} className="space-y-5">
+        <div className="grid gap-5 md:grid-cols-[220px_minmax(0,1fr)]">
+          <div className="space-y-3">
+            <div className="aspect-[4/3] overflow-hidden rounded-lg border border-slate-200 bg-slate-50">{(imagePreview || (!clearCustomImage && editorGame.customImageUrl) || editorGame.sourceImageUrl) ? <img src={imagePreview || (!clearCustomImage && editorGame.customImageUrl) || editorGame.sourceImageUrl || ''} alt={editorGame.title} className="h-full w-full object-contain" /> : <div className="flex h-full items-center justify-center text-xs text-slate-400">No source image available</div>}</div>
+            <div className="space-y-1.5"><label htmlFor="skin-game-image" className="text-xs font-medium text-slate-700">Custom image (PNG/JPEG/WebP, max 5 MiB)</label><Input id="skin-game-image" type="file" accept="image/png,image/jpeg,image/webp" disabled={editorBusy} onChange={(event) => { const file = event.target.files?.[0] ?? null; setImageFile(file); setClearCustomImage(false); setEditorError('') }} className="h-auto py-2 text-xs" /></div>
+            {editorGame.customImageUrl ? <Button type="button" size="sm" variant="outline" disabled={editorBusy} onClick={() => { setImageFile(null); setImagePreview(''); setClearCustomImage(true) }}><RotateCcw className="h-3.5 w-3.5" /> Restore BigBang image</Button> : null}
+            {imageFile ? <p className="text-[10px] leading-4 text-slate-500">Selected: {imageFile.name} · {(imageFile.size/1024).toFixed(0)} KiB. The server validates the actual file bytes and stores it outside the web bundle.</p> : null}
           </div>
-        </section>
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1"><p className="text-[11px] text-slate-500">Game title</p><p className="text-sm font-semibold text-slate-900">{editorGame.title}</p></div>
+              <div className="space-y-1"><p className="text-[11px] text-slate-500">Provider</p><p className="text-sm font-semibold text-slate-900">{editorGame.provider.name}</p></div>
+              <div className="space-y-1"><p className="text-[11px] text-slate-500">Source mode</p><Badge variant={editorGame.sourceMode === 'standard' ? 'info' : 'warning'}>{editorGame.sourceMode.toUpperCase()}</Badge></div>
+              <div className="space-y-1"><p className="text-[11px] text-slate-500">BigBang source game ID</p><p className="font-mono text-xs text-slate-700">{editorGame.externalGameId}</p></div>
+              <div className="space-y-1 sm:col-span-2"><p className="text-[11px] text-slate-500">Canonical Bclick UUID</p><code className="block break-all rounded-md bg-slate-50 p-2 font-mono text-[11px] text-slate-700">{editorGame.id}</code></div>
+            </div>
+            <div className="space-y-1.5"><label htmlFor="skin-game-description" className="text-xs font-medium text-slate-700">Description override</label><textarea id="skin-game-description" maxLength={2000} rows={7} value={descriptionDraft} disabled={editorBusy} onChange={(event) => setDescriptionDraft(event.target.value)} placeholder="Optional description shown instead of the default source description…" className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm leading-5 text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100" /><p className="text-[10px] text-slate-400">{descriptionDraft.length}/2000 characters · Leave blank to use the source default.</p></div>
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-[11px] leading-5 text-slate-600"><p><strong>Original thumbnail:</strong> {editorGame.sourceImageUrl ? <a className="underline" href={editorGame.sourceImageUrl} target="_blank" rel="noreferrer">Open BigBang image</a> : 'Not supplied by the source'}</p><p className="mt-1"><strong>Current presentation editor:</strong> {editorGame.updatedBy || 'No edit recorded'} · {formatDate(editorGame.updatedAt)}</p></div>
+          </div>
+        </div>
+        {editorError ? <p role="alert" className="rounded-md border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-800">{editorError}</p> : null}
       </form> : null}
     </Modal>
-    <p className="text-[10px] text-slate-400">The game editor saves changes to this browser session's local CMS preview. A live catalogue API or publishing endpoint is not connected here.</p>
   </div>
 }
