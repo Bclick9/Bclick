@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Clock3, Gamepad2, Gift, Plus, Search, Sparkles, TrendingUp, Users, Zap, CircleDollarSign, Trophy, ArrowDown, ArrowUp, Image as ImageIcon, Layers, Trash2, LoaderCircle, Save, RefreshCw } from 'lucide-react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Clock3, Gamepad2, Gift, Plus, Search, Sparkles, TrendingUp, Users, Zap, CircleDollarSign, Trophy, ArrowDown, ArrowUp, Image as ImageIcon, Layers, ListChecks, Trash2, LoaderCircle, Save, RefreshCw } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardDescription, CardTitle, Input, Modal } from '../../components/ui'
 import { cn } from '../../lib/utils'
@@ -43,6 +43,23 @@ export const CMS_CATEGORY_ICON_OPTIONS: { value: string; label: string; icon: Lu
 
 type CategoryListResponse = { data: CmsCategory[]; requestId?: string }
 
+type CategoryPickerGame = {
+  id: string
+  slug: string
+  title: string
+  provider: string
+  imageUrl: string | null
+  available: boolean
+}
+
+type CategoryPickerResponse = {
+  data: CategoryPickerGame[]
+  selectedGameIds: string[]
+  page: { page: number; pageSize: number; total: number; nextPage: number | null }
+  requestId?: string
+}
+
+
 export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) => void }) {
   const [categories, setCategories] = useState<CmsCategory[]>([])
   const [drafts, setDrafts] = useState<Record<string, CategoryDraft>>({})
@@ -56,6 +73,18 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
   const [savingId, setSavingId] = useState('')
   const [error, setError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
+  const [pickerCategory, setPickerCategory] = useState<CmsCategory | null>(null)
+  const [pickerSearch, setPickerSearch] = useState('')
+  const [pickerGames, setPickerGames] = useState<CategoryPickerGame[]>([])
+  const [pickerSelectedIds, setPickerSelectedIds] = useState<string[]>([])
+  const [pickerNextPage, setPickerNextPage] = useState<number | null>(null)
+  const [pickerTotal, setPickerTotal] = useState(0)
+  const [pickerLoading, setPickerLoading] = useState(false)
+  const [pickerLoadingMore, setPickerLoadingMore] = useState(false)
+  const [pickerSaving, setPickerSaving] = useState(false)
+  const [pickerError, setPickerError] = useState('')
+  const [pickerReloadKey, setPickerReloadKey] = useState(0)
+  const pickerLoadedCategoryRef = useRef('')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -80,6 +109,43 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
     return () => controller.abort()
   }, [reloadKey])
 
+
+  useEffect(() => {
+    if (!pickerCategory) return
+    const controller = new AbortController()
+    setPickerLoading(true)
+    setPickerError('')
+    const timeout = window.setTimeout(() => {
+      const params = new URLSearchParams({ page: '1', pageSize: '50' })
+      if (pickerSearch.trim()) params.set('query', pickerSearch.trim())
+      void requestAdminApi<CategoryPickerResponse>(
+        '/api/v1/admin/casino/display-categories/' + encodeURIComponent(pickerCategory.id) + '/games?' + params.toString(),
+        { signal: controller.signal },
+      ).then((response) => {
+        if (controller.signal.aborted) return
+        setPickerGames(response.data)
+        setPickerNextPage(response.page.nextPage)
+        setPickerTotal(response.page.total)
+        if (pickerLoadedCategoryRef.current !== pickerCategory.id) {
+          setPickerSelectedIds(response.selectedGameIds)
+          pickerLoadedCategoryRef.current = pickerCategory.id
+        }
+      }).catch((caught: unknown) => {
+        if (!controller.signal.aborted) {
+          setPickerError(errorMessage(caught, 'Could not load games for this category.'))
+          setPickerGames([])
+          setPickerNextPage(null)
+        }
+      }).finally(() => {
+        if (!controller.signal.aborted) setPickerLoading(false)
+      })
+    }, pickerSearch.trim() ? 200 : 0)
+    return () => {
+      window.clearTimeout(timeout)
+      controller.abort()
+    }
+  }, [pickerCategory?.id, pickerSearch, pickerReloadKey])
+
   const visibleCategories = categories.filter((category) => category.visible)
   const assignedGames = categories.reduce((total, category) => total + category.items, 0)
   const filtered = categories.filter((category) => (
@@ -88,6 +154,68 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
 
   async function reload() {
     setReloadKey((value) => value + 1)
+  }
+
+
+  function openGamePicker(category: CmsCategory) {
+    pickerLoadedCategoryRef.current = ''
+    setPickerCategory(category)
+    setPickerSearch('')
+    setPickerGames([])
+    setPickerSelectedIds([])
+    setPickerNextPage(null)
+    setPickerTotal(0)
+    setPickerError('')
+    setPickerReloadKey((value) => value + 1)
+  }
+
+  function togglePickerGame(gameId: string, checked: boolean) {
+    setPickerSelectedIds((current) => checked
+      ? current.includes(gameId) ? current : [...current, gameId]
+      : current.filter((id) => id !== gameId))
+  }
+
+  async function loadMorePickerGames() {
+    if (!pickerCategory || !pickerNextPage || pickerLoadingMore) return
+    setPickerLoadingMore(true)
+    setPickerError('')
+    try {
+      const params = new URLSearchParams({ page: String(pickerNextPage), pageSize: '50' })
+      if (pickerSearch.trim()) params.set('query', pickerSearch.trim())
+      const response = await requestAdminApi<CategoryPickerResponse>(
+        '/api/v1/admin/casino/display-categories/' + encodeURIComponent(pickerCategory.id) + '/games?' + params.toString(),
+      )
+      setPickerGames((current) => {
+        const ids = new Set(current.map((game) => game.id))
+        return [...current, ...response.data.filter((game) => !ids.has(game.id))]
+      })
+      setPickerNextPage(response.page.nextPage)
+      setPickerTotal(response.page.total)
+    } catch (caught) {
+      setPickerError(errorMessage(caught, 'Could not load more games.'))
+    } finally {
+      setPickerLoadingMore(false)
+    }
+  }
+
+  async function savePickerGames() {
+    if (!pickerCategory || pickerSaving) return
+    setPickerSaving(true)
+    setPickerError('')
+    try {
+      await requestAdminApi('/api/v1/admin/casino/display-categories/' + encodeURIComponent(pickerCategory.id) + '/games', {
+        method: 'PUT',
+        headers: getAdminCsrfHeaders(),
+        body: JSON.stringify({ gameIds: pickerSelectedIds }),
+      })
+      onNotify(pickerSelectedIds.length + ' games assigned to "' + pickerCategory.name + '".')
+      setPickerCategory(null)
+      await reload()
+    } catch (caught) {
+      setPickerError(errorMessage(caught, 'Could not save the selected games.'))
+    } finally {
+      setPickerSaving(false)
+    }
   }
 
   async function addCategory(event: FormEvent<HTMLFormElement>) {
@@ -296,6 +424,48 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
         </div>
       </form>
     </Modal>
+    <Modal
+      open={Boolean(pickerCategory)}
+      onOpenChange={(open)=>{ if(!open && !pickerSaving) setPickerCategory(null) }}
+      title={pickerCategory ? 'Select games — '+pickerCategory.name : 'Select games'}
+      description="Search the Standard catalogue and choose the games that should appear in this Lobby collection. Your selection is saved separately from provider categories."
+      size="wide"
+      footer={
+        <>
+          <Button type="button" variant="outline" disabled={pickerSaving} onClick={()=>setPickerCategory(null)}>Cancel</Button>
+          <Button type="button" disabled={pickerSaving || pickerLoading} onClick={()=>void savePickerGames()}>{pickerSaving?<LoaderCircle className="h-4 w-4 animate-spin"/>:<Save className="h-4 w-4"/>}Save {pickerSelectedIds.length} selected</Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="relative min-w-[220px] flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"/>
+            <Input value={pickerSearch} onChange={(event)=>setPickerSearch(event.target.value)} placeholder="Search by game title, slug or provider…" className="pl-9" aria-label="Search games for category"/>
+          </div>
+          <div className="text-xs text-slate-500"><span className="font-semibold text-slate-900">{pickerSelectedIds.length}</span> selected · {pickerTotal} games found</div>
+        </div>
+        {pickerError ? <p role="alert" className="rounded-md border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-800">{pickerError}</p> : null}
+        <div className="max-h-[52vh] overflow-y-auto rounded-lg border border-slate-200">
+          {pickerLoading ? <p role="status" className="p-8 text-center text-xs text-slate-500"><LoaderCircle className="mr-2 inline h-4 w-4 animate-spin"/>Loading games…</p> : null}
+          {!pickerLoading && pickerGames.length===0 ? <p className="p-8 text-center text-xs text-slate-500">No games match this search.</p> : null}
+          {pickerGames.map((game) => (
+            <label key={game.id} className={cn('flex cursor-pointer items-center gap-3 border-b border-slate-100 p-3 last:border-b-0 hover:bg-slate-50',pickerSelectedIds.includes(game.id)?'bg-sky-50/70':'bg-white')}>
+              <input type="checkbox" checked={pickerSelectedIds.includes(game.id)} onChange={(event)=>togglePickerGame(game.id,event.target.checked)} disabled={pickerSaving} className="h-4 w-4 shrink-0 rounded border-slate-300 text-sky-600 focus:ring-sky-500"/>
+              <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-slate-100">
+                {game.imageUrl ? <img src={game.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover"/> : <Gamepad2 className="m-3 h-6 w-6 text-slate-400"/>}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-slate-900">{game.title}</p>
+                <p className="truncate text-[11px] text-slate-500">{game.provider} · {game.slug}</p>
+              </div>
+              <span className={cn('shrink-0 rounded-full px-2 py-1 text-[10px] font-medium',game.available?'bg-emerald-50 text-emerald-700':'bg-slate-100 text-slate-500')}>{game.available?'Available':'Unavailable'}</span>
+            </label>
+          ))}
+        </div>
+        {pickerNextPage ? <div className="flex justify-center"><Button type="button" variant="outline" disabled={pickerLoadingMore || pickerLoading} onClick={()=>void loadMorePickerGames()}>{pickerLoadingMore?<LoaderCircle className="h-4 w-4 animate-spin"/>:null}Load more games</Button></div> : null}
+      </div>
+    </Modal>
     <Card>
       <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
         <div><CardTitle>Curated Lobby collections</CardTitle><CardDescription className="mt-1">These are Bclick display categories, separate from categories supplied by the game provider.</CardDescription></div>
@@ -315,7 +485,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
             const draft = drafts[category.id] ?? {name:category.name,description:category.description,icon:category.icon}
             const selectedIcon = CMS_CATEGORY_ICON_OPTIONS.find((option) => option.value === draft.icon) ?? CMS_CATEGORY_ICON_OPTIONS[0]!
             const CategoryIcon = selectedIcon.icon
-            const changed = draft.name.trim() !== category.name || draft.description !== category.description || draft.icon !== category.icon
+            const changed = draft.name.trim() !== category.name || draft.description !== category.description
             return <div key={category.id} className={cn('rounded-xl border p-3',category.visible?'border-slate-200 bg-white':'border-dashed border-slate-200 bg-slate-50/70')}>
               <div className="flex flex-wrap items-start gap-3">
                 <div className="flex shrink-0 items-center gap-1 sm:flex-col">
@@ -329,7 +499,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
                   <div className="grid gap-2 md:grid-cols-[minmax(180px,0.8fr)_minmax(220px,1.4fr)_140px]">
                     <Input value={draft.name} maxLength={80} aria-label={'Name for '+category.name} onChange={(event)=>setDrafts((current)=>({...current,[category.id]:{...draft,name:event.target.value}}))} disabled={savingId!==''} />
                     <Input value={draft.description} maxLength={500} aria-label={'Description for '+category.name} placeholder="Optional description" onChange={(event)=>setDrafts((current)=>({...current,[category.id]:{...draft,description:event.target.value}}))} disabled={savingId!==''} />
-                    <select value={draft.icon} aria-label={'Icon for '+category.name} onChange={(event)=>setDrafts((current)=>({...current,[category.id]:{...draft,icon:event.target.value}}))} disabled={savingId!==''} className="h-10 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-600 outline-none focus:ring-2 focus:ring-slate-200">{CMS_CATEGORY_ICON_OPTIONS.map((option)=><option key={option.value} value={option.value}>{option.label}</option>)}</select>
+
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <Badge variant={category.visible?'success':'outline'}>{category.visible?'Visible in Lobby':'Hidden from Lobby'}</Badge>
@@ -338,6 +508,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <Button type="button" size="sm" variant="outline" disabled={savingId!==''} onClick={()=>openGamePicker(category)}><ListChecks className="h-3.5 w-3.5" />Select games</Button>
                   <label className="inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-xs font-medium text-foreground hover:bg-accent has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
                     <ImageIcon className="h-3.5 w-3.5" /> Upload icon
                     <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={savingId!==''} aria-label={'Upload icon for '+category.name} onChange={(event)=>{const file=event.target.files?.[0]; event.target.value=''; void uploadCategoryIcon(category,file)}} />
