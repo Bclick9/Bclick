@@ -29,6 +29,17 @@ test('type routes are shared while source category slugs reserved for page types
   assert.ok(source.includes("type,\n      category: selectedCategory"));
 });
 
+test('reserved type slugs redirect to canonical type pages and unknown categories stay within the active type', async () => {
+  const source = await readFile(new URL('../pages/Casino.tsx', import.meta.url), 'utf8');
+  assert.ok(source.includes("'slot-games': '/casino/lobby'"));
+  assert.ok(source.includes("'live-casino': '/live-casino'"));
+  assert.ok(source.includes("'crash-games': '/crash-games'"));
+  assert.ok(source.includes('const typeRouteRedirect = RESERVED_TYPE_ROUTE_TARGETS[category]'));
+  assert.ok(source.includes('if (typeRouteRedirect) return <Navigate to={typeRouteRedirect} replace />'));
+  assert.ok(source.includes("type === 'casino' ? routeBase + '/lobby' : routeBase"));
+  assert.ok(source.includes("!RESERVED_TYPE_ROUTE_SLUGS.has(item.slug)"));
+});
+
 test('casino catalogue storefront does not reintroduce hard-coded game cards or category membership', async () => {
   const source = await readFile(new URL('../pages/Casino.tsx', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /import\s+\{[^}]*\bGAMES\b[^}]*\}\s+from\s+['"][^'"]*data\/catalog['"]/);

@@ -102,7 +102,15 @@ const CATEGORY_PRESENTATION: Record<string, { label: string; icon: string }> = {
 
 // Old category paths remain recognizable, but this presentation map never invents
 // category membership or game cards. Every category's contents must come from the API.
-const LEGACY_CATEGORY_ROUTE_SLUGS = new Set(Object.keys(CATEGORY_PRESENTATION));
+const RESERVED_TYPE_ROUTE_TARGETS: Partial<Record<string, string>> = {
+  'slot-games': '/casino/lobby',
+  'live-casino': '/live-casino',
+  'crash-games': '/crash-games',
+};
+const RESERVED_TYPE_ROUTE_SLUGS = new Set(Object.keys(RESERVED_TYPE_ROUTE_TARGETS));
+const LEGACY_CATEGORY_ROUTE_SLUGS = new Set(
+  Object.keys(CATEGORY_PRESENTATION).filter((slug) => !RESERVED_TYPE_ROUTE_SLUGS.has(slug)),
+);
 
 const ICONS: Record<string, LucideIcon> = {
   Home, Cherry, Ghost, Flame, Sparkles, Crown, ShoppingBag, Rocket, Gem, Spade, Trophy,
@@ -144,7 +152,7 @@ function CategoryStrip({ active, categories, displayCategories, type, basePath }
   // Curated Bclick categories belong immediately after Lobby; source categories follow them.
   // Game-type routes remain available directly, but are not mixed into this generic strip.
   const reservedTypeSlugs = new Set(['crash-games', 'live-casino', 'slot-games'])
-  const visibleDisplayCategories = displayCategories.filter((item) => item.slug !== 'lobby')
+  const visibleDisplayCategories = displayCategories.filter((item) => item.slug !== 'lobby' && !RESERVED_TYPE_ROUTE_SLUGS.has(item.slug))
   const displayCategorySlugs = new Set(visibleDisplayCategories.map((item) => item.slug))
   const items = [
     { slug: 'lobby', title: 'Lobby', icon: 'home', iconUrl: null as string | null },
@@ -335,7 +343,8 @@ export function CasinoCategory({ type = 'casino', routeBase = '/casino' }: { typ
   const isLobby = category === 'lobby'
   const availableCategory = catalogCategories.some((item) => item.slug === category)
   const selectedDisplayCategory = displayCategories.find((item) => item.slug === category)
-  const known = isLobby || availableCategory || Boolean(selectedDisplayCategory) || LEGACY_CATEGORY_ROUTE_SLUGS.has(category)
+  const typeRouteRedirect = RESERVED_TYPE_ROUTE_TARGETS[category];
+  const known = !typeRouteRedirect && (isLobby || availableCategory || Boolean(selectedDisplayCategory) || LEGACY_CATEGORY_ROUTE_SLUGS.has(category))
   const useLiveCatalog = known || Boolean(searchTerm)
 
   useEffect(() => {
@@ -372,7 +381,8 @@ export function CasinoCategory({ type = 'casino', routeBase = '/casino' }: { typ
   }, [category, searchTerm, useLiveCatalog, isLobby, selectedDisplayCategory?.slug, catalogReloadKey, type])
 
   if (category === 'providers') return <Providers />
-  if (!known && !categoriesLoading && !displayCategoriesLoading) return <Navigate to="/casino" replace />
+  if (typeRouteRedirect) return <Navigate to={typeRouteRedirect} replace />
+  if (!known && !categoriesLoading && !displayCategoriesLoading) return <Navigate to={type === 'casino' ? routeBase + '/lobby' : routeBase} replace />
 
   const categoryInfo = catalogCategories.find((item) => item.slug === category)
   const categoryTitle = selectedDisplayCategory?.name
