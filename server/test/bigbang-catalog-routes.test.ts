@@ -320,3 +320,39 @@ test('public provider directory returns only enabled Standard providers and forb
     await app.close();
   }
 });
+
+
+test('Q-020 documents validation envelopes for malformed catalogue cursors and display type', async () => {
+  const fixture = catalogDatabase();
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    logLevel: 'silent',
+  });
+
+  const cases = [
+    { url: '/api/v1/casino/categories?cursor=not-a-valid-cursor', requestId: 'q020-category-cursor' },
+    { url: '/api/v1/casino/providers?cursor=not-a-valid-cursor', requestId: 'q020-provider-cursor' },
+    { url: '/api/v1/casino/games?cursor=not-a-valid-cursor', requestId: 'q020-games-cursor' },
+    { url: '/api/v1/casino/display-categories?type=', requestId: 'q020-display-type' },
+  ];
+
+  try {
+    for (const entry of cases) {
+      const response = await app.inject({
+        method: 'GET',
+        url: entry.url,
+        headers: { 'x-request-id': entry.requestId },
+      });
+
+      assert.equal(response.statusCode, 400, entry.url);
+      assert.equal(response.json().error.code, 'VALIDATION_ERROR', entry.url);
+      assert.equal(response.json().requestId, entry.requestId, entry.url);
+      assert.equal(response.headers['x-request-id'], entry.requestId, entry.url);
+    }
+
+    assert.equal(fixture.calls.length, 0, 'invalid query inputs must not reach the catalogue database');
+  } finally {
+    await app.close();
+  }
+});
