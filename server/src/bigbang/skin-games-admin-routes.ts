@@ -305,7 +305,7 @@ export function registerSkinGamesAdminRoutes(
         ), target_rank AS (
           SELECT rank FROM ranked_without_moved WHERE id=$2
         ), sortable AS (
-          SELECT id,old_order::numeric AS sort_key FROM ranked_without_moved
+          SELECT id,rank::numeric AS sort_key FROM ranked_without_moved
           UNION ALL
           SELECT $1::uuid,
                  (SELECT rank::numeric FROM target_rank) + CASE WHEN $3='before' THEN -0.5 ELSE 0.5 END
