@@ -97,6 +97,37 @@ export function buildApp(options: BuildAppOptions) {
     }
   });
 
+  app.setErrorHandler((error, request, reply) => {
+    const isRequestValidationError = Boolean(error.validation && error.validationContext !== 'response');
+    const statusCode = isRequestValidationError
+      ? 400
+      : typeof error.statusCode === 'number' && error.statusCode >= 400 && error.statusCode < 600
+        ? error.statusCode
+        : 500;
+    const code = isRequestValidationError
+      ? 'VALIDATION_ERROR'
+      : statusCode >= 500
+        ? 'INTERNAL_ERROR'
+        : 'REQUEST_REJECTED';
+    const message = isRequestValidationError
+      ? 'Request validation failed'
+      : statusCode >= 500
+        ? 'The request could not be completed'
+        : 'Request could not be processed';
+
+    // Never return framework validation details or untrusted input values to clients.
+    if (statusCode >= 500) {
+      request.log.error({ requestId: request.id, code: error.code }, 'Unhandled request error');
+    } else {
+      request.log.debug({ requestId: request.id, code }, 'Request rejected');
+    }
+
+    return reply.code(statusCode).send({
+      error: { code, message },
+      requestId: request.id,
+    });
+  });
+
   app.get(
     '/api/v1/health/live',
     {
