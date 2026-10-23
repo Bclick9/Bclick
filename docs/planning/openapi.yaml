@@ -497,15 +497,24 @@ paths:
             minimum: 1
             maximum: 100
             default: 25
+        - name: type
+          in: query
+          required: false
+          description: Scope source categories to one Bclick storefront game type.
+          schema: {type: string, enum: [casino, live-casino, crash-games]}
       operationId: getCasinoCategories
   /api/v1/casino/display-categories:
     get:
       tags: [Casino]
       security: []
       summary: List visible operator-curated storefront collections
-      description: Returns Bclick-owned Lobby shelves with up to 24 currently available Standard Sandbox canonical games per category. Separate from provider-owned source categories.
+      description: Returns visible Bclick-owned display categories for all game types or the requested type. Only currently available Standard Sandbox canonical games whose game_type matches each category type are included. Category definitions remain separate from provider-owned source categories.
       parameters:
         - $ref: '#/components/parameters/XRequestId'
+        - name: type
+          in: query
+          required: false
+          schema: {type: string, enum: [casino, live-casino, crash-games]}
       responses:
         '200':
           description: Visible curated collections.
@@ -519,13 +528,14 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [id, slug, name, description, icon, displayOrder, games]
+                      required: [id, slug, name, description, icon, type, displayOrder, games]
                       properties:
                         id: {type: string, format: uuid}
                         slug: {type: string}
                         name: {type: string}
                         description: {type: string}
                         icon: {type: string}
+                        type: {type: string, enum: [casino, live-casino, crash-games]}
                         iconUrl: {type: [string, 'null'], format: uri-reference}
                         displayOrder: {type: integer}
                         games: {type: array, maxItems: 24, items: {$ref: '#/components/schemas/GameSummary'}}
@@ -581,7 +591,8 @@ paths:
       summary: Search the local normalized catalogue; never call vendor for each card
       parameters:
         - {name: category, in: query, description: Filter by provider/source category slug., schema: {type: string, maxLength: 80}}
-        - {name: displayCategory, in: query, description: Filter to currently visible games assigned to a Bclick-managed display category slug., schema: {type: string, minLength: 1, maxLength: 80}}
+        - {name: displayCategory, in: query, description: Filter to currently visible games assigned to a Bclick-managed display category slug with matching game type., schema: {type: string, minLength: 1, maxLength: 80}}
+        - {name: type, in: query, description: Restrict the catalogue to the selected storefront game type., schema: {type: string, enum: [casino, live-casino, crash-games]}}
         - {name: provider, in: query, schema: {type: string, maxLength: 80}}
         - {name: query, in: query, schema: {type: string, maxLength: 100}}
         - {name: mode, in: query, schema: {type: string, enum: [demo, real]}}
@@ -606,7 +617,7 @@ paths:
               $ref: '#/components/headers/XRequestId'
         '400': {$ref: '#/components/responses/ValidationError'}
       operationId: getCasinoGames
-      description: Every GameSummary includes its stable slug, provider and full source categories[] set. Use category for provider/source-category filtering and displayCategory for Bclick-managed category membership.
+      description: Every GameSummary includes its stable slug, provider and full source categories[] set. Use category for provider/source-category filtering, displayCategory for Bclick-managed category membership, and type to scope Casino (slot), Live Casino (live), or Crash Games (crash) results.
   /api/v1/casino/games/by-slug/{slug}:
     get:
       tags:
@@ -1619,13 +1630,14 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [id, slug, name, description, icon, visible, displayOrder, items, createdAt, updatedAt]
+                      required: [id, slug, name, description, icon, type, visible, displayOrder, items, createdAt, updatedAt]
                       properties:
                         id: {type: string, format: uuid}
                         slug: {type: string}
                         name: {type: string, maxLength: 80}
                         description: {type: string, maxLength: 500}
                         icon: {type: string}
+                        type: {type: string, enum: [casino, live-casino, crash-games]}
                         iconUrl: {type: [string, 'null'], format: uri-reference}
                         visible: {type: boolean}
                         displayOrder: {type: integer}
@@ -1639,7 +1651,7 @@ paths:
     post:
       tags: [Backoffice]
       security: [adminSession: []]
-      summary: Create a curated Lobby category
+      summary: Create a Bclick-managed category for a storefront game type
       parameters:
         - $ref: '#/components/parameters/CsrfToken'
         - $ref: '#/components/parameters/XRequestId'
@@ -1655,6 +1667,7 @@ paths:
                 name: {type: string, minLength: 1, maxLength: 80}
                 description: {type: string, maxLength: 500}
                 icon: {type: string, enum: [layers, gamepad, sparkles, trending, clock, users, money, gift, trophy, zap]}
+                type: {type: string, enum: [casino, live-casino, crash-games], default: casino}
                 visible: {type: boolean, default: true}
       responses:
         '201': {description: Category created and audit event recorded.}
@@ -1750,6 +1763,7 @@ paths:
                 name: {type: string, minLength: 1, maxLength: 80}
                 description: {type: string, maxLength: 500}
                 icon: {type: string, enum: [layers, gamepad, sparkles, trending, clock, users, money, gift, trophy, zap]}
+                type: {type: string, enum: [casino, live-casino, crash-games]}
                 visible: {type: boolean}
                 displayOrder: {type: integer, minimum: 0, maximum: 100000000}
       responses:
@@ -1777,8 +1791,8 @@ paths:
     get:
       tags: [Backoffice]
       security: [adminSession: []]
-      summary: Search Standard games and read membership for a curated Lobby category
-      description: Requires casino.provider-settings.manage. Search is paginated over canonical Standard game UUIDs only. selectedGameIds always contains every game currently assigned to this category, independent of current search or page.
+      summary: Search Standard games matching a display category's Type and read its membership
+      description: Requires casino.provider-settings.manage. Search is paginated over canonical Standard game UUIDs matching this category's Casino, Live Casino or Crash Games type. selectedGameIds always contains all currently assigned canonical Standard games matching that type, independent of the current search or page.
       parameters:
         - {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
         - {name: pageSize, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 50}}
@@ -1825,7 +1839,7 @@ paths:
       tags: [Backoffice]
       security: [adminSession: []]
       summary: Replace game membership for a curated Lobby category
-      description: Requires casino.provider-settings.manage, MFA, Origin and CSRF. Atomically replaces the selected category's memberships and records an audit event. Only canonical Standard games are accepted; Premium assignments remain locked. Other curated categories, provider-owned categories and game identity are unaffected.
+      description: Requires casino.provider-settings.manage, MFA, Origin and CSRF. Atomically replaces the selected category's memberships and records an audit event. Only canonical Standard games matching the category Type are accepted; Premium assignments remain locked. Other curated categories, provider-owned categories and game identity are unaffected.
       parameters:
         - $ref: '#/components/parameters/CsrfToken'
       requestBody:
