@@ -109,7 +109,7 @@ const ICONS: Record<string, LucideIcon> = {
   crown: Crown, 'shopping-bag': ShoppingBag, rocket: Rocket, gem: Gem, spade: Spade, trophy: Trophy,
 };
 
-function CategoryStrip({ active, categories }: { active: string; categories: CasinoCatalogCategory[] }) {
+function CategoryStrip({ active, categories, displayCategories }: { active: string; categories: CasinoCatalogCategory[]; displayCategories: CasinoDisplayCategory[] }) {
   const railRef = useRef<HTMLUListElement | null>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
@@ -131,17 +131,25 @@ function CategoryStrip({ active, categories }: { active: string; categories: Cas
       rail.removeEventListener('scroll', updateScrollButtons)
       resizeObserver?.disconnect()
     }
-  }, [categories])
+  }, [categories, displayCategories])
 
   const scrollCategories = (direction: -1 | 1) => {
     const rail = railRef.current
     if (!rail) return
     rail.scrollBy({ left: direction * Math.max(240, rail.clientWidth * 0.65), behavior: 'smooth' })
   }
-  // These routes are game types, not operator-defined categories. Keep direct routes working
-  // while excluding the type pages from the category strip and curated category list.
+  // Curated Bclick categories belong immediately after Lobby; source categories follow them.
+  // Game-type routes remain available directly, but are not mixed into this generic strip.
   const gameTypeSlugs = new Set(['crash-games', 'live-casino', 'slot-games'])
-  const items = [{ slug: 'lobby', title: 'Lobby', icon: 'home' }, ...categories.filter((item) => item.slug !== 'lobby' && !gameTypeSlugs.has(item.slug))]
+  const visibleDisplayCategories = displayCategories.filter((item) => item.slug !== 'lobby' && !gameTypeSlugs.has(item.slug))
+  const displayCategorySlugs = new Set(visibleDisplayCategories.map((item) => item.slug))
+  const items = [
+    { slug: 'lobby', title: 'Lobby', icon: 'home', iconUrl: null as string | null },
+    ...visibleDisplayCategories.map((item) => ({ slug: item.slug, title: item.name, icon: item.icon, iconUrl: item.iconUrl })),
+    ...categories
+      .filter((item) => item.slug !== 'lobby' && !gameTypeSlugs.has(item.slug) && !displayCategorySlugs.has(item.slug))
+      .map((item) => ({ slug: item.slug, title: item.title, icon: item.icon ?? 'gem', iconUrl: null as string | null })),
+  ]
 
   return (
     <section className="mb-6">
@@ -157,7 +165,7 @@ function CategoryStrip({ active, categories }: { active: string; categories: Cas
                   <Link to={'/casino/' + item.slug} aria-current={isActive ? 'page' : undefined} data-status={isActive ? 'active' : undefined}
                     className={cn('block rounded-xl px-3 py-2 text-sm font-semibold text-slate-300 transition-colors hover:bg-[var(--cb-hover)]', isActive ? 'bg-[var(--cb-item-active)] text-white' : 'bg-[var(--cb-card)]')}>
                     <span className="flex items-center gap-x-1.5">
-                      <Icon className="h-5 w-5 shrink-0 mix-blend-plus-lighter" aria-hidden="true" />
+                      {item.iconUrl ? <img src={item.iconUrl} alt="" className="h-5 w-5 shrink-0 rounded object-cover" /> : <Icon className="h-5 w-5 shrink-0 mix-blend-plus-lighter" aria-hidden="true" />}
                       <span className="whitespace-nowrap">{presentation?.label ?? item.title}</span>
                     </span>
                   </Link>
@@ -350,6 +358,7 @@ export function CasinoCategory() {
   const [catalogReloadKey, setCatalogReloadKey] = useState(0)
   const [catalogCategories, setCatalogCategories] = useState<CasinoCatalogCategory[]>([])
   const [displayCategories, setDisplayCategories] = useState<CasinoDisplayCategory[]>([])
+  const [displayCategoriesLoading, setDisplayCategoriesLoading] = useState(true)
   const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [categoriesError, setCategoriesError] = useState('')
   useRefreshOnVisibility(() => setCatalogReloadKey((value) => value + 1))
@@ -359,8 +368,10 @@ export function CasinoCategory() {
     void fetchCasinoDisplayCategories(controller.signal).then((categories) => {
       if (!controller.signal.aborted) setDisplayCategories(categories)
     }).catch(() => {
-      // Curated shelves are optional on the Home page; the full catalogue still renders.
+      // Curated shelves are optional on Home; an unavailable category list must not block all games.
       if (!controller.signal.aborted) setDisplayCategories([])
+    }).finally(() => {
+      if (!controller.signal.aborted) setDisplayCategoriesLoading(false)
     })
     return () => controller.abort()
   }, [catalogReloadKey])
@@ -385,13 +396,14 @@ export function CasinoCategory() {
   const searchTerm = searchQuery.trim()
   const isLobby = category === 'lobby'
   const availableCategory = catalogCategories.some((item) => item.slug === category)
-  const known = isLobby || availableCategory || LEGACY_CATEGORY_ROUTE_SLUGS.has(category)
+  const selectedDisplayCategory = displayCategories.find((item) => item.slug === category)
+  const known = isLobby || availableCategory || Boolean(selectedDisplayCategory) || LEGACY_CATEGORY_ROUTE_SLUGS.has(category)
   const useLiveCatalog = known || Boolean(searchTerm)
 
   useEffect(() => {
     if (category === 'providers' || !useLiveCatalog) return
     const controller = new AbortController()
-    const selectedCategory = searchTerm || isLobby ? undefined : category
+    const selectedCategory = searchTerm || isLobby || selectedDisplayCategory ? undefined : category
     setCatalogLoading(true)
     setCatalogError('')
     setCatalogGames([])
@@ -402,6 +414,7 @@ export function CasinoCategory() {
     void fetchCasinoGames({
       pageSize: 48,
       category: selectedCategory,
+      displayCategory: searchTerm ? undefined : selectedDisplayCategory?.slug,
       query: searchTerm || undefined,
       signal: controller.signal,
     }).then((page) => {
@@ -417,13 +430,14 @@ export function CasinoCategory() {
     })
 
     return () => controller.abort()
-  }, [category, searchTerm, useLiveCatalog, isLobby, catalogReloadKey])
+  }, [category, searchTerm, useLiveCatalog, isLobby, selectedDisplayCategory?.slug, catalogReloadKey])
 
   if (category === 'providers') return <Providers />
-  if (!known && !categoriesLoading) return <Navigate to="/casino" replace />
+  if (!known && !categoriesLoading && !displayCategoriesLoading) return <Navigate to="/casino" replace />
 
   const categoryInfo = catalogCategories.find((item) => item.slug === category)
-  const categoryTitle = CATEGORY_PRESENTATION[category]?.label
+  const categoryTitle = selectedDisplayCategory?.name
+    ?? CATEGORY_PRESENTATION[category]?.label
     ?? categoryInfo?.title
     ?? category.split('-').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
 
@@ -435,7 +449,8 @@ export function CasinoCategory() {
       const page = await fetchCasinoGames({
         pageSize: 48,
         cursor: catalogNextCursor,
-        category: searchTerm || isLobby ? undefined : category,
+        category: searchTerm || isLobby || selectedDisplayCategory ? undefined : category,
+        displayCategory: searchTerm ? undefined : selectedDisplayCategory?.slug,
         query: searchTerm || undefined,
       })
       setCatalogGames((current) => {
@@ -455,7 +470,7 @@ export function CasinoCategory() {
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-5 md:py-6">
       <CasinoFilterBar searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} />
-      <CategoryStrip active={category} categories={catalogCategories} />
+      <CategoryStrip active={category} categories={catalogCategories} displayCategories={displayCategories} />
 
       {categoriesError && catalogCategories.length === 0 ? (
         <div className="mb-4 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground" role="status">
