@@ -413,6 +413,7 @@ export function registerSkinGamesAdminRoutes(
         properties: {
           enabled: { type: 'boolean' },
           description: { type: 'string', maxLength: 2000 },
+          displayTitle: { type: 'string', maxLength: 120 },
           clearCustomImage: { type: 'boolean' },
         },
       },
@@ -423,11 +424,12 @@ export function registerSkinGamesAdminRoutes(
       if(!session) return;
       const {gameId}=request.params as {gameId:string};
       if(!UUID.test(gameId)) return sendError(reply,request,400,'VALIDATION_ERROR','Game ID must be a canonical UUID');
-      const body=request.body as {enabled?:boolean;description?:string;clearCustomImage?:boolean};
+      const body=request.body as {enabled?:boolean;description?:string;displayTitle?:string;clearCustomImage?:boolean};
       const changeEnabled=typeof body.enabled==='boolean';
       const changeDescription=typeof body.description==='string';
+      const changeDisplayTitle=typeof body.displayTitle==='string';
       const clearCustomImage=body.clearCustomImage===true;
-      if(!changeEnabled&&!changeDescription&&!clearCustomImage) return sendError(reply,request,400,'VALIDATION_ERROR','At least one supported field must change');
+      if(!changeEnabled&&!changeDescription&&!changeDisplayTitle&&!clearCustomImage) return sendError(reply,request,400,'VALIDATION_ERROR','At least one supported field must change');
       const source=await database.query<{
         source_mode:string; enabled:boolean; source_available:boolean; catalog_available:boolean;
         provider_enabled:boolean; provider_tier_enabled:boolean;
@@ -444,8 +446,8 @@ export function registerSkinGamesAdminRoutes(
       `,[gameId]);
       const sourceRow=source.rows[0];
       if(!sourceRow) return sendError(reply,request,404,'NOT_FOUND','Canonical catalogue game UUID was not found');
-      if(changeEnabled && sourceRow.source_mode==='premium') {
-        return sendError(reply,request,409,'PREMIUM_NOT_AVAILABLE','Premium game availability is read-only until the Premium integration gate is approved and implemented');
+      if(sourceRow.source_mode==='premium' && (changeEnabled || changeDescription || changeDisplayTitle || clearCustomImage)) {
+        return sendError(reply,request,409,'PREMIUM_NOT_AVAILABLE','Premium game availability and presentation are read-only until the Premium integration gate is approved and implemented');
       }
       if(body.enabled===true && (!sourceRow.source_available || !sourceRow.catalog_available || !sourceRow.provider_enabled || !sourceRow.provider_tier_enabled)) {
         return sendError(reply,request,409,'GAME_NOT_EFFECTIVELY_AVAILABLE','The source game, provider and source tier must all be available before enabling a game');
@@ -468,14 +470,18 @@ export function registerSkinGamesAdminRoutes(
           RETURNING g.id,g.bclick_enabled AS enabled,g.availability_updated_at AS "updatedAt"
         ), presentation_change AS (
           INSERT INTO public.casino_game_presentation
-            (game_id,description_override,custom_image_key,display_order,updated_by,updated_at)
-          SELECT t.id,CASE WHEN $3::boolean THEN NULLIF($4::text,'') ELSE NULL END,NULL,
+            (game_id,description_override,title_override,custom_image_key,display_order,updated_by,updated_at)
+          SELECT t.id,
+                 CASE WHEN $3::boolean THEN NULLIF(btrim($4::text),'') ELSE NULL END,
+                 CASE WHEN $9::boolean THEN NULLIF(btrim($10::text),'') ELSE NULL END,
+                 NULL,
                  COALESCE((SELECT display_order FROM public.casino_game_presentation WHERE game_id=t.id),0),
                  $6,now()
             FROM target t
-           WHERE $3::boolean OR $5::boolean
+           WHERE $3::boolean OR $5::boolean OR $9::boolean
           ON CONFLICT (game_id) DO UPDATE SET
-            description_override=CASE WHEN $3::boolean THEN NULLIF($4::text,'') ELSE public.casino_game_presentation.description_override END,
+            description_override=CASE WHEN $3::boolean THEN NULLIF(btrim($4::text),'') ELSE public.casino_game_presentation.description_override END,
+            title_override=CASE WHEN $9::boolean THEN NULLIF(btrim($10::text),'') ELSE public.casino_game_presentation.title_override END,
             custom_image_key=CASE WHEN $5::boolean THEN NULL ELSE public.casino_game_presentation.custom_image_key END,
             updated_by=$6,updated_at=now()
           RETURNING game_id
@@ -485,7 +491,8 @@ export function registerSkinGamesAdminRoutes(
           SELECT $7,'casino.skin-game.updated','admin',$6,'casino_game',t.id,'success',$8,
                  jsonb_build_object('slug',t.game_slug,'sourceMode',t.source_mode,
                    'enabledChanged',$2::boolean IS NOT NULL,'enabled',COALESCE($2::boolean,t.bclick_enabled),
-                   'descriptionChanged',$3::boolean,'customImageCleared',$5::boolean),now()
+                   'descriptionChanged',$3::boolean,'displayTitleChanged',$9::boolean,
+                   'customImageCleared',$5::boolean),now()
             FROM target t
           RETURNING id
         )
@@ -493,7 +500,7 @@ export function registerSkinGamesAdminRoutes(
                COALESCE(gc.enabled,t.bclick_enabled) AS enabled,
                COALESCE(gc."updatedAt",now()) AS "updatedAt"
           FROM target t LEFT JOIN game_change gc ON gc.id=t.id CROSS JOIN audited
-      `,[gameId,changeEnabled?body.enabled:null,changeDescription,body.description??'',clearCustomImage,session.principalId,actionId,request.id]);
+      `,[gameId,changeEnabled?body.enabled:null,changeDescription,body.description??'',clearCustomImage,session.principalId,actionId,request.id,changeDisplayTitle,body.displayTitle??'']);
       const row=result.rows[0];
       if(!row) return sendError(reply,request,404,'NOT_FOUND','Canonical catalogue game UUID was not found');
       return reply.code(200).send({data:{id:row.id,slug:row.slug,enabled:row.enabled,updatedAt:new Date(row.updatedAt).toISOString()},requestId:request.id});
