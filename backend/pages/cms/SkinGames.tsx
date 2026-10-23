@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   AlertTriangle, BadgeCheck, ChevronLeft, ChevronRight, GripVertical, Image as ImageIcon,
-  LoaderCircle, Pencil, RefreshCw, Search, ShieldX,
+  LoaderCircle, Pencil, RefreshCw, RotateCcw, Search, ShieldX,
 } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Modal } from '../../components/ui'
 import { useAdminAuth } from '../../components/AdminAuthGate'
@@ -53,8 +53,20 @@ type SkinGame = {
   hasCustomDescription: boolean
   displayOrder: number
   categories: string[]
+  displayCategoryIds: string[]
   updatedAt: string
   updatedBy: string | null
+}
+
+type DisplayCategory = {
+  id: string
+  slug: string
+  name: string
+  description: string
+  icon: string
+  visible: boolean
+  displayOrder: number
+  items: number
 }
 
 type SkinGameListResponse = {
@@ -92,6 +104,7 @@ export function CmsSkinGamesPage({ onNotify }: { onNotify: (message: string) => 
   const permitted = auth.permissions.includes(PERMISSION)
   const [games, setGames] = useState<SkinGame[]>([])
   const [providers, setProviders] = useState<Provider[]>([])
+  const [displayCategories, setDisplayCategories] = useState<DisplayCategory[]>([])
   const [page, setPage] = useState(1)
   const [pageSize] = useState(PAGE_SIZE)
   const [query, setQuery] = useState('')
@@ -114,11 +127,23 @@ export function CmsSkinGamesPage({ onNotify }: { onNotify: (message: string) => 
   const [descriptionDraft, setDescriptionDraft] = useState('')
   const [displayTitleDraft, setDisplayTitleDraft] = useState('')
   const [orderPositionDraft, setOrderPositionDraft] = useState('1')
+  const [displayCategoryIdsDraft, setDisplayCategoryIdsDraft] = useState<string[]>([])
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState('')
   const [clearCustomImage, setClearCustomImage] = useState(false)
   const [editorError, setEditorError] = useState('')
   const [editorBusy, setEditorBusy] = useState(false)
+
+  useEffect(() => {
+    if (!permitted) return
+    const controller = new AbortController()
+    void requestAdminApi<{ data: DisplayCategory[] }>('/api/v1/admin/casino/display-categories', { signal: controller.signal })
+      .then((result) => { if (!controller.signal.aborted) setDisplayCategories(result.data) })
+      .catch((caught: unknown) => {
+        if (!controller.signal.aborted) setActionError(errorMessage(caught, 'Could not load Lobby display categories.'))
+      })
+    return () => controller.abort()
+  }, [permitted, reloadKey])
 
   useEffect(() => {
     if (!permitted) return
@@ -218,6 +243,7 @@ export function CmsSkinGamesPage({ onNotify }: { onNotify: (message: string) => 
     setDescriptionDraft(game.description)
     setDisplayTitleDraft(game.title)
     setOrderPositionDraft(String(game.orderPosition))
+    setDisplayCategoryIdsDraft(game.displayCategoryIds ?? [])
     setImageFile(null)
     setImagePreview('')
     setClearCustomImage(false)
@@ -252,7 +278,11 @@ export function CmsSkinGamesPage({ onNotify }: { onNotify: (message: string) => 
     const displayTitleChanged = displayTitleDraft !== editorGame.title
     const orderChanged = desiredOrderPosition !== editorGame.orderPosition
     const imageChanged = Boolean(imageFile) || clearCustomImage
-    if (!descriptionChanged && !displayTitleChanged && !orderChanged && !imageChanged) {
+    const originalDisplayCategoryIds = [...(editorGame.displayCategoryIds ?? [])].sort()
+    const draftDisplayCategoryIds = [...displayCategoryIdsDraft].sort()
+    const displayCategoriesChanged = originalDisplayCategoryIds.length !== draftDisplayCategoryIds.length
+      || originalDisplayCategoryIds.some((id, index) => id !== draftDisplayCategoryIds[index])
+    if (!descriptionChanged && !displayTitleChanged && !orderChanged && !imageChanged && !displayCategoriesChanged) {
       setEditorError('There are no changes to save.')
       return
     }
@@ -285,10 +315,17 @@ export function CmsSkinGamesPage({ onNotify }: { onNotify: (message: string) => 
           body: imageFile,
         })
       }
+      if (displayCategoriesChanged) {
+        await requestAdminApi('/api/v1/admin/casino/skin-games/' + encodeURIComponent(editorGame.id) + '/display-categories', {
+          method: 'PATCH',
+          headers: getAdminCsrfHeaders(),
+          body: JSON.stringify({ categoryIds: displayCategoryIdsDraft }),
+        })
+      }
       setEditorGame(null)
       setImageFile(null)
       setImagePreview('')
-      onNotify('Game title, presentation and requested order saved to the database and audit log.')
+      onNotify('Game presentation, Lobby category assignments and requested order saved to the database and audit log.')
       loadAgain()
     } catch (caught) {
       setEditorError(errorMessage(caught, 'Could not save all game changes. Earlier fields may already be saved; refresh the editor before retrying.'))
@@ -431,6 +468,38 @@ export function CmsSkinGamesPage({ onNotify }: { onNotify: (message: string) => 
             <div className="space-y-1.5"><label htmlFor="skin-game-display-title" className="text-xs font-medium text-slate-700">Player-facing game title</label><Input id="skin-game-display-title" value={displayTitleDraft} maxLength={120} disabled={editorBusy} onChange={(event) => setDisplayTitleDraft(event.target.value)} placeholder={editorGame.sourceTitle} /><p className="text-[10px] leading-4 text-slate-400">This is the title players see. Provider identity, UUID and original source title stay unchanged. Clear the field to restore the source title.</p></div>
             <div className="space-y-1.5"><label htmlFor="skin-game-order-position" className="text-xs font-medium text-slate-700">Display order position</label><input id="skin-game-order-position" type="number" min={1} max={editorGame.tierTotal} step={1} inputMode="numeric" required value={orderPositionDraft} disabled={editorBusy || editorGame.sourceMode !== 'standard'} onChange={(event) => setOrderPositionDraft(event.target.value)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 disabled:bg-slate-100" /><p className="text-[10px] leading-4 text-slate-400">Enter a position from 1 to {editorGame.tierTotal.toLocaleString()} within the Standard tier. Other games shift automatically; no need to drag many rows.</p></div>
             <div className="space-y-1.5"><label htmlFor="skin-game-description" className="text-xs font-medium text-slate-700">Description override</label><textarea id="skin-game-description" maxLength={2000} rows={7} value={descriptionDraft} disabled={editorBusy} onChange={(event) => setDescriptionDraft(event.target.value)} placeholder="Optional description shown instead of the default source description…" className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm leading-5 text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100" /><p className="text-[10px] text-slate-400">{descriptionDraft.length}/2000 characters · Leave blank to use the source default.</p></div>
+            <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs font-semibold text-slate-800">Lobby display categories</p>
+                  <p className="mt-1 text-[10px] leading-4 text-slate-500">Choose one or more operator-managed collections, such as Trending Games. These are separate from provider-supplied game categories.</p>
+                </div>
+                <a href="/cms/categories" target="_blank" rel="noreferrer" className="text-[10px] font-semibold text-slate-600 underline hover:text-slate-900">Manage categories</a>
+              </div>
+              {displayCategories.length === 0 ? (
+                <p className="rounded-md bg-slate-50 p-3 text-[11px] text-slate-500">No custom display categories exist yet. Create one in CMS → Categories, then return here.</p>
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {displayCategories.map((category) => (
+                    <label key={category.id} className={cn('flex cursor-pointer items-start gap-2 rounded-md border p-2.5', displayCategoryIdsDraft.includes(category.id) ? 'border-sky-300 bg-sky-50' : 'border-slate-200 bg-white', editorBusy || editorGame.sourceMode !== 'standard' ? 'cursor-not-allowed opacity-60' : '')}>
+                      <input
+                        type="checkbox"
+                        checked={displayCategoryIdsDraft.includes(category.id)}
+                        disabled={editorBusy || editorGame.sourceMode !== 'standard'}
+                        onChange={(event) => setDisplayCategoryIdsDraft((current) => event.target.checked
+                          ? [...current, category.id]
+                          : current.filter((id) => id !== category.id))}
+                        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-xs font-semibold text-slate-800">{category.name}</span>
+                        <span className="mt-0.5 block text-[10px] text-slate-500">{category.items} games assigned · {category.visible ? 'Visible in Lobby' : 'Hidden in Lobby'}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-[11px] leading-5 text-slate-600"><p><strong>Original thumbnail:</strong> {editorGame.sourceImageUrl ? <a className="underline" href={editorGame.sourceImageUrl} target="_blank" rel="noreferrer">Open BigBang image</a> : 'Not supplied by the source'}</p><p className="mt-1"><strong>Current presentation editor:</strong> {editorGame.updatedBy || 'No edit recorded'} · {formatDate(editorGame.updatedAt)}</p></div>
           </div>
         </div>
