@@ -422,7 +422,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
           <select id="new-display-category-type" value={draftType} onChange={(event)=>setDraftType(event.target.value as CasinoDisplayType)} disabled={savingId!==''} className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-ring">
             {CMS_CATEGORY_TYPE_OPTIONS.map((option)=><option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
-          <p className="text-[10px] text-slate-400">This category appears only on the selected game-type page.</p>
+          <p className="text-[10px] text-slate-400">This category appears only on the selected game-type page. Saving a changed Type removes any assigned games that do not match it.</p>
         </div>
         <div className="space-y-1.5">
           <label htmlFor="new-display-category-description" className="text-xs font-semibold text-slate-700">Description</label>
@@ -515,12 +515,9 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
                   {category.iconUrl ? <img src={category.iconUrl} alt="" className="h-full w-full object-cover" /> : <CategoryIcon className="h-4 w-4" />}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="grid gap-2 md:grid-cols-[minmax(180px,0.8fr)_minmax(220px,1.4fr)_140px]">
+                  <div className="grid gap-2 md:grid-cols-[minmax(180px,0.8fr)_minmax(220px,1.4fr)]">
                     <Input value={draft.name} maxLength={80} aria-label={'Name for '+category.name} onChange={(event)=>setDrafts((current)=>({...current,[category.id]:{...draft,name:event.target.value}}))} disabled={savingId!==''} />
                     <Input value={draft.description} maxLength={500} aria-label={'Description for '+category.name} placeholder="Optional description" onChange={(event)=>setDrafts((current)=>({...current,[category.id]:{...draft,description:event.target.value}}))} disabled={savingId!==''} />
-                    <select value={draft.type} aria-label={'Type for '+category.name} onChange={(event)=>setDrafts((current)=>({...current,[category.id]:{...draft,type:event.target.value as CasinoDisplayType}}))} disabled={savingId!==''} className="h-10 rounded-md border border-input bg-white px-2 text-xs text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                      {CMS_CATEGORY_TYPE_OPTIONS.map((option)=><option key={option.value} value={option.value}>{option.label}</option>)}
-                    </select>
 
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -531,6 +528,9 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <select value={draft.type} aria-label={'Select Type for '+category.name} onChange={(event)=>setDrafts((current)=>({...current,[category.id]:{...draft,type:event.target.value as CasinoDisplayType}}))} disabled={savingId!==''} className="h-8 w-[132px] rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    {CMS_CATEGORY_TYPE_OPTIONS.map((option)=><option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
                   <Button type="button" size="sm" variant="outline" disabled={savingId!==''} onClick={()=>openGamePicker(category)}><ListChecks className="h-3.5 w-3.5" />Select games</Button>
                   <label className="inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-xs font-medium text-foreground hover:bg-accent has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
                     <ImageIcon className="h-3.5 w-3.5" /> Upload icon
