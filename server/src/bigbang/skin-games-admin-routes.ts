@@ -405,6 +405,96 @@ export function registerSkinGamesAdminRoutes(
     }
   });
 
+  app.patch('/api/v1/admin/casino/skin-games/:gameId/order-position', {
+    schema: {
+      params: { type: 'object', additionalProperties: false, required: ['gameId'], properties: { gameId: { type: 'string', pattern: UUID.source } } },
+      body: {
+        type: 'object', additionalProperties: false, required: ['orderPosition'],
+        properties: { orderPosition: { type: 'integer', minimum: 1, maximum: 100000 } },
+      },
+    },
+  }, async (request,reply) => {
+    try {
+      const session=await authorizedAdmin(database,request,reply,options,true);
+      if(!session) return;
+      const {gameId}=request.params as {gameId:string};
+      const {orderPosition}=request.body as {orderPosition:number};
+      if(!UUID.test(gameId)) return sendError(reply,request,400,'VALIDATION_ERROR','Game ID must be a canonical UUID');
+
+      const source=await database.query<{source_mode:Tier;tier_total:number}>(`
+        SELECT s.source_mode,
+               (SELECT count(*)::int FROM public.casino_game_sources all_sources
+                 WHERE all_sources.source_code='bigbang' AND all_sources.source_mode=s.source_mode) AS tier_total
+          FROM public.casino_game_sources s
+         WHERE s.game_id=$1 AND s.source_code='bigbang'
+      `,[gameId]);
+      const sourceRow=source.rows[0];
+      if(!sourceRow) return sendError(reply,request,404,'NOT_FOUND','Canonical catalogue game UUID was not found');
+      if(sourceRow.source_mode==='premium') return sendError(reply,request,409,'PREMIUM_NOT_AVAILABLE','Premium ordering is locked until the Premium integration gate is approved');
+      if(!Number.isInteger(orderPosition) || orderPosition<1 || orderPosition>Number(sourceRow.tier_total)) {
+        return sendError(reply,request,422,'ORDER_POSITION_OUT_OF_RANGE','Order position must be between 1 and the number of games in the Standard tier ('+Number(sourceRow.tier_total)+')');
+      }
+
+      const auditId=randomUUID();
+      const result=await database.query<QueryResultRow & {oldPosition:number;orderPosition:number;displayOrder:number}>(`
+        WITH lock AS MATERIALIZED (
+          SELECT pg_advisory_xact_lock(hashtext('bclick.skin-games.display-order'))
+        ), tier_games AS MATERIALIZED (
+          SELECT g.id,
+                 row_number() OVER (
+                   ORDER BY COALESCE(pres.display_order,0),lower(g.title),p.code,g.id
+                 )::integer AS old_position
+            FROM public.casino_games g
+            JOIN public.casino_providers p ON p.id=g.provider_id
+            JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode=$3
+            LEFT JOIN public.casino_game_presentation pres ON pres.game_id=g.id
+            CROSS JOIN lock
+        ), target AS MATERIALIZED (
+          SELECT id,old_position FROM tier_games WHERE id=$1
+        ), reordered AS (
+          SELECT current.id,
+                 CASE
+                   WHEN current.id=$1 THEN $2::integer
+                   WHEN current.old_position < target.old_position AND current.old_position >= $2 THEN current.old_position+1
+                   WHEN current.old_position > target.old_position AND current.old_position <= $2 THEN current.old_position-1
+                   ELSE current.old_position
+                 END AS new_position
+            FROM tier_games current CROSS JOIN target
+           WHERE $2 BETWEEN 1 AND (SELECT count(*)::integer FROM tier_games)
+        ), saved AS (
+          INSERT INTO public.casino_game_presentation
+            (game_id,display_order,order_updated_by,order_updated_at)
+          SELECT id,(new_position*100)::bigint,$4,now() FROM reordered
+          ON CONFLICT (game_id) DO UPDATE SET
+            display_order=EXCLUDED.display_order,
+            order_updated_by=EXCLUDED.order_updated_by,
+            order_updated_at=now()
+          RETURNING game_id,display_order
+        ), audited AS (
+          INSERT INTO public.audit_events
+            (id,action,actor_type,actor_id,subject_type,subject_id,outcome,request_id,metadata,created_at)
+          SELECT $5,'casino.skin-games.position-changed','admin',$4,'casino_game_order',target.id,'success',$6,
+                 jsonb_build_object('sourceMode',$3,'oldPosition',target.old_position,'newPosition',$2),now()
+            FROM target
+           WHERE $2 BETWEEN 1 AND (SELECT count(*)::integer FROM tier_games)
+          RETURNING id
+        )
+        SELECT target.old_position AS "oldPosition",
+               $2::integer AS "orderPosition",
+               saved.display_order AS "displayOrder"
+          FROM target JOIN saved ON saved.game_id=target.id CROSS JOIN audited
+      `,[gameId,orderPosition,sourceRow.source_mode,session.principalId,auditId,request.id]);
+      const row=result.rows[0];
+      if(!row) return sendError(reply,request,422,'ORDER_POSITION_OUT_OF_RANGE','The Standard tier changed while reordering. Refresh and retry with a valid position.');
+      return reply.code(200).send({
+        data:{gameId,oldPosition:Number(row.oldPosition),orderPosition:Number(row.orderPosition),displayOrder:Number(row.displayOrder)},
+        requestId:request.id,
+      });
+    } catch(error) {
+      return unexpected(request,reply,error);
+    }
+  });
+
   app.patch('/api/v1/admin/casino/skin-games/:gameId', {
     schema: {
       params: { type: 'object', additionalProperties: false, required: ['gameId'], properties: { gameId: { type: 'string', pattern: UUID.source } } },
