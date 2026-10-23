@@ -10,10 +10,6 @@ import type { Game } from '../data/catalog'
 import { fetchCasinoCategories, fetchCasinoGames, fetchCasinoProviders, getCatalogErrorMessage, type CasinoCatalogCategory, type CasinoCatalogGame, type CasinoCatalogProvider } from '../lib/casinoCatalog'
 import { cn } from '../lib/shadcn/utils'
 
-const ICONS: Record<string, LucideIcon> = {
-  Home, Cherry, Ghost, Flame, Sparkles, Crown, ShoppingBag, Rocket, Gem, Spade, Trophy,
-}
-
 // When an admin changes availability in another tab, refresh current catalogue views
 // when this storefront becomes visible again. The API also sends Cache-Control: no-store.
 function useRefreshOnVisibility(refresh: () => void) {
