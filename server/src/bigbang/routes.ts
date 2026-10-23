@@ -121,8 +121,10 @@ function whereClause(options: QueryOptions): { sql: string; values: unknown[] } 
     conditions.push(`EXISTS (SELECT 1 FROM public.casino_game_categories gc WHERE gc.game_id=g.id AND gc.category_slug=${p})`);
   }
   if (options.provider) {
-    const p = add('%' + options.provider + '%');
-    conditions.push(`(p.code ILIKE ${p} OR p.name ILIKE ${p})`);
+    // Provider is an identity filter, not free-text search. Resolve only the stored
+    // Bclick provider code or exact display name so similar names never bleed across rows.
+    const p = add(options.provider);
+    conditions.push(`(p.code = ${p} OR lower(p.name) = lower(${p}))`);
   }
   if (options.query) {
     const p = add('%' + options.query.replace(/[\\%_]/g, '\\$&') + '%');
