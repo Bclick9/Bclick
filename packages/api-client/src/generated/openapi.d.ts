@@ -828,6 +828,29 @@ export interface paths {
         patch: operations["patchAdminBigBangProvider"];
         trace?: never;
     };
+    "/api/v1/admin/bigbang/providers/{providerCode}/tiers/{mode}": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it matches the API contract; invalid or absent IDs are replaced by a server-generated ID. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path: {
+                providerCode: string;
+                mode: "standard" | "premium";
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Enable or disable a provider source tier */
+        patch: operations["patchAdminBigBangProviderTier"];
+        trace?: never;
+    };
     "/api/v1/admin/bigbang/games": {
         parameters: {
             query?: never;
@@ -871,6 +894,99 @@ export interface paths {
          * @description Requires casino.provider-settings.manage, a fully authenticated MFA admin session, exact allowed Origin, and the admin CSRF token. The state change and audit record are atomic.
          */
         patch: operations["patchAdminBigBangGame"];
+        trace?: never;
+    };
+    "/api/v1/admin/casino/skin-games": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List real catalogue variants for Skin Games */
+        get: operations["getAdminSkinGames"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/casino/skin-games/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Persist order for two game variants in the same source tier */
+        patch: operations["patchAdminSkinGamesReorder"];
+        trace?: never;
+    };
+    "/api/v1/admin/casino/skin-games/{gameId}": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path: {
+                gameId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Persist game availability and description override */
+        patch: operations["patchAdminSkinGame"];
+        trace?: never;
+    };
+    "/api/v1/admin/casino/skin-games/{gameId}/image": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path: {
+                gameId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload persistent custom artwork for a canonical game UUID */
+        post: operations["postAdminSkinGameImage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assets/casino-games/{gameId}/{fileName}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read generated persistent game artwork */
+        get: operations["getCasinoGamePersistentAsset"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/admin/providers/{providerCode}/catalog-sync": {
@@ -3178,6 +3294,18 @@ export interface components {
             totalGames: number;
             sourceAvailableGames: number;
             enabledGames: number;
+            tiers: {
+                standard: {
+                    enabled: boolean;
+                    sourceAvailableGames: number;
+                };
+                premium: {
+                    enabled: boolean;
+                    sourceAvailableGames: number;
+                    /** @constant */
+                    available: false;
+                };
+            };
         };
         BigBangAdminProvidersResponse: {
             data: components["schemas"]["BigBangAdminProvider"][];
@@ -6675,6 +6803,53 @@ export interface operations {
             };
         };
     };
+    patchAdminBigBangProviderTier: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+                "X-CSRF-Token": components["parameters"]["CsrfToken"];
+            };
+            path: {
+                providerCode: string;
+                mode: "standard" | "premium";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BigBangAdminControlPatchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            code: string;
+                            mode: "standard" | "premium";
+                            enabled: boolean;
+                            /** Format: date-time */
+                            updatedAt: string;
+                        };
+                        requestId: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     getAdminBigBangGames: {
         parameters: {
             query?: {
@@ -6760,6 +6935,233 @@ export interface operations {
                 };
                 content?: never;
             };
+        };
+    };
+    getAdminSkinGames: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                query?: string;
+                providerCode?: string;
+                category?: string;
+                sourceMode?: "standard" | "premium";
+            };
+            header?: {
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            id: string;
+                            slug: string;
+                            title: string;
+                            provider: { code: string; name: string };
+                            sourceMode: "standard" | "premium";
+                            externalGameId: string;
+                            isPremium: boolean;
+                            sourceAvailable: boolean;
+                            catalogAvailable: boolean;
+                            enabled: boolean;
+                            providerEnabled: boolean;
+                            providerTierEnabled: boolean;
+                            effectiveAvailable: boolean;
+                            sourceImageUrl: string | null;
+                            customImageUrl: string | null;
+                            imageUrl: string | null;
+                            description: string;
+                            hasCustomDescription: boolean;
+                            displayOrder: number;
+                            categories: string[];
+                            /** Format: date-time */
+                            updatedAt: string;
+                            updatedBy: string | null;
+                        }[];
+                        page: {
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                            nextPage: number | null;
+                        };
+                        integration: {
+                            /** @constant */
+                            selectedTier: "standard";
+                            /** @constant */
+                            premiumAvailable: false;
+                            premiumReason: string | null;
+                        };
+                        requestId: string;
+                    };
+                };
+            };
+            400: {
+                headers: { [name: string]: unknown };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    patchAdminSkinGamesReorder: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+                "X-CSRF-Token": components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    gameId: string;
+                    targetGameId: string;
+                    position: "before" | "after";
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: { [name: string]: unknown };
+                content: {
+                    "application/json": {
+                        data: {
+                            gameId: string;
+                            targetGameId: string;
+                            position: "before" | "after";
+                            sourceMode: "standard" | "premium";
+                            displayOrder: number;
+                        };
+                        requestId: string;
+                    };
+                };
+            };
+            400: { headers: { [name: string]: unknown }; content?: never };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    patchAdminSkinGame: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+                "X-CSRF-Token": components["parameters"]["CsrfToken"];
+            };
+            path: { gameId: string };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    enabled?: boolean;
+                    description?: string;
+                    clearCustomImage?: boolean;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: { [name: string]: unknown };
+                content: {
+                    "application/json": {
+                        data: {
+                            id: string;
+                            slug: string;
+                            enabled: boolean;
+                            /** Format: date-time */
+                            updatedAt: string;
+                        };
+                        requestId: string;
+                    };
+                };
+            };
+            400: { headers: { [name: string]: unknown }; content?: never };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: { headers: { [name: string]: unknown }; content?: never };
+        };
+    };
+    postAdminSkinGameImage: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+                "X-CSRF-Token": components["parameters"]["CsrfToken"];
+                "Content-Type"?: "image/png" | "image/jpeg" | "image/webp";
+            };
+            path: { gameId: string };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "image/png": string;
+                "image/jpeg": string;
+                "image/webp": string;
+            };
+        };
+        responses: {
+            201: {
+                headers: { [name: string]: unknown };
+                content: {
+                    "application/json": {
+                        data: {
+                            gameId: string;
+                            customImageUrl: string;
+                            contentType: "image/png" | "image/jpeg" | "image/webp";
+                        };
+                        requestId: string;
+                    };
+                };
+            };
+            400: { headers: { [name: string]: unknown }; content?: never };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: { headers: { [name: string]: unknown }; content?: never };
+            413: { headers: { [name: string]: unknown }; content?: never };
+            415: { headers: { [name: string]: unknown }; content?: never };
+        };
+    };
+    getCasinoGamePersistentAsset: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path: { gameId: string; fileName: string };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Cache-Control"?: "public, max-age=31536000, immutable";
+                    "X-Content-Type-Options"?: "nosniff";
+                    "X-Request-Id"?: components["headers"]["XRequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/jpeg": string;
+                    "image/webp": string;
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     postAdminProvidersByProviderCodeCatalogSync: {
