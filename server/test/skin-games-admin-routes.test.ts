@@ -432,7 +432,7 @@ test('administrator can delete a curated category without deleting its catalogue
     assert.equal(response.statusCode, 204, response.body);
     const deletion = fixture.calls.find((call) => call.sql.includes('casino.display-category.deleted'));
     assert.ok(deletion);
-    assert.match(deletion.sql, /ON DELETE CASCADE|DELETE FROM public\\.casino_display_categories/);
+    assert.match(deletion.sql, /ON DELETE CASCADE|DELETE FROM public\.casino_display_categories/);
   } finally {
     await app.close();
   }
