@@ -347,21 +347,17 @@ export function CasinoCategory() {
   const [catalogReloadKey, setCatalogReloadKey] = useState(0)
   const [catalogCategories, setCatalogCategories] = useState<CasinoCatalogCategory[]>([])
   const [displayCategories, setDisplayCategories] = useState<CasinoDisplayCategory[]>([])
-  const [displayCategoriesError, setDisplayCategoriesError] = useState('')
   const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [categoriesError, setCategoriesError] = useState('')
   useRefreshOnVisibility(() => setCatalogReloadKey((value) => value + 1))
 
   useEffect(() => {
     const controller = new AbortController()
-    setDisplayCategoriesError('')
     void fetchCasinoDisplayCategories(controller.signal).then((categories) => {
       if (!controller.signal.aborted) setDisplayCategories(categories)
-    }).catch((error: unknown) => {
-      if (!controller.signal.aborted) {
-        setDisplayCategories([])
-        setDisplayCategoriesError(getCatalogErrorMessage(error))
-      }
+    }).catch(() => {
+      // Curated shelves are optional on the Home page; the full catalogue still renders.
+      if (!controller.signal.aborted) setDisplayCategories([])
     })
     return () => controller.abort()
   }, [catalogReloadKey])
@@ -482,11 +478,6 @@ export function CasinoCategory() {
           {displayCategories.map((displayCategory) => (
             <CatalogGameRail key={displayCategory.id} category={displayCategory} />
           ))}
-          {displayCategoriesError ? (
-            <p className="mb-4 text-xs text-muted-foreground" role="status">
-              Curated game collections are temporarily unavailable.
-            </p>
-          ) : null}
           <div className="mb-4 flex items-center justify-between gap-3">
             <h1 className="text-lg font-extrabold text-white md:text-xl">All Games</h1>
             <p className="shrink-0 text-sm text-muted-foreground" aria-live="polite">
