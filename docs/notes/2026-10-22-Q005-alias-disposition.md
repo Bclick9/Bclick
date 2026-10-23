@@ -1,5 +1,7 @@
 # Q-005 — Legacy alias disposition from local Standard Sandbox audit
 
+> **Historical note — superseded on 2026-10-23.** This file records the 2026-10-22 conservative alias decision only. The Project Owner later confirmed that the count discrepancy was explained and outdated links were removed. The current Q-005 branch retires runtime alias resolution, clears the alias inventory with forward-only Migration 014, and leaves canonical UUID/slug identities unchanged. Do not use the 59-row inventory below as current runtime policy or repeat the count investigation.
+
 **Evidence date:** 2026-10-22  
 **Source:** Project Owner-supplied output from `scripts/q005-catalogue-alias-audit.sql`, run against local Docker PostgreSQL after the reported 3,639-record Standard Sandbox sync.  
 **Status:** Evidence inventory with Project Owner acceptance of the conservative per-alias disposition recorded on 2026-10-22. This acceptance preserves the 59 alias records and accepts only the three evidence-backed mappings; it does not resolve the 56 unmatched aliases, close Q-005, or authorize frontend cutover.
