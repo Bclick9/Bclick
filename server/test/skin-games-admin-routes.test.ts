@@ -404,6 +404,8 @@ test('administrator can create a curated category and the request is audited', a
     const insert = fixture.calls.find((call) => call.sql.includes('WITH next_order AS MATERIALIZED'));
     assert.ok(insert);
     assert.match(insert.sql, /ON CONFLICT \(slug\) DO NOTHING/);
+    assert.match(insert.sql, /RETURNING id,slug,name/);
+    assert.match(insert.sql, /casino_display_category.*created.id/);
     assert.match(insert.sql, /casino.display-category.created/);
   } finally {
     await app.close();
@@ -428,6 +430,8 @@ test('administrator can update category metadata and visibility without changing
     assert.ok(update);
     assert.match(update.sql, /nameChanged/);
     assert.match(update.sql, /visibilityChanged/);
+    assert.match(update.sql, /RETURNING c.id,c.slug/);
+    assert.match(update.sql, /casino_display_category.*changed.id/);
   } finally {
     await app.close();
   }
@@ -445,6 +449,9 @@ test('administrator can delete a curated category without deleting its catalogue
     assert.equal(response.statusCode, 204, response.body);
     const deletion = fixture.calls.find((call) => call.sql.includes('casino.display-category.deleted'));
     assert.ok(deletion);
+    assert.match(deletion.sql, /SELECT id,slug,name FROM public\.casino_display_categories/);
+    assert.match(deletion.sql, /RETURNING c\.id/);
+    assert.match(deletion.sql, /casino_display_category.*deleted.id/);
     assert.match(deletion.sql, /ON DELETE CASCADE|DELETE FROM public\.casino_display_categories/);
   } finally {
     await app.close();
