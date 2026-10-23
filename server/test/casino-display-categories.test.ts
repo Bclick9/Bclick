@@ -19,6 +19,8 @@ function fakeCatalogDatabase() {
             name: 'Trending Games',
             description: 'Operator-selected casino highlights',
             icon: 'trending',
+            iconUrl: null,
+            customIconKey: null,
             displayOrder: 100,
             games: [{
               id: GAME_ID,
