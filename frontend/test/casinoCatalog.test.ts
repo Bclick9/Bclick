@@ -1,7 +1,72 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { fetchCasinoCategories, fetchCasinoProviders } from '../lib/casinoCatalog';
+import { fetchCasinoCategories, fetchCasinoDisplayCategories, fetchCasinoProviders } from '../lib/casinoCatalog';
+
+test('lobby curated collections are loaded only from the same-origin public display-category API', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestedUrl = '';
+  let requestInit: RequestInit | undefined;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    requestedUrl = String(input);
+    requestInit = init;
+    return new Response(JSON.stringify({
+      data: [{
+        id: '51abfb02-a08c-4c66-8866-2c22381d34c1',
+        slug: 'trending-games',
+        name: 'Trending Games',
+        description: 'Picked by our team',
+        icon: 'trending',
+        displayOrder: 100,
+        games: [{
+          id: 'ebc75e97-68a5-40f8-8177-65db54ace749',
+          slug: 'hot-hot-fruit-habanero',
+          title: 'Hot Hot Fruit',
+          provider: { code: 'habanero', name: 'Habanero' },
+          categories: ['slot-games'],
+          imageUrl: 'https://assets.example.test/hot-hot-fruit.webp',
+          description: '',
+          available: true,
+          modes: { demo: false, real: false },
+        }],
+      }],
+      requestId: 'display-categories-1',
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  }) as typeof fetch;
+
+  try {
+    const categories = await fetchCasinoDisplayCategories();
+    assert.equal(requestedUrl, '/api/v1/casino/display-categories');
+    assert.equal(requestInit?.method, 'GET');
+    assert.equal(requestInit?.credentials, 'same-origin');
+    assert.equal(requestInit?.cache, 'no-store');
+    assert.equal(categories[0]?.name, 'Trending Games');
+    assert.equal(categories[0]?.games[0]?.slug, 'hot-hot-fruit-habanero');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('lobby curated collection loader rejects a malformed game entry rather than rendering mock cards', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    data: [{
+      id: '51abfb02-a08c-4c66-8866-2c22381d34c1',
+      slug: 'trending-games',
+      name: 'Trending Games',
+      description: '',
+      icon: 'trending',
+      displayOrder: 100,
+      games: [{ id: 'not-a-game-row' }],
+    }],
+  }), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch;
+
+  try {
+    await assert.rejects(fetchCasinoDisplayCategories(), /invalid curated categories/i);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 
 test('casino category strip is sourced from the same-origin active-catalogue API', async () => {
   const originalFetch = globalThis.fetch;
