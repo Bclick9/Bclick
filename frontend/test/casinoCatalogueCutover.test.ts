@@ -2,15 +2,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 
-test('casino lobby remains an all-games home while custom display shelves are optional', async () => {
+test('Lobby is the all-games home and curated categories are not rendered as duplicate game rails', async () => {
   const source = await readFile(new URL('../pages/Casino.tsx', import.meta.url), 'utf8');
   assert.match(source, /fetchCasinoGames/);
-  assert.match(source, /displayCategories\.map/);
-  assert.doesNotMatch(source, /Curated game collections are temporarily unavailable/);
-  assert.doesNotMatch(source, /function\s+TrendingGames\s*\(/);
-  assert.doesNotMatch(source, /SectionRow title="Available Games"/);
+  assert.ok(source.includes('displayCategories.map((item) => ({ slug: item.slug, title: item.name'));
+  assert.doesNotMatch(source, /function CatalogGameRail\\(/);
+  assert.doesNotMatch(source, /displayCategories.map((displayCategory) =>/);
+  assert.match(source, /All Games/);
+  assert.match(source, /CatalogGameGrid games=\{catalogGames\}/);
 });
-
 test('curated categories appear immediately after Lobby and filter the catalogue grid by saved membership', async () => {
   const source = await readFile(new URL('../pages/Casino.tsx', import.meta.url), 'utf8');
   assert.ok(source.includes('visibleDisplayCategories = displayCategories.filter'));
@@ -34,4 +34,14 @@ test('casino storefront does not reintroduce hard-coded game cards or category m
   assert.doesNotMatch(source, /function\s+HalloweenBanner\s*\(/);
   assert.match(source, /fetchCasinoCategories/);
   assert.match(source, /fetchCasinoGames/);
+});
+
+test('Casino, Live Casino and Crash Games share one type-scoped storefront; legacy slot-games redirects home', async () => {
+  const routes = await readFile(new URL('../App.tsx', import.meta.url), 'utf8');
+  const client = await readFile(new URL('../lib/casinoCatalog.ts', import.meta.url), 'utf8');
+  assert.ok(routes.includes('<Route path="casino/slot-games" element={<Navigate to="/casino/lobby" replace />} />'));
+  assert.ok(routes.includes('<Route path="live-casino" element={<CasinoCategory type="live-casino" routeBase="/live-casino" />} />'));
+  assert.ok(routes.includes('<Route path="crash-games" element={<CasinoCategory type="crash-games" routeBase="/crash-games" />} />'));
+  assert.ok(client.includes("if (options.type) params.set('type', options.type)"));
+  assert.ok(client.includes("if (type) params.set('type', type)"));
 });
