@@ -112,13 +112,22 @@ jobs:
         run: pnpm api:test
       - name: Build the API
         run: pnpm --filter @bclick/server build
-      - name: Start the API for health contract tests
+      - name: Start the API for route contract tests
         env:
           NODE_ENV: test
           HOST: 127.0.0.1
           PORT: 3000
           LOG_LEVEL: silent
           DATABASE_URL: postgresql://bclick_ci:bclick_ci_password@127.0.0.1:5432/bclick_ci
+          BCLICK_IDENTITY_ENABLED: true
+          BCLICK_SESSION_HASH_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          BCLICK_CSRF_SIGNING_KEY: fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210
+          BCLICK_TOTP_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+          BCLICK_PLAYER_ALLOWED_ORIGINS: https://localhost:5173
+          BCLICK_ADMIN_ALLOWED_ORIGINS: https://localhost:5174
+          BCLICK_LOCAL_MAIL_SINK_PATH: /tmp/bclick-route-contract-mail.jsonl
+          BCLICK_TERMS_VERSION: ci-terms-v1
+          BCLICK_AGE_POLICY_VERSION: ci-age-policy-v1
         run: |
           pnpm --filter @bclick/server start > /tmp/bclick-api.log 2>&1 &
           echo $! > /tmp/bclick-api.pid
@@ -141,4 +150,14 @@ jobs:
             --include-tag Health \
             --checks all \
             --max-examples 25 \
+            --warnings off
+
+      - name: Run Schemathesis against implemented non-financial routes
+        run: |
+          /tmp/schemathesis-venv/bin/schemathesis run docs/planning/openapi.yaml \
+            --url http://127.0.0.1:3000 \
+            --include-path-regex '^/api/v1/(?:casino/(?:categories|display-categories|providers|games|games/by-slug/\\{slug\\}|games/\\{gameId\\})|auth/password-reset/(?:request|confirm)) \
+            --header 'Origin: https://localhost:5173' \
+            --checks all \
+            --max-examples 10 \
             --warnings off
