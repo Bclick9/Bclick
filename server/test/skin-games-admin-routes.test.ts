@@ -92,6 +92,7 @@ type FakeGame = {
 function fakeDatabase(options: { mode?: 'standard' | 'premium' } = {}) {
   const calls: Array<{ sql: string; values: unknown[] }> = [];
   const mode = options.mode ?? 'standard';
+  let currentCustomImageKey: string | null = null;
   const row: FakeGame = {
     id: mode === 'standard' ? GAME_ID : PREMIUM_GAME_ID,
     slug: mode === 'standard' ? 'hot-hot-fruit-habanero' : 'hot-hot-fruit-habanero-premium',
@@ -131,7 +132,10 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium' } = {}) {
         return { rows: [row], rowCount: 1 };
       }
       if (sql.includes('SELECT s.source_mode,g.bclick_enabled AS enabled')) {
-        return { rows: [{ source_mode: row.sourceMode, enabled: row.enabled }], rowCount: 1 };
+        return { rows: [{ source_mode: row.sourceMode, enabled: row.enabled, source_available: row.sourceAvailable, catalog_available: row.catalogAvailable, provider_enabled: row.providerEnabled, provider_tier_enabled: row.providerTierEnabled }], rowCount: 1 };
+      }
+      if (sql.includes('SELECT game_id::text AS game_id FROM public.casino_game_presentation')) {
+        return { rows: currentCustomImageKey === values[1] ? [{ game_id: row.id }] : [], rowCount: currentCustomImageKey === values[1] ? 1 : 0 };
       }
       if (sql.includes('WITH target AS MATERIALIZED') && sql.includes('game_change AS')) {
         assert.match(sql, /INSERT INTO public\.audit_events/);
