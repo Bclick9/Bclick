@@ -248,7 +248,8 @@ export function registerSkinGamesAdminRoutes(
                  row_number() OVER (
                    PARTITION BY s_order.source_mode
                    ORDER BY COALESCE(pres_order.display_order,0),lower(g_order.title),p_order.code,g_order.id
-                 )::integer AS order_position
+                 )::integer AS order_position,
+                 count(*) OVER (PARTITION BY s_order.source_mode)::integer AS tier_total
             FROM public.casino_games g_order
             JOIN public.casino_providers p_order ON p_order.id=g_order.provider_id
             JOIN public.casino_game_sources s_order ON s_order.game_id=g_order.id AND s_order.source_code='bigbang'
@@ -257,6 +258,7 @@ export function registerSkinGamesAdminRoutes(
         SELECT g.id::text AS id,g.game_slug AS slug,g.title,
                pres.title_override AS "titleOverride",
                tier_order.order_position AS "orderPosition",
+               tier_order.tier_total AS "tierTotal",
                p.code AS "providerCode",p.name AS "providerName",
                s.source_mode AS "sourceMode",s.external_game_id::text AS "externalGameId",
                s.is_premium AS "isPremium",s.available AS "sourceAvailable",
@@ -293,6 +295,7 @@ export function registerSkinGamesAdminRoutes(
           sourceTitle: row.title,
           titleOverride: row.titleOverride,
           orderPosition: Number(row.orderPosition),
+          tierTotal: Number(row.tierTotal),
           provider: { code: row.providerCode, name: row.providerName },
           sourceMode: row.sourceMode,
           externalGameId: row.externalGameId,
