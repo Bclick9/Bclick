@@ -474,8 +474,8 @@ test('admin can upload a validated custom icon and serve only the active categor
     assert.equal(response.json().data.iconUrl.startsWith('/api/v1/assets/casino-display-categories/'), true);
     const persisted = fixture.calls.find((call) => call.sql.includes('casino.display-category.icon-updated'));
     assert.ok(persisted);
-    assert.match(persisted.sql, /INSERT INTO public\\.audit_events/);
-    assert.match(String(persisted.values[1]), /^casino-display-categories\\//);
+    assert.ok(persisted.sql.includes('INSERT INTO public.audit_events'));
+    assert.ok(String(persisted.values[1]).startsWith('casino-display-categories/'));
 
     const icon = await app.inject({ method: 'GET', url: response.json().data.iconUrl });
     assert.equal(icon.statusCode, 200);
