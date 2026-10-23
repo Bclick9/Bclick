@@ -14,11 +14,12 @@ test('Lobby is the all-games home and curated categories are not rendered as dup
 
 test('curated categories appear in the shared strip and filter the main grid by saved membership', async () => {
   const source = await readFile(new URL('../pages/Casino.tsx', import.meta.url), 'utf8');
+  const client = await readFile(new URL('../lib/casinoCatalog.ts', import.meta.url), 'utf8');
   assert.ok(source.includes('<CategoryStrip active={category} categories={catalogCategories} displayCategories={displayCategories} type={type} basePath={routeBase} />'));
   assert.ok(source.includes('displayCategory: searchTerm ? undefined : selectedDisplayCategory?.slug'));
   assert.ok(source.includes('selectedDisplayCategory = displayCategories.find((item) => item.slug === category)'));
   assert.ok(source.includes('selectedCategory = searchTerm || isLobby || selectedDisplayCategory ? undefined : category'));
-  assert.ok(source.includes("if (options.type) params.set('type', options.type)"));
+  assert.ok(client.includes("if (options.type) params.set('type', options.type)"));
 });
 
 test('type routes are shared while source category slugs reserved for page types are excluded from the strip', async () => {
