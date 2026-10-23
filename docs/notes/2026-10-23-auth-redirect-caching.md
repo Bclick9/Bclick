@@ -1,13 +1,13 @@
 # Authenticated login redirect and catalogue caching decision
 
 **Date:** 2026-10-23  
-**Pull request:** PR #121 — authenticated /login redirects to /account  
+**Pull request:** [PR #121 — authenticated /login redirects to /account](https://github.com/Bclick9/Bclick/pull/121), merged as `08089637b2264fa50343fe560cbc5a17ef247c94`  
 **Base:** main after PR #120  
 **Scope:** player navigation regression and future storefront read-performance planning only.
 
 ## Login redirect
 
-The Owner clarified that an already authenticated player visiting the legacy /login route should be sent to /account rather than / (home). PR #121 changes the default redirect in frontend/lib/legacyAuthRoute.ts to /account. If a safe in-site returnTo was provided by a protected-page redirect, it continues to be honored. Tests verify the new account default and the valid return path.
+The Owner clarified that an already authenticated player visiting the legacy /login route should be sent to /account rather than / (home). Merged PR #121 changes the default redirect in frontend/lib/legacyAuthRoute.ts to /account. If a safe in-site returnTo was provided by a protected-page redirect, it continues to be honored. Tests verify the new account default and the valid return path.
 
 This concerns a player who is already authenticated when opening /login or /register. The successful submit handler in the existing modal also navigates to returnTo or /account; local browser acceptance is still required.
 
