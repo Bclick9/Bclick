@@ -522,15 +522,19 @@ test('administrator can update category metadata and visibility without changing
       method: 'PATCH',
       url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID,
       headers: { ...authHeaders(true), 'content-type': 'application/json' },
-      payload: { name: 'Featured Games', visible: false, displayOrder: 200 },
+      payload: { name: 'Featured Games', visible: false, displayOrder: 200, type: 'live-casino' },
     });
     assert.equal(response.statusCode, 200, response.body);
     assert.equal(response.json().data.slug, 'trending-games');
     assert.equal(response.json().data.name, 'Featured Games');
     assert.equal(response.json().data.visible, false);
+    assert.equal(response.json().data.type, 'live-casino');
     const update = fixture.calls.find((call) => call.sql.includes('casino.display-category.updated'));
     assert.ok(update);
     assert.match(update.sql, /nameChanged/);
+    assert.match(update.sql, /removed_incompatible/);
+    assert.match(update.sql, /incompatibleAssignmentsRemoved/);
+    assert.equal(update.values[15], 'live-casino');
     assert.match(update.sql, /visibilityChanged/);
     assert.match(update.sql, /RETURNING c.id,c.slug/);
     assert.match(update.sql, /casino_display_category.*changed.id/);
