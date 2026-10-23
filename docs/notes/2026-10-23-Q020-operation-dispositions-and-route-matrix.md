@@ -243,6 +243,118 @@ The exact path-by-path disposition above is authoritative for this audit. Do not
 | `GET` | `/api/v1/assets/casino-games/{gameId}/{fileName}` | Only when catalogue DB and Identity/admin auth are configured | `getCasinoGamePersistentAsset` · `200, 404` | present; OpenAPI input declaration: parameters; Fastify schema | server/test/skin-games-admin-routes.test.ts | Full admin session/MFA expected; unsafe requests must enforce exact Origin + session-bound CSRF; operation-specific RBAC/MFA/audit still needs evidence | Suite exists; specific positive/negative assertions still require row-level evidence; global validation envelope was fixed in PR #139, but per-route error/status coverage is not yet signed off. |
 | `POST` | `/api/v1/casino/games/{gameId}/demo-launch` | Only with catalogue DB + development Sandbox client/key; Origin allow-list | `postCasinoGamesByGameIdDemoLaunch` · `201, 404, 503` | present; OpenAPI input declaration: parameters; requestBody; Fastify schema | server/test/bigbang-demo-launch.test.ts; server/test/bigbang.test.ts | Public Sandbox-only launch; exact Origin allow-list + rate limit; no real-wallet session | Suite exists; specific positive/negative assertions still require row-level evidence; global validation envelope was fixed in PR #139, but per-route error/status coverage is not yet signed off. |
 
+## 2A. Source-level validation details for the 49 declared routes
+
+This supplemental matrix extracts top-level Fastify `params`, `querystring`, `body`, and `headers` fields from each route's inline schema. It is a static source inventory, not a proof that nested constraints match OpenAPI. A missing inline schema means route/helper validation must be examined rather than assuming no validation exists.
+
+| Method | Path | Fastify schema field summary |
+|---|---|---|
+| `GET` | `/api/v1/health/live` | No explicit route-level Fastify schema (handler/helper validation requires separate proof) |
+| `GET` | `/api/v1/health/ready` | No explicit route-level Fastify schema (handler/helper validation requires separate proof) |
+| `POST` | `/api/v1/auth/register` | body (fields=email,password,countryCode,settlementCurrency,dateOfBirth,acceptTerms,acceptAgeConfirmation,preferredLanguage,username,phoneNumber,preferredDisplayCurrency; required=email,username,password,countryCode,settlementCurrency,dateOfBirth,acceptTerms,acceptAgeConfirmation,preferredLanguage; constraints=additionalProperties,format,maxLength,minLength,pattern,enum) |
+| `POST` | `/api/v1/auth/login` | body (fields=identifier,email,password; required=password; constraints=additionalProperties,minLength,maxLength) |
+| `GET` | `/api/v1/auth/session` | No explicit route-level Fastify schema (handler/helper validation requires separate proof) |
+| `POST` | `/api/v1/auth/logout` | No explicit route-level Fastify schema (handler/helper validation requires separate proof) |
+| `GET` | `/api/v1/player/profile` | No explicit route-level Fastify schema (handler/helper validation requires separate proof) |
+| `PATCH` | `/api/v1/player/profile` | body (fields=displayName,language,username,firstName,lastName,gender,countryCode,city,address,phoneNumber,postalCode; required=—; constraints=additionalProperties,minLength,maxLength,pattern,enum) |
+| `POST` | `/api/v1/auth/password-reset/request` | body (fields=email; required=email; constraints=additionalProperties,format,maxLength) |
+| `POST` | `/api/v1/auth/password-reset/confirm` | body (fields=token,newPassword; required=token,newPassword; constraints=additionalProperties,minLength,maxLength) |
+| `POST` | `/api/v1/auth/email-verification/request` | No explicit route-level Fastify schema (handler/helper validation requires separate proof) |
+| `POST` | `/api/v1/auth/email-verification/confirm` | body (fields=token; required=token; constraints=additionalProperties,minLength,maxLength) |
+| `POST` | `/api/v1/admin/auth/login` | body (fields=email,password; required=email,password; constraints=additionalProperties,format,maxLength,minLength) |
+| `POST` | `/api/v1/admin/auth/mfa/verify` | body (fields=challengeId,factor,code; required=challengeId,factor,code; constraints=additionalProperties,format,enum,minLength,maxLength) |
+| `POST` | `/api/v1/admin/auth/mfa/totp/setup` | No explicit route-level Fastify schema (handler/helper validation requires separate proof) |
+| `POST` | `/api/v1/admin/auth/mfa/totp/verify` | body (fields=code; required=code; constraints=additionalProperties,pattern) |
+| `POST` | `/api/v1/admin/auth/mfa/recovery-codes` | body (fields=totpCode,reason; required=totpCode,reason; constraints=additionalProperties,pattern,minLength,maxLength) |
+| `POST` | `/api/v1/admin/auth/logout` | No explicit route-level Fastify schema (handler/helper validation requires separate proof) |
+| `GET` | `/api/v1/admin/session` | No explicit route-level Fastify schema (handler/helper validation requires separate proof) |
+| `GET` | `/api/v1/wallets/{currency}/balance` | params (fields=currency; required=currency; constraints=additionalProperties,pattern,maxLength) |
+| `GET` | `/api/v1/wallets/{currency}/statement` | params (fields=currency; required=currency; constraints=additionalProperties,pattern,maxLength); querystring (fields=cursor,limit,from,to; required=—; constraints=additionalProperties,maxLength,minimum,maximum,format) |
+| `GET` | `/api/v1/casino/categories` | No explicit route-level Fastify schema (handler/helper validation requires separate proof) |
+| `GET` | `/api/v1/casino/display-categories` | querystring (fields=type; required=—; constraints=additionalProperties,enum) |
+| `GET` | `/api/v1/casino/providers` | No explicit route-level Fastify schema (handler/helper validation requires separate proof) |
+| `GET` | `/api/v1/casino/games` | No explicit route-level Fastify schema (handler/helper validation requires separate proof) |
+| `GET` | `/api/v1/casino/games/by-slug/{slug}` | No explicit route-level Fastify schema (handler/helper validation requires separate proof) |
+| `GET` | `/api/v1/casino/games/{gameId}` | No explicit route-level Fastify schema (handler/helper validation requires separate proof) |
+| `GET` | `/api/v1/admin/bigbang/settings` | querystring (fields=—; required=—; constraints=additionalProperties) |
+| `GET` | `/api/v1/admin/bigbang/providers` | querystring (fields=—; required=—; constraints=additionalProperties) |
+| `PATCH` | `/api/v1/admin/bigbang/providers/{providerCode}` | params (fields=providerCode; required=providerCode; constraints=additionalProperties,minLength,maxLength,pattern); body (fields=enabled; required=enabled; constraints=additionalProperties) |
+| `PATCH` | `/api/v1/admin/bigbang/providers/{providerCode}/tiers/{mode}` | params (fields=providerCode,mode; required=providerCode,mode; constraints=additionalProperties,minLength,maxLength,pattern,enum); body (fields=enabled; required=enabled; constraints=additionalProperties) |
+| `GET` | `/api/v1/admin/bigbang/games` | querystring (fields=page,pageSize,providerCode,query; required=—; constraints=additionalProperties,minimum,maximum,minLength,maxLength,pattern) |
+| `PATCH` | `/api/v1/admin/bigbang/games/{gameId}` | params (fields=gameId; required=gameId; constraints=additionalProperties,pattern); body (fields=enabled; required=enabled; constraints=additionalProperties) |
+| `GET` | `/api/v1/admin/casino/display-categories` | No explicit route-level Fastify schema (handler/helper validation requires separate proof) |
+| `POST` | `/api/v1/admin/casino/display-categories` | body (fields=name,description,icon,type,visible; required=name; constraints=additionalProperties,minLength,maxLength,enum) |
+| `POST` | `/api/v1/admin/casino/display-categories/{categoryId}/icon` | params (fields=categoryId; required=categoryId; constraints=additionalProperties,pattern) |
+| `GET` | `/api/v1/assets/casino-display-categories/{categoryId}/{fileName}` | params (fields=categoryId,fileName; required=categoryId,fileName; constraints=additionalProperties,pattern) |
+| `PATCH` | `/api/v1/admin/casino/display-categories/{categoryId}` | params (fields=categoryId; required=categoryId; constraints=additionalProperties,pattern); body (fields=name,description,icon,type,visible,displayOrder; required=—; constraints=additionalProperties,minLength,maxLength,enum,minimum,maximum) |
+| `DELETE` | `/api/v1/admin/casino/display-categories/{categoryId}` | params (fields=categoryId; required=categoryId; constraints=additionalProperties,pattern) |
+| `GET` | `/api/v1/admin/casino/display-categories/{categoryId}/games` | params (fields=categoryId; required=categoryId; constraints=additionalProperties,pattern) |
+| `PUT` | `/api/v1/admin/casino/display-categories/{categoryId}/games` | params (fields=categoryId; required=categoryId; constraints=additionalProperties,pattern); body (fields=gameIds; required=gameIds; constraints=additionalProperties,maxItems,pattern) |
+| `PATCH` | `/api/v1/admin/casino/skin-games/{gameId}/display-categories` | params (fields=gameId; required=gameId; constraints=additionalProperties,pattern); body (fields=categoryIds; required=categoryIds; constraints=additionalProperties,maxItems,pattern) |
+| `GET` | `/api/v1/admin/casino/skin-games` | No explicit route-level Fastify schema (handler/helper validation requires separate proof) |
+| `PATCH` | `/api/v1/admin/casino/skin-games/reorder` | body (fields=gameId,targetGameId,position; required=gameId,targetGameId,position; constraints=additionalProperties,pattern,enum) |
+| `PATCH` | `/api/v1/admin/casino/skin-games/{gameId}/order-position` | params (fields=gameId; required=gameId; constraints=additionalProperties,pattern); body (fields=orderPosition; required=orderPosition; constraints=additionalProperties,minimum,maximum) |
+| `PATCH` | `/api/v1/admin/casino/skin-games/{gameId}` | params (fields=gameId; required=gameId; constraints=additionalProperties,pattern); body (fields=enabled,description,displayTitle,clearCustomImage; required=—; constraints=additionalProperties,maxLength) |
+| `POST` | `/api/v1/admin/casino/skin-games/{gameId}/image` | params (fields=gameId; required=gameId; constraints=additionalProperties,pattern) |
+| `GET` | `/api/v1/assets/casino-games/{gameId}/{fileName}` | params (fields=gameId,fileName; required=gameId,fileName; constraints=additionalProperties,pattern) |
+| `POST` | `/api/v1/casino/games/{gameId}/demo-launch` | params (fields=gameId; required=gameId; constraints=additionalProperties,pattern); body (fields=language; required=—; constraints=additionalProperties,pattern,minLength,maxLength) |
+
+## 2B. Guard markers observed in each source handler block
+
+Guard-marker detection is intentionally conservative and may miss checks hidden in imported helpers; absence of a marker does not prove absence of protection. Conversely, a marker proves only a call/reference exists, not that a successful/denied request was tested.
+
+| Method | Path | Source guard markers |
+|---|---|---|
+| `GET` | `/api/v1/health/live` | No direct marker in route block; public route or shared helper requires review |
+| `GET` | `/api/v1/health/ready` | No direct marker in route block; public route or shared helper requires review |
+| `POST` | `/api/v1/auth/register` | originAllowed, rate limit marker |
+| `POST` | `/api/v1/auth/login` | originAllowed |
+| `GET` | `/api/v1/auth/session` | requirePlayer |
+| `POST` | `/api/v1/auth/logout` | requirePlayer |
+| `GET` | `/api/v1/player/profile` | requirePlayer |
+| `PATCH` | `/api/v1/player/profile` | requirePlayer |
+| `POST` | `/api/v1/auth/password-reset/request` | originAllowed |
+| `POST` | `/api/v1/auth/password-reset/confirm` | originAllowed |
+| `POST` | `/api/v1/auth/email-verification/request` | requirePlayer |
+| `POST` | `/api/v1/auth/email-verification/confirm` | originAllowed |
+| `POST` | `/api/v1/admin/auth/login` | originAllowed |
+| `POST` | `/api/v1/admin/auth/mfa/verify` | originAllowed |
+| `POST` | `/api/v1/admin/auth/mfa/totp/setup` | requireAdmin, requireEnrollment |
+| `POST` | `/api/v1/admin/auth/mfa/totp/verify` | requireAdmin, requireEnrollment |
+| `POST` | `/api/v1/admin/auth/mfa/recovery-codes` | requireAdmin |
+| `POST` | `/api/v1/admin/auth/logout` | requireAdmin |
+| `GET` | `/api/v1/admin/session` | MFA/TOTP marker |
+| `GET` | `/api/v1/wallets/{currency}/balance` | requirePlayer |
+| `GET` | `/api/v1/wallets/{currency}/statement` | requirePlayer |
+| `GET` | `/api/v1/casino/categories` | manual validation marker |
+| `GET` | `/api/v1/casino/display-categories` | manual validation marker |
+| `GET` | `/api/v1/casino/providers` | No direct marker in route block; public route or shared helper requires review |
+| `GET` | `/api/v1/casino/games` | No direct marker in route block; public route or shared helper requires review |
+| `GET` | `/api/v1/casino/games/by-slug/{slug}` | manual validation marker |
+| `GET` | `/api/v1/casino/games/{gameId}` | manual validation marker |
+| `GET` | `/api/v1/admin/bigbang/settings` | No direct marker in route block; public route or shared helper requires review |
+| `GET` | `/api/v1/admin/bigbang/providers` | No direct marker in route block; public route or shared helper requires review |
+| `PATCH` | `/api/v1/admin/bigbang/providers/{providerCode}` | audit write marker, manual validation marker |
+| `PATCH` | `/api/v1/admin/bigbang/providers/{providerCode}/tiers/{mode}` | audit write marker, manual validation marker |
+| `GET` | `/api/v1/admin/bigbang/games` | manual validation marker |
+| `PATCH` | `/api/v1/admin/bigbang/games/{gameId}` | audit write marker, manual validation marker |
+| `GET` | `/api/v1/admin/casino/display-categories` | manual validation marker |
+| `POST` | `/api/v1/admin/casino/display-categories` | audit write marker, manual validation marker |
+| `POST` | `/api/v1/admin/casino/display-categories/{categoryId}/icon` | audit write marker, manual validation marker |
+| `GET` | `/api/v1/assets/casino-display-categories/{categoryId}/{fileName}` | manual validation marker |
+| `PATCH` | `/api/v1/admin/casino/display-categories/{categoryId}` | audit write marker, manual validation marker |
+| `DELETE` | `/api/v1/admin/casino/display-categories/{categoryId}` | audit write marker, manual validation marker |
+| `GET` | `/api/v1/admin/casino/display-categories/{categoryId}/games` | manual validation marker |
+| `PUT` | `/api/v1/admin/casino/display-categories/{categoryId}/games` | audit write marker, manual validation marker |
+| `PATCH` | `/api/v1/admin/casino/skin-games/{gameId}/display-categories` | audit write marker, manual validation marker |
+| `GET` | `/api/v1/admin/casino/skin-games` | manual validation marker |
+| `PATCH` | `/api/v1/admin/casino/skin-games/reorder` | audit write marker, manual validation marker |
+| `PATCH` | `/api/v1/admin/casino/skin-games/{gameId}/order-position` | audit write marker, manual validation marker |
+| `PATCH` | `/api/v1/admin/casino/skin-games/{gameId}` | audit write marker, manual validation marker |
+| `POST` | `/api/v1/admin/casino/skin-games/{gameId}/image` | audit write marker, manual validation marker |
+| `GET` | `/api/v1/assets/casino-games/{gameId}/{fileName}` | manual validation marker |
+| `POST` | `/api/v1/casino/games/{gameId}/demo-launch` | rate limit marker, manual validation marker |
+
 ## 3. Evidence from this increment
 
 ### Completed in this branch
