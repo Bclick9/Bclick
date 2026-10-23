@@ -128,6 +128,7 @@ test('public curated categories return operator-selected canonical games and no-
     const payload = response.json();
     assert.equal(payload.data.length, 1);
     assert.equal(payload.data[0].name, 'Trending Games');
+    assert.equal(payload.data[0].type, 'casino');
     assert.equal(payload.data[0].games[0].id, GAME_ID);
     assert.equal(payload.data[0].games[0].slug, 'hot-hot-fruit-habanero');
     assert.match(fixture.calls[0]!, /source_mode='standard'/);
