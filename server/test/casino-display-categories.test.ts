@@ -11,6 +11,15 @@ function fakeCatalogDatabase() {
   const database = {
     async query(sql: string) {
       calls.push(sql);
+      if (sql.includes('count(DISTINCT g.id)::text AS total') && sql.includes('casino_game_display_categories')) {
+        return { rows: [{ total: '1' }], rowCount: 1 };
+      }
+      if (sql.includes('SELECT g.id::text AS id,g.game_slug AS slug') && sql.includes('casino_game_display_categories')) {
+        return { rows: [{ id: GAME_ID, slug: 'hot-hot-fruit-habanero', title: 'Hot Hot Fruit', provider_code: 'habanero', provider_name: 'Habanero', image_url: 'https://assets.example.test/hot-hot-fruit.webp', description: '', available: true, demo_available: false, real_available: false, categories: ['slot-games'] }], rowCount: 1 };
+      }
+      if (sql.includes('FROM public.casino_catalog_sync_runs')) {
+        return { rows: [{ latest_status: 'succeeded', fetched_at: null }], rowCount: 1 };
+      }
       if (sql.includes('WITH public_games AS') && sql.includes('casino_game_display_categories')) {
         return {
           rows: [{
@@ -42,6 +51,32 @@ function fakeCatalogDatabase() {
   } as unknown as SqlExecutor;
   return { database, calls };
 }
+
+test('catalogue displayCategory filter returns only assigned available Standard games and remains paginated', async () => {
+  const fixture = fakeCatalogDatabase();
+  const app = buildApp({ database: null, catalogDatabase: fixture.database });
+  try {
+    const response = await app.inject({ method: 'GET', url: '/api/v1/casino/games?displayCategory=trending-games&pageSize=12' });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.equal(response.headers['cache-control'], 'no-store');
+    const payload = response.json();
+    assert.equal(payload.page.total, 1);
+    assert.equal(payload.data.length, 1);
+    assert.equal(payload.data[0].id, GAME_ID);
+    assert.equal(payload.data[0].slug, 'hot-hot-fruit-habanero');
+    const membershipQueries = fixture.calls.filter((sql) => sql.includes('casino_game_display_categories dgc'));
+    assert.equal(membershipQueries.length, 2, 'the count and page queries must both filter by category membership');
+    for (const sql of membershipQueries) {
+      assert.match(sql, /dc\\.slug=\\$1/);
+      assert.match(sql, /dc\\.visible=true/);
+      assert.match(sql, /dgc\\.game_id=g\\.id/);
+      assert.match(sql, /s\\.source_mode='standard'/);
+      assert.match(sql, /g\\.available=true/);
+    }
+  } finally {
+    await app.close();
+  }
+});
 
 test('public curated categories return operator-selected canonical games and no-store headers', async () => {
   const fixture = fakeCatalogDatabase();
