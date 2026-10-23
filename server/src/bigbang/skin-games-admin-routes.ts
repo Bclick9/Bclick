@@ -81,15 +81,40 @@ function imageInfo(bytes: Buffer): { extension: 'png' | 'jpg' | 'webp'; contentT
   let width = 0;
   let height = 0;
 
-  if (bytes.length >= 24
-      && bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))
-      && bytes.toString('ascii', 12, 16) === 'IHDR') {
+  if (bytes.length >= 45
+      && bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) {
     extension = 'png';
-    width = bytes.readUInt32BE(16);
-    height = bytes.readUInt32BE(20);
+    // Walk the complete PNG chunk stream. A valid IHDR signature alone is not enough:
+    // require bounded chunks, image data, and a terminal IEND before accepting the upload.
+    let offset = 8;
+    let sawHeader = false;
+    let sawImageData = false;
+    let sawEnd = false;
+    while (offset + 12 <= bytes.length) {
+      const length = bytes.readUInt32BE(offset);
+      if (length > MAX_IMAGE_BYTES || offset + 12 + length > bytes.length) return null;
+      const type = bytes.toString('ascii',offset+4,offset+8);
+      if (!sawHeader) {
+        if (type !== 'IHDR' || length !== 13) return null;
+        width = bytes.readUInt32BE(offset+8);
+        height = bytes.readUInt32BE(offset+12);
+        sawHeader = true;
+      } else if (type === 'IHDR') {
+        return null;
+      }
+      if (type === 'IDAT') sawImageData = true;
+      offset += length + 12;
+      if (type === 'IEND') {
+        if (length !== 0) return null;
+        sawEnd = true;
+        break;
+      }
+    }
+    if (!sawHeader || !sawImageData || !sawEnd || offset !== bytes.length) return null;
   } else if (bytes.length >= 30
       && bytes.toString('ascii', 0, 4) === 'RIFF'
-      && bytes.toString('ascii', 8, 12) === 'WEBP') {
+      && bytes.toString('ascii', 8, 12) === 'WEBP'
+      && bytes.readUInt32LE(4) + 8 === bytes.length) {
     const chunk = bytes.toString('ascii', 12, 16);
     extension = 'webp';
     if (chunk === 'VP8X' && bytes.length >= 30) {
@@ -109,7 +134,7 @@ function imageInfo(bytes: Buffer): { extension: 'png' | 'jpg' | 'webp'; contentT
     } else {
       return null;
     }
-  } else if (bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8) {
+  } else if (bytes.length >= 20 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[bytes.length-2] === 0xff && bytes[bytes.length-1] === 0xd9) {
     extension = 'jpg';
     let offset = 2;
     while (offset + 4 <= bytes.length) {
