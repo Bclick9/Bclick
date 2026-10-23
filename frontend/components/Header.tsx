@@ -58,6 +58,9 @@ function AuthActions({ compact = false }: { compact?: boolean }) {
   useEffect(() => {
     const openSearchDialog = () => setSearchOpen(true)
     const openAuthDialog = (event: Event) => {
+      // Desktop and mobile headers are mounted together; handle route-triggered
+      // requests in one place to avoid rendering two portal dialogs.
+      if (compact) return
       const detail = (event as CustomEvent<{ mode?: 'login' | 'signup'; returnTo?: string | null }>).detail
       setAuthReturnTo(typeof detail?.returnTo === 'string' ? detail.returnTo : null)
       setAuthMode(detail?.mode === 'signup' ? 'signup' : 'login')
