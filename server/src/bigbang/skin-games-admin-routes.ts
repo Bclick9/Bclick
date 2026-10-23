@@ -227,16 +227,18 @@ export function registerSkinGamesAdminRoutes(
   }, (_request, body, done) => done(null, body));
 
   const displayCategoryIcons = ['layers','gamepad','sparkles','trending','clock','users','money','gift','trophy','zap'] as const;
+  const displayCategoryTypes = ['casino','live-casino','crash-games'] as const;
+  type DisplayCategoryType = typeof displayCategoryTypes[number];
 
   app.get('/api/v1/admin/casino/display-categories', async (request,reply) => {
     try {
       const session = await authorizedAdmin(database,request,reply,options,false);
       if (!session) return;
       const result = await database.query<QueryResultRow & {
-        id:string; slug:string; name:string; description:string; icon:string; iconUrl:string|null; visible:boolean;
+        id:string; slug:string; name:string; description:string; icon:string; type:DisplayCategoryType; iconUrl:string|null; visible:boolean;
         displayOrder:number|string; items:number|string; createdAt:string|Date; updatedAt:string|Date; customIconKey:string|null;
       }>(`
-        SELECT c.id::text AS id,c.slug,c.name,c.description,c.icon,c.visible,
+        SELECT c.id::text AS id,c.slug,c.name,c.description,c.icon,c.category_type AS type,c.visible,
                c.custom_icon_key AS "customIconKey",
                CASE WHEN c.custom_icon_key IS NULL THEN NULL ELSE '/api/v1/assets/' || c.custom_icon_key END AS "iconUrl",
                c.display_order AS "displayOrder",count(m.game_id)::integer AS items,
@@ -249,7 +251,7 @@ export function registerSkinGamesAdminRoutes(
       reply.header('Cache-Control','no-store');
       return reply.code(200).send({
         data: result.rows.map((row) => ({
-          id:row.id,slug:row.slug,name:row.name,description:row.description,icon:row.icon,iconUrl:row.iconUrl,visible:row.visible,
+          id:row.id,slug:row.slug,name:row.name,description:row.description,icon:row.icon,type:row.type,iconUrl:row.iconUrl,visible:row.visible,
           displayOrder:Number(row.displayOrder),items:Number(row.items),
           createdAt:new Date(row.createdAt).toISOString(),updatedAt:new Date(row.updatedAt).toISOString(),
         })),
@@ -267,6 +269,7 @@ export function registerSkinGamesAdminRoutes(
         name:{type:'string',minLength:1,maxLength:80},
         description:{type:'string',maxLength:500},
         icon:{type:'string',enum:[...displayCategoryIcons]},
+        type:{type:'string',enum:[...displayCategoryTypes]},
         visible:{type:'boolean'},
       },
     } },
@@ -274,7 +277,7 @@ export function registerSkinGamesAdminRoutes(
     try {
       const session = await authorizedAdmin(database,request,reply,options,true);
       if (!session) return;
-      const body = request.body as {name:string;description?:string;icon?:typeof displayCategoryIcons[number];visible?:boolean};
+      const body = request.body as {name:string;description?:string;icon?:typeof displayCategoryIcons[number];type?:DisplayCategoryType;visible?:boolean};
       const name = body.name.trim();
       const slug = name.normalize('NFKD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase()
         .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,100).replace(/-+$/g,'');
@@ -283,32 +286,32 @@ export function registerSkinGamesAdminRoutes(
       const id = randomUUID();
       const auditId = randomUUID();
       const result = await database.query<QueryResultRow & {
-        id:string;slug:string;name:string;description:string;icon:string;visible:boolean;displayOrder:number|string;items:number;
+        id:string;slug:string;name:string;description:string;icon:string;type:DisplayCategoryType;visible:boolean;displayOrder:number|string;items:number;
       }>(`
         WITH next_order AS MATERIALIZED (
           SELECT COALESCE(max(display_order),0)+100 AS value FROM public.casino_display_categories
         ), created AS (
           INSERT INTO public.casino_display_categories
-            (id,slug,name,description,icon,visible,display_order,created_by,updated_by,created_at,updated_at)
-          SELECT $1::uuid,$2,$3,$4,$5,$6,next_order.value,$7,$7,now(),now()
+            (id,slug,name,description,icon,visible,category_type,display_order,created_by,updated_by,created_at,updated_at)
+          SELECT $1::uuid,$2,$3,$4,$5,$6,$10,next_order.value,$7,$7,now(),now()
             FROM next_order
           ON CONFLICT (slug) DO NOTHING
-          RETURNING id,slug,name,description,icon,visible,display_order AS "displayOrder",created_at AS "createdAt",updated_at AS "updatedAt"
+          RETURNING id,slug,name,description,icon,category_type AS type,visible,display_order AS "displayOrder",created_at AS "createdAt",updated_at AS "updatedAt"
         ), audited AS (
           INSERT INTO public.audit_events
             (id,action,actor_type,actor_id,subject_type,subject_id,outcome,request_id,metadata,created_at)
           SELECT $8,'casino.display-category.created','admin',$7,'casino_display_category',created.id,'success',$9,
-                 jsonb_build_object('slug',created.slug,'name',created.name,'icon',created.icon,'visible',created.visible),now()
+                 jsonb_build_object('slug',created.slug,'name',created.name,'icon',created.icon,'type',created.type,'visible',created.visible),now()
             FROM created
           RETURNING id
         )
-        SELECT created.id::text AS id,created.slug,created.name,created.description,created.icon,created.visible,
+        SELECT created.id::text AS id,created.slug,created.name,created.description,created.icon,created.type,created.visible,
                created."displayOrder",created."createdAt",created."updatedAt",0::integer AS items FROM created CROSS JOIN audited
-      `,[id,slug,name,body.description?.trim() ?? '',body.icon ?? 'sparkles',body.visible ?? true,session.principalId,auditId,request.id]);
+      `,[id,slug,name,body.description?.trim() ?? '',body.icon ?? 'sparkles',body.visible ?? true,session.principalId,auditId,request.id,body.type ?? 'casino']);
       const row = result.rows[0];
       if (!row) return sendError(reply,request,409,'DISPLAY_CATEGORY_EXISTS','A display category with this name/slug already exists');
       return reply.code(201).send({
-        data:{id:row.id,slug:row.slug,name:row.name,description:row.description,icon:row.icon,visible:row.visible,displayOrder:Number(row.displayOrder),items:0},
+        data:{id:row.id,slug:row.slug,name:row.name,description:row.description,icon:row.icon,type:row.type,visible:row.visible,displayOrder:Number(row.displayOrder),items:0},
         requestId:request.id,
       });
     } catch (error) {
@@ -442,6 +445,7 @@ export function registerSkinGamesAdminRoutes(
           name:{type:'string',minLength:1,maxLength:80},
           description:{type:'string',maxLength:500},
           icon:{type:'string',enum:[...displayCategoryIcons]},
+          type:{type:'string',enum:[...displayCategoryTypes]},
           visible:{type:'boolean'},
           displayOrder:{type:'integer',minimum:0,maximum:100000000},
         },
@@ -453,17 +457,18 @@ export function registerSkinGamesAdminRoutes(
       if (!session) return;
       const {categoryId} = request.params as {categoryId:string};
       if (!UUID.test(categoryId)) return sendError(reply,request,400,'VALIDATION_ERROR','Category ID must be a UUID');
-      const body = request.body as {name?:string;description?:string;icon?:typeof displayCategoryIcons[number];visible?:boolean;displayOrder?:number};
+      const body = request.body as {name?:string;description?:string;icon?:typeof displayCategoryIcons[number];type?:DisplayCategoryType;visible?:boolean;displayOrder?:number};
       const nameChanged = typeof body.name === 'string';
       const name = body.name?.trim() ?? '';
       if (nameChanged && !name) return sendError(reply,request,422,'DISPLAY_CATEGORY_NAME_INVALID','Category name cannot be blank');
       const descriptionChanged = typeof body.description === 'string';
       const iconChanged = typeof body.icon === 'string';
+      const typeChanged = typeof body.type === 'string';
       const visibleChanged = typeof body.visible === 'boolean';
       const orderChanged = Number.isInteger(body.displayOrder);
       const auditId = randomUUID();
       const result = await database.query<QueryResultRow & {
-        id:string;slug:string;name:string;description:string;icon:string;visible:boolean;displayOrder:number|string;items:number;
+        id:string;slug:string;name:string;description:string;icon:string;type:DisplayCategoryType;visible:boolean;displayOrder:number|string;items:number;
       }>(`
         WITH target AS MATERIALIZED (
           SELECT id FROM public.casino_display_categories WHERE id=$1::uuid
@@ -474,23 +479,24 @@ export function registerSkinGamesAdminRoutes(
                  icon=CASE WHEN $6::boolean THEN $7::text ELSE c.icon END,
                  visible=CASE WHEN $8::boolean THEN $9::boolean ELSE c.visible END,
                  display_order=CASE WHEN $10::boolean THEN $11::bigint ELSE c.display_order END,
+                 category_type=CASE WHEN $15::boolean THEN $16::text ELSE c.category_type END,
                  updated_by=$12,updated_at=now()
             FROM target t
            WHERE c.id=t.id
-          RETURNING c.id,c.slug,c.name,c.description,c.icon,c.visible,c.display_order AS "displayOrder"
+          RETURNING c.id,c.slug,c.name,c.description,c.icon,c.category_type AS type,c.visible,c.display_order AS "displayOrder"
         ), audited AS (
           INSERT INTO public.audit_events
             (id,action,actor_type,actor_id,subject_type,subject_id,outcome,request_id,metadata,created_at)
           SELECT $13,'casino.display-category.updated','admin',$12,'casino_display_category',changed.id,'success',$14,
                  jsonb_build_object('nameChanged',$2::boolean,'descriptionChanged',$4::boolean,'iconChanged',$6::boolean,
-                   'visibilityChanged',$8::boolean,'displayOrderChanged',$10::boolean),now()
+                   'visibilityChanged',$8::boolean,'displayOrderChanged',$10::boolean,'typeChanged',$15::boolean),now()
             FROM changed
           RETURNING id
         )
-        SELECT changed.id::text AS id,changed.slug,changed.name,changed.description,changed.icon,changed.visible,changed."displayOrder",
+        SELECT changed.id::text AS id,changed.slug,changed.name,changed.description,changed.icon,changed.type,changed.visible,changed."displayOrder",
                (SELECT count(*)::integer FROM public.casino_game_display_categories m WHERE m.category_id=changed.id) AS items
           FROM changed CROSS JOIN audited
-      `,[categoryId,nameChanged,name,descriptionChanged,body.description ?? '',iconChanged,body.icon ?? '',visibleChanged,body.visible ?? false,orderChanged,body.displayOrder ?? 0,session.principalId,auditId,request.id]);
+      `,[categoryId,nameChanged,name,descriptionChanged,body.description ?? '',iconChanged,body.icon ?? '',visibleChanged,body.visible ?? false,orderChanged,body.displayOrder ?? 0,session.principalId,auditId,request.id,typeChanged,body.type ?? 'casino']);
       const row = result.rows[0];
       if (!row) return sendError(reply,request,404,'NOT_FOUND','Display category was not found');
       return reply.code(200).send({data:{...row,displayOrder:Number(row.displayOrder),items:Number(row.items)},requestId:request.id});
