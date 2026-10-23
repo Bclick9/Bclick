@@ -297,6 +297,26 @@ test('game list uses only the database and never invokes an external provider ad
 });
 
 
+test('public catalogue list returns and searches by the player-facing title override', async () => {
+  const renamed = { ...ROW, title: 'Zeus the Thunderer Deluxe' };
+  const fixture = catalogDatabase({ listRows: [renamed], total: 1 });
+  const app = buildApp({ database: null, catalogDatabase: fixture.database });
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/casino/games?query=Zeus&pageSize=10',
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.equal(response.json().data[0].id, GAME_ID);
+    assert.equal(response.json().data[0].title, 'Zeus the Thunderer Deluxe');
+    assert.match(fixture.calls[0]!.sql, /COALESCE\(NULLIF\(pres_search\.title_override,''\),g\.title\) ILIKE/);
+    assert.match(fixture.calls[1]!.sql, /COALESCE\(NULLIF\(pres\.title_override,''\),g\.title\) AS title/);
+    assert.deepEqual(fixture.calls[0]!.values, ['%Zeus%']);
+  } finally {
+    await app.close();
+  }
+});
+
 test('provider query is an exact Bclick provider identity, not a substring search', async () => {
   const fixture = catalogDatabase();
   const app = buildApp({ database: null, catalogDatabase: fixture.database });
