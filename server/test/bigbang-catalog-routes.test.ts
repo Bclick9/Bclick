@@ -118,6 +118,22 @@ test('slug lookup resolves the canonical UUID and preserves every stored categor
 });
 
 
+test('player-facing title overrides are returned by canonical slug routes without changing the slug identity', async () => {
+  const renamed = { ...ROW, title: 'Zeus the Thunderer Deluxe' };
+  const fixture = catalogDatabase({ game: renamed });
+  const app = buildApp({ database: null, catalogDatabase: fixture.database });
+  try {
+    const response = await app.inject({ method: 'GET', url: '/api/v1/casino/games/by-slug/' + GAME_SLUG });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.equal(response.json().data.id, GAME_ID);
+    assert.equal(response.json().data.slug, GAME_SLUG);
+    assert.equal(response.json().data.title, 'Zeus the Thunderer Deluxe');
+    assert.match(fixture.calls[1]!.sql, /COALESCE\(NULLIF\(pres\.title_override,''\),g\.title\) AS title/);
+  } finally {
+    await app.close();
+  }
+});
+
 test('legacy slug resolves to the pinned canonical UUID and returns the canonical slug', async () => {
   const fixture = catalogDatabase({
     alias: { alias_slug: 'lightning-roulette', resolution_status: 'resolved', game_id: GAME_ID },
