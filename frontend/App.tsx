@@ -1,6 +1,7 @@
 /** @jsxRuntime automatic */
 
-import { Routes, Route, Navigate, Link, Outlet, useLocation, useParams } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Routes, Route, Navigate, Link, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { useAuth } from './contexts/AuthContext'
 import Home from './pages/Home'
@@ -17,8 +18,8 @@ import Support from './pages/Support'
 import AccountPage from './pages/Account'
 import { WalletRouter } from './pages/Wallet'
 import Info from './pages/Info'
-import { LoginPage, RegisterPage } from './pages/Auth'
 import './appTheme.css'
+import { resolveLegacyAuthRoute, type LegacyAuthMode } from './lib/legacyAuthRoute'
 
 function NotFound() {
   return (
@@ -77,6 +78,48 @@ function RequirePlayerSession() {
   return <Outlet />
 }
 
+function LegacyAuthRedirect({ mode }: { mode: LegacyAuthMode }) {
+  const { player, isLoading } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const state = location.state as { from?: unknown } | null
+  const decision = resolveLegacyAuthRoute({
+    mode,
+    isLoading,
+    authenticated: Boolean(player),
+    returnTo: state?.from,
+  })
+
+  const decisionType = decision.type
+  const redirectTarget = decision.type === 'redirect' ? decision.to : null
+  const modalMode = decision.type === 'open-modal' ? decision.mode : null
+  const modalReturnTo = decision.type === 'open-modal' ? decision.returnTo : null
+
+  useEffect(() => {
+    if (decisionType === 'wait') return
+    if (decisionType === 'open-modal' && modalMode) {
+      window.dispatchEvent(new CustomEvent('cb:open-auth', {
+        detail: { mode: modalMode, returnTo: modalReturnTo },
+      }))
+      navigate('/', { replace: true })
+      return
+    }
+    if (decisionType === 'redirect' && redirectTarget) {
+      navigate(redirectTarget, { replace: true })
+    }
+  }, [decisionType, redirectTarget, modalMode, modalReturnTo, navigate])
+
+  if (decision.type === 'wait') {
+    return (
+      <div className="mx-auto flex min-h-[40vh] max-w-xl items-center justify-center px-4 text-sm text-[#aebfca]" role="status">
+        Checking your account session…
+      </div>
+    )
+  }
+
+  return null
+}
+
 export default function App() {
   return (
     <Routes>
@@ -107,9 +150,9 @@ export default function App() {
         {/* Legacy standalone search URL now redirects to the site; search is handled by SearchDialog. */}
         <Route path="search" element={<Navigate to="/" replace />} />
         <Route path="support" element={<Support />} />
-        <Route path="login" element={<LoginPage />} />
-        <Route path="register" element={<RegisterPage />} />
-        <Route path="signup" element={<Navigate to="/register" replace />} />
+        <Route path="login" element={<LegacyAuthRedirect mode="login" />} />
+        <Route path="register" element={<LegacyAuthRedirect mode="signup" />} />
+        <Route path="signup" element={<LegacyAuthRedirect mode="signup" />} />
 
         {/* Player account and personal betting history must not render without a valid session. */}
         <Route element={<RequirePlayerSession />}>

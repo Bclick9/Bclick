@@ -1,6 +1,6 @@
 # Bclick — Cumulative Progress and Roadmap Gate Checkpoint
 
-**Updated:** 2026-10-23, PR #119 merged to main; Owner's local Skin Games acceptance is next; Q-005 remains OPEN/P0  
+**Updated:** 2026-10-23, PR #120 opened for local UI blockers; Skin Games owner acceptance remains pending; Q-005 remains OPEN/P0  
 **Purpose:** Current implementation status and explicit stop conditions. This file reconciles current code with the planning roadmap; it does not replace the shared Library's `docs/planning/12-open-questions.md`.
 
 ## Current verified position
@@ -34,7 +34,7 @@
 - **Q-020 — P0, Open:** runtime contract evidence for each implemented route, alongside static OpenAPI checks. A CI fixture for an unimplemented or unexercised operation does not close this gate.
 - **Q-009 — Owner decision accepted; implementation verified locally/CI; PR #99 merged:** TND uses `0.01 TND = 10 millimes`, with no true third fractional digit. The shared money exponent is TND=2, wallet/API examples were updated, and guarded Migration 008 changes the database exponent from 3 to 2 only when no TND ledger entries exist and all projected TND balances are zero. The parser rejects values such as `12.345` rather than rounding. The Owner's local public.pgmigrations output records 1793188800000_tnd_provider_precision_008 as applied (id=10, on 2026-10-22 at 15:35), and precision/parser/migration-guard tests pass locally/CI. This confirms local development only; it does not establish that any staging/Production database was changed. For every non-local target, verify its own migration history, no TND ledger entries, and zero projected TND balances before applying anything. Real-money routing remains blocked by Q-006, Q-010, Q-011 and other release gates.
 
-## Immediate next task — Skin Games local acceptance, then resume Q-005
+## Immediate next task — validate PR #120 fixes, then resume Q-005
 
 **PR #119 is merged into `main` as squash commit `c88139078cf2c8be413763223ecc6db703ffea07`; its implementation-head CI passed.** The branch includes Migration 012, protected list/edit/reorder/image APIs, durable custom-image storage, tier-scoped provider settings, updated OpenAPI/generated declarations, and the public catalogue `display_order` fix. The checkpoint and precise CI evidence are in `docs/notes/2026-10-23-skin-games-persistent-management.md`.
 
@@ -52,6 +52,18 @@ If `git status -sb` shows uncommitted work, stop before pulling and inspect it r
 After the preview, return to **Q-005 (OPEN/P0)**: establish the provenance of the 3,802 versus 3,639 Standard-game counts and reconcile provider identity/category/legacy-route semantics. Do not infer missing rows or merge records by title alone. Only after Q-005 evidence is accepted should broader storefront cutover be planned.
 
 Q-006, Q-010, Q-011, Q-013 and Q-020 remain open; Phase 8 is NOT STARTED, and Premium import, live-key sync, payments, wagers, provider callbacks, wallet posting and all real-money flows remain disabled.
+
+## Local UI blockers reported 2026-10-23 — PR #120
+
+The Owner's first local preview after PR #119 reported:
+
+- **/cms/providers:** crashed with "Card is not defined". Source review confirms backend/pages/cms/Providers.tsx used Card and CardContent in its summary metrics without importing them; PR #120 adds those imports.
+- **/cms/skin-games:** received the generic API error. This alone does not prove Migration 012 is missing. PR #120 now logs a request-correlated SQLSTATE diagnostic on the API side and returns a safe 503 SKIN_GAMES_SCHEMA_NOT_READY hint for missing schema/relation/column SQLSTATEs, with a regression test. If a different error remains, use the API terminal's request-ID/SQLSTATE details for diagnosis without sharing cookies, secrets, or raw provider tokens.
+- **Player auth:** an authenticated player could still open /login. PR #120 removes full-page LoginPage/RegisterPage rendering. Legacy /login, /register, and /signup routes now wait for session verification, redirect authenticated players away, and open the existing login/registration modal for anonymous players. A validated return path is retained when an anonymous player was redirected from a protected page. Desktop/mobile header copies are guarded so the route event does not open duplicate dialogs.
+
+**Not accepted yet:** the Owner has not been able to inspect real UUID rows or verify drag ordering because the Skin Games screen did not load. After merge, check out latest main, start the local environment with .\start-bclick-local.ps1, confirm migration/readiness output, and validate: Providers renders; Skin Games returns real rows; selecting Standard enables drag/drop; move a row, refresh, and verify persisted order; test /login with an authenticated account and with a signed-out account. No local migration was applied by this code change. Do not infer the missing-migration diagnosis until the new SQLSTATE response or migration ledger confirms it.
+
+PR #120 does not change roadmap gates: Q-005, Q-006, Q-010, Q-011, Q-013 and Q-020 remain open; Premium and all real-money routes remain blocked.
 
 ## Completed engineering work (historical)
 
@@ -84,6 +96,6 @@ PR #119 implements the database-backed Skin Games editor and source-tier model. 
 
 The latest implementation-head CI passed API type/tests/typecheck/build and the migration chain through 012, OpenAPI lint/generated-client drift checks, storefront/admin builds, fresh local database/Identity route smoke tests, PowerShell syntax checking, and disposable PostgreSQL rehearsals for Migrations 001/002/003 and Wallet Migration 006. The CI references and local acceptance runbook are recorded in `docs/notes/2026-10-23-skin-games-persistent-management.md`.
 
-**Owner acceptance pending:** PR #119 is merged as `c88139078cf2c8be413763223ecc6db703ffea07`; now run `git status -sb`, `git pull --ff-only origin main`, `git rev-parse --short HEAD`, and `.\\start-bclick-local.ps1`; inspect Migration 012/runtime readiness and test the listed UI behaviors. The CI database was disposable only, and no external database was migrated by this implementation.
+**Owner acceptance pending:** the Owner's local run exposed three blockers after PR #119: Skin Games returns a generic API error; Providers crashes because Card/CardContent are used without imports; and standalone /login remains reachable after sign-in. PR #120 (https://github.com/Bclick9/Bclick/pull/120) addresses the missing imports, adds a safe SQLSTATE/schema-readiness diagnostic for Skin Games, and routes legacy login/register URLs to the existing modal after session verification. CI and merge status are not local acceptance. Once PR #120 is merged, inspect the worktree before pulling main, confirm Migration 012 output/readiness, and verify the page works. If SKIN_GAMES_SCHEMA_NOT_READY appears, follow startup output and the migration ledger; never manually rerun or roll back the migration. Explicitly test Standard-tier drag order by reloading Skin Games and checking the public catalogue. Order acceptance stays pending until the Owner confirms the local result.
 
 **Still gated:** Q-005/Q-006/Q-010/Q-011/Q-013/Q-020 remain open; persistent-upload backup/restore evidence remains required before Production; Premium remains read-only; Phase 8 and all real-money flows remain NOT STARTED.
