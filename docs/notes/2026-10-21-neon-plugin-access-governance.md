@@ -21,7 +21,19 @@ On 2026-10-21, the Project Owner confirmed that the Neon database password was c
 - Do not print secrets or database endpoint hostnames in preflight output.
 - If credentials are suspected to be exposed again, stop database access, rotate the credential, update the GitHub secret, and resume only after the Project Owner confirms the rotation.
 
-## 3. Permitted and prohibited Plugin use
+## 3. Credential exposure and immediate rotation rule
+
+**Treat every visibly exposed credential as compromised.** Any complete database connection string (`DATABASE_URL`), password, or other credential-bearing URI that appears in plain text in any ChatGPT conversation, shell command, terminal scrollback, transcript, CI log, screenshot, issue, PR, or committed file must be considered exposed and rotated promptly before further use. Do not wait for evidence of misuse.
+
+- Never paste a connection string into a normal shell command, source file, chat, PR, issue, screenshot, or log.
+- Use a masked/secure prompt, approved secret store, or environment injection limited to the process/step that needs the value. Masked input prevents display; it does not make it appropriate to print or persist the value afterward.
+- After rotation, update every authorized consumer securely (for example, GitHub Actions secrets and any approved connector that directly uses that database credential). Do not publish the replacement credential to prove that rotation occurred.
+- Record only a credential-free incident summary: which credential class was exposed, that rotation was requested/completed, where authorized copies were updated, and the independent test result. Never copy the credential itself into the NOTE.
+- If the old and current credentials are both exposed, rotate the current credential again. Do not rely on an unverified claim that an earlier credential has stopped working; perform an independent authentication test without logging either credential.
+
+A hostname or username alone is not equivalent to a password, but a full connection string containing a password is a secret. If exposure is uncertain, fail safely and rotate.
+
+## 4. Permitted and prohibited Plugin use
 
 ### Permitted: read-only diagnostics
 
@@ -44,7 +56,7 @@ Do **not** use the Neon plugin/connector for any operation that changes schema, 
 
 If a read-only command cannot be distinguished from a mutating operation, do not run it. Plugin access does not waive any Project Owner approval gate.
 
-## 4. Required audit trail for migrations
+## 5. Required audit trail for migrations
 
 Every write/migration operation must be executed through a repository-reviewed GitHub Actions workflow and the approved `DATABASE_URL` repository secret—not through the Plugin, a developer shell, Neon CLI, or an undocumented manual session.
 
@@ -62,7 +74,7 @@ The migration runner must use the repository's existing `node-pg-migrate` mechan
 
 **Implementation caveat:** this document defines the required audit controls; it does not assert that a baseline-write workflow already exists or has already been run. The baseline workflow itself must be reviewed before its first execution.
 
-## 5. Current sequence and explicit approval boundaries
+## 6. Current sequence and explicit approval boundaries
 
 ### Current blocker
 
@@ -83,7 +95,7 @@ After both baselines succeed, run the same read-only preflight against Neon and 
 - If any check differs, any query fails, or the migration history differs, stop, document results, and request the Project Owner's decision.
 - Do not create or execute Migration 001 automatically after the baseline or successful preflight.
 
-## 6. Fixed gates
+## 7. Fixed gates
 
 - **Q-020:** Open.
 - **Q-011:** P0/Open. Neon is not thereby treated as isolated staging, and this work does not satisfy Q-011 or authorize production deployment.
@@ -94,7 +106,7 @@ After both baselines succeed, run the same read-only preflight against Neon and 
 - **Migration A / Migration 005:** requires its own separate NOTE and explicit authorization.
 - **Migration B:** prohibited until its five ADR-023 criteria are evidenced and separately approved.
 
-## 7. Approval record
+## 8. Approval record
 
 - Password rotation and GitHub `DATABASE_URL` update: **reported complete by Project Owner on 2026-10-21; not independently verified here**.
 - This Governance NOTE: **approved by Project Owner; PR #68 merged to main at commit `24e283539f521e00aaf06725b276cd15aed0d02d`**.
