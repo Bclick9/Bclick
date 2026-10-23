@@ -569,10 +569,10 @@ export function registerSkinGamesAdminRoutes(
         values.push(searchValue);
         const parameter='$'+values.length;
         conditions.push('('+
-          'COALESCE(NULLIF(pres.title_override,\\'\\'),g.title) ILIKE '+parameter+' ESCAPE E\\'\\\\\\\\\\' '+
-          'OR g.game_slug ILIKE '+parameter+' ESCAPE E\\'\\\\\\\\\\' '+
-          'OR p.name ILIKE '+parameter+' ESCAPE E\\'\\\\\\\\\\' '+
-          'OR p.code ILIKE '+parameter+' ESCAPE E\\'\\\\\\\\\\' '+
+          'COALESCE(NULLIF(pres.title_override,\'\'),g.title) ILIKE '+parameter+' ESCAPE E\'\\\\\\\\\' '+
+          'OR g.game_slug ILIKE '+parameter+' ESCAPE E\'\\\\\\\\\' '+
+          'OR p.name ILIKE '+parameter+' ESCAPE E\'\\\\\\\\\' '+
+          'OR p.code ILIKE '+parameter+' ESCAPE E\'\\\\\\\\\' '+
           'OR s.external_game_id::text ILIKE '+parameter+')');
       }
       const where=conditions.join(' AND ');
@@ -589,14 +589,14 @@ export function registerSkinGamesAdminRoutes(
         id:string;slug:string;title:string;provider:string;imageUrl:string|null;available:boolean;
       } & QueryResultRow>(
         'SELECT g.id::text AS id,g.game_slug AS slug,'+
-        'COALESCE(NULLIF(pres.title_override,\\'\\'),g.title) AS title,p.name AS provider,'+
-        'COALESCE(\\'/api/v1/assets/\\' || pres.custom_image_key,g.image_url) AS "imageUrl",'+
+        'COALESCE(NULLIF(pres.title_override,\'\'),g.title) AS title,p.name AS provider,'+
+        'COALESCE(\'/api/v1/assets/\' || pres.custom_image_key,g.image_url) AS "imageUrl",'+
         '(g.available AND g.bclick_enabled AND p.bclick_enabled AND s.available AND COALESCE(pt.enabled,false)) AS available '+
         'FROM public.casino_games g JOIN public.casino_providers p ON p.id=g.provider_id '+
-        'JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code=\\'bigbang\\' AND s.source_mode=\\'standard\\' '+
+        'JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code=\'bigbang\' AND s.source_mode=\'standard\' '+
         'LEFT JOIN public.casino_provider_tier_settings pt ON pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode '+
         'LEFT JOIN public.casino_game_presentation pres ON pres.game_id=g.id '+
-        'WHERE '+where+' ORDER BY COALESCE(pres.display_order,0),lower(COALESCE(NULLIF(pres.title_override,\\'\\'),g.title)),p.code,g.id '+
+        'WHERE '+where+' ORDER BY COALESCE(pres.display_order,0),lower(COALESCE(NULLIF(pres.title_override,\'\'),g.title)),p.code,g.id '+
         'LIMIT $'+(pageValues.length-1)+' OFFSET $'+pageValues.length,
         pageValues);
       reply.header('Cache-Control','no-store');
@@ -632,7 +632,7 @@ export function registerSkinGamesAdminRoutes(
 
       const validGames=await database.query<{count:number|string} & QueryResultRow>(
         'SELECT count(DISTINCT game_id)::integer AS count FROM public.casino_game_sources '+
-        'WHERE source_code=\\'bigbang\\' AND source_mode=\\'standard\\' AND game_id=ANY($1::uuid[])',
+        'WHERE source_code=\'bigbang\' AND source_mode=\'standard\' AND game_id=ANY($1::uuid[])',
         [gameIds]);
       if(Number(validGames.rows[0]?.count??0)!==gameIds.length) {
         return sendError(reply,request,422,'DISPLAY_CATEGORY_GAME_INVALID','Every selected game must be a canonical Standard game. Premium assignments remain locked.');
@@ -648,8 +648,8 @@ export function registerSkinGamesAdminRoutes(
         'ON CONFLICT (category_id,game_id) DO NOTHING RETURNING game_id), '+
         'audited AS (INSERT INTO public.audit_events '+
         '(id,action,actor_type,actor_id,subject_type,subject_id,outcome,request_id,metadata,created_at) '+
-        'SELECT $4,\\'casino.display-category.games-updated\\',\\'admin\\',$3,\\'casino_display_category\\',t.id,\\'success\\',$5,'+
-        'jsonb_build_object(\\'gameCount\\',cardinality($2::uuid[])),now() FROM target t RETURNING id) '+
+        'SELECT $4,\'casino.display-category.games-updated\',\'admin\',$3,\'casino_display_category\',t.id,\'success\',$5,'+
+        'jsonb_build_object(\'gameCount\',cardinality($2::uuid[])),now() FROM target t RETURNING id) '+
         'SELECT t.id::text AS "categoryId",ARRAY(SELECT m.game_id::text FROM public.casino_game_display_categories m '+
         'WHERE m.category_id=t.id ORDER BY m.game_id) AS "gameIds" FROM target t CROSS JOIN audited',
         [categoryId,gameIds,session.principalId,auditId,request.id]);
