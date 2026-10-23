@@ -5,7 +5,7 @@ import {
   Trophy, Search as SearchIcon, LayoutGrid, ChevronLeft, ChevronRight, Info, X,
   type LucideIcon,
 } from 'lucide-react'
-import { GameCard, SectionRow, Wireframe } from '../components/cards'
+import { GameCard, Wireframe } from '../components/cards'
 import type { Game } from '../data/catalog'
 import { fetchCasinoCategories, fetchCasinoDisplayCategories, fetchCasinoGames, fetchCasinoProviders, getCatalogErrorMessage, type CasinoCatalogCategory, type CasinoCatalogGame, type CasinoCatalogProvider, type CasinoDisplayCategory } from '../lib/casinoCatalog'
 import { cn } from '../lib/shadcn/utils'
@@ -178,44 +178,6 @@ function CategoryStrip({ active, categories }: { active: string; categories: Cas
   )
 }
 
-function TrendingGames() {
-  const [games, setGames] = useState<CasinoCatalogGame[]>([])
-  const [loading, setLoading] = useState(true)
-  const [reloadKey, setReloadKey] = useState(0)
-  useRefreshOnVisibility(() => setReloadKey((value) => value + 1))
-
-  useEffect(() => {
-    const controller = new AbortController()
-    setLoading(true)
-    void fetchCasinoGames({ pageSize: 10, signal: controller.signal }).then((page) => {
-      if (!controller.signal.aborted) setGames(page.data)
-    }).catch(() => {
-      // Fail closed: do not fall back to the old hard-coded demo game list.
-      if (!controller.signal.aborted) setGames([])
-    }).finally(() => {
-      if (!controller.signal.aborted) setLoading(false)
-    })
-    return () => controller.abort()
-  }, [reloadKey])
-
-  if (loading || games.length === 0) return null
-  return (
-    <SectionRow title="Available Games" more="/casino/lobby">
-      {games.map((catalogGame) => {
-        const game: Game = {
-          id: catalogGame.id,
-          title: catalogGame.title,
-          provider: catalogGame.provider.name,
-          image: catalogGame.imageUrl ?? undefined,
-          imageShowsTitle: true,
-          categories: catalogGame.categories,
-        }
-        return <GameCard key={catalogGame.id} game={game} href={'/casino/play/demo/' + encodeURIComponent(catalogGame.slug)} />
-      })}
-    </SectionRow>
-  )
-}
-
 function CatalogGameGrid({
   games,
   total,
@@ -344,7 +306,10 @@ function CatalogGameRail({ category, title, bannerImage }: { category: CasinoDis
       <div className="p-4 md:p-6">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-lg font-extrabold text-foreground md:text-xl">{heading}</h2>
+            <div className="flex items-center gap-2">
+              {category.iconUrl ? <img src={category.iconUrl} alt="" loading="lazy" className="h-8 w-8 rounded-md object-cover" /> : null}
+              <h2 className="text-lg font-extrabold text-foreground md:text-xl">{heading}</h2>
+            </div>
             {category.description ? <p className="mt-1 text-xs text-muted-foreground">{category.description}</p> : null}
           </div>
           <div className="flex items-center gap-2">
@@ -490,8 +455,6 @@ export function CasinoCategory() {
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 py-5 md:py-6">
-      {isLobby ? <TrendingGames /> : null}
-
       <CasinoFilterBar searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} />
       <CategoryStrip active={category} categories={catalogCategories} />
 
