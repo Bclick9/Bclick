@@ -89,7 +89,7 @@ type FakeGame = {
   updatedBy: string | null;
 };
 
-function fakeDatabase(options: { mode?: 'standard' | 'premium' } = {}) {
+function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?: boolean; providerTierEnabled?: boolean; sourceAvailable?: boolean; catalogAvailable?: boolean } = {}) {
   const calls: Array<{ sql: string; values: unknown[] }> = [];
   const mode = options.mode ?? 'standard';
   let currentCustomImageKey: string | null = null;
@@ -102,11 +102,11 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium' } = {}) {
     sourceMode: mode,
     externalGameId: mode === 'standard' ? '4821' : '14821',
     isPremium: mode === 'premium',
-    sourceAvailable: true,
-    catalogAvailable: true,
+    sourceAvailable: options.sourceAvailable ?? true,
+    catalogAvailable: options.catalogAvailable ?? true,
     enabled: true,
-    providerEnabled: true,
-    providerTierEnabled: mode === 'standard',
+    providerEnabled: options.providerEnabled ?? true,
+    providerTierEnabled: options.providerTierEnabled ?? mode === 'standard',
     sourceImageUrl: 'https://bigbangcasino.bet/frontend/Vegas/ico/Habanero/SGHotHotFruit.webp',
     customImageKey: null,
     descriptionOverride: null,
@@ -232,6 +232,25 @@ test('Skin Games description and per-game availability are persisted with audit 
     assert.match(update.sql, /description_override=CASE/);
     assert.match(update.sql, /INSERT INTO public\.audit_events/);
     assert.deepEqual(update.values.slice(0, 6), [GAME_ID, false, true, 'Operator description', false, ADMIN_ID]);
+  } finally {
+    await app.close();
+  }
+});
+
+
+test('Skin Games does not enable a game while its source/provider/tier is unavailable', async () => {
+  const fixture = fakeDatabase({ providerTierEnabled: false });
+  const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config() });
+  try {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/casino/skin-games/' + GAME_ID,
+      headers: { ...authHeaders(true), 'content-type': 'application/json' },
+      payload: { enabled: true },
+    });
+    assert.equal(response.statusCode, 409);
+    assert.equal(response.json().error.code, 'GAME_NOT_EFFECTIVELY_AVAILABLE');
+    assert.equal(fixture.calls.length, 1, 'refusal occurs before any update/audit CTE');
   } finally {
     await app.close();
   }
