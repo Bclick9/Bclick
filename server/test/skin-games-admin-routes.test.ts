@@ -147,7 +147,7 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
       }
       if (sql.includes('WITH lock AS MATERIALIZED')) {
         assert.match(sql, /INSERT INTO public\.audit_events/);
-        assert.match(sql, /casino\.skin-games\.display-order/);
+        assert.match(sql, /bclick\.skin-games\.display-order/);
         assert.match(sql, /ON CONFLICT \(game_id\) DO UPDATE/);
         return { rows: [{ mode: row.sourceMode, displayOrder: 200 }], rowCount: 1 };
       }
@@ -156,7 +156,8 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
       }
       if (sql.includes('INSERT INTO public.casino_game_presentation(game_id,custom_image_key')) {
         assert.match(sql, /INSERT INTO public\.audit_events/);
-        return { rows: [{ game_id: row.id, custom_image_key: values[1] }], rowCount: 1 };
+        currentCustomImageKey = String(values[1]);
+        return { rows: [{ game_id: row.id, custom_image_key: currentCustomImageKey }], rowCount: 1 };
       }
       throw new Error('Unexpected Skin Games SQL: ' + sql);
     },
