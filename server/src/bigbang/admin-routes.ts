@@ -20,6 +20,10 @@ interface ProviderRow extends QueryResultRow {
   totalGames: number;
   sourceAvailableGames: number;
   enabledGames: number;
+  standardTierEnabled: boolean;
+  standardSourceAvailableGames: number;
+  premiumSourceAvailableGames: number;
+  premiumTierEnabled: boolean;
 }
 
 interface GameControlRow extends QueryResultRow {
