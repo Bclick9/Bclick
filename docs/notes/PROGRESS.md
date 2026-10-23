@@ -1,6 +1,6 @@
 # Bclick — Cumulative Progress and Roadmap Gate Checkpoint
 
-**Updated:** 2026-10-23, PR #127 merged as bd53008 (Migration 014/canonical storefront cutover); PR #130 merged as 18172a7 (Migration 015/curated Lobby categories and Edit Game assignment); CI checks passed; local Migration 014/015 acceptance pending; count investigation closed by Owner decision  
+**Updated:** 2026-10-23, PR #127 (Migration 014), PR #130 (Migration 015) and PR #132 (Migration 016, custom display icons, category-create fix and Lobby Home refinement) merged; required CI/disposable-DB checks passed; local Migration 014–016 acceptance pending; count investigation closed by Owner decision  
 **Purpose:** Current implementation status and explicit stop conditions. This file reconciles current code with the planning roadmap; it does not replace the shared Library's `docs/planning/12-open-questions.md`.
 
 ## Current verified position
@@ -44,40 +44,42 @@ This does not justify reopening the count investigation; it means the repository
 - **Q-020 — P0, Open:** runtime contract evidence for each implemented route, alongside static OpenAPI checks. A CI fixture for an unimplemented or unexercised operation does not close this gate.
 - **Q-009 — Owner decision accepted; implementation verified locally/CI; PR #99 merged:** TND uses `0.01 TND = 10 millimes`, with no true third fractional digit. The shared money exponent is TND=2, wallet/API examples were updated, and guarded Migration 008 changes the database exponent from 3 to 2 only when no TND ledger entries exist and all projected TND balances are zero. The parser rejects values such as `12.345` rather than rounding. The Owner's local public.pgmigrations output records 1793188800000_tnd_provider_precision_008 as applied (id=10, on 2026-10-22 at 15:35), and precision/parser/migration-guard tests pass locally/CI. This confirms local development only; it does not establish that any staging/Production database was changed. For every non-local target, verify its own migration history, no TND ledger entries, and zero projected TND balances before applying anything. Real-money routing remains blocked by Q-006, Q-010, Q-011 and other release gates.
 
-## Immediate next task — local acceptance of merged Casino catalogue and display-category work
+## Immediate next task — local acceptance of merged Casino catalogue and curated display categories
 
-PR #127 merged into `main` as `bd530088332f59f388e315e24c716e9ec2055a3b`; PR #130 merged as `18172a7d9e4c6994e7376043ad98fb5b26fe25d5`. The merged work has two separate category concepts:
-- Source/provider categories remain in `casino_game_categories` and supply the catalogue’s source-driven category navigation.
-- Bclick-owned curated display categories (e.g. Trending Games) are stored in `casino_display_categories`; explicit game UUID assignments are stored in `casino_game_display_categories`. CMS → Categories manages the collection; Skin Games → Edit Game assigns each Standard game to zero or more collections. These memberships never change provider categories or game identity.
+PR #127 merged the canonical storefront cutover and Migration 014 as `bd530088332f59f388e315e24c716e9ec2055a3b`. PR #130 added curated display categories/Migration 015 as `18172a7d9e4c6994e7376043ad98fb5b26fe25d5`. PR #132 is merged as `300938761ce248b5677c89a6d15f8efeb636ecc5`; it fixes the audited category-write UUID type mismatch, adds persistent uploaded category icons/Migration 016, moves category creation into a modal (name, description, fallback icon, optional image upload), and keeps Lobby as Home rather than treating it as a category.
 
-Migration 014 retires obsolete game aliases. Migration 015 adds the curated display-category tables. Required CI checks for application builds, Backoffice build, OpenAPI/generated client, API tests, local Compose bootstrap and disposable PostgreSQL migration rehearsals passed:
-- [Application builds](https://github.com/Bclick9/Bclick/actions/runs/39965171543)
-- [Backoffice UI build](https://github.com/Bclick9/Bclick/actions/runs/39965172883)
-- [API runtime tests, OpenAPI and generated client](https://github.com/Bclick9/Bclick/actions/runs/39965171614)
-- [Local Compose bootstrap and readiness](https://github.com/Bclick9/Bclick/actions/runs/39965171608)
-- [Wallet migration disposable-PostgreSQL rehearsal](https://github.com/Bclick9/Bclick/actions/runs/39965171567)
-- [Identity migration disposable-PostgreSQL rehearsal](https://github.com/Bclick9/Bclick/actions/runs/39965171526)
+The two category concepts remain separate:
+- Source/provider categories remain in `casino_game_categories` and power the type-driven catalogue navigation, such as Crash Games, Live Casino and Slot Games.
+- Bclick-owned curated display categories (e.g. Trending Games) are stored in `casino_display_categories`; explicit game UUID assignments are stored in `casino_game_display_categories`. CMS → Categories manages these collections; Skin Games → Edit Game assigns Standard games to one or more of them. Provider categories and canonical game identity are never rewritten by those assignments.
 
-The legacy Neon-labelled PR workflows did not apply migrations to an external database; do not treat them as staging/Production evidence.
+Migration 014 retires obsolete game aliases, Migration 015 creates the curated category/assignment tables, and Migration 016 adds persistent custom icon metadata. Required CI checks for the latest PR #132 head passed:
+- [Application builds](https://github.com/Bclick9/Bclick/actions/runs/39970684370)
+- [Backoffice UI build](https://github.com/Bclick9/Bclick/actions/runs/39970684433)
+- [API tests, OpenAPI and generated client](https://github.com/Bclick9/Bclick/actions/runs/39970684384)
+- [Local Compose bootstrap and readiness](https://github.com/Bclick9/Bclick/actions/runs/39970684640)
+- [Wallet migration disposable-PostgreSQL rehearsal](https://github.com/Bclick9/Bclick/actions/runs/39970684455)
+- [Identity migration disposable-PostgreSQL rehearsal](https://github.com/Bclick9/Bclick/actions/runs/39970684421)
 
-The next action is to pull the merged revisions locally and let `start-bclick-local.ps1` apply migrations 014 and 015 through the repository’s normal migration runner. First run `git status -sb`; if the worktree is dirty, stop and review local changes before pulling. If clean:
+The legacy Neon-labelled PR workflows did not provide proof of an external database migration and must not be treated as staging/Production evidence.
+
+The next action is to pull the merged revisions locally and let `start-bclick-local.ps1` apply migrations 014–016 through the repository’s normal migration runner. First run `git status -sb`; if the worktree is dirty, stop and review local changes before pulling. If clean:
 
 ```powershell
 git fetch origin
 git pull --ff-only origin main
 git rev-parse --short HEAD
-.\\start-bclick-local.ps1
+.\start-bclick-local.ps1
 ```
 
-Do not run either migration manually or roll back a migration. Verify:
-1. Startup completes migrations and API readiness is healthy.
-2. The Edit Game modal renders without `RotateCcw is not defined`; numeric order, image upload, description/title overrides still persist.
-3. In CMS → Categories, create a test collection named `Trending Games`; reload and confirm it persists. Hide/show it, edit its description/icon, change order and delete it after the assignment test.
-4. In CMS → Skin Games → Edit Game, assign two or more Standard games to `Trending Games`, save, close and reopen the editor, and verify the checkboxes are restored from PostgreSQL. Clear all assignments and verify they are removed persistently.
-5. In `/casino/lobby`, only that curated category’s selected, currently enabled games appear in its shelf; refreshing the page preserves selection. Hide the category and verify the shelf disappears. Disable one assigned game and verify that game disappears after refresh while its catalogue record remains.
-6. Provider-supplied source categories remain unchanged. The public shelf has no static/demo fallback, only canonical UUID game rows. Premium assignments stay locked.
+Do not run migrations manually or roll back any migration. Verify:
+1. Startup completes migrations 014–016 and API readiness is healthy.
+2. Skin Games → Edit Game renders without `RotateCcw is not defined`; numeric order, image upload, description/title overrides and display-category assignments still persist.
+3. In CMS → Categories, click **Add category** and confirm a modal opens. Create `Trending Games` with a name, description and optional uploaded PNG/JPEG/WebP icon. Reload and verify category metadata/icon persist. Test editing, hide/show, order and delete only after assignment checks.
+4. In Skin Games → Edit Game, assign two or more Standard games to `Trending Games`, save, close/reopen the editor and verify selections restore from PostgreSQL. Clear assignments and verify they remain cleared after reload.
+5. In `/casino/lobby`, confirm Home still shows the full catalogue grid. Curated shelves should appear only for categories with selected, currently enabled games; there is no generic static `Available Games` shelf and no blocking `Curated game collections are temporarily unavailable` banner. Hide a category or disable an assigned game, refresh, and confirm the shelf/game disappears while the canonical game record remains.
+6. Confirm Crash Games, Live Casino and Slot Games remain type-driven navigation, source/provider categories are unchanged, custom category icons are served from persistent Bclick uploads rather than temporary/external URLs, and Premium assignments remain locked.
 
-Q-005 remains open until local Migration 014 and storefront acceptance are confirmed; Migration 015’s category-management acceptance is also pending. Do not repeat the resolved 3,802-versus-3,639 investigation. Q-006, Q-010, Q-011, Q-013 and Q-020 remain open; Phase 8 and all Premium/real-money flows remain blocked.
+Q-005 remains open until local Migration 014 and storefront acceptance are confirmed; local acceptance of Migrations 015–016 and category-management behavior is also pending. Do not repeat the resolved 3,802-versus-3,639 investigation. Q-006, Q-010, Q-011, Q-013 and Q-020 remain open; Phase 8 and all Premium/real-money flows remain blocked.
 
 ## Authenticated player login redirect — follow-up fix
 
