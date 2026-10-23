@@ -41,6 +41,7 @@ interface GameRow extends QueryResultRow {
   customImageKey: string | null;
   descriptionOverride: string | null;
   displayOrder: string | number;
+  categories: string[];
   updatedAt: string | Date;
   updatedBy: string | null;
 }
@@ -202,6 +203,7 @@ export function registerSkinGamesAdminRoutes(
                g.image_url AS "sourceImageUrl",pres.custom_image_key AS "customImageKey",
                pres.description_override AS "descriptionOverride",
                COALESCE(pres.display_order,0)::bigint AS "displayOrder",
+               ARRAY(SELECT gc.category_slug FROM public.casino_game_categories gc WHERE gc.game_id=g.id ORDER BY gc.category_slug) AS categories,
                GREATEST(g.availability_updated_at,COALESCE(pres.updated_at,'-infinity'::timestamptz),COALESCE(pres.order_updated_at,'-infinity'::timestamptz)) AS "updatedAt",
                COALESCE(pres_editor.display_name,order_editor.display_name,availability_editor.display_name) AS "updatedBy"
           FROM public.casino_games g
@@ -241,6 +243,7 @@ export function registerSkinGamesAdminRoutes(
           description: row.descriptionOverride ?? '',
           hasCustomDescription: row.descriptionOverride !== null,
           displayOrder: Number(row.displayOrder),
+          categories: row.categories ?? [],
           updatedAt: new Date(row.updatedAt).toISOString(),
           updatedBy: row.updatedBy,
         })),
