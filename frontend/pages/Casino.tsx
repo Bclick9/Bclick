@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, Navigate } from 'react-router-dom'
 import {
   Home, Cherry, Ghost, Flame, Sparkles, Crown, ShoppingBag, Rocket, Gem, Spade,
@@ -6,8 +6,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { GameCard, SectionRow, Wireframe } from '../components/cards'
-import { GAMES, CASINO_CATEGORIES, type Game } from '../data/catalog'
-import { fetchCasinoGames, fetchCasinoProviders, getCatalogErrorMessage, type CasinoCatalogGame, type CasinoCatalogProvider } from '../lib/casinoCatalog'
+import type { Game } from '../data/catalog'
+import { fetchCasinoCategories, fetchCasinoGames, fetchCasinoProviders, getCatalogErrorMessage, type CasinoCatalogCategory, type CasinoCatalogGame, type CasinoCatalogProvider } from '../lib/casinoCatalog'
 import { cn } from '../lib/shadcn/utils'
 
 const ICONS: Record<string, LucideIcon> = {
@@ -89,7 +89,31 @@ function CasinoFilterBar({ searchQuery, onSearchQueryChange, providersActive = f
   )
 }
 
-function CategoryStrip({ active }: { active: string }) {
+const CATEGORY_PRESENTATION: Record<string, { label: string; icon: string }> = {
+  'slot-games': { label: 'Slot Games', icon: 'cherry' },
+  'live-casino': { label: 'Live Casino', icon: 'spade' },
+  'crash-games': { label: 'Crash Games', icon: 'rocket' },
+  'halloween-games': { label: 'Halloween Games', icon: 'ghost' },
+  'top-picks': { label: 'Top Picks', icon: 'flame' },
+  'new-games': { label: 'New Games', icon: 'sparkles' },
+  'vip-specials': { label: 'VIP Specials', icon: 'crown' },
+  'bonus-buy': { label: 'Bonus Buy', icon: 'shopping-bag' },
+  jackpots: { label: 'Jackpots', icon: 'gem' },
+  'table-games': { label: 'Table Games', icon: 'spade' },
+  'drop-and-wins': { label: 'Drop & Wins', icon: 'trophy' },
+};
+
+// Old category paths remain recognizable, but this presentation map never invents
+// category membership or game cards. Every category's contents must come from the API.
+const LEGACY_CATEGORY_ROUTE_SLUGS = new Set(Object.keys(CATEGORY_PRESENTATION));
+
+const ICONS: Record<string, LucideIcon> = {
+  Home, Cherry, Ghost, Flame, Sparkles, Crown, ShoppingBag, Rocket, Gem, Spade, Trophy,
+  home: Home, cherry: Cherry, ghost: Ghost, flame: Flame, sparkles: Sparkles,
+  crown: Crown, 'shopping-bag': ShoppingBag, rocket: Rocket, gem: Gem, spade: Spade, trophy: Trophy,
+};
+
+function CategoryStrip({ active, categories }: { active: string; categories: CasinoCatalogCategory[] }) {
   const railRef = useRef<HTMLUListElement | null>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
@@ -97,62 +121,45 @@ function CategoryStrip({ active }: { active: string }) {
   useEffect(() => {
     const rail = railRef.current
     if (!rail) return
-
     const updateScrollButtons = () => {
       const maxScroll = rail.scrollWidth - rail.clientWidth
       setCanScrollLeft(rail.scrollLeft > 2)
       setCanScrollRight(maxScroll > 2 && rail.scrollLeft < maxScroll - 2)
     }
-
     updateScrollButtons()
     rail.addEventListener('scroll', updateScrollButtons, { passive: true })
-    const resizeObserver = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(updateScrollButtons)
-      : null
+    const resizeObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateScrollButtons) : null
     resizeObserver?.observe(rail)
     Array.from(rail.children).forEach((child) => resizeObserver?.observe(child))
-
     return () => {
       rail.removeEventListener('scroll', updateScrollButtons)
       resizeObserver?.disconnect()
     }
-  }, [])
+  }, [categories])
 
   const scrollCategories = (direction: -1 | 1) => {
     const rail = railRef.current
     if (!rail) return
-    rail.scrollBy({
-      left: direction * Math.max(240, rail.clientWidth * 0.65),
-      behavior: 'smooth',
-    })
+    rail.scrollBy({ left: direction * Math.max(240, rail.clientWidth * 0.65), behavior: 'smooth' })
   }
+  const items = [{ slug: 'lobby', title: 'Lobby', icon: 'home' }, ...categories.filter((item) => item.slug !== 'lobby')]
 
   return (
     <section className="mb-6">
       <div className="flex min-w-0 items-center gap-2 text-sm">
         <div className="min-w-0 flex-1 overflow-x-hidden">
-          <ul
-            ref={railRef}
-            aria-label="Casino categories"
-            className="no-scrollbar -ml-1 flex snap-x snap-mandatory scroll-smooth flex-row overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden"
-          >
-            {CASINO_CATEGORIES.map((c) => {
-              const Icon = ICONS[c.icon] ?? Gem
-              const isActive = c.slug === active
+          <ul ref={railRef} aria-label="Casino categories" className="no-scrollbar -ml-1 flex snap-x snap-mandatory scroll-smooth flex-row overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden">
+            {items.map((item) => {
+              const presentation = CATEGORY_PRESENTATION[item.slug]
+              const Icon = ICONS[presentation?.icon ?? item.icon ?? 'gem'] ?? Gem
+              const isActive = item.slug === active
               return (
-                <li key={c.slug} className="min-w-0 shrink-0 grow-0 snap-start pl-1">
-                  <Link
-                    to={'/casino/' + c.slug}
-                    aria-current={isActive ? 'page' : undefined}
-                    data-status={isActive ? 'active' : undefined}
-                    className={cn(
-                      'block rounded-xl px-3 py-2 text-sm font-semibold text-slate-300 transition-colors hover:bg-[var(--cb-hover)]',
-                      isActive ? 'bg-[var(--cb-item-active)] text-white' : 'bg-[var(--cb-card)]',
-                    )}
-                  >
+                <li key={item.slug} className="min-w-0 shrink-0 grow-0 snap-start pl-1">
+                  <Link to={'/casino/' + item.slug} aria-current={isActive ? 'page' : undefined} data-status={isActive ? 'active' : undefined}
+                    className={cn('block rounded-xl px-3 py-2 text-sm font-semibold text-slate-300 transition-colors hover:bg-[var(--cb-hover)]', isActive ? 'bg-[var(--cb-item-active)] text-white' : 'bg-[var(--cb-card)]')}>
                     <span className="flex items-center gap-x-1.5">
                       <Icon className="h-5 w-5 shrink-0 mix-blend-plus-lighter" aria-hidden="true" />
-                      <span className="whitespace-nowrap">{c.label}</span>
+                      <span className="whitespace-nowrap">{presentation?.label ?? item.title}</span>
                     </span>
                   </Link>
                 </li>
@@ -161,22 +168,12 @@ function CategoryStrip({ active }: { active: string }) {
           </ul>
         </div>
         <div className="hidden shrink-0 items-center gap-1 md:flex">
-          <button
-            type="button"
-            aria-label="Previous casino categories"
-            onClick={() => scrollCategories(-1)}
-            disabled={!canScrollLeft}
-            className="rounded-lg bg-[var(--cb-card)] p-1.5 text-slate-300 transition-colors enabled:hover:bg-[var(--cb-hover)] disabled:cursor-not-allowed disabled:opacity-40"
-          >
+          <button type="button" aria-label="Previous casino categories" onClick={() => scrollCategories(-1)} disabled={!canScrollLeft}
+            className="rounded-lg bg-[var(--cb-card)] p-1.5 text-slate-300 transition-colors enabled:hover:bg-[var(--cb-hover)] disabled:cursor-not-allowed disabled:opacity-40">
             <ChevronLeft className="h-5 w-5" aria-hidden="true" />
           </button>
-          <button
-            type="button"
-            aria-label="Next casino categories"
-            onClick={() => scrollCategories(1)}
-            disabled={!canScrollRight}
-            className="rounded-lg bg-[var(--cb-card)] p-1.5 text-slate-300 transition-colors enabled:hover:bg-[var(--cb-hover)] disabled:cursor-not-allowed disabled:opacity-40"
-          >
+          <button type="button" aria-label="Next casino categories" onClick={() => scrollCategories(1)} disabled={!canScrollRight}
+            className="rounded-lg bg-[var(--cb-card)] p-1.5 text-slate-300 transition-colors enabled:hover:bg-[var(--cb-hover)] disabled:cursor-not-allowed disabled:opacity-40">
             <ChevronRight className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
@@ -220,37 +217,6 @@ function TrendingGames() {
         return <GameCard key={catalogGame.id} game={game} href={'/casino/play/demo/' + encodeURIComponent(catalogGame.slug)} />
       })}
     </SectionRow>
-  )
-}
-
-function GameGrid({ ids, emptyMessage = 'No games in this category yet.' }: { ids: string[]; emptyMessage?: string }) {
-  const [shown, setShown] = useState(100)
-  const games = useMemo(
-    () => ids.map((id) => GAMES.find((g) => g.id === id)!).filter(Boolean),
-    [ids],
-  )
-  if (games.length === 0) {
-    return <p className="text-muted-foreground text-sm py-10 text-center">{emptyMessage}</p>
-  }
-  const visible = games.slice(0, shown)
-  return (
-    <>
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-9 gap-3">
-        {visible.map((g) => (
-          <GameCard key={g.id} game={g} className="w-full" />
-        ))}
-      </div>
-      {shown < games.length ? (
-        <div className="flex justify-center mt-6">
-          <button
-            onClick={() => setShown((s) => s + 12)}
-            className="h-10 px-6 rounded-lg bg-secondary hover:bg-accent text-sm font-bold text-foreground transition-colors"
-          >
-            Load more
-          </button>
-        </div>
-      ) : null}
-    </>
   )
 }
 
@@ -334,67 +300,89 @@ function CatalogGameGrid({
   )
 }
 
-function HalloweenBanner({ games }: { games: string[] }) {
-  const gamesRailRef = useRef<HTMLDivElement | null>(null)
-  const [canScrollGamesLeft, setCanScrollGamesLeft] = useState(false)
-  const [canScrollGamesRight, setCanScrollGamesRight] = useState(false)
+function catalogGameToCardGame(catalogGame: CasinoCatalogGame): Game {
+  return {
+    id: catalogGame.id,
+    title: catalogGame.title,
+    provider: catalogGame.provider.name,
+    image: catalogGame.imageUrl ?? undefined,
+    imageShowsTitle: true,
+    categories: catalogGame.categories,
+  }
+}
+
+function CatalogGameRail({ category, title, bannerImage }: { category: string; title: string; bannerImage?: string }) {
+  const railRef = useRef<HTMLDivElement | null>(null)
+  const [games, setGames] = useState<CasinoCatalogGame[]>([])
+  const [loading, setLoading] = useState(true)
+  const [reloadKey, setReloadKey] = useState(0)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+  useRefreshOnVisibility(() => setReloadKey((value) => value + 1))
 
   useEffect(() => {
-    const rail = gamesRailRef.current
+    const controller = new AbortController()
+    setLoading(true)
+    void fetchCasinoGames({ category, pageSize: 12, signal: controller.signal }).then((page) => {
+      if (!controller.signal.aborted) setGames(page.data)
+    }).catch(() => {
+      // The main catalogue has its own error state. Optional shelves fail closed.
+      if (!controller.signal.aborted) setGames([])
+    }).finally(() => {
+      if (!controller.signal.aborted) setLoading(false)
+    })
+    return () => controller.abort()
+  }, [category, reloadKey])
+
+  useEffect(() => {
+    const rail = railRef.current
     if (!rail) return
-
-    const updateScrollEdges = () => {
+    const updateEdges = () => {
       const maxScroll = rail.scrollWidth - rail.clientWidth
-      setCanScrollGamesLeft(rail.scrollLeft > 2)
-      setCanScrollGamesRight(maxScroll > 2 && rail.scrollLeft < maxScroll - 2)
+      setCanScrollLeft(rail.scrollLeft > 2)
+      setCanScrollRight(maxScroll > 2 && rail.scrollLeft < maxScroll - 2)
     }
-
-    updateScrollEdges()
-    rail.addEventListener('scroll', updateScrollEdges, { passive: true })
-    const resizeObserver = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(updateScrollEdges)
-      : null
-    resizeObserver?.observe(rail)
-    Array.from(rail.children).forEach((child) => resizeObserver?.observe(child))
-
+    updateEdges()
+    rail.addEventListener('scroll', updateEdges, { passive: true })
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateEdges) : null
+    observer?.observe(rail)
+    Array.from(rail.children).forEach((child) => observer?.observe(child))
     return () => {
-      rail.removeEventListener('scroll', updateScrollEdges)
-      resizeObserver?.disconnect()
+      rail.removeEventListener('scroll', updateEdges)
+      observer?.disconnect()
     }
-  }, [])
+  }, [games])
+
+  if (loading || games.length === 0) return null
+  const scroll = (direction: -1 | 1) => {
+    railRef.current?.scrollBy({ left: direction * Math.max(260, (railRef.current?.clientWidth ?? 400) * 0.7), behavior: 'smooth' })
+  }
 
   return (
-    <div className="rounded-2xl bg-card border border-border overflow-hidden mb-8">
-      <img
-        src="https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/Halloween-2026.webp"
-        alt="CampeonBet Halloween Games"
-        loading="lazy"
-        className="block w-full aspect-[5.2/1] object-cover"
-      />
-      <div className="relative p-4 md:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg md:text-xl font-extrabold text-foreground">Halloween Games</h2>
-          <div className="hidden md:flex items-center gap-2">
-            <button aria-label="Scroll banner left" className="w-9 h-9 rounded-lg bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors">&lsaquo;</button>
-            <button aria-label="Scroll banner right" className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold">&rsaquo;</button>
+    <section className="mb-8 overflow-hidden rounded-2xl border border-border bg-card">
+      {bannerImage ? <img src={bannerImage} alt={title} loading="lazy" className="block aspect-[5.2/1] w-full object-cover" /> : null}
+      <div className="p-4 md:p-6">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-extrabold text-foreground md:text-xl">{title}</h2>
+          <div className="flex items-center gap-2">
+            <Link to={'/casino/' + category} className="text-xs font-semibold text-muted-foreground hover:text-foreground">View all</Link>
+            <button type="button" aria-label={'Scroll ' + title + ' left'} onClick={() => scroll(-1)} disabled={!canScrollLeft}
+              className="hidden h-9 w-9 items-center justify-center rounded-lg bg-secondary text-muted-foreground transition-colors enabled:hover:text-foreground disabled:opacity-40 md:flex">
+              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+            </button>
+            <button type="button" aria-label={'Scroll ' + title + ' right'} onClick={() => scroll(1)} disabled={!canScrollRight}
+              className="hidden h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors disabled:opacity-40 md:flex">
+              <ChevronRight className="h-5 w-5" aria-hidden="true" />
+            </button>
           </div>
         </div>
-        <div className="relative isolate">
-          <div ref={gamesRailRef} className="flex gap-3 overflow-x-auto no-scrollbar">
-            {games.map((id) => {
-              const g = GAMES.find((x) => x.id === id)!
-              return <GameCard key={id} game={g} />
-            })}
-          </div>
-          {canScrollGamesLeft ? (
-            <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-black/90 via-black/55 to-transparent md:w-10" />
-          ) : null}
-          {canScrollGamesRight ? (
-            <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-black/90 via-black/55 to-transparent md:w-10" />
-          ) : null}
+        <div ref={railRef} className="flex gap-3 overflow-x-auto no-scrollbar">
+          {games.map((catalogGame) => (
+            <GameCard key={catalogGame.id} game={catalogGameToCardGame(catalogGame)} href={'/casino/play/demo/' + encodeURIComponent(catalogGame.slug)} />
+          ))}
         </div>
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -409,16 +397,38 @@ export function CasinoCategory() {
   const [catalogError, setCatalogError] = useState('')
   const [catalogStale, setCatalogStale] = useState(false)
   const [catalogReloadKey, setCatalogReloadKey] = useState(0)
+  const [catalogCategories, setCatalogCategories] = useState<CasinoCatalogCategory[]>([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
+  const [categoriesError, setCategoriesError] = useState('')
   useRefreshOnVisibility(() => setCatalogReloadKey((value) => value + 1))
 
+  useEffect(() => {
+    const controller = new AbortController()
+    setCategoriesLoading(true)
+    setCategoriesError('')
+    void fetchCasinoCategories(controller.signal).then((page) => {
+      if (!controller.signal.aborted) setCatalogCategories(page.data)
+    }).catch((error: unknown) => {
+      if (!controller.signal.aborted) {
+        setCatalogCategories([])
+        setCategoriesError(getCatalogErrorMessage(error))
+      }
+    }).finally(() => {
+      if (!controller.signal.aborted) setCategoriesLoading(false)
+    })
+    return () => controller.abort()
+  }, [catalogReloadKey])
+
   const searchTerm = searchQuery.trim()
-  const catalogBackedCategory = ['lobby', 'slot-games', 'live-casino', 'crash-games'].includes(category)
-  const useLiveCatalog = catalogBackedCategory || Boolean(searchTerm)
+  const isLobby = category === 'lobby'
+  const availableCategory = catalogCategories.some((item) => item.slug === category)
+  const known = isLobby || availableCategory || LEGACY_CATEGORY_ROUTE_SLUGS.has(category)
+  const useLiveCatalog = known || Boolean(searchTerm)
 
   useEffect(() => {
     if (category === 'providers' || !useLiveCatalog) return
     const controller = new AbortController()
-    const selectedCategory = searchTerm || category === 'lobby' ? undefined : category
+    const selectedCategory = searchTerm || isLobby ? undefined : category
     setCatalogLoading(true)
     setCatalogError('')
     setCatalogGames([])
@@ -444,15 +454,15 @@ export function CasinoCategory() {
     })
 
     return () => controller.abort()
-  }, [category, searchTerm, useLiveCatalog, catalogReloadKey])
+  }, [category, searchTerm, useLiveCatalog, isLobby, catalogReloadKey])
 
   if (category === 'providers') return <Providers />
-  const known = CASINO_CATEGORIES.some((item) => item.slug === category) || category === 'drop-and-wins'
-  if (!known) return <Navigate to="/casino" replace />
+  if (!known && !categoriesLoading) return <Navigate to="/casino" replace />
 
-  const cat = CASINO_CATEGORIES.find((item) => item.slug === category)
-  const games = GAMES.filter((game) => game.categories.includes(category)).map((game) => game.id)
-  const isLobby = category === 'lobby'
+  const categoryInfo = catalogCategories.find((item) => item.slug === category)
+  const categoryTitle = CATEGORY_PRESENTATION[category]?.label
+    ?? categoryInfo?.title
+    ?? category.split('-').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
 
   const loadMoreCatalog = async () => {
     if (!catalogNextCursor || catalogLoadingMore) return
@@ -462,7 +472,7 @@ export function CasinoCategory() {
       const page = await fetchCasinoGames({
         pageSize: 48,
         cursor: catalogNextCursor,
-        category: searchTerm || category === 'lobby' ? undefined : category,
+        category: searchTerm || isLobby ? undefined : category,
         query: searchTerm || undefined,
       })
       setCatalogGames((current) => {
@@ -484,7 +494,13 @@ export function CasinoCategory() {
       {isLobby ? <TrendingGames /> : null}
 
       <CasinoFilterBar searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} />
-      <CategoryStrip active={category} />
+      <CategoryStrip active={category} categories={catalogCategories} />
+
+      {categoriesError && catalogCategories.length === 0 ? (
+        <div className="mb-4 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground" role="status">
+          Casino categories are temporarily unavailable. Game results are still loaded from the catalogue where possible.
+        </div>
+      ) : null}
 
       {searchTerm ? (
         <div>
@@ -494,18 +510,10 @@ export function CasinoCategory() {
               {catalogLoading ? 'Searching…' : catalogTotal + ' games found'}
             </p>
           </div>
-          <CatalogGameGrid
-            games={catalogGames}
-            total={catalogTotal}
-            nextCursor={catalogNextCursor}
-            loading={catalogLoading}
-            loadingMore={catalogLoadingMore}
-            error={catalogError}
-            stale={catalogStale}
-            onLoadMore={loadMoreCatalog}
-            onRetry={() => setCatalogReloadKey((key) => key + 1)}
-            emptyMessage="No matching games found."
-          />
+          <CatalogGameGrid games={catalogGames} total={catalogTotal} nextCursor={catalogNextCursor}
+            loading={catalogLoading} loadingMore={catalogLoadingMore} error={catalogError} stale={catalogStale}
+            onLoadMore={loadMoreCatalog} onRetry={() => setCatalogReloadKey((key) => key + 1)}
+            emptyMessage="No matching games found." />
         </div>
       ) : isLobby ? (
         <>
@@ -515,52 +523,30 @@ export function CasinoCategory() {
               {catalogLoading ? 'Loading…' : catalogTotal + ' games'}
             </p>
           </div>
-          <CatalogGameGrid
-            games={catalogGames}
-            total={catalogTotal}
-            nextCursor={catalogNextCursor}
-            loading={catalogLoading}
-            loadingMore={catalogLoadingMore}
-            error={catalogError}
-            stale={catalogStale}
-            onLoadMore={loadMoreCatalog}
-            onRetry={() => setCatalogReloadKey((key) => key + 1)}
-            emptyMessage="No games are currently available in the catalogue."
-          />
-          <HalloweenBanner games={['death-dominion', 'coins-of-halloween', 'wolf-power-megaways', 'spooky-kabuki', 'vamp-hunt', 'halloween-bonanza', 'haunted-coins', 'halloween-jack', 'devils-feast']} />
-          <h2 className="mb-4 text-lg font-extrabold text-foreground md:text-xl">Top Picks</h2>
-          <GameGrid ids={GAMES.filter((game) => game.categories.includes('top-picks')).map((game) => game.id)} />
+          <CatalogGameGrid games={catalogGames} total={catalogTotal} nextCursor={catalogNextCursor}
+            loading={catalogLoading} loadingMore={catalogLoadingMore} error={catalogError} stale={catalogStale}
+            onLoadMore={loadMoreCatalog} onRetry={() => setCatalogReloadKey((key) => key + 1)}
+            emptyMessage="No games are currently available in the catalogue." />
+          {catalogCategories.some((item) => item.slug === 'halloween-games') ? (
+            <CatalogGameRail category="halloween-games" title="Halloween Games"
+              bannerImage="https://campeonbet.io/assets/cms/7bd14341-c013-4993-a5ba-c5a01d7fe36a/Halloween-2026.webp" />
+          ) : null}
+          {catalogCategories.some((item) => item.slug === 'top-picks') ? (
+            <CatalogGameRail category="top-picks" title="Top Picks" />
+          ) : null}
         </>
-      ) : catalogBackedCategory ? (
+      ) : (
         <>
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h1 className="text-xl font-extrabold text-foreground md:text-2xl">{cat?.label ?? 'Games'}</h1>
+            <h1 className="text-xl font-extrabold text-foreground md:text-2xl">{categoryTitle}</h1>
             <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
               <Info className="h-3.5 w-3.5" /> {catalogLoading ? 'Loading…' : catalogTotal + ' games'}
             </span>
           </div>
-          <CatalogGameGrid
-            games={catalogGames}
-            total={catalogTotal}
-            nextCursor={catalogNextCursor}
-            loading={catalogLoading}
-            loadingMore={catalogLoadingMore}
-            error={catalogError}
-            stale={catalogStale}
-            onLoadMore={loadMoreCatalog}
-            onRetry={() => setCatalogReloadKey((key) => key + 1)}
-            emptyMessage="No games in this category yet."
-          />
-        </>
-      ) : (
-        <>
-          <div className="mb-6 flex items-center gap-3">
-            <h1 className="text-xl font-extrabold text-foreground md:text-2xl">{cat?.label ?? 'Games'}</h1>
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Info className="h-3.5 w-3.5" /> {games.length} games
-            </span>
-          </div>
-          <GameGrid ids={games} emptyMessage="No games in this category yet." />
+          <CatalogGameGrid games={catalogGames} total={catalogTotal} nextCursor={catalogNextCursor}
+            loading={catalogLoading} loadingMore={catalogLoadingMore} error={catalogError} stale={catalogStale}
+            onLoadMore={loadMoreCatalog} onRetry={() => setCatalogReloadKey((key) => key + 1)}
+            emptyMessage="No games in this category yet." />
         </>
       )}
     </div>
