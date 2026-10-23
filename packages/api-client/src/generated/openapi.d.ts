@@ -294,7 +294,7 @@ export interface paths {
         };
         /**
          * List visible operator-curated storefront collections
-         * @description Returns Bclick-owned Lobby shelves with up to 24 currently available Standard Sandbox canonical games per category. Separate from provider-owned source categories.
+         * @description Returns visible Bclick-owned display categories for all game types or the requested type. Only currently available Standard Sandbox canonical games whose game_type matches each category type are included. Category definitions remain separate from provider-owned source categories.
          */
         get: operations["getCasinoDisplayCategories"];
         put?: never;
@@ -929,7 +929,7 @@ export interface paths {
         /** List Bclick-managed display categories */
         get: operations["getAdminCasinoDisplayCategories"];
         put?: never;
-        /** Create a curated Lobby category */
+        /** Create a Bclick-managed category for a storefront game type */
         post: operations["createAdminCasinoDisplayCategory"];
         delete?: never;
         options?: never;
@@ -1021,13 +1021,13 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Search Standard games and read membership for a curated Lobby category
-         * @description Requires casino.provider-settings.manage. Search is paginated over canonical Standard game UUIDs only. selectedGameIds always contains every game currently assigned to this category, independent of current search or page.
+         * Search Standard games matching a display category's Type and read its membership
+         * @description Requires casino.provider-settings.manage. Search is paginated over canonical Standard game UUIDs matching this category's Casino, Live Casino or Crash Games type. selectedGameIds always contains all currently assigned canonical Standard games matching that type, independent of the current search or page.
          */
         get: operations["getAdminCasinoDisplayCategoryGames"];
         /**
          * Replace game membership for a curated Lobby category
-         * @description Requires casino.provider-settings.manage, MFA, Origin and CSRF. Atomically replaces the selected category's memberships and records an audit event. Only canonical Standard games are accepted; Premium assignments remain locked. Other curated categories, provider-owned categories and game identity are unaffected.
+         * @description Requires casino.provider-settings.manage, MFA, Origin and CSRF. Atomically replaces the selected category's memberships and records an audit event. Only canonical Standard games matching the category Type are accepted; Premium assignments remain locked. Other curated categories, provider-owned categories and game identity are unaffected.
          */
         put: operations["replaceAdminCasinoDisplayCategoryGames"];
         post?: never;
@@ -6040,6 +6040,7 @@ export interface operations {
                 cursor?: string | null;
                 page?: number;
                 pageSize?: number;
+                /** @description Scope source categories to one Bclick storefront game type. */
                 type?: "casino" | "live-casino" | "crash-games";
             };
             header?: {
@@ -6093,6 +6094,7 @@ export interface operations {
                             name: string;
                             description: string;
                             icon: string;
+                            /** @enum {string} */
                             type: "casino" | "live-casino" | "crash-games";
                             /** Format: uri-reference */
                             iconUrl?: string | null;
@@ -6140,7 +6142,7 @@ export interface operations {
                 category?: string;
                 /** @description Filter to currently visible games assigned to a Bclick-managed display category slug with matching game type. */
                 displayCategory?: string;
-                /** @description Restrict the catalogue to the selected storefront game type. @enum {string} */
+                /** @description Restrict the catalogue to the selected storefront game type. */
                 type?: "casino" | "live-casino" | "crash-games";
                 provider?: string;
                 query?: string;
@@ -7223,6 +7225,7 @@ export interface operations {
                             name: string;
                             description: string;
                             icon: string;
+                            /** @enum {string} */
                             type: "casino" | "live-casino" | "crash-games";
                             /** Format: uri-reference */
                             iconUrl?: string | null;
@@ -7261,7 +7264,10 @@ export interface operations {
                     description?: string;
                     /** @enum {string} */
                     icon?: "layers" | "gamepad" | "sparkles" | "trending" | "clock" | "users" | "money" | "gift" | "trophy" | "zap";
-                    /** @enum {string} @default casino */
+                    /**
+                     * @default casino
+                     * @enum {string}
+                     */
                     type?: "casino" | "live-casino" | "crash-games";
                     /** @default true */
                     visible?: boolean;
