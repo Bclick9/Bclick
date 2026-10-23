@@ -307,7 +307,7 @@ export function registerSkinGamesAdminRoutes(
       if (error && typeof error === 'object' && 'statusCode' in error && typeof (error as {statusCode: unknown}).statusCode === 'number') {
         return sendError(reply,request,400,'VALIDATION_ERROR','Skin Games query parameters are invalid');
       }
-      return unexpected(request,reply);
+      return unexpected(request,reply,error);
     }
   });
 
