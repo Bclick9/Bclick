@@ -16,6 +16,7 @@ const CSRF_COOKIE = '__Host-bclick_admin_csrf=csrf-token-value-123456789';
 const ADMIN_ID = '8d01ab53-7f9c-4e67-b4e8-64c5a409a7a9';
 const GAME_ID = 'ebc75e97-68a5-40f8-8177-65db54ace749';
 const PREMIUM_GAME_ID = 'df2c7acb-ae64-4d2a-9b8c-7c5e0e3aa7bc';
+const DISPLAY_CATEGORY_ID = '51abfb02-a08c-4c66-8866-2c22381d34c1';
 const PERMISSION = 'casino.provider-settings.manage';
 
 function config(): IdentityConfig {
@@ -88,6 +89,7 @@ type FakeGame = {
   descriptionOverride: string | null;
   displayOrder: number;
   categories: string[];
+  displayCategoryIds: string[];
   updatedAt: string;
   updatedBy: string | null;
 };
@@ -118,6 +120,7 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
     descriptionOverride: null,
     displayOrder: 100,
     categories: ['slot-games'],
+    displayCategoryIds: [DISPLAY_CATEGORY_ID],
     updatedAt: '2026-10-23T08:00:00.000Z',
     updatedBy: null,
   };
@@ -127,6 +130,25 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
       calls.push({ sql, values });
       if (sql.includes('casino.provider-settings.access-denied')) {
         return { rows: [{ id: 'audit-id' }], rowCount: 1 };
+      }
+      if (sql.includes('FROM public.casino_display_categories c') && sql.includes('LEFT JOIN public.casino_game_display_categories m')) {
+        return { rows: [{
+          id: DISPLAY_CATEGORY_ID, slug: 'trending-games', name: 'Trending Games', description: 'Hand-picked games',
+          icon: 'trending', visible: true, displayOrder: 100, items: 1,
+          createdAt: '2026-10-23T08:00:00.000Z', updatedAt: '2026-10-23T08:00:00.000Z',
+        }], rowCount: 1 };
+      }
+      if (sql.includes('SELECT count(*)::integer AS count FROM public.casino_display_categories WHERE id=ANY')) {
+        return { rows: [{ count: Array.isArray(values[0]) ? values[0].length : 0 }], rowCount: 1 };
+      }
+      if (sql.includes('SELECT source_mode FROM public.casino_game_sources WHERE game_id=$1 AND source_code=\'bigbang\'')) {
+        return { rows: [{ source_mode: row.sourceMode }], rowCount: 1 };
+      }
+      if (sql.includes('WITH target AS MATERIALIZED') && sql.includes('casino_game_display_categories')) {
+        assert.match(sql, /INSERT INTO public\\.audit_events/);
+        assert.match(sql, /casino\\.skin-game\\.display-categories-updated/);
+        assert.match(sql, /ON CONFLICT \\(category_id,game_id\\) DO NOTHING/);
+        return { rows: [{ gameId: row.id, categoryIds: values[1] }], rowCount: 1 };
       }
       if (sql.includes('SELECT count(DISTINCT g.id)::text AS total')) {
         if (options.listFailure) {
@@ -268,6 +290,83 @@ test('Skin Games exposes a safe migration hint when local schema 012 is missing'
     assert.equal(response.json().error.code, 'SKIN_GAMES_SCHEMA_NOT_READY');
     assert.match(response.json().error.message, /Migration 012/i);
     assert.doesNotMatch(response.body, /relation public\.casino_game_presentation does not exist/);
+  } finally {
+    await app.close();
+  }
+});
+
+test('Skin Games list exposes operator display-category assignments separately from provider categories', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config() });
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/casino/skin-games?page=1&pageSize=50',
+      headers: authHeaders(false),
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.deepEqual(response.json().data[0].categories, ['slot-games']);
+    assert.deepEqual(response.json().data[0].displayCategoryIds, [DISPLAY_CATEGORY_ID]);
+    const listQuery = fixture.calls.find((call) => call.sql.includes('displayCategoryIds'));
+    assert.ok(listQuery);
+    assert.match(listQuery.sql, /casino_game_display_categories/);
+  } finally {
+    await app.close();
+  }
+});
+
+test('admin can assign a Standard game to multiple curated display categories with audit actor', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config() });
+  try {
+    const categoryIds = [DISPLAY_CATEGORY_ID, '8c1e5a2b-4bd3-4c9a-a95f-29bcf43e3b5a'];
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/display-categories',
+      headers: { ...authHeaders(true), 'content-type': 'application/json' },
+      payload: { categoryIds },
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.deepEqual(response.json().data, { gameId: GAME_ID, categoryIds });
+    assert.deepEqual(fixture.calls.at(-1)?.values.slice(0, 3), [GAME_ID, categoryIds, ADMIN_ID]);
+    assert.match(fixture.calls.at(-1)!.sql, /casino_game_display_categories/);
+    assert.match(fixture.calls.at(-1)!.sql, /casino.skin-game.display-categories-updated/);
+  } finally {
+    await app.close();
+  }
+});
+
+test('Premium display-category assignments are refused before any assignment mutation', async () => {
+  const fixture = fakeDatabase({ mode: 'premium' });
+  const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config() });
+  try {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/casino/skin-games/' + PREMIUM_GAME_ID + '/display-categories',
+      headers: { ...authHeaders(true), 'content-type': 'application/json' },
+      payload: { categoryIds: [DISPLAY_CATEGORY_ID] },
+    });
+    assert.equal(response.statusCode, 409, response.body);
+    assert.equal(response.json().error.code, 'PREMIUM_NOT_AVAILABLE');
+    assert.equal(fixture.calls.some((call) => call.sql.includes('casino.skin-game.display-categories-updated')), false);
+  } finally {
+    await app.close();
+  }
+});
+
+test('display-category editor endpoint returns persistent categories to an MFA administrator', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config() });
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/casino/display-categories',
+      headers: authHeaders(false),
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.equal(response.json().data[0].name, 'Trending Games');
+    assert.equal(response.json().data[0].items, 1);
+    assert.equal(response.headers['cache-control'], 'no-store');
   } finally {
     await app.close();
   }
