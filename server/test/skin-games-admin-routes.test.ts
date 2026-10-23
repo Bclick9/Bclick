@@ -215,6 +215,12 @@ test('Skin Games list is authenticated and returns real canonical UUID/source st
     assert.equal(response.json().data[0].imageUrl, 'https://bigbangcasino.bet/frontend/Vegas/ico/Habanero/SGHotHotFruit.webp');
     assert.equal(response.json().data[0].effectiveAvailable, true);
     assert.equal(response.json().integration.premiumAvailable, false);
+
+    const listQuery = fixture.calls.find((call) =>
+      call.sql.includes('SELECT g.id::text AS id,g.game_slug AS slug,g.title'));
+    assert.ok(listQuery, 'expected the paginated game-list query');
+    assert.match(listQuery.sql, /LIMIT \$1 OFFSET \$2/);
+    assert.deepEqual(listQuery.values, [50, 0]);
   } finally {
     await app.close();
   }
