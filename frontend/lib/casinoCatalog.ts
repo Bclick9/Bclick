@@ -51,6 +51,7 @@ export interface CasinoDisplayCategory {
   name: string;
   description: string;
   icon: string;
+  iconUrl: string | null;
   displayOrder: number;
   games: CasinoCatalogGame[];
 }
@@ -74,7 +75,9 @@ export async function fetchCasinoDisplayCategories(signal?: AbortSignal): Promis
     || !payload.data.every((category) => isObject(category)
       && typeof category.id === 'string' && typeof category.slug === 'string'
       && typeof category.name === 'string' && typeof category.description === 'string'
-      && typeof category.icon === 'string' && typeof category.displayOrder === 'number'
+      && typeof category.icon === 'string'
+      && (typeof category.iconUrl === 'string' || category.iconUrl === null)
+      && typeof category.displayOrder === 'number'
       && Array.isArray(category.games) && category.games.every(isCasinoCatalogGame))) {
     throw new Error('The casino API returned invalid curated categories.');
   }

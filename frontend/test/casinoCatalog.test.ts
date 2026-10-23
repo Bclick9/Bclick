@@ -17,6 +17,7 @@ test('lobby curated collections are loaded only from the same-origin public disp
         name: 'Trending Games',
         description: 'Picked by our team',
         icon: 'trending',
+        iconUrl: null,
         displayOrder: 100,
         games: [{
           id: 'ebc75e97-68a5-40f8-8177-65db54ace749',

@@ -937,6 +937,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/casino/display-categories/{categoryId}/icon": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path: {
+                categoryId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload a validated custom icon for a curated Lobby category
+         * @description Requires casino.provider-settings.manage, MFA, Origin and CSRF. Accepts PNG, JPEG or WebP up to 5 MiB; bytes are validated and stored in persistent Bclick upload storage. Replaces the current category icon and writes an audit event. Arbitrary external icon URLs are not accepted.
+         */
+        post: operations["uploadAdminCasinoDisplayCategoryIcon"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assets/casino-display-categories/{categoryId}/{fileName}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                categoryId: string;
+                fileName: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Serve the active uploaded icon for a curated display category
+         * @description Serves only an image key currently referenced by the category record. Unknown, replaced or unreferenced files return 404.
+         */
+        get: operations["getCasinoDisplayCategoryIcon"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/casino/display-categories/{categoryId}": {
         parameters: {
             query?: never;
@@ -6013,6 +6061,8 @@ export interface operations {
                             name: string;
                             description: string;
                             icon: string;
+                            /** Format: uri-reference */
+                            iconUrl?: string | null;
                             displayOrder: number;
                             games: components["schemas"]["GameSummary"][];
                         }[];
@@ -7135,6 +7185,8 @@ export interface operations {
                             name: string;
                             description: string;
                             icon: string;
+                            /** Format: uri-reference */
+                            iconUrl?: string | null;
                             visible: boolean;
                             displayOrder: number;
                             items: number;
@@ -7193,6 +7245,95 @@ export interface operations {
                 };
                 content?: never;
             };
+        };
+    };
+    uploadAdminCasinoDisplayCategoryIcon: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
+                "X-CSRF-Token": components["parameters"]["CsrfToken"];
+            };
+            path: {
+                categoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "image/png": string;
+                "image/jpeg": string;
+                "image/webp": string;
+            };
+        };
+        responses: {
+            /** @description Icon stored and category metadata audited. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            /** Format: uuid */
+                            categoryId: string;
+                            /** Format: uri-reference */
+                            iconUrl: string;
+                            /** @enum {string} */
+                            contentType: "image/png" | "image/jpeg" | "image/webp";
+                        };
+                        requestId: string;
+                    };
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Image exceeds the 5 MiB upload limit or is empty/too small. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unsupported image content type, invalid image bytes or content-type mismatch. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getCasinoDisplayCategoryIcon: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                categoryId: string;
+                fileName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Validated image bytes. */
+            200: {
+                headers: {
+                    "Cache-Control"?: string;
+                    "X-Content-Type-Options"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/jpeg": string;
+                    "image/webp": string;
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     deleteAdminCasinoDisplayCategory: {

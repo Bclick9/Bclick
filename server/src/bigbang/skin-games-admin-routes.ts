@@ -233,10 +233,12 @@ export function registerSkinGamesAdminRoutes(
       const session = await authorizedAdmin(database,request,reply,options,false);
       if (!session) return;
       const result = await database.query<QueryResultRow & {
-        id:string; slug:string; name:string; description:string; icon:string; visible:boolean;
-        displayOrder:number|string; items:number|string; createdAt:string|Date; updatedAt:string|Date;
+        id:string; slug:string; name:string; description:string; icon:string; iconUrl:string|null; visible:boolean;
+        displayOrder:number|string; items:number|string; createdAt:string|Date; updatedAt:string|Date; customIconKey:string|null;
       }>(`
         SELECT c.id::text AS id,c.slug,c.name,c.description,c.icon,c.visible,
+               c.custom_icon_key AS "customIconKey",
+               CASE WHEN c.custom_icon_key IS NULL THEN NULL ELSE '/api/v1/assets/' || c.custom_icon_key END AS "iconUrl",
                c.display_order AS "displayOrder",count(m.game_id)::integer AS items,
                c.created_at AS "createdAt",c.updated_at AS "updatedAt"
           FROM public.casino_display_categories c
@@ -247,7 +249,7 @@ export function registerSkinGamesAdminRoutes(
       reply.header('Cache-Control','no-store');
       return reply.code(200).send({
         data: result.rows.map((row) => ({
-          id:row.id,slug:row.slug,name:row.name,description:row.description,icon:row.icon,visible:row.visible,
+          id:row.id,slug:row.slug,name:row.name,description:row.description,icon:row.icon,iconUrl:row.iconUrl,visible:row.visible,
           displayOrder:Number(row.displayOrder),items:Number(row.items),
           createdAt:new Date(row.createdAt).toISOString(),updatedAt:new Date(row.updatedAt).toISOString(),
         })),
@@ -291,7 +293,7 @@ export function registerSkinGamesAdminRoutes(
           SELECT $1::uuid,$2,$3,$4,$5,$6,next_order.value,$7,$7,now(),now()
             FROM next_order
           ON CONFLICT (slug) DO NOTHING
-          RETURNING id::text AS id,slug,name,description,icon,visible,display_order AS "displayOrder",created_at AS "createdAt",updated_at AS "updatedAt"
+          RETURNING id,slug,name,description,icon,visible,display_order AS "displayOrder",created_at AS "createdAt",updated_at AS "updatedAt"
         ), audited AS (
           INSERT INTO public.audit_events
             (id,action,actor_type,actor_id,subject_type,subject_id,outcome,request_id,metadata,created_at)
@@ -300,7 +302,8 @@ export function registerSkinGamesAdminRoutes(
             FROM created
           RETURNING id
         )
-        SELECT created.*,0::integer AS items FROM created CROSS JOIN audited
+        SELECT created.id::text AS id,created.slug,created.name,created.description,created.icon,created.visible,
+               created."displayOrder",created."createdAt",created."updatedAt",0::integer AS items FROM created CROSS JOIN audited
       `,[id,slug,name,body.description?.trim() ?? '',body.icon ?? 'sparkles',body.visible ?? true,session.principalId,auditId,request.id]);
       const row = result.rows[0];
       if (!row) return sendError(reply,request,409,'DISPLAY_CATEGORY_EXISTS','A display category with this name/slug already exists');
@@ -310,6 +313,123 @@ export function registerSkinGamesAdminRoutes(
       });
     } catch (error) {
       return unexpected(request,reply,error,{operation:'display_category_create'});
+    }
+  });
+
+  app.post('/api/v1/admin/casino/display-categories/:categoryId/icon', {
+    schema:{params:{type:'object',additionalProperties:false,required:['categoryId'],properties:{categoryId:{type:'string',pattern:UUID.source}}}},
+  }, async (request,reply) => {
+    let filePath:string|null=null;
+    let failureStage='authorize_admin';
+    try {
+      const session=await authorizedAdmin(database,request,reply,options,true);
+      if(!session) return;
+      const {categoryId}=request.params as {categoryId:string};
+      failureStage='validate_icon';
+      if(!UUID.test(categoryId)) return sendError(reply,request,400,'VALIDATION_ERROR','Category ID must be a UUID');
+      if(!Buffer.isBuffer(request.body)||request.body.length<16||request.body.length>MAX_IMAGE_BYTES) {
+        return sendError(reply,request,413,'IMAGE_SIZE_INVALID','Category icon must be a supported image no larger than 5 MiB');
+      }
+      const info=imageInfo(request.body);
+      if(!info||requestImageType(request)!==info.contentType) {
+        return sendError(reply,request,415,'IMAGE_TYPE_INVALID','Upload a valid PNG, JPEG or WebP image whose bytes match its Content-Type');
+      }
+
+      failureStage='lookup_category';
+      const existing=await database.query<{id:string;custom_icon_key:string|null}>(
+        'SELECT id::text AS id,custom_icon_key FROM public.casino_display_categories WHERE id=$1::uuid',[categoryId]);
+      const category=existing.rows[0];
+      if(!category) return sendError(reply,request,404,'NOT_FOUND','Display category was not found');
+
+      const fileName=randomUUID()+'.'+info.extension;
+      const relativeKey='casino-display-categories/'+categoryId.toLowerCase()+'/'+fileName;
+      const safeRoot=path.resolve(options.uploadDirectory,'casino-display-categories');
+      filePath=path.resolve(safeRoot,categoryId.toLowerCase(),fileName);
+      if(!filePath.startsWith(safeRoot+path.sep)) return sendError(reply,request,400,'VALIDATION_ERROR','Invalid category icon path');
+
+      failureStage='create_upload_directory';
+      await mkdir(path.dirname(filePath),{recursive:true});
+      failureStage='write_icon_file';
+      await writeFile(filePath,request.body,{flag:'wx',mode:0o640});
+
+      const auditId=randomUUID();
+      failureStage='persist_icon_and_audit';
+      const saved=await database.query<{id:string;custom_icon_key:string}>(`
+        WITH changed AS (
+          UPDATE public.casino_display_categories
+             SET custom_icon_key=$2,updated_by=$3,updated_at=now()
+           WHERE id=$1::uuid
+          RETURNING id,custom_icon_key
+        ), audited AS (
+          INSERT INTO public.audit_events
+            (id,action,actor_type,actor_id,subject_type,subject_id,outcome,request_id,metadata,created_at)
+          SELECT $4,'casino.display-category.icon-updated','admin',$3,'casino_display_category',changed.id,'success',$5,
+                 jsonb_build_object('contentType',$6::text,'bytes',$7::integer,'iconKey',changed.custom_icon_key),now()
+            FROM changed
+          RETURNING id
+        )
+        SELECT changed.id::text AS id,changed.custom_icon_key FROM changed CROSS JOIN audited
+      `,[categoryId,relativeKey,session.principalId,auditId,request.id,info.contentType,request.body.length]);
+      if(!saved.rows[0]) {
+        await unlink(filePath).catch(()=>undefined);
+        filePath=null;
+        return sendError(reply,request,404,'NOT_FOUND','Display category was not found');
+      }
+      filePath=null;
+      if(category.custom_icon_key && category.custom_icon_key!==saved.rows[0].custom_icon_key) {
+        const prefix='casino-display-categories/'+categoryId.toLowerCase()+'/';
+        if(category.custom_icon_key.startsWith(prefix)) {
+          const oldName=category.custom_icon_key.slice(prefix.length);
+          if(FILE_NAME.test(oldName)) {
+            const oldPath=path.resolve(safeRoot,categoryId.toLowerCase(),oldName);
+            if(oldPath.startsWith(safeRoot+path.sep)) await unlink(oldPath).catch(()=>undefined);
+          }
+        }
+      }
+      return reply.code(201).send({
+        data:{categoryId:saved.rows[0].id,iconUrl:'/api/v1/assets/'+saved.rows[0].custom_icon_key,contentType:info.contentType},
+        requestId:request.id,
+      });
+    } catch(error) {
+      if(filePath) await unlink(filePath).catch(()=>undefined);
+      return unexpected(request,reply,error,{operation:'display_category_icon_upload',stage:failureStage});
+    }
+  });
+
+  app.get('/api/v1/assets/casino-display-categories/:categoryId/:fileName', {
+    schema:{params:{type:'object',additionalProperties:false,required:['categoryId','fileName'],properties:{
+      categoryId:{type:'string',pattern:UUID.source},
+      fileName:{type:'string',pattern:FILE_NAME.source},
+    }}},
+  }, async (request,reply) => {
+    try {
+      const {categoryId,fileName}=request.params as {categoryId:string;fileName:string};
+      if(!UUID.test(categoryId)||!FILE_NAME.test(fileName)) return sendError(reply,request,404,'NOT_FOUND','Category icon was not found');
+      const safeRoot=path.resolve(options.uploadDirectory,'casino-display-categories');
+      const normalizedId=categoryId.toLowerCase();
+      const normalizedFileName=fileName.toLowerCase();
+      const iconKey='casino-display-categories/'+normalizedId+'/'+normalizedFileName;
+      const active=await database.query<{id:string}>(`
+        SELECT id::text AS id FROM public.casino_display_categories WHERE id=$1::uuid AND custom_icon_key=$2
+      `,[normalizedId,iconKey]);
+      if(!active.rows[0]) return sendError(reply,request,404,'NOT_FOUND','Category icon was not found');
+      const filePath=path.resolve(safeRoot,normalizedId,normalizedFileName);
+      if(!filePath.startsWith(safeRoot+path.sep)) return sendError(reply,request,404,'NOT_FOUND','Category icon was not found');
+      const metadata=await stat(filePath);
+      if(!metadata.isFile()||metadata.size<16||metadata.size>MAX_IMAGE_BYTES) return sendError(reply,request,404,'NOT_FOUND','Category icon was not found');
+      const bytes=await readFile(filePath);
+      const info=imageInfo(bytes);
+      if(!info) return sendError(reply,request,404,'NOT_FOUND','Category icon was not found');
+      reply.header('Cache-Control','public, max-age=31536000, immutable');
+      reply.header('X-Content-Type-Options','nosniff');
+      reply.header('Content-Security-Policy',"default-src 'none'; sandbox");
+      reply.type(info.contentType);
+      return reply.send(bytes);
+    } catch(error) {
+      if(error&&typeof error==='object'&&'code' in error&&(error as {code:unknown}).code==='ENOENT') {
+        return sendError(reply,request,404,'NOT_FOUND','Category icon was not found');
+      }
+      return unexpected(request,reply,'The category icon could not be read from persistent storage');
     }
   });
 
@@ -357,7 +477,7 @@ export function registerSkinGamesAdminRoutes(
                  updated_by=$12,updated_at=now()
             FROM target t
            WHERE c.id=t.id
-          RETURNING c.id::text AS id,c.slug,c.name,c.description,c.icon,c.visible,c.display_order AS "displayOrder"
+          RETURNING c.id,c.slug,c.name,c.description,c.icon,c.visible,c.display_order AS "displayOrder"
         ), audited AS (
           INSERT INTO public.audit_events
             (id,action,actor_type,actor_id,subject_type,subject_id,outcome,request_id,metadata,created_at)
@@ -367,8 +487,8 @@ export function registerSkinGamesAdminRoutes(
             FROM changed
           RETURNING id
         )
-        SELECT changed.*,
-               (SELECT count(*)::integer FROM public.casino_game_display_categories m WHERE m.category_id=changed.id::uuid) AS items
+        SELECT changed.id::text AS id,changed.slug,changed.name,changed.description,changed.icon,changed.visible,changed."displayOrder",
+               (SELECT count(*)::integer FROM public.casino_game_display_categories m WHERE m.category_id=changed.id) AS items
           FROM changed CROSS JOIN audited
       `,[categoryId,nameChanged,name,descriptionChanged,body.description ?? '',iconChanged,body.icon ?? '',visibleChanged,body.visible ?? false,orderChanged,body.displayOrder ?? 0,session.principalId,auditId,request.id]);
       const row = result.rows[0];
@@ -390,10 +510,10 @@ export function registerSkinGamesAdminRoutes(
       const auditId = randomUUID();
       const result = await database.query<{id:string}>(`
         WITH target AS MATERIALIZED (
-          SELECT id::text AS id,slug,name FROM public.casino_display_categories WHERE id=$1::uuid
+          SELECT id,slug,name FROM public.casino_display_categories WHERE id=$1::uuid
         ), deleted AS (
           DELETE FROM public.casino_display_categories c USING target t
-           WHERE c.id=t.id::uuid RETURNING c.id::text AS id
+           WHERE c.id=t.id RETURNING c.id
         ), audited AS (
           INSERT INTO public.audit_events
             (id,action,actor_type,actor_id,subject_type,subject_id,outcome,request_id,metadata,created_at)
@@ -402,7 +522,7 @@ export function registerSkinGamesAdminRoutes(
             FROM deleted JOIN target ON target.id=deleted.id
           RETURNING id
         )
-        SELECT deleted.id FROM deleted CROSS JOIN audited
+        SELECT deleted.id::text AS id FROM deleted CROSS JOIN audited
       `,[categoryId,auditId,session.principalId,request.id]);
       if (!result.rows[0]) return sendError(reply,request,404,'NOT_FOUND','Display category was not found');
       return reply.code(204).send();

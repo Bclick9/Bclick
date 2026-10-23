@@ -526,6 +526,7 @@ paths:
                         name: {type: string}
                         description: {type: string}
                         icon: {type: string}
+                        iconUrl: {type: [string, 'null'], format: uri-reference}
                         displayOrder: {type: integer}
                         games: {type: array, maxItems: 24, items: {$ref: '#/components/schemas/GameSummary'}}
                   requestId: {type: string}
@@ -1625,6 +1626,7 @@ paths:
                         name: {type: string, maxLength: 80}
                         description: {type: string, maxLength: 500}
                         icon: {type: string}
+                        iconUrl: {type: [string, 'null'], format: uri-reference}
                         visible: {type: boolean}
                         displayOrder: {type: integer}
                         items: {type: integer}
@@ -1661,6 +1663,71 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '409': {description: A category with this generated slug already exists.}
       operationId: createAdminCasinoDisplayCategory
+  /api/v1/admin/casino/display-categories/{categoryId}/icon:
+    parameters:
+      - {name: categoryId, in: path, required: true, schema: {type: string, format: uuid}}
+      - $ref: '#/components/parameters/XRequestId'
+    post:
+      tags: [Backoffice]
+      security: [adminSession: []]
+      summary: Upload a validated custom icon for a curated Lobby category
+      description: Requires casino.provider-settings.manage, MFA, Origin and CSRF. Accepts PNG, JPEG or WebP up to 5 MiB; bytes are validated and stored in persistent Bclick upload storage. Replaces the current category icon and writes an audit event. Arbitrary external icon URLs are not accepted.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          image/png:
+            schema: {type: string, format: binary}
+          image/jpeg:
+            schema: {type: string, format: binary}
+          image/webp:
+            schema: {type: string, format: binary}
+      responses:
+        '201':
+          description: Icon stored and category metadata audited.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, requestId]
+                properties:
+                  data:
+                    type: object
+                    required: [categoryId, iconUrl, contentType]
+                    properties:
+                      categoryId: {type: string, format: uuid}
+                      iconUrl: {type: string, format: uri-reference}
+                      contentType: {type: string, enum: [image/png, image/jpeg, image/webp]}
+                  requestId: {type: string}
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '413': {description: Image exceeds the 5 MiB upload limit or is empty/too small.}
+        '415': {description: 'Unsupported image content type, invalid image bytes or content-type mismatch.'}
+      operationId: uploadAdminCasinoDisplayCategoryIcon
+  /api/v1/assets/casino-display-categories/{categoryId}/{fileName}:
+    parameters:
+      - {name: categoryId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: fileName, in: path, required: true, schema: {type: string, pattern: '^[0-9a-fA-F-]{36}\\.(png|jpg|webp)$'}}
+    get:
+      tags: [Casino]
+      security: []
+      summary: Serve the active uploaded icon for a curated display category
+      description: Serves only an image key currently referenced by the category record. Unknown, replaced or unreferenced files return 404.
+      responses:
+        '200':
+          description: Validated image bytes.
+          content:
+            image/png: {schema: {type: string, format: binary}}
+            image/jpeg: {schema: {type: string, format: binary}}
+            image/webp: {schema: {type: string, format: binary}}
+          headers:
+            Cache-Control: {schema: {type: string}}
+            X-Content-Type-Options: {schema: {type: string}}
+        '404': {$ref: '#/components/responses/NotFound'}
+      operationId: getCasinoDisplayCategoryIcon
   /api/v1/admin/casino/display-categories/{categoryId}:
     parameters:
       - {name: categoryId, in: path, required: true, schema: {type: string, format: uuid}}
