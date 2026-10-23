@@ -369,7 +369,7 @@ export function CasinoCategory({ type = 'casino', routeBase = '/casino' }: { typ
     })
 
     return () => controller.abort()
-  }, [category, searchTerm, useLiveCatalog, isLobby, selectedDisplayCategory?.slug, catalogReloadKey, type]
+  }, [category, searchTerm, useLiveCatalog, isLobby, selectedDisplayCategory?.slug, catalogReloadKey, type])
 
   if (category === 'providers') return <Providers />
   if (!known && !categoriesLoading && !displayCategoriesLoading) return <Navigate to="/casino" replace />
