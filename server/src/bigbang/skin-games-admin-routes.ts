@@ -500,6 +500,8 @@ export function registerSkinGamesAdminRoutes(
       const safeRoot=path.resolve(options.uploadDirectory,'casino-games');
       const filePath=path.resolve(safeRoot,gameId.toLowerCase(),fileName.toLowerCase());
       if(!filePath.startsWith(safeRoot+path.sep)) return sendError(reply,request,404,'NOT_FOUND','Image was not found');
+      const metadata=await stat(filePath);
+      if(!metadata.isFile() || metadata.size<16 || metadata.size>MAX_IMAGE_BYTES) return sendError(reply,request,404,'NOT_FOUND','Image was not found');
       const bytes=await readFile(filePath);
       const info=imageInfo(bytes);
       if(!info) return sendError(reply,request,404,'NOT_FOUND','Image was not found');
