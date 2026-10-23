@@ -12,6 +12,7 @@ interface GameRow extends QueryResultRow {
   provider_code: string;
   provider_name: string;
   image_url: string | null;
+  description: string;
   available: boolean;
   categories: string[];
   demo_available: boolean;
@@ -148,14 +149,15 @@ async function readGames(db: SqlExecutor, options: QueryOptions): Promise<{ data
   const result = await db.query<GameRow>(`
     SELECT g.id::text AS id,g.game_slug AS slug,g.title,
            p.code AS provider_code,p.name AS provider_name,
-           g.image_url, g.available,g.demo_available,g.real_available,
+           COALESCE('/api/v1/assets/' || pres.custom_image_key,g.image_url) AS image_url,COALESCE(pres.description_override,'') AS description,g.available,g.demo_available,g.real_available,
            COALESCE(array_agg(DISTINCT gc.category_slug ORDER BY gc.category_slug) FILTER (WHERE gc.category_slug IS NOT NULL),ARRAY[]::text[]) AS categories
       FROM public.casino_games g
       JOIN public.casino_providers p ON p.id=g.provider_id
       JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
       LEFT JOIN public.casino_game_categories gc ON gc.game_id=g.id
+      LEFT JOIN public.casino_game_presentation pres ON pres.game_id=g.id
      WHERE ${filter.sql}
-     GROUP BY g.id,g.game_slug,g.title,p.code,p.name,g.image_url,g.available,g.demo_available,g.real_available
+     GROUP BY g.id,g.game_slug,g.title,p.code,p.name,g.image_url,pres.custom_image_key,pres.description_override,g.available,g.demo_available,g.real_available
      ORDER BY lower(g.title),g.id
      LIMIT ${'$'}${filter.values.length + 1} OFFSET ${'$'}${filter.values.length + 2}
   `, [...filter.values,options.pageSize,options.offset]);
@@ -170,6 +172,7 @@ function mapGame(row: GameRow) {
     provider: { code: row.provider_code, name: row.provider_name },
     categories: row.categories ?? [],
     imageUrl: row.image_url,
+    description: row.description ?? '',
     available: row.available,
     // Catalogue-only increment intentionally enables neither mode until Phase 7 launch policy is approved.
     modes: { demo: row.demo_available, real: row.real_available },
@@ -375,15 +378,16 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
     const filter = await database.query<GameRow>(`
       SELECT g.id::text AS id,g.game_slug AS slug,g.title,
              p.code AS provider_code,p.name AS provider_name,
-             g.image_url,g.available,g.demo_available,g.real_available,
+             COALESCE('/api/v1/assets/' || pres.custom_image_key,g.image_url) AS image_url,COALESCE(pres.description_override,'') AS description,g.available,g.demo_available,g.real_available,
              COALESCE(array_agg(DISTINCT gc.category_slug ORDER BY gc.category_slug) FILTER (WHERE gc.category_slug IS NOT NULL),ARRAY[]::text[]) AS categories
         FROM public.casino_games g
         JOIN public.casino_providers p ON p.id=g.provider_id
         JOIN public.casino_game_sources s ON s.game_id=g.id AND s.source_code='bigbang' AND s.source_mode='standard' AND s.available=true
         LEFT JOIN public.casino_game_categories gc ON gc.game_id=g.id
+        LEFT JOIN public.casino_game_presentation pres ON pres.game_id=g.id
        WHERE ${lookupPredicate} AND g.available=true AND g.bclick_enabled=true AND p.bclick_enabled=true
          AND EXISTS (SELECT 1 FROM public.casino_provider_tier_settings pt WHERE pt.provider_id=p.id AND pt.source_code=s.source_code AND pt.source_mode=s.source_mode AND pt.enabled=true)
-       GROUP BY g.id,g.game_slug,g.title,p.code,p.name,g.image_url,g.available,g.demo_available,g.real_available
+       GROUP BY g.id,g.game_slug,g.title,p.code,p.name,g.image_url,pres.custom_image_key,pres.description_override,g.available,g.demo_available,g.real_available
        LIMIT 1
     `, [lookupValue]);
     const row = filter.rows[0];
