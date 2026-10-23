@@ -153,6 +153,14 @@ export class BigBangCatalogService {
           const providerRow = result.rows[0];
           if (!providerRow) throw new CatalogSyncFault('BIGBANG_PROVIDER_PERSIST_FAILED', 'Could not persist a catalogue provider');
           providers.set(code, { name: provider.name, id: providerRow.id });
+          // Keep provider/tier entitlement state explicit for new source providers. Standard
+          // remains enabled for the current Sandbox sync; any future Premium source starts off.
+          await tx.query(`
+            INSERT INTO public.casino_provider_tier_settings
+              (provider_id,source_code,source_mode,enabled)
+            VALUES ($1,'bigbang',$2,$3)
+            ON CONFLICT (provider_id,source_code,source_mode) DO NOTHING
+          `, [providerRow.id,syncMode,syncMode === 'standard']);
         }
 
         const prepared = gamesInCanonicalOrder.map((game) => {
