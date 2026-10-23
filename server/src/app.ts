@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 
 import Fastify from 'fastify';
 
@@ -8,6 +9,7 @@ import { IdentityService } from './identity/service.js';
 import type { SqlExecutor } from './identity/repository.js';
 import { registerCasinoCatalogRoutes } from './bigbang/routes.js';
 import { registerBigBangAdminRoutes } from './bigbang/admin-routes.js';
+import { registerSkinGamesAdminRoutes } from './bigbang/skin-games-admin-routes.js';
 import { registerSandboxDemoLaunchRoute } from './bigbang/demo-launch.js';
 import type { BigBangApiClient } from './bigbang/client.js';
 
@@ -24,6 +26,8 @@ export interface BuildAppOptions {
   catalogDatabase?: SqlExecutor | null;
   /** Enables the local BigBang Sandbox demo-only launch route; never accepts live keys. */
   sandboxDemoClient?: BigBangApiClient | null;
+  /** Persistent local/VPS asset volume. Override with BCLICK_UPLOAD_DIR in shared deployments. */
+  uploadDirectory?: string;
 }
 
 const healthResponseSchema = {
@@ -159,6 +163,11 @@ export function buildApp(options: BuildAppOptions) {
     registerCasinoCatalogRoutes(app, options.catalogDatabase);
     if (options.identity && options.identityConfig) {
       registerBigBangAdminRoutes(app, options.catalogDatabase, { service: options.identity, config: options.identityConfig });
+      registerSkinGamesAdminRoutes(app, options.catalogDatabase, {
+        service: options.identity,
+        config: options.identityConfig,
+        uploadDirectory: path.resolve(options.uploadDirectory ?? process.env.BCLICK_UPLOAD_DIR ?? path.resolve(process.cwd(), '.local/uploads')),
+      });
     }
     if (options.sandboxDemoClient && options.identityConfig) {
       registerSandboxDemoLaunchRoute(app, options.catalogDatabase, options.sandboxDemoClient, options.identityConfig.playerOrigins);
