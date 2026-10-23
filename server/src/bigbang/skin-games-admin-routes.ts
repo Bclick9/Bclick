@@ -675,7 +675,7 @@ export function registerSkinGamesAdminRoutes(
           INSERT INTO public.audit_events
             (id,action,actor_type,actor_id,subject_type,subject_id,outcome,request_id,metadata,created_at)
           SELECT $4,'casino.skin-game.image-updated','admin',$3,'casino_game',changed.game_id,'success',$5,
-                 jsonb_build_object('contentType',$6,'bytes',$7,'imageKey',changed.custom_image_key),now()
+                 jsonb_build_object('contentType',$6::text,'bytes',$7::integer,'imageKey',changed.custom_image_key),now()
             FROM changed
           RETURNING id
         )

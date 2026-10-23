@@ -431,6 +431,14 @@ test('Skin Games uploads a validated persistent image and serves it without a bl
     const data = response.json().data;
     assert.equal(data.gameId, GAME_ID);
     assert.equal(data.contentType, 'image/png');
+    const imageAudit = fixture.calls.find((call) => call.sql.includes("'casino.skin-game.image-updated'"));
+    assert.ok(imageAudit, 'image persistence must write an audit event');
+    assert.match(
+      imageAudit.sql,
+      /jsonb_build_object\('contentType',\$6::text,'bytes',\$7::integer,'imageKey',changed\.custom_image_key\)/,
+      'jsonb_build_object parameters must have explicit PostgreSQL types',
+    );
+    assert.deepEqual(imageAudit.values.slice(5), ['image/png', image.length]);
     assert.match(data.customImageUrl, /^\/api\/v1\/assets\/casino-games\//);
     assert.equal(data.customImageUrl.includes('blob:'), false);
 
