@@ -580,7 +580,8 @@ paths:
       security: []
       summary: Search the local normalized catalogue; never call vendor for each card
       parameters:
-        - {name: category, in: query, schema: {type: string, maxLength: 80}}
+        - {name: category, in: query, description: Filter by provider/source category slug., schema: {type: string, maxLength: 80}}
+        - {name: displayCategory, in: query, description: Filter to currently visible games assigned to a Bclick-managed display category slug., schema: {type: string, minLength: 1, maxLength: 80}}
         - {name: provider, in: query, schema: {type: string, maxLength: 80}}
         - {name: query, in: query, schema: {type: string, maxLength: 100}}
         - {name: mode, in: query, schema: {type: string, enum: [demo, real]}}
@@ -605,8 +606,7 @@ paths:
               $ref: '#/components/headers/XRequestId'
         '400': {$ref: '#/components/responses/ValidationError'}
       operationId: getCasinoGames
-      description: Every GameSummary includes its stable slug, provider and full categories[] set; legacy 
-        category is deprecated.
+      description: Every GameSummary includes its stable slug, provider and full source categories[] set. Use category for provider/source-category filtering and displayCategory for Bclick-managed category membership.
   /api/v1/casino/games/by-slug/{slug}:
     get:
       tags:
