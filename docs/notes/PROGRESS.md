@@ -1,6 +1,6 @@
 # Bclick — Cumulative Progress and Roadmap Gate Checkpoint
 
-**Updated:** 2026-10-23, PR #127 (Migration 014), PR #130 (Migration 015), PR #132 (Migration 016) and PR #134 (category game picker and public Lobby UUID join fix) merged; required CI/disposable-DB checks passed; local Migration 014–016 acceptance pending; count investigation closed by Owner decision  
+**Updated:** 2026-10-23, PR #127 (Migration 014), PR #130 (Migration 015), PR #132 (Migration 016), PR #134 (category game picker and public Lobby UUID join fix) and PR #136 (curated category navigation/filter) merged; required CI/disposable-DB checks passed; local Migration 014–016 acceptance pending; count investigation closed by Owner decision  
 **Purpose:** Current implementation status and explicit stop conditions. This file reconciles current code with the planning roadmap; it does not replace the shared Library's `docs/planning/12-open-questions.md`.
 
 ## Current verified position
@@ -48,6 +48,8 @@ This does not justify reopening the count investigation; it means the repository
 
 PR #127 merged the canonical storefront cutover and Migration 014 as `bd530088332f59f388e315e24c716e9ec2055a3b`. PR #130 added curated display categories/Migration 015 as `18172a7d9e4c6994e7376043ad98fb5b26fe25d5`. PR #132 is merged as `300938761ce248b5677c89a6d15f8efeb636ecc5` and adds persistent custom category icon metadata/Migration 016 plus the category-create fix. PR #134 is merged as `7738f69a09bd8733826e6a9186afe1a1a1c4cde6`; it fixes the public Lobby UUID join, adds a searchable/paginated Select games modal in CMS → Categories, and hides Crash Games, Live Casino and Slot Games from the category strip while preserving those direct routes.
 
+PR #136 is merged as `720882528e2414e67d26f7c1de0e5c3382bdbb3b`; visible Bclick-managed display categories now appear immediately after Lobby in the category strip. Clicking a curated category opens its own grid instead of the All Games view, with the paginated public catalogue API filtering by saved display-category membership and retaining the existing visible/available Standard game and provider checks. Lobby remains the All Games home and continues to show the curated shelves. The change added no database migration and does not enable Premium or real-money flows.
+
 The category concepts stay separate:
 - Crash Games, Live Casino and Slot Games are game-type routes. They are not operator-created curated categories; their tabs are hidden from the category strip without removing their URLs.
 - Bclick-owned curated categories such as Trending Games are stored in `casino_display_categories`, and memberships are stored in `casino_game_display_categories`. CMS → Categories → **Select games** is now the flow to choose a category's games. It searches canonical Standard game UUIDs in pages, loads the complete saved selection regardless of the current search/page, and saves only that collection's membership in one audited operation. Provider-owned categories and canonical game identity are never modified.
@@ -75,7 +77,7 @@ Do not run migrations manually or roll back any migration. Verify:
 1. Startup completes migrations 014–016 and API readiness is healthy.
 2. Skin Games → Edit Game still renders without `RotateCcw is not defined`; numeric order, image upload, description/title overrides and existing per-game category memberships persist.
 3. In CMS → Categories, open **Select games** for Trending Games. Search for a game by title/provider, select and unselect items across search results, load another page, and verify prior selections remain selected. Save, close/reopen the modal, and confirm the same membership is restored from PostgreSQL.
-4. Open `/casino/lobby`; confirm Home shows the full catalogue and the assigned, currently available game appears in the Trending Games shelf. The shelf should now load successfully through the public UUID join. If a game is not available, confirm it is shown as unavailable in the modal and excluded from the public shelf until enabled.
+4. Open `/casino/lobby`; confirm Home shows the full All Games grid and the Trending Games shelf. Confirm `Trending Games` appears immediately after Lobby in the category strip. Click it and verify the page switches to a Trending Games grid containing only the games assigned to that category, with the count and Load More pagination staying within that membership. Return to Lobby and verify the full catalogue/shelves reappear. Unavailable games must be excluded from the category grid and public shelf.
 5. Hide the curated category, refresh Lobby and verify its shelf disappears; show it again and verify it returns. Confirm Crash Games, Live Casino and Slot Games are hidden from the category strip but their direct URLs still work.
 6. Confirm the custom icon upload is retained under persistent Bclick storage, provider source categories remain unchanged, and Premium assignments/real-money flows remain locked.
 
