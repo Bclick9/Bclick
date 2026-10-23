@@ -389,10 +389,10 @@ export function registerSkinGamesAdminRoutes(
           RETURNING g.id,g.bclick_enabled AS enabled,g.availability_updated_at AS "updatedAt"
         ), presentation_change AS (
           INSERT INTO public.casino_game_presentation
-            (game_id,description_override,custom_image_key,display_order,updated_by,updated_at,order_updated_by,order_updated_at)
+            (game_id,description_override,custom_image_key,display_order,updated_by,updated_at)
           SELECT t.id,CASE WHEN $3::boolean THEN NULLIF($4::text,'') ELSE NULL END,NULL,
                  COALESCE((SELECT display_order FROM public.casino_game_presentation WHERE game_id=t.id),0),
-                 $6,now(),$6,now()
+                 $6,now()
             FROM target t
            WHERE $3::boolean OR $5::boolean
           ON CONFLICT (game_id) DO UPDATE SET
@@ -460,8 +460,8 @@ export function registerSkinGamesAdminRoutes(
             LEFT JOIN public.casino_game_presentation pres ON pres.game_id=g.id
            WHERE g.id=$1
         ), changed AS (
-          INSERT INTO public.casino_game_presentation(game_id,custom_image_key,display_order,updated_by,updated_at,order_updated_by,order_updated_at)
-          SELECT id,$2,display_order,$3,now(),$3,now() FROM target
+          INSERT INTO public.casino_game_presentation(game_id,custom_image_key,display_order,updated_by,updated_at)
+          SELECT id,$2,display_order,$3,now() FROM target
           ON CONFLICT (game_id) DO UPDATE SET custom_image_key=EXCLUDED.custom_image_key,updated_by=$3,updated_at=now()
           RETURNING game_id,custom_image_key
         ), audited AS (
