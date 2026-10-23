@@ -1,6 +1,6 @@
 # Bclick — Cumulative Progress and Roadmap Gate Checkpoint
 
-**Updated:** 2026-10-23, exact Skin Games failure diagnosed as SQLSTATE 08P01; pagination bind fix in validation; local ordering acceptance remains pending; Q-005 remains OPEN/P0  
+**Updated:** 2026-10-23, PR #122 merged as 46945fd; Skin Games SQLSTATE 08P01 pagination bug fixed; local game-order acceptance remains pending; Q-005 remains OPEN/P0  
 **Purpose:** Current implementation status and explicit stop conditions. This file reconciles current code with the planning roadmap; it does not replace the shared Library's `docs/planning/12-open-questions.md`.
 
 ## Current verified position
@@ -65,11 +65,11 @@ The Lobby currently requests the normalized local API catalogue with `cache: 'no
 
 Do not add an unbounded browser cache while game availability and operator blocking need prompt propagation. A later measured performance task can introduce a short-lived server-side query cache or ETag/conditional validation for the normalized catalogue, with explicit invalidation/versioning on admin mutations and an always-server-side availability check at demo launch. Image bytes should use long-lived cache headers with versioned asset URLs. First collect timing/query evidence and finish Q-005 catalogue identity correctness; do not conflate UI/API response caching with provider sync or weaken the no-live-wallet/Standard-only gates.
 
-## Skin Games pagination bind failure identified — fix in progress
+## Skin Games pagination bind failure identified and fixed — PR #122 merged
 
-The Owner's latest local API log provided the root cause for the previously generic Skin Games failure: SQLSTATE `08P01`, message `bind message supplies 2 parameters, but prepared statement "" requires 0`. In `server/src/bigbang/skin-games-admin-routes.ts`, the list endpoint passed page-size/offset (and optional filter parameters) to node-postgres, but the SQL interpolated the calculated LIMIT/OFFSET indices as literal integers rather than PostgreSQL placeholders. The current fix changes these to positional placeholders (`LIMIT $n OFFSET $n+1` using the runtime filter count) and adds tests for both the unfiltered page and provider-filtered page.
+The Owner's latest local API log provided the root cause for the previously generic Skin Games failure: SQLSTATE `08P01`, message `bind message supplies 2 parameters, but prepared statement "" requires 0`. In `server/src/bigbang/skin-games-admin-routes.ts`, the list endpoint passed page-size/offset (and optional filter parameters) to node-postgres, but the SQL interpolated the calculated LIMIT/OFFSET indices as literal integers rather than PostgreSQL placeholders. PR #122 is merged as `46945fdc8478860a16cc9e13afbbcd3aef2e1cd6`. It changes these to positional placeholders (`LIMIT $n OFFSET $n+1` using the runtime filter count); tests cover unfiltered and provider-filtered pagination. All required CI checks passed.
 
-This is a query binding bug, not evidence of missing catalogue records or a broken Migration 012. Do not manually rerun/rollback migrations. After the fix lands, restart the host-side API and verify the real local request returns canonical UUID rows; only then proceed to the Standard-tier ordering and persistence checks. Until that succeeds, drag-order acceptance is still blocked.
+This is a query binding bug, not evidence of missing catalogue records or a broken Migration 012. Do not manually rerun/rollback migrations. After the fix is pulled locally, restart the host-side API and verify the real local request returns canonical UUID rows; only then proceed to the Standard-tier ordering and persistence checks. Until that succeeds, drag-order acceptance is still blocked.
 
 ## Authenticated player redirect and catalogue caching — PR #121 merged
 
