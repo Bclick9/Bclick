@@ -611,7 +611,7 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
 
     const integrationDisplayCategoryId = 'ee301f2e-3f2a-426d-900a-a1bd52ca3f80';
     await pool.query(
-      'INSERT INTO public.casino_display_categories(id,slug,name,visible,display_order) VALUES ($1,$2,$3,true,10)',
+      "INSERT INTO public.casino_display_categories(id,slug,name,visible,display_order,category_type) VALUES ($1,$2,$3,true,10,'casino')",
       [integrationDisplayCategoryId,'integration-test-shelf','Integration Test Shelf'],
     );
     await pool.query(
@@ -621,7 +621,7 @@ test('Phase 6 sandbox catalogue sync is idempotent, browse routes are local-only
     const curatedShelf = await app.inject({ method: 'GET', url: '/api/v1/casino/display-categories' });
     assert.equal(curatedShelf.statusCode, 200, curatedShelf.body);
     const integrationShelf = curatedShelf.json().data.find((item: { id: string }) => item.id === integrationDisplayCategoryId);
-    assert.ok(integrationShelf, 'an assigned visible category should be returned by the public Lobby API');
+    assert.ok(integrationShelf, 'an assigned visible Casino category should be returned by the public Casino API: ' + JSON.stringify(curatedShelf.json().data));
     assert.equal(integrationShelf.games[0]?.id, curatedGameId, 'the UUID-typed join should return the exact assigned canonical Casino game');
     await pool.query('DELETE FROM public.casino_display_categories WHERE id=$1', [integrationDisplayCategoryId]);
     await pool.query('UPDATE public.casino_providers SET bclick_enabled=false WHERE code=$1', [canonicalProviderCode]);
