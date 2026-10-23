@@ -1,6 +1,7 @@
 # Skin Games numeric ordering and player-facing title
 
 **Date:** 2026-10-23  
+**Pull request:** [#123 — numeric game order and player-facing title](https://github.com/Bclick9/Bclick/pull/123)  
 **Branch:** `feat/skin-games-numeric-order-and-display-title`  
 **Starting point:** `main` at `3e982cf626122f9722b32496cb1b0472fd4fb3a9`  
 **Local acceptance:** pending Owner verification after merge.
@@ -31,7 +32,7 @@ Drag-and-drop already works and correctly persists the casino public order, but 
 
 Metadata, order and image upload are separate authenticated API requests in the existing Edit Game save flow, rather than one distributed transaction. If a later order/image request fails, earlier fields may already be saved; the UI reports that partial saves may have happened and refreshes the list. This avoids pretending independent file-system and database work is atomic. If this behavior proves confusing in acceptance, improve the editor feedback before expanding CMS scope.
 
-The GET Skin Games query must retain positional placeholders in the form `LIMIT ${values.length+1{'}'} OFFSET ${values.length+2{'}'}` — not bare numeric literals with node-postgres values still passed. This exact route previously produced SQLSTATE 08P01 because those placeholders were missing. A regression test from merged PR #122 already guards filtered/unfiltered pagination; this branch restores the exact placeholder syntax explicitly and the CI checks must confirm it.
+The GET Skin Games query must use numbered PostgreSQL bind placeholders for LIMIT/OFFSET, with the placeholder numbers following any active filter parameters. It must not interpolate page-size/offset as literal integers while still passing bound values to node-postgres; that exact bug caused SQLSTATE 08P01 and was fixed in merged PR #122. This branch preserves the existing fix and the CI query-binding regression tests.
 
 ## Owner acceptance after merge
 
