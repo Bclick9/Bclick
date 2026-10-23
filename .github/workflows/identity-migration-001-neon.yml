@@ -79,7 +79,7 @@ jobs:
           expected="dde5b276dd1220dba5107d7989b6c1378ead101a"
           [[ "$actual" == "$expected" ]] || { echo "Migration 001 blob hash mismatch; refusing." >&2; exit 1; }
           mapfile -t actual_migrations < <(git ls-files 'server/migrations/*.sql' | sed 's#server/migrations/##' | sort)
-          # This inventory belongs only to disposable PostgreSQL CI and includes M003 through M011.
+          # This inventory belongs only to disposable PostgreSQL CI and includes M003 through M012.
           # The live Neon job below retains its original three-file target allowlist;
           # its separate inventory check is unchanged and fails closed on extra files.
           expected_migrations=(
@@ -96,6 +96,7 @@ jobs:
             "1793275200000_bigbang_legacy_slug_aliases_009.sql"
             "1793361600000_bigbang_tier_aware_source_identity_010.sql"
             "1793448000000_bigbang_provider_controls_011.sql"
+            "1793534400000_casino_skin_games_presentation_012.sql"
           )
           diff -u <(printf '%s\n' "${expected_migrations[@]}") <(printf '%s\n' "${actual_migrations[@]}")
       - name: Create exact two-migration baseline in disposable PostgreSQL
