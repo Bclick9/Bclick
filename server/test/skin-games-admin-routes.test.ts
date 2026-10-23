@@ -379,6 +379,42 @@ test('Skin Games numeric order repositions a game and audits the administrator',
   }
 });
 
+test('Skin Games numeric order rejects positions outside the tier bounds', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config() });
+  try {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/order-position',
+      headers: { ...authHeaders(true), 'content-type': 'application/json' },
+      payload: { orderPosition: 2 },
+    });
+    assert.equal(response.statusCode, 422, response.body);
+    assert.equal(response.json().error.code, 'ORDER_POSITION_OUT_OF_RANGE');
+    assert.equal(fixture.calls.length, 1, 'out-of-range position must be refused before the ordering/audit statement');
+  } finally {
+    await app.close();
+  }
+});
+
+test('Skin Games numeric order remains locked for Premium rows', async () => {
+  const fixture = fakeDatabase({ mode: 'premium' });
+  const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config() });
+  try {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/casino/skin-games/' + PREMIUM_GAME_ID + '/order-position',
+      headers: { ...authHeaders(true), 'content-type': 'application/json' },
+      payload: { orderPosition: 1 },
+    });
+    assert.equal(response.statusCode, 409, response.body);
+    assert.equal(response.json().error.code, 'PREMIUM_NOT_AVAILABLE');
+    assert.equal(fixture.calls.length, 1, 'Premium refusal must happen before any mutation');
+  } finally {
+    await app.close();
+  }
+});
+
 test('Skin Games uploads a validated persistent image and serves it without a blob URL', async () => {
   const fixture = fakeDatabase();
   const uploadDirectory = await mkdtemp(path.join(tmpdir(),'bclick-skin-games-'));
