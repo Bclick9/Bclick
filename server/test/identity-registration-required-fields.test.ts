@@ -53,10 +53,21 @@ test('registration rejects missing date of birth, terms acceptance, and age conf
       const response = await app.inject({
         method: 'POST',
         url: '/api/v1/auth/register',
-        headers: { origin: 'https://localhost:5173' },
+        headers: {
+          origin: 'https://localhost:5173',
+          'x-request-id': 'registration-validation-' + field,
+        },
         payload,
       });
       assert.equal(response.statusCode, 400, 'Missing required registration field must be rejected: ' + field);
+      const errorBody = response.json() as { error?: { code?: string; message?: string }; requestId?: string };
+      assert.deepEqual(errorBody.error, {
+        code: 'VALIDATION_ERROR',
+        message: 'Request validation failed',
+      });
+      assert.deepEqual(Object.keys(errorBody).sort(), ['error', 'requestId']);
+      assert.equal(errorBody.requestId, response.headers['x-request-id']);
+      assert.equal(response.headers['x-request-id'], 'registration-validation-' + field);
     }
 
     for (const [field, description] of [
