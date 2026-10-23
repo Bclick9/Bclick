@@ -433,7 +433,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
       footer={
         <>
           <Button type="button" variant="outline" disabled={pickerSaving} onClick={()=>setPickerCategory(null)}>Cancel</Button>
-          <Button type="button" disabled={pickerSaving || pickerLoading} onClick={()=>void savePickerGames()}>{pickerSaving?<LoaderCircle className="h-4 w-4 animate-spin"/>:<Save className="h-4 w-4"/>}Save {pickerSelectedIds.length} selected</Button>
+          <Button type="button" disabled={pickerSaving || pickerLoading || Boolean(pickerError) || !pickerCategory || pickerLoadedCategoryRef.current !== pickerCategory.id} onClick={()=>void savePickerGames()}>{pickerSaving?<LoaderCircle className="h-4 w-4 animate-spin"/>:<Save className="h-4 w-4"/>}Save {pickerSelectedIds.length} selected</Button>
         </>
       }
     >
@@ -445,7 +445,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
           </div>
           <div className="text-xs text-slate-500"><span className="font-semibold text-slate-900">{pickerSelectedIds.length}</span> selected · {pickerTotal} games found</div>
         </div>
-        {pickerError ? <p role="alert" className="rounded-md border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-800">{pickerError}</p> : null}
+        {pickerError ? <div role="alert" className="flex items-start gap-2 rounded-md border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-800"><span className="flex-1">{pickerError}</span><Button type="button" size="sm" variant="outline" disabled={pickerLoading || pickerSaving} onClick={()=>setPickerReloadKey((value)=>value+1)}>Retry</Button></div> : null}
         <div className="max-h-[52vh] overflow-y-auto rounded-lg border border-slate-200">
           {pickerLoading ? <p role="status" className="p-8 text-center text-xs text-slate-500"><LoaderCircle className="mr-2 inline h-4 w-4 animate-spin"/>Loading games…</p> : null}
           {!pickerLoading && pickerGames.length===0 ? <p className="p-8 text-center text-xs text-slate-500">No games match this search.</p> : null}
