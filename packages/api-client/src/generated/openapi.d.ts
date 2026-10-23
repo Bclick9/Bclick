@@ -331,7 +331,7 @@ export interface paths {
         };
         /**
          * Search the local normalized catalogue; never call vendor for each card
-         * @description Every GameSummary includes its stable slug, provider and full categories[] set; legacy category is deprecated.
+         * @description Every GameSummary includes its stable slug, provider and full source categories[] set. Use category for provider/source-category filtering and displayCategory for Bclick-managed category membership.
          */
         get: operations["getCasinoGames"];
         put?: never;
@@ -6132,7 +6132,10 @@ export interface operations {
     getCasinoGames: {
         parameters: {
             query?: {
+                /** @description Filter by provider/source category slug. */
                 category?: string;
+                /** @description Filter to currently visible games assigned to a Bclick-managed display category slug. */
+                displayCategory?: string;
                 provider?: string;
                 query?: string;
                 mode?: "demo" | "real";

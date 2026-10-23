@@ -11,6 +11,15 @@ test('casino lobby remains an all-games home while custom display shelves are op
   assert.doesNotMatch(source, /SectionRow title="Available Games"/);
 });
 
+test('curated categories appear immediately after Lobby and filter the catalogue grid by saved membership', async () => {
+  const source = await readFile(new URL('../pages/Casino.tsx', import.meta.url), 'utf8');
+  assert.ok(source.includes('visibleDisplayCategories = displayCategories.filter'));
+  assert.ok(source.includes('<CategoryStrip active={category} categories={catalogCategories} displayCategories={displayCategories} />'));
+  assert.ok(source.includes('displayCategory: searchTerm ? undefined : selectedDisplayCategory?.slug'));
+  assert.ok(source.includes('selectedDisplayCategory = displayCategories.find((item) => item.slug === category)'));
+  assert.ok(source.includes('selectedCategory = searchTerm || isLobby || selectedDisplayCategory ? undefined : category'));
+});
+
 test('Crash, Live Casino and Slot Games remain routes but are hidden from the category strip', async () => {
   const source = await readFile(new URL('../pages/Casino.tsx', import.meta.url), 'utf8');
   assert.match(source, /gameTypeSlugs = new Set\(\['crash-games', 'live-casino', 'slot-games'\]\)/);

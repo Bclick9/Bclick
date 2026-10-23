@@ -26,6 +26,7 @@ interface SyncMetaRow extends QueryResultRow {
 
 interface QueryOptions {
   readonly category?: string;
+  readonly displayCategory?: string;
   readonly provider?: string;
   readonly query?: string;
   readonly mode?: 'demo' | 'real';
@@ -54,6 +55,7 @@ function readOptions(request: FastifyRequest, reply: any): QueryOptions | null {
   const pageSize = query.pageSize === undefined ? 24 : Number(query.pageSize);
   const page = query.page === undefined ? 1 : Number(query.page);
   const category = typeof query.category === 'string' ? query.category.trim() : undefined;
+  const displayCategory = typeof query.displayCategory === 'string' ? query.displayCategory.trim() : undefined;
   const provider = typeof query.provider === 'string' ? query.provider.trim() : undefined;
   const search = typeof query.query === 'string' ? query.query.trim() : undefined;
   const mode = query.mode === 'demo' || query.mode === 'real' ? query.mode : undefined;
@@ -61,6 +63,7 @@ function readOptions(request: FastifyRequest, reply: any): QueryOptions | null {
   if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100
     || !Number.isSafeInteger(page) || page < 1
     || (category !== undefined && (category.length < 1 || category.length > 80))
+    || (displayCategory !== undefined && (displayCategory.length < 1 || displayCategory.length > 80))
     || (provider !== undefined && (provider.length < 1 || provider.length > 80))
     || (search !== undefined && search.length > 100)) {
     errorResponse(reply, request, 400, 'VALIDATION_ERROR', 'Catalogue query parameters are invalid');
@@ -85,6 +88,7 @@ function readOptions(request: FastifyRequest, reply: any): QueryOptions | null {
   }
   return {
     ...(category ? { category } : {}),
+    ...(displayCategory ? { displayCategory } : {}),
     ...(provider ? { provider } : {}),
     ...(search ? { query: search } : {}),
     ...(mode ? { mode } : {}),
@@ -115,6 +119,10 @@ function whereClause(options: QueryOptions): { sql: string; values: unknown[] } 
   if (options.category) {
     const p = add(options.category);
     conditions.push(`EXISTS (SELECT 1 FROM public.casino_game_categories gc WHERE gc.game_id=g.id AND gc.category_slug=${p})`);
+  }
+  if (options.displayCategory) {
+    const p = add(options.displayCategory);
+    conditions.push(`EXISTS (SELECT 1 FROM public.casino_game_display_categories dgc JOIN public.casino_display_categories dc ON dc.id=dgc.category_id WHERE dgc.game_id=g.id AND dc.slug=${p} AND dc.visible=true)`);
   }
   if (options.provider) {
     // Provider is an identity filter, not free-text search. Resolve only the stored
@@ -377,6 +385,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
     additionalProperties: false,
     properties: {
       category: { type: 'string', minLength: 1, maxLength: 80 },
+      displayCategory: { type: 'string', minLength: 1, maxLength: 80 },
       provider: { type: 'string', minLength: 1, maxLength: 80 },
       query: { type: 'string', maxLength: 100 },
       mode: { type: 'string', enum: ['demo','real'] },
