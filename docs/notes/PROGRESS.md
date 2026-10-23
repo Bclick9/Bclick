@@ -1,6 +1,6 @@
 # Bclick — Cumulative Progress and Roadmap Gate Checkpoint
 
-**Updated:** 2026-10-23, Skin Games title override + numeric position feature in validation; migration 013 added on a feature branch; Q-005 remains OPEN/P0  
+**Updated:** 2026-10-23, PR #123 merged as 093871d; numeric Skin Games ordering and player-facing title override are in main; local acceptance pending; Q-005 remains OPEN/P0  
 **Purpose:** Current implementation status and explicit stop conditions. This file reconciles current code with the planning roadmap; it does not replace the shared Library's `docs/planning/12-open-questions.md`.
 
 ## Current verified position
@@ -65,13 +65,13 @@ The Lobby currently requests the normalized local API catalogue with `cache: 'no
 
 Do not add an unbounded browser cache while game availability and operator blocking need prompt propagation. A later measured performance task can introduce a short-lived server-side query cache or ETag/conditional validation for the normalized catalogue, with explicit invalidation/versioning on admin mutations and an always-server-side availability check at demo launch. Image bytes should use long-lived cache headers with versioned asset URLs. First collect timing/query evidence and finish Q-005 catalogue identity correctness; do not conflate UI/API response caching with provider sync or weaken the no-live-wallet/Standard-only gates.
 
-## Skin Games numeric ordering and player-facing title — implementation in validation
+## Skin Games numeric ordering and player-facing title — PR #123 merged
 
 The Owner confirmed that drag-and-drop works and changes public ordering correctly, but repositioning individual games across the 3,639-record Standard catalogue is too slow. The follow-up feature adds a one-based numeric **Display order position** input to the existing Edit Game modal. It computes the rank across the full source tier, bounds the value to 1..tier count, shifts intervening positions in one audited SQL mutation, and keeps the stored `display_order` values spaced by 100 for compatibility with drag-order operations. The table displays the one-based position rather than the internal multiples of 100.
 
 The same modal adds **Player-facing game title**. Migration 013 adds nullable `casino_game_presentation.title_override`; a blank value removes the override. The source title, canonical UUID, source game ID, provider, tier, and stable route slug are preserved. Public casino list/detail/slug APIs display the override when present and allow searching by it; sync identity never uses the new display title. Admin mutations are guarded by the existing MFA/CSRF/RBAC policy and logged to the audit table. Premium ordering/presentation remain locked.
 
-Implementation is in [PR #123](https://github.com/Bclick9/Bclick/pull/123) on branch `feat/skin-games-numeric-order-and-display-title`; code, OpenAPI, generated API client declarations, migration docs and regression tests are in CI. Owner-local acceptance remains pending. After merge, test a real Standard game: change its numeric position, refresh and confirm it remains there; then rename a game to `Zeus the Thunderer Deluxe`, verify the title in Lobby/search/details, refresh, and confirm provider source identity and legacy slug behavior did not change.
+PR #123 is merged into `main` as squash commit `093871d734b3b11ce1a5d1b5bd0172c9e1abf0f1`. CI passed API typecheck/tests/build, OpenAPI lint/generated-client drift, storefront/admin builds, fresh local database/Identity route smoke, PowerShell syntax, disposable PostgreSQL migration/ledger rehearsals and the guarded inventory checks; actual Neon apply/postflight legs remained skipped. **Owner-local acceptance remains pending.** After pulling and restarting the local API, test a real Standard game: change its numeric position, refresh and confirm it remains there; then rename a game to `Zeus the Thunderer Deluxe`, verify the title in Lobby/search/details, refresh, and confirm provider source identity and legacy slug behavior did not change.
 
 **Roadmap after this bounded UI improvement:** return to Q-005 (OPEN/P0), the accepted project path item. Establish evidence explaining the 3,802 vs 3,639 Standard-game discrepancy and finish source/provider/category/legacy-route review. Do not start Phase 8 or close Q-gates due to the CMS changes.
 
