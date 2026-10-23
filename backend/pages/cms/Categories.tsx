@@ -272,6 +272,7 @@ export function CmsCategoriesPage({ onNotify }: { onNotify: (message: string) =>
       }
     >
       <form id="create-display-category-form" onSubmit={(event)=>void addCategory(event)} className="space-y-4">
+        {error && createModalOpen && savingId !== 'new' ? <p role="alert" className="rounded-md border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-800">{error}</p> : null}
         <div className="space-y-1.5">
           <label htmlFor="new-display-category-name" className="text-xs font-semibold text-slate-700">Category name</label>
           <Input id="new-display-category-name" autoComplete="off" value={draftName} onChange={(event)=>setDraftName(event.target.value)} maxLength={80} required placeholder="e.g. Trending Games" disabled={savingId!==''}/>
