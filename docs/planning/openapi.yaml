@@ -1705,7 +1705,7 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
         '413': {description: Image exceeds the 5 MiB upload limit or is empty/too small.}
-        '415': {description: Unsupported image content type, invalid image bytes or content-type mismatch.}
+        '415': {description: 'Unsupported image content type, invalid image bytes or content-type mismatch.'}
       operationId: uploadAdminCasinoDisplayCategoryIcon
   /api/v1/assets/casino-display-categories/{categoryId}/{fileName}:
     parameters:
