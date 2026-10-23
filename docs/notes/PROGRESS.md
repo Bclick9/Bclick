@@ -75,7 +75,7 @@ git rev-parse --short HEAD
 ```
 
 Do not run migrations manually or roll back any migration. Verify:
-1. Startup completes migrations 014–016 and API readiness is healthy.
+1. Startup completes migrations 014–017 and API readiness is healthy.
 2. Skin Games → Edit Game still renders without `RotateCcw is not defined`; numeric order, image upload, description/title overrides and existing per-game category memberships persist.
 3. In CMS → Categories, open **Select games** for Trending Games. Search for a game by title/provider, select and unselect items across search results, load another page, and verify prior selections remain selected. Save, close/reopen the modal, and confirm the same membership is restored from PostgreSQL.
 4. Open `/casino/lobby`; confirm Home shows the full All Games grid and the Trending Games shelf. Confirm `Trending Games` appears immediately after Lobby in the category strip. Click it and verify the page switches to a Trending Games grid containing only the games assigned to that category, with the count and Load More pagination staying within that membership. Return to Lobby and verify the full catalogue/shelves reappear. Unavailable games must be excluded from the category grid and public shelf.
