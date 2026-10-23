@@ -65,7 +65,7 @@ Migration 014 retires obsolete game aliases, Migration 015 creates curated categ
 
 The legacy Neon-labelled PR workflows are not evidence that migrations were applied to the local PostgreSQL or an external staging/Production database.
 
-The next action is to pull the merged revisions locally and let `start-bclick-local.ps1` apply migrations 014–016 through the repository's normal migration runner. First run `git status -sb`; if the worktree is dirty, stop and review local changes before pulling. If clean:
+The next action is to pull the merged revisions locally and let `start-bclick-local.ps1` apply migrations 014–017 through the repository's normal migration runner. First run `git status -sb`; if the worktree is dirty, stop and review local changes before pulling. If clean:
 
 ```powershell
 git fetch origin
