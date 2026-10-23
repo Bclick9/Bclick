@@ -29,6 +29,7 @@ services:
       HOST: 0.0.0.0
       PORT: 3000
       DB_POOL_MAX: 10
+      BCLICK_UPLOAD_DIR: /var/lib/bclick/uploads
       DATABASE_URL: postgresql://${POSTGRES_USER:-bclick_dev}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the repository-root .env}@postgres:5432/${POSTGRES_DB:-bclick}
       BCLICK_IDENTITY_ENABLED: ${BCLICK_IDENTITY_ENABLED:-false}
       BCLICK_SESSION_HASH_KEY: ${BCLICK_SESSION_HASH_KEY:-}
@@ -41,6 +42,8 @@ services:
       BCLICK_AGE_POLICY_VERSION: ${BCLICK_AGE_POLICY_VERSION:-local-age-policy-v1}
     ports:
       - "127.0.0.1:${API_PORT:-3000}:3000"
+    volumes:
+      - casino-game-uploads:/var/lib/bclick/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -65,6 +68,9 @@ services:
 
 volumes:
   postgres-data:
+  # Keep CMS custom game images across API container rebuilds/replacements.
+  # Do not delete this named volume during ordinary local/VPS maintenance.
+  casino-game-uploads:
 
 networks:
   bclick-local:
