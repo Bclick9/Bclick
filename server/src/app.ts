@@ -106,6 +106,18 @@ export function buildApp(options: BuildAppOptions) {
     reply.header('X-Request-Id', request.id);
 
     const pathname = request.url.split('?', 1)[0] || '/';
+    const isPrivateReadOrLogin =
+      (request.method === 'POST' && pathname === '/api/v1/auth/login')
+      || (request.method === 'GET' && (
+        pathname === '/api/v1/auth/session'
+        || pathname === '/api/v1/admin/session'
+        || /^\\/api\\/v1\\/wallets\\/[^/]+\\/(?:balance|statement)$/.test(pathname)
+      ));
+
+    // Set this before route/schema validation so authenticated/session/financial
+    // success and error responses are consistently non-cacheable.
+    if (isPrivateReadOrLogin) reply.header('Cache-Control', 'no-store');
+
     const isHealthPath =
       pathname === '/api/v1/health/live' || pathname === '/api/v1/health/ready';
 
