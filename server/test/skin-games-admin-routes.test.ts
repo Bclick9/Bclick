@@ -767,33 +767,45 @@ test('active display-category asset rejects invalid filenames before database ac
 
 
 test('display-category icon upload rejects disallowed Origin and invalid or missing signed CSRF before DB/filesystem effects', async () => {
-  const cases: Array<{ name: string; headers: Record<string, string>; code: string; message: string }> = [
+  const cases: Array<{ name: string; headers: Record<string, string>; statusCode: number; code: string; message: string }> = [
     {
       name: 'untrusted Origin',
+      statusCode: 403,
       headers: { ...authHeaders(true), origin: 'https://attacker.example' },
       code: 'ORIGIN_INVALID',
       message: 'Request Origin is not allowed',
     },
     {
       name: 'missing Origin',
+      statusCode: 403,
       headers: { cookie: SESSION_COOKIE + '; ' + CSRF_COOKIE, 'x-csrf-token': CSRF_TOKEN },
       code: 'ORIGIN_INVALID',
       message: 'Request Origin is not allowed',
     },
     {
       name: 'missing CSRF header',
+      statusCode: 403,
       headers: { cookie: SESSION_COOKIE + '; ' + CSRF_COOKIE, origin: ADMIN_ORIGIN },
       code: 'CSRF_INVALID',
       message: 'CSRF validation failed',
     },
     {
       name: 'CSRF header differs from cookie',
+      statusCode: 403,
       headers: { ...authHeaders(true), 'x-csrf-token': 'tampered-token-value' },
       code: 'CSRF_INVALID',
       message: 'CSRF validation failed',
     },
     {
+      name: 'missing administrator session',
+      statusCode: 401,
+      headers: { cookie: CSRF_COOKIE, origin: ADMIN_ORIGIN, 'x-csrf-token': CSRF_TOKEN },
+      code: 'UNAUTHORIZED',
+      message: 'A valid administrator session is required',
+    },
+    {
       name: 'matching but unsigned CSRF cookie and header',
+      statusCode: 403,
       headers: {
         cookie: SESSION_COOKIE + '; __Host-bclick_admin_csrf=not-a-valid-signed-token',
         origin: ADMIN_ORIGIN,
@@ -824,7 +836,7 @@ test('display-category icon upload rejects disallowed Origin and invalid or miss
         payload: validPng64(),
       });
 
-      assert.equal(response.statusCode, 403, entry.name + ': ' + response.body);
+      assert.equal(response.statusCode, entry.statusCode, entry.name + ': ' + response.body);
       assert.deepEqual(response.json().error, { code: entry.code, message: entry.message }, entry.name);
       assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId'], entry.name);
       assert.equal(response.json().requestId, requestId, entry.name);
