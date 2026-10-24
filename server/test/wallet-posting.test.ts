@@ -183,6 +183,30 @@ test('Phase 5A: wallet posting service idempotency, state transitions, concurren
     const balanceAfterSeed = await accountProjection(pool, available.id);
     assert.deepEqual(balanceAfterSeed, { balance_minor: '1000', ledger_total: '1000' });
 
+    // Concurrent deliveries for a new identical idempotency key converge to one journal.
+    const concurrentSameKeyRequest: WalletPostingRequest = {
+      movementType: 'wallet_adjustment',
+      idempotencyScope: 'phase5a:concurrent-idempotency',
+      idempotencyKey: 'same-key-001',
+      reference: 'phase5a-concurrent-idempotency',
+      actorType: 'system',
+      entries: [
+        { walletAccountId: systemAccount('operator-equity', 'EUR').id, currencyCode: 'EUR', amountMinor: 5n, entrySequence: 1 },
+        { walletAccountId: systemAccount('payment-clearing', 'EUR').id, currencyCode: 'EUR', amountMinor: -5n, entrySequence: 2 },
+      ],
+    };
+    const sameKeyResults = await Promise.all([
+      posting.post(concurrentSameKeyRequest),
+      posting.post(concurrentSameKeyRequest),
+    ]);
+    assert.equal(sameKeyResults[0]?.journalId, sameKeyResults[1]?.journalId);
+    assert.deepEqual(sameKeyResults.map((result) => result.duplicate).sort(), [false, true]);
+    const sameKeyRowCounts = await pool.query<{ journals: string; entries: string }>(
+      'SELECT count(DISTINCT jt.id)::text AS journals,count(le.id)::text AS entries FROM public.journal_transactions jt LEFT JOIN public.ledger_entries le ON le.journal_id=jt.id WHERE jt.idempotency_scope=$1 AND jt.idempotency_key=$2',
+      [concurrentSameKeyRequest.idempotencyScope, concurrentSameKeyRequest.idempotencyKey],
+    );
+    assert.deepEqual(sameKeyRowCounts.rows[0], { journals: '1', entries: '2' });
+
     // A single journal may span currencies only when each currency independently balances.
     const multiCurrency = await posting.post({
       movementType: 'wallet_adjustment',
