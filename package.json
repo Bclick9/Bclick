@@ -17,7 +17,8 @@
     "frontend:test": "tsx --test frontend/test/*.test.ts",
     "admin:test": "tsx --test backend/test/*.test.ts",
     "api:admin:bootstrap": "pnpm --filter @bclick/config build && pnpm --filter @bclick/server admin:bootstrap",
-    "api:admin:bootstrap-local-default": "pnpm --filter @bclick/config build && pnpm --filter @bclick/server admin:bootstrap-local-default"
+    "api:admin:bootstrap-local-default": "pnpm --filter @bclick/config build && pnpm --filter @bclick/server admin:bootstrap-local-default",
+    "api:admin:mfa:break-glass": "pnpm --filter @bclick/server admin:mfa:break-glass"
   },
   "devDependencies": {
     "@redocly/cli": "2.64.1",
