@@ -338,6 +338,11 @@ touch "__RESTORE_DIR__/recovery.signal"
 chown -R postgres:postgres /restore-root
 '@
   $prepare = $prepare.Replace('__RESTORE_DIR__', $restoreDir)
+  # Windows PowerShell checks out this script with CRLF in some configurations.
+  # Normalize the generated Linux shell script to LF before Base64 encoding so
+  # carriage returns cannot be appended to shell options such as "set -eu".
+  $prepare = $prepare.Replace("`r`n", "`n").Replace("`r", "`n")
+  if ($prepare.Contains("`r")) { throw 'Restore helper script still contains carriage returns after newline normalization.' }
   # Windows PowerShell 5.1 can split/mangle multiline shell arguments containing
   # nested quote characters when invoking docker.exe. Encode the script as Base64
   # so only a simple, whitespace-free payload crosses the Windows native-argument
