@@ -34,6 +34,7 @@ async function main(): Promise<void> {
     identityConfig,
     catalogDatabase: repository,
     sandboxDemoClient,
+    allowedHosts: config.allowedHosts,
   });
 
   app.addHook('onClose', async () => {
