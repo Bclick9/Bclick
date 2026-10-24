@@ -5380,6 +5380,15 @@ export interface components {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
+        /** @description A path parameter exceeded the bounded router length. The response never reflects the request URL. */
+        UriTooLong: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
         /** @description No valid session or credentials. */
         Unauthorized: {
             headers: {
@@ -6062,6 +6071,7 @@ export interface operations {
                     "application/json": components["schemas"]["CategoriesResponse"];
                 };
             };
+            400: components["responses"]["ValidationError"];
         };
     };
     getCasinoDisplayCategories: {
@@ -6105,6 +6115,7 @@ export interface operations {
                     };
                 };
             };
+            400: components["responses"]["ValidationError"];
         };
     };
     getCasinoProviders: {
@@ -6133,6 +6144,7 @@ export interface operations {
                     "application/json": components["schemas"]["ProvidersResponse"];
                 };
             };
+            400: components["responses"]["ValidationError"];
         };
     };
     getCasinoGames: {
@@ -6198,6 +6210,7 @@ export interface operations {
             };
             400: components["responses"]["ValidationError"];
             404: components["responses"]["NotFound"];
+            414: components["responses"]["UriTooLong"];
         };
     };
     getCasinoGamesByGameId: {
@@ -6224,6 +6237,7 @@ export interface operations {
                     "application/json": components["schemas"]["GameResponse"];
                 };
             };
+            400: components["responses"]["ValidationError"];
             404: components["responses"]["NotFound"];
         };
     };
