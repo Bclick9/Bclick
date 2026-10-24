@@ -1326,6 +1326,120 @@ test('Skin Games uploads a validated persistent image and serves it without a bl
   }
 });
 
+
+test('Skin Games image upload rejects invalid Origin and CSRF with production guards before file/database side effects and enforces RBAC', async () => {
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(),'bclick-skin-games-security-'));
+  try {
+    const deniedFixture = fakeDatabase();
+    const app = buildApp({
+      database: null,
+      catalogDatabase: deniedFixture.database,
+      identity: fakeIdentity(),
+      identityConfig: config(),
+      uploadDirectory,
+    });
+    const omitHeader = (headers: Record<string, string>, name: string): Record<string, string> => {
+      const copy = { ...headers };
+      delete copy[name];
+      return copy;
+    };
+    const validUploadHeaders = { ...authHeaders(true), 'content-type': 'image/png' };
+    const unsignedToken = 'unsigned-csrf-token-123456789';
+    const cases = [
+      {
+        name: 'missing Origin',
+        headers: omitHeader(validUploadHeaders, 'origin'),
+        code: 'ORIGIN_INVALID',
+        message: 'Request Origin is not allowed',
+      },
+      {
+        name: 'hostile Origin',
+        headers: { ...validUploadHeaders, origin: 'https://attacker.example' },
+        code: 'ORIGIN_INVALID',
+        message: 'Request Origin is not allowed',
+      },
+      {
+        name: 'missing CSRF header',
+        headers: omitHeader(validUploadHeaders, 'x-csrf-token'),
+        code: 'CSRF_INVALID',
+        message: 'CSRF validation failed',
+      },
+      {
+        name: 'mismatched CSRF cookie and header',
+        headers: { ...validUploadHeaders, 'x-csrf-token': 'mismatched-csrf-value-123456789' },
+        code: 'CSRF_INVALID',
+        message: 'CSRF validation failed',
+      },
+      {
+        name: 'unsigned CSRF token',
+        headers: {
+          ...validUploadHeaders,
+          cookie: SESSION_COOKIE + '; __Host-bclick_admin_csrf=' + unsignedToken,
+          'x-csrf-token': unsignedToken,
+        },
+        code: 'CSRF_INVALID',
+        message: 'CSRF validation failed',
+      },
+    ];
+    try {
+      for (const entry of cases) {
+        const requestId = 'q020-skin-image-security-' + entry.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/image',
+          headers: { ...entry.headers, 'x-request-id': requestId },
+          payload: validPng64(),
+        });
+        assert.equal(response.statusCode, 403, entry.name + ': ' + response.body);
+        assert.deepEqual(response.json().error, { code: entry.code, message: entry.message }, entry.name);
+        assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId'], entry.name);
+        assert.equal(response.json().requestId, requestId, entry.name);
+        assert.equal(response.headers['x-request-id'], requestId, entry.name);
+        assert.equal(response.headers['content-type']?.split(';')[0], 'application/json', entry.name);
+        assert.equal(deniedFixture.calls.length, 0, entry.name + ': denied request must not query or write audit-success');
+        assert.deepEqual(await readdir(uploadDirectory), [], entry.name + ': denied request must not create an upload directory or file');
+      }
+    } finally {
+      await app.close();
+    }
+
+    const permissionFixture = fakeDatabase();
+    const permissionApp = buildApp({
+      database: null,
+      catalogDatabase: permissionFixture.database,
+      identity: fakeIdentity({ permissions: [] }),
+      identityConfig: config(),
+      uploadDirectory,
+    });
+    try {
+      const requestId = 'q020-skin-image-rbac-denied';
+      const response = await permissionApp.inject({
+        method: 'POST',
+        url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/image',
+        headers: { ...validUploadHeaders, 'x-request-id': requestId },
+        payload: validPng64(),
+      });
+      assert.equal(response.statusCode, 403, response.body);
+      assert.deepEqual(response.json().error, {
+        code: 'FORBIDDEN',
+        message: 'The administrator lacks the required provider-settings permission',
+      });
+      assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
+      assert.equal(response.json().requestId, requestId);
+      assert.equal(response.headers['x-request-id'], requestId);
+      assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+      assert.equal(permissionFixture.calls.length, 1, 'RBAC denial should write only the denial audit');
+      assert.ok(permissionFixture.calls[0]!.sql.includes('casino.provider-settings.access-denied'));
+      assert.equal(permissionFixture.calls.some((call) => call.sql.includes("casino.skin-game.image-updated")), false);
+      assert.deepEqual(await readdir(uploadDirectory), [], 'RBAC denial must not create an upload directory or file');
+    } finally {
+      await permissionApp.close();
+    }
+  } finally {
+    await rm(uploadDirectory,{recursive:true,force:true});
+  }
+});
+
 test('Skin Games image upload returns a safe generic error when persistent storage cannot be written', async () => {
   const fixture = fakeDatabase();
   const tempRoot = await mkdtemp(path.join(tmpdir(),'bclick-skin-games-write-failure-'));
