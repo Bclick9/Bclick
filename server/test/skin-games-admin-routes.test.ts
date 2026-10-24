@@ -1294,16 +1294,22 @@ test('Skin Games uploads a validated persistent image and serves it without a bl
   const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config(), uploadDirectory });
   try {
     const image = validPng64();
+    const uploadRequestId = 'q020-skin-image-success';
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/image',
-      headers: { ...authHeaders(true), 'content-type': 'image/png' },
+      headers: { ...authHeaders(true), 'content-type': 'image/png', 'x-request-id': uploadRequestId },
       payload: image,
     });
     assert.equal(response.statusCode, 201, response.body);
+    assert.deepEqual(Object.keys(response.json()).sort(), ['data', 'requestId']);
     const data = response.json().data;
+    assert.deepEqual(Object.keys(data).sort(), ['contentType', 'customImageUrl', 'gameId']);
     assert.equal(data.gameId, GAME_ID);
     assert.equal(data.contentType, 'image/png');
+    assert.equal(response.json().requestId, uploadRequestId);
+    assert.equal(response.headers['x-request-id'], uploadRequestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
     const imageAudit = fixture.calls.find((call) => call.sql.includes("'casino.skin-game.image-updated'"));
     assert.ok(imageAudit, 'image persistence must write an audit event');
     assert.match(
@@ -1315,10 +1321,18 @@ test('Skin Games uploads a validated persistent image and serves it without a bl
     assert.match(data.customImageUrl, /^\/api\/v1\/assets\/casino-games\//);
     assert.equal(data.customImageUrl.includes('blob:'), false);
 
-    const read = await app.inject({ method: 'GET', url: data.customImageUrl });
+    const imageRequestId = 'q020-skin-image-read-success';
+    const read = await app.inject({
+      method: 'GET',
+      url: data.customImageUrl,
+      headers: { 'x-request-id': imageRequestId },
+    });
     assert.equal(read.statusCode, 200, read.body);
     assert.equal(read.headers['content-type'], 'image/png');
+    assert.equal(read.headers['cache-control'], 'public, max-age=31536000, immutable');
+    assert.equal(read.headers['content-security-policy'], "default-src 'none'; sandbox");
     assert.equal(read.headers['x-content-type-options'], 'nosniff');
+    assert.equal(read.headers['x-request-id'], imageRequestId);
     assert.deepEqual(read.rawPayload, image);
   } finally {
     await app.close();
@@ -1437,6 +1451,114 @@ test('Skin Games image upload rejects invalid Origin and CSRF with production gu
     }
   } finally {
     await rm(uploadDirectory,{recursive:true,force:true});
+  }
+});
+
+
+test('Skin Games public image route rejects inactive/traversal keys and maps missing or unreadable files to safe OpenAPI envelopes', async () => {
+  const fixture = fakeDatabase();
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(),'bclick-skin-games-asset-errors-'));
+  let app: ReturnType<typeof buildApp> | null = null;
+  let blockedRoot = '';
+  let blockedRootParent = '';
+  try {
+    app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config(), uploadDirectory });
+    const uploadId = 'q020-skin-asset-error-setup';
+    const uploaded = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/image',
+      headers: { ...authHeaders(true), 'content-type': 'image/png', 'x-request-id': uploadId },
+      payload: validPng64(),
+    });
+    assert.equal(uploaded.statusCode, 201, uploaded.body);
+    const imageUrl = uploaded.json().data.customImageUrl as string;
+    const relativeAssetPath = imageUrl.replace(/^\\/api\\/v1\\/assets\\//, '');
+    assert.ok(relativeAssetPath.startsWith('casino-games/' + GAME_ID + '/'));
+    const imageFilePath = path.join(uploadDirectory, relativeAssetPath);
+    const inactiveFileName = '11111111-1111-4111-8111-111111111111.png';
+
+    const beforeInactive = fixture.calls.length;
+    const inactiveRequestId = 'q020-skin-asset-inactive';
+    const inactive = await app.inject({
+      method: 'GET',
+      url: '/api/v1/assets/casino-games/' + GAME_ID + '/' + inactiveFileName,
+      headers: { 'x-request-id': inactiveRequestId },
+    });
+    assert.equal(inactive.statusCode, 404, inactive.body);
+    assert.deepEqual(inactive.json().error, { code: 'NOT_FOUND', message: 'Image was not found' });
+    assert.deepEqual(Object.keys(inactive.json()).sort(), ['error', 'requestId']);
+    assert.equal(inactive.json().requestId, inactiveRequestId);
+    assert.equal(inactive.headers['x-request-id'], inactiveRequestId);
+    assert.equal(inactive.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(fixture.calls.length, beforeInactive + 1, 'inactive key should be checked in the DB and denied before filesystem reads');
+
+    const beforeTraversal = fixture.calls.length;
+    const traversalRequestId = 'q020-skin-asset-traversal';
+    const traversal = await app.inject({
+      method: 'GET',
+      url: '/api/v1/assets/casino-games/' + GAME_ID + '/%2E%2E%2F..%2Fsecret.png',
+      headers: { 'x-request-id': traversalRequestId },
+    });
+    assert.equal(traversal.statusCode, 400, traversal.body);
+    assert.deepEqual(Object.keys(traversal.json()).sort(), ['error', 'requestId']);
+    assert.equal(traversal.json().error.code, 'VALIDATION_ERROR');
+    assert.equal(traversal.json().requestId, traversalRequestId);
+    assert.equal(traversal.headers['x-request-id'], traversalRequestId);
+    assert.equal(traversal.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(fixture.calls.length, beforeTraversal, 'invalid traversal filename must be rejected before DB access');
+
+    await unlink(imageFilePath);
+    const missingRequestId = 'q020-skin-asset-file-missing';
+    const missing = await app.inject({
+      method: 'GET',
+      url: imageUrl,
+      headers: { 'x-request-id': missingRequestId },
+    });
+    assert.equal(missing.statusCode, 404, missing.body);
+    assert.deepEqual(missing.json().error, { code: 'NOT_FOUND', message: 'Image was not found' });
+    assert.deepEqual(Object.keys(missing.json()).sort(), ['error', 'requestId']);
+    assert.equal(missing.json().requestId, missingRequestId);
+    assert.equal(missing.headers['x-request-id'], missingRequestId);
+    assert.equal(missing.headers['content-type']?.split(';')[0], 'application/json');
+    assert.doesNotMatch(missing.body, new RegExp(uploadDirectory.replace(/[.*+?^${}()|[\]\\]/g, '\\test('Skin Games image upload returns a safe generic error when persistent storage cannot be written', async () => {')));
+
+    await app.close();
+    app = null;
+
+    blockedRootParent = await mkdtemp(path.join(tmpdir(),'bclick-skin-games-asset-read-failure-'));
+    blockedRoot = path.join(blockedRootParent,'not-a-directory');
+    await writeFile(blockedRoot,'block the upload path');
+    const failingApp = buildApp({
+      database: null,
+      catalogDatabase: fixture.database,
+      identity: fakeIdentity(),
+      identityConfig: config(),
+      uploadDirectory: blockedRoot,
+    });
+    try {
+      const failureRequestId = 'q020-skin-asset-read-failure';
+      const failure = await failingApp.inject({
+        method: 'GET',
+        url: imageUrl,
+        headers: { 'x-request-id': failureRequestId },
+      });
+      assert.equal(failure.statusCode, 500, failure.body);
+      assert.deepEqual(failure.json().error, {
+        code: 'INTERNAL_ERROR',
+        message: 'The Skin Games request could not be completed',
+      });
+      assert.deepEqual(Object.keys(failure.json()).sort(), ['error', 'requestId']);
+      assert.equal(failure.json().requestId, failureRequestId);
+      assert.equal(failure.headers['x-request-id'], failureRequestId);
+      assert.equal(failure.headers['content-type']?.split(';')[0], 'application/json');
+      assert.doesNotMatch(failure.body, /ENOTDIR|not-a-directory|skin-games-asset-read-failure/);
+    } finally {
+      await failingApp.close();
+    }
+  } finally {
+    if(app) await app.close();
+    await rm(uploadDirectory,{recursive:true,force:true});
+    if(blockedRootParent) await rm(blockedRootParent,{recursive:true,force:true});
   }
 });
 
