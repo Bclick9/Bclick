@@ -29,7 +29,7 @@ function assertValidationEnvelope(
   response: { statusCode: number; headers: Record<string, unknown>; json(): any },
   requestId: string,
 ): void {
-  assert.equal(response.statusCode, 400);
+  assert.equal(response.statusCode, 400, `expected schema rejection for ${requestId}; actual=${response.statusCode}; body=${JSON.stringify(response.json())}`);
   assert.deepEqual(response.json().error, {
     code: 'VALIDATION_ERROR',
     message: 'Request validation failed',
