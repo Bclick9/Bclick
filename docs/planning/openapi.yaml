@@ -1620,14 +1620,16 @@ paths:
       responses:
         '200':
           description: Game control updated and audited.
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
           content:
             application/json:
               schema: {$ref: '#/components/schemas/BigBangAdminGameControlResponse'}
-        '400': {description: Invalid game ID or request body.}
+        '400': {$ref: '#/components/responses/ValidationError'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
-        '500': {description: Update or audit persistence failed; the mutation is not reported as successful.}
+        '500': {$ref: '#/components/responses/InternalError'}
       operationId: patchAdminBigBangGame
   /api/v1/admin/casino/display-categories:
     get:
