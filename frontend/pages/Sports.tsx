@@ -7,6 +7,7 @@ import {
 import { MatchCard, PageTitle } from '../components/cards'
 import { SPORTS_EVENTS, SPORT_CATEGORIES } from '../data/catalog'
 import { cn } from '../lib/shadcn/utils'
+import { getWinHouseBottomGap } from '../lib/winhouseEmbed'
 
 const ICONS: Record<string, LucideIcon> = {
   Trophy, CircleDot, Dribbble, Snowflake, Volleyball, Gamepad2, Swords,
@@ -65,17 +66,54 @@ export default function Sports() {
     script.dataset.lang = 'en'
     script.dataset.width = '100%'
     script.dataset.height = 'calc(100dvh - 54px)'
-    // Intentionally omit data-bottom-gap: our fixed nav overlays the provider
-    // tab bar rather than stacking a second bottom navigation below it.
+    // Only documented header controls can be hidden with data-hide. The provider
+    // bottom tab bar has no documented hide option, so keep both navigations
+    // tappable by placing the provider's bar above Bclick's fixed mobile nav.
+    script.dataset.hide = 'favorites,clock,settings'
 
-    const observer = new MutationObserver(configureFrame)
-    observer.observe(target, { childList: true, subtree: true })
+    const syncBottomGap = () => {
+      const navigation = document.querySelector<HTMLElement>(
+        'nav[aria-label="Sportsbook navigation"]',
+      )
+      const gap = String(getWinHouseBottomGap(navigation))
+      if (script.dataset.bottomGap !== gap) {
+        script.dataset.bottomGap = gap
+        // refit() is part of WinHouse's documented embed API.
+        window.WinHouseEmbed?.refit?.()
+      }
+    }
+
+    syncBottomGap()
+    const navigation = document.querySelector<HTMLElement>(
+      'nav[aria-label="Sportsbook navigation"]',
+    )
+    const navigationResizeObserver = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(syncBottomGap)
+    if (navigation) navigationResizeObserver?.observe(navigation)
+
+    const navigationMutationObserver = new MutationObserver(syncBottomGap)
+    if (navigation) {
+      navigationMutationObserver.observe(navigation, {
+        attributes: true,
+        attributeFilter: ['class', 'aria-hidden', 'hidden', 'style'],
+      })
+    }
+    window.addEventListener('resize', syncBottomGap)
+    window.addEventListener('orientationchange', syncBottomGap)
+
+    const frameObserver = new MutationObserver(configureFrame)
+    frameObserver.observe(target, { childList: true, subtree: true })
     script.addEventListener('load', configureFrame)
     target.appendChild(script)
 
     return () => {
       disposed = true
-      observer.disconnect()
+      frameObserver.disconnect()
+      navigationResizeObserver?.disconnect()
+      navigationMutationObserver.disconnect()
+      window.removeEventListener('resize', syncBottomGap)
+      window.removeEventListener('orientationchange', syncBottomGap)
       script.removeEventListener('load', configureFrame)
       script.remove()
 
