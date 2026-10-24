@@ -29,6 +29,8 @@ export interface BuildAppOptions {
   sandboxDemoClient?: BigBangApiClient | null;
   /** Persistent local/VPS asset volume. Override with BCLICK_UPLOAD_DIR in shared deployments. */
   uploadDirectory?: string;
+  /** Exact incoming Host authorities. Configure in shared environments; forwarded host headers are never trusted. */
+  allowedHosts?: readonly string[];
 }
 
 const healthResponseSchema = {
@@ -50,7 +52,10 @@ function requestIdFromHeader(header: unknown): string {
 }
 
 export function buildApp(options: BuildAppOptions) {
+  const allowedHosts = new Set((options.allowedHosts ?? []).map((host) => host.trim().toLowerCase()));
   const app = Fastify({
+    // This application is behind an explicit reverse proxy; do not trust client-supplied X-Forwarded-* values.
+    trustProxy: false,
     ajv: {
       // Do not silently strip undeclared input properties: additionalProperties:false
       // must reject contract violations so they reach the safe VALIDATION_ERROR handler.
@@ -104,6 +109,28 @@ export function buildApp(options: BuildAppOptions) {
 
   app.addHook('onRequest', async (request, reply) => {
     reply.header('X-Request-Id', request.id);
+    reply.header('Content-Security-Policy', "default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'");
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('X-Frame-Options', 'DENY');
+    reply.header('Referrer-Policy', 'no-referrer');
+
+    // Only the original Host authority is security-relevant here. Fastify trustProxy
+    // is explicitly false, so X-Forwarded-Host and Forwarded cannot override it.
+    if (allowedHosts.size > 0) {
+      const hostHeader = request.headers.host;
+      const host = typeof hostHeader === 'string' ? hostHeader.trim().toLowerCase() : '';
+      if (
+        !host
+        || host.includes(',')
+        || [...host].some((char) => char.charCodeAt(0) <= 0x20 || char.charCodeAt(0) === 0x7f)
+        || !allowedHosts.has(host)
+      ) {
+        return reply.code(421).send({
+          error: { code: 'HOST_INVALID', message: 'Request Host is not allowed' },
+          requestId: request.id,
+        });
+      }
+    }
 
     const pathname = request.url.split('?', 1)[0] || '/';
     const isPrivateReadOrLogin =
