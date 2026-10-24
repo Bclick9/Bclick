@@ -130,3 +130,23 @@ The matrix and existing upload rejection test now include an explicit valid-imag
 - [Wallet Migration 006 disposable-PostgreSQL rehearsal](https://github.com/Bclick9/Bclick/actions/runs/40083380819) — passed; this is not a staging restore or production migration authorization.
 
 The current code head for that validation was `96a58857c74300dfdc78d6454edaa47a15c2249e`. The category icon upload remains Partial because real-control Origin/CSRF/RBAC denial evidence, Q-004 quarantine/scanning/storage safeguards, and the public icon-read inactive-key/filesystem/path-traversal cases are still open. Q-020 remains OPEN; no callback or real-money execution route was enabled.
+
+
+
+## Q-020 icon route security and response-contract verification — 2026-10-24
+
+Validated implementation/test head: `a1d43e33a868805cff02967b7994aa530f3da4e6` on [PR #140](https://github.com/Bclick9/Bclick/pull/140). The PR remains open and unmerged; `main` was not changed.
+
+- **Upload route** `POST /api/v1/admin/casino/display-categories/{categoryId}/icon`: focused tests cover 201 success and exact JSON key sets; malformed category ID 400 before DB/storage; missing administrator session 401; disallowed/missing Origin and missing, mismatched, or unsigned CSRF 403; missing `casino.provider-settings.manage` permission 403 with denial audit and no success mutation; missing category 404; 413 and 415 image/size cases; and generic 500 on a storage-root write failure with the existing storage sentinel preserved, no orphaned icon, no audit-success write, and no path disclosure.
+- **Public read route** `GET /api/v1/assets/casino-display-categories/{categoryId}/{fileName}`: the 200 PNG body is byte-compared and asserts `Cache-Control`, `Content-Security-Policy`, `X-Content-Type-Options` and `X-Request-Id`. Malformed filenames and encoded path traversal return 400 before DB access; inactive/unreferenced keys and missing physical files return safe 404; non-ENOENT storage errors return a generic 500 envelope without leaking filesystem paths. The tested JSON errors assert exact top-level keys, error code/message, request-ID body/header parity, and JSON media type.
+- **Security-test boundary:** the route's production Origin/RBAC guard paths and production `verifyCsrfToken` HMAC verifier are exercised with correctly signed and invalid CSRF values. The `IdentityService.resolveSession` result remains a test fixture; these tests do not claim to complete the separate real-session lifecycle, expiry, revocation, or replay evidence.
+- **OpenAPI alignment:** both routes document the 500 `InternalError` envelope and `X-Request-Id`; public image 200 documents `Content-Security-Policy` alongside its other response headers. The committed generated TypeScript client matches fresh OpenAPI regeneration.
+
+### Current-head CI evidence
+
+- [API and contract checks](https://github.com/Bclick9/Bclick/actions/runs/40085094198) — passed: **109/109 API tests**, **68/68 Health cases**, and **450/450 controlled Q-020 Schemathesis cases** across the selected implemented operations. The contract guard passed (35 CSRF lifecycle/name/Origin checks, 16 Q-001/Q-002 checks, duplicate-key/ref/operationId checks); OpenAPI lint and generated-client drift checks passed.
+- [Application builds](https://github.com/Bclick9/Bclick/actions/runs/40085094203) — passed.
+- [Local Compose, fresh database/migrations/Identity route and PowerShell checks](https://github.com/Bclick9/Bclick/actions/runs/40085094206) — passed.
+- [Migration 006 disposable-PostgreSQL rehearsal](https://github.com/Bclick9/Bclick/actions/runs/40085094215) — passed; this is not staging-restore evidence or production migration approval.
+
+**Status remains Partial / OPEN.** This focused result does not close Q-020 or the wider route matrix. Q-004 media quarantine, scanning and storage-isolation requirements remain a separate gate. Issue #55 remains OPEN for identity-token expiry/reuse/replay, recovery-code single-use/replay and related MFA/runbook evidence. CI success does not close either gate. No wallet, provider-callback, payment, FX, wager-settlement, Premium or real-money route was enabled by this increment.
