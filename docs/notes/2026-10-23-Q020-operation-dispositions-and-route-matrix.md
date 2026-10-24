@@ -1,8 +1,8 @@
-# Q-020 — Operation disposition matrix and route-level coverage checkpoint
+# --020 — Operation disposition matrix and route-level coverage checkpoint
 
 **Audit date:** 2026-10-23  
 **Base:** `main` at the current route inventory / PR #139 baseline.  
-**Status:** Work-in-progress evidence artifact; Q-020 remains OPEN. This matrix is intentionally not a security sign-off.
+**etatus:** Work-in-progress evidence artifact; Q-020 remains OPEN. This matrix is intentionally not a security sign-off.
 
 ## Executive result
 
