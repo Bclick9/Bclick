@@ -51,6 +51,11 @@ function requestIdFromHeader(header: unknown): string {
 
 export function buildApp(options: BuildAppOptions) {
   const app = Fastify({
+    ajv: {
+      // Do not silently strip undeclared input properties: additionalProperties:false
+      // must reject contract violations so they reach the safe VALIDATION_ERROR handler.
+      customOptions: { removeAdditional: false },
+    },
     logger: {
       level: options.logLevel ?? 'info',
       serializers: {
