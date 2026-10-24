@@ -35,17 +35,25 @@ function catalogDatabase(options: {
   readonly game?: typeof ROW | null;
   readonly alias?: LegacyAliasFixture | null;
   readonly listRows?: (typeof ROW)[];
+  readonly categoryRows?: { slug: string }[];
   readonly total?: number;
 } = {}) {
   const calls: QueryCall[] = [];
   const game = options.game === undefined ? ROW : options.game;
   const alias = options.alias ?? null;
   const listRows = options.listRows ?? [ROW];
+  const categoryRows = options.categoryRows ?? [];
   const total = options.total ?? listRows.length;
 
   const database = {
     async query(sql: string, values: unknown[] = []) {
       calls.push({ sql, values });
+      if (sql.includes('SELECT count(DISTINCT gc.category_slug)::text AS total')) {
+        return { rows: [{ total: String(categoryRows.length) }], rowCount: 1 };
+      }
+      if (sql.includes('SELECT DISTINCT gc.category_slug AS slug')) {
+        return { rows: categoryRows, rowCount: categoryRows.length };
+      }
       if (sql.includes('SELECT count(DISTINCT p.id)::text AS total')) {
         return { rows: [{ total: '1' }], rowCount: 1 };
       }
@@ -320,6 +328,42 @@ test('public catalogue list returns and searches by the player-facing title over
     assert.match(fixture.calls[0]!.sql, /ILIKE \$1/);
     assert.match(fixture.calls[1]!.sql, /COALESCE\(NULLIF\(pres\.title_override,''\),g\.title\) AS title/);
     assert.deepEqual(fixture.calls[0]!.values, ['%Zeus%']);
+  } finally {
+    await app.close();
+  }
+});
+
+test('Q-020 category list matches the documented response envelope, metadata and request headers', async () => {
+  const fixture = catalogDatabase({
+    categoryRows: [{ slug: 'classic-slots' }, { slug: 'slot-games' }],
+  });
+  const app = buildApp({ database: null, catalogDatabase: fixture.database });
+  const requestId = 'q020-category-list-shape';
+
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/casino/categories?page=1&pageSize=25',
+      headers: { 'x-request-id': requestId },
+    });
+
+    assert.equal(response.statusCode, 200, response.body);
+    assert.deepEqual(response.json(), {
+      data: [
+        { slug: 'classic-slots', title: 'Classic Slots', icon: null },
+        { slug: 'slot-games', title: 'Slots', icon: 'cherry' },
+      ],
+      page: { page: 1, pageSize: 25, total: 2, nextCursor: null },
+      meta: { resolvedLocale: 'en', stale: false, fetchedAt: '2026-10-22T10:00:00.000Z' },
+      requestId,
+    });
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['cache-control'], 'no-store');
+    assert.equal(fixture.calls.length, 3);
+    assert.match(fixture.calls[0]!.sql, /count\\(DISTINCT gc\\.category_slug\\)::text AS total/);
+    assert.match(fixture.calls[1]!.sql, /ORDER BY gc\\.category_slug/);
+    assert.deepEqual(fixture.calls[1]!.values, [25, 0]);
+    assert.match(fixture.calls[2]!.sql, /casino_catalog_sync_runs/);
   } finally {
     await app.close();
   }
