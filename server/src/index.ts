@@ -35,6 +35,7 @@ async function main(): Promise<void> {
     catalogDatabase: repository,
     sandboxDemoClient,
     allowedHosts: config.allowedHosts,
+    walletApiEnabled: config.walletApiEnabled,
   });
 
   app.addHook('onClose', async () => {
