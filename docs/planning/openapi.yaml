@@ -1512,14 +1512,16 @@ paths:
       responses:
         '200':
           description: Provider control updated and audited.
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
           content:
             application/json:
               schema: {$ref: '#/components/schemas/BigBangAdminProviderControlResponse'}
-        '400': {description: Invalid provider code or request body.}
+        '400': {$ref: '#/components/responses/ValidationError'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
-        '500': {description: Update or audit persistence failed; the mutation is not reported as successful.}
+        '500': {$ref: '#/components/responses/InternalError'}
       operationId: patchAdminBigBangProvider
   /api/v1/admin/bigbang/providers/{providerCode}/tiers/{mode}:
     parameters:
@@ -1541,6 +1543,8 @@ paths:
       responses:
         '200':
           description: Source-tier control updated and audited.
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
           content:
             application/json:
               schema:
@@ -1556,10 +1560,18 @@ paths:
                       enabled: {type: boolean}
                       updatedAt: {type: string, format: date-time}
                   requestId: {type: string}
+        '400': {$ref: '#/components/responses/ValidationError'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
-        '409': {description: Premium tier is not enabled for the current integration.}
+        '409':
+          description: Premium tier is not enabled for the current integration.
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '500': {$ref: '#/components/responses/InternalError'}
       operationId: patchAdminBigBangProviderTier
   /api/v1/admin/bigbang/games:
     get:
