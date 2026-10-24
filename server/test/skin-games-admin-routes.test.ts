@@ -1639,3 +1639,154 @@ test('Skin Games image upload returns a safe generic error when persistent stora
     await rm(tempRoot,{recursive:true,force:true});
   }
 });
+
+
+test('Q-020b remaining admin mutations reject Origin/CSRF/RBAC denials before mutation', async () => {
+  const mutations = [
+    {
+      name: 'create curated display category',
+      method: 'POST' as const,
+      url: '/api/v1/admin/casino/display-categories',
+      payload: { name: 'Denied Category', type: 'casino' },
+      marker: 'casino.display-category.created',
+    },
+    {
+      name: 'update curated display category',
+      method: 'PATCH' as const,
+      url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID,
+      payload: { visible: false },
+      marker: 'casino.display-category.updated',
+    },
+    {
+      name: 'delete curated display category',
+      method: 'DELETE' as const,
+      url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID,
+      marker: 'casino.display-category.deleted',
+    },
+    {
+      name: 'replace category game membership',
+      method: 'PUT' as const,
+      url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID + '/games',
+      payload: { gameIds: [GAME_ID] },
+      marker: 'casino.display-category.games-updated',
+    },
+    {
+      name: 'assign skin game display categories',
+      method: 'PATCH' as const,
+      url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/display-categories',
+      payload: { categoryIds: [DISPLAY_CATEGORY_ID] },
+      marker: 'casino.skin-game.display-categories-updated',
+    },
+    {
+      name: 'update skin game metadata and availability',
+      method: 'PATCH' as const,
+      url: '/api/v1/admin/casino/skin-games/' + GAME_ID,
+      payload: { enabled: false },
+      marker: 'casino.skin-game.updated',
+    },
+    {
+      name: 'reorder skin games',
+      method: 'PATCH' as const,
+      url: '/api/v1/admin/casino/skin-games/reorder',
+      payload: { gameId: GAME_ID, targetGameId: 'e6f79f9e-9bb1-4d91-9784-e0fbc40ca4de', position: 'before' },
+      marker: 'casino.skin-games.reordered',
+    },
+    {
+      name: 'set skin game numeric position',
+      method: 'PATCH' as const,
+      url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/order-position',
+      payload: { orderPosition: 1 },
+      marker: 'casino.skin-games.position-changed',
+    },
+  ] as const;
+
+  async function rejectedRequest(
+    app: Awaited<ReturnType<typeof buildApp>>,
+    mutation: (typeof mutations)[number],
+    requestId: string,
+    scenario: 'missing-origin' | 'hostile-origin' | 'missing-csrf' | 'invalid-csrf',
+  ) {
+    const headers: Record<string, string> = {
+      ...authHeaders(true),
+      'x-request-id': requestId,
+    };
+    if (mutation.payload !== undefined) headers['content-type'] = 'application/json';
+    if (scenario === 'missing-origin') delete headers.origin;
+    if (scenario === 'hostile-origin') headers.origin = 'https://attacker.invalid';
+    if (scenario === 'missing-csrf') delete headers['x-csrf-token'];
+    if (scenario === 'invalid-csrf') headers['x-csrf-token'] = 'unsigned-csrf-token-that-is-not-valid';
+
+    const response = await app.inject({
+      method: mutation.method,
+      url: mutation.url,
+      headers,
+      ...(mutation.payload === undefined ? {} : { payload: mutation.payload }),
+    });
+    const expectedCode = scenario === 'missing-origin' || scenario === 'hostile-origin'
+      ? 'ORIGIN_INVALID' : 'CSRF_INVALID';
+    const expectedMessage = expectedCode === 'ORIGIN_INVALID'
+      ? 'Request Origin is not allowed' : 'CSRF validation failed';
+    assert.equal(response.statusCode, 403, mutation.name + ' / ' + scenario + ': ' + response.body);
+    assert.deepEqual(response.json(), {
+      error: { code: expectedCode, message: expectedMessage },
+      requestId,
+    });
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.json().data, undefined);
+  }
+
+  for (const mutation of mutations) {
+    const fixture = fakeDatabase();
+    const app = buildApp({
+      database: null,
+      catalogDatabase: fixture.database,
+      identity: fakeIdentity(),
+      identityConfig: config(),
+    });
+    try {
+      for (const scenario of ['missing-origin', 'hostile-origin', 'missing-csrf', 'invalid-csrf'] as const) {
+        await rejectedRequest(app, mutation, 'q020b-' + mutation.name.replaceAll(' ', '-') + '-' + scenario, scenario);
+        assert.equal(fixture.calls.length, 0,
+          mutation.name + ' / ' + scenario + ' must be rejected before any database/audit mutation');
+      }
+      assert.equal(fixture.calls.some((call) => call.sql.includes(mutation.marker)), false,
+        mutation.name + ' must not create a success mutation/audit on any denied request');
+    } finally {
+      await app.close();
+    }
+
+    const deniedFixture = fakeDatabase();
+    const deniedApp = buildApp({
+      database: null,
+      catalogDatabase: deniedFixture.database,
+      identity: fakeIdentity({ permissions: [] }),
+      identityConfig: config(),
+    });
+    try {
+      const headers: Record<string, string> = {
+        ...authHeaders(true),
+        'x-request-id': 'q020b-' + mutation.name.replaceAll(' ', '-') + '-rbac-denied',
+      };
+      if (mutation.payload !== undefined) headers['content-type'] = 'application/json';
+      const response = await deniedApp.inject({
+        method: mutation.method,
+        url: mutation.url,
+        headers,
+        ...(mutation.payload === undefined ? {} : { payload: mutation.payload }),
+      });
+      assert.equal(response.statusCode, 403, mutation.name + ' / RBAC: ' + response.body);
+      assert.deepEqual(response.json(), {
+        error: { code: 'FORBIDDEN', message: 'The administrator lacks the required provider-settings permission' },
+        requestId: headers['x-request-id'],
+      });
+      assert.equal(response.headers['x-request-id'], headers['x-request-id']);
+      assert.equal(deniedFixture.calls.length, 1,
+        'only the expected RBAC denial audit may be written before rejecting the operation');
+      assert.ok(deniedFixture.calls[0]?.sql.includes('casino.provider-settings.access-denied'));
+      assert.equal(deniedFixture.calls.some((call) => call.sql.includes(mutation.marker)), false,
+        mutation.name + ' must not apply the requested mutation when RBAC denies it');
+    } finally {
+      await deniedApp.close();
+    }
+  }
+});
