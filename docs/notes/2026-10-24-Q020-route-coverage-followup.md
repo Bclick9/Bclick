@@ -1,11 +1,11 @@
 # Q-020 route-coverage follow-up — 2026-10-24
 
-**Status: Q-020 remains OPEN. PR #140 is not merged.** Later CI on the current branch found a contract mismatch after strict request validation was enabled; do not use the earlier green checkpoint as current-head evidence. This record is a checkpoint, not a closure declaration.
+**Status: Q-020 remains OPEN. PR #140 is not merged.** A focused OpenAPI/Fastify input-schema mismatch for the public provider cursor was corrected on this branch; the newest CI run for the correction must pass before claiming runtime validation. This record is a checkpoint, not a closure declaration.
 
 ## Audited state and scope
 
 - Repository: `Bclick9/Bclick`.
-- `main` was verified at `cecd9a5d34b17005f2cdaa5d2253ce0e90a12c0d` before this continuation. The work in this record is on `docs/q020-disposition-matrix-2026-10-23`, currently at `e9bc94e9ab3101b5ff7ada118fd0d57de269f640`.
+- `main` baseline: `cecd9a5d34b17005f2cdaa5d2253ce0e90a12c0d`. The latest code change before this documentation refresh is commit `2da30ebfe55b6c030fa2f3b43f8cd35f9b9689fd` on `docs/q020-disposition-matrix-2026-10-23`; documentation refresh records it without closing Q-020.
 - Tracking: [Issue #56 — Q-020 route/OpenAPI reconciliation](https://github.com/Bclick9/Bclick/issues/56), remains open. [PR #140](https://github.com/Bclick9/Bclick/pull/140), remains in review.
 - Baseline: 198 OpenAPI operation entries; 49 explicit method/path declarations in the audited route-registration modules, all matching an OpenAPI operation; 149 OpenAPI operations without an explicit matching declaration in those modules.
 - The 149 contract-only operations are **classified for planning**, not treated as missing implementations to fill indiscriminately: 91 planned/unimplemented roadmap scope; 56 gate-blocked or dependent on later domain/vendor/owner decisions; 1 operation explicitly expected to remain absent in the current increment (`GET /api/v1/wallets`, whose existing integration test expects 404); and 1 potential stale-contract path to reconcile rather than duplicate (`PATCH /api/v1/admin/cms/skin-games/{gameId}/reorder`). Do not turn any classification into automatic permission to implement a route.
@@ -25,6 +25,8 @@
    - `POST /api/v1/admin/auth/mfa/recovery-codes`.
    These focused route tests use an explicit stub IdentityService. They do not prove real-service token expiry/replay, recovery-code replacement/consumption, or the Phase 4 runbook/audit-redaction controls tracked separately under Issue #55.
 5. Located and closed a direct test-evidence gap for `GET /api/v1/admin/bigbang/games`: the new test checks authorized output, `no-store`, paging/filter SQL, anonymous 401 before DB access, missing-permission 403 with denial audit, and invalid `pageSize` rejection with request-ID parity before DB access. The test fixture now snapshots SQL parameter arrays so later query construction cannot mutate recorded evidence.
+7. Fixed one demonstrated route-schema mismatch: `/api/v1/casino/providers` now uses the OpenAPI cursor maximum of 512 characters; `/api/v1/casino/categories` keeps its distinct 2048-character limit. Added a valid-encoding cursor >512 characters and assertions for a schema-layer `400 VALIDATION_ERROR`, request-ID parity, and no database calls. The current-head CI links are recorded after the run completes.
+
 6. Reconciled the apparent Q-009 precision discrepancy against the current GitHub decision record: docs/notes/2026-10-22-Q009-tnd-precision-decision.md records the Owner-approved TND exponent 2, provider-support evidence, golden fixtures and Migration 008 acceptance. The shared Library 10-payments-and-settlement.md and 12-open-questions.md retain older conflicting language and should be synchronized separately; Q-020 does not reopen the accepted currency-scale decision. This alone does not authorize non-local migrations or live provider routing; Q-006, Q-010, Q-011, Q-013 and deployment/compliance gates remain.
 
 ## Latest CI evidence — commit `e9bc94e9ab3101b5ff7ada118fd0d57de269f640`
