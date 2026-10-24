@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Runtime Q-013 probe. Sends no cookies, credentials, or provider API keys.
 // It deliberately records only an allowlist of response headers.
+import assert from 'node:assert/strict';
 import https from 'node:https';
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -444,8 +445,74 @@ async function run() {
   if (failures.length > 0) process.exitCode = 1;
 }
 
-run().catch((error) => {
-  const message = error instanceof Error ? error.message : 'Unknown Q-013 verifier failure';
-  process.stderr.write('Q-013 runtime verifier could not start: ' + message + '\n');
-  process.exitCode = 1;
-});
+function runSelfTests() {
+  const captured = responseHeaders([
+    'Content-Security-Policy',
+    "default-src 'none'; base-uri 'none'; script-src 'self' https://iframe.winhouse.bet 'nonce-SHOULD_NOT_APPEAR'; script-src-elem 'self' https://iframe.winhouse.bet; frame-src https://iframe.winhouse.bet; frame-ancestors 'none'; form-action 'none'",
+    'Set-Cookie',
+    'session=SHOULD_NOT_APPEAR; HttpOnly',
+    'Location',
+    'https://bclick.example/sports?token=SHOULD_NOT_APPEAR#fragment',
+  ], 'https://bclick.example/sports');
+
+  assert.equal(captured['set-cookie'], undefined, 'Cookie headers are never captured');
+  assert.match(captured['content-security-policy'][0], /'nonce-\[REDACTED\]'/);
+  assert.equal(captured['content-security-policy'][0].includes('SHOULD_NOT_APPEAR'), false);
+  assert.deepEqual(captured.location, ['https://bclick.example/sports']);
+  assert.equal(sourceMatchesWinHouse('https://iframe.winhouse.bet'), true);
+  assert.equal(sourceMatchesWinHouse('https://eviliframe.winhouse.bet'), false);
+  assert.equal(hasBroadSource('https:'), true);
+  assert.equal(hasBroadSource("'unsafe-eval'"), true);
+
+  const goodCsp = "default-src 'none'; base-uri 'none'; script-src 'self' https://iframe.winhouse.bet 'nonce-TEST'; script-src-elem 'self' https://iframe.winhouse.bet; frame-src https://iframe.winhouse.bet; frame-ancestors 'none'; form-action 'none'";
+  const goodCspStart = checks.length;
+  checkStorefrontCsp('self-test-valid-csp', { headers: { 'content-security-policy': [goodCsp] } });
+  const goodCspChecks = checks.splice(goodCspStart);
+  assert.ok(goodCspChecks.length > 0 && goodCspChecks.every((item) => item.passed),
+    'exact WinHouse script/frame source should satisfy the policy check');
+
+  const badCspStart = checks.length;
+  checkStorefrontCsp('self-test-invalid-csp', {
+    headers: {
+      'content-security-policy': [
+        "default-src 'none'; script-src https://*.winhouse.bet 'unsafe-eval'; script-src-elem 'self'; frame-src https:; frame-ancestors 'none'",
+      ],
+    },
+  });
+  const badCspChecks = checks.splice(badCspStart);
+  assert.ok(badCspChecks.some((item) => !item.passed),
+    'wildcard/broad sources and a denying script-src-elem must fail');
+
+  const goodHeadersStart = checks.length;
+  checkCommonHeaders('self-test-valid-headers', {
+    statusCode: 200,
+    headers: {
+      'content-security-policy': ["default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"],
+      'strict-transport-security': ['max-age=31536000'],
+      'x-content-type-options': ['nosniff'],
+      'x-frame-options': ['DENY'],
+      'referrer-policy': ['strict-origin-when-cross-origin'],
+    },
+  }, ["'none'"]);
+  const goodHeaderChecks = checks.splice(goodHeadersStart);
+  assert.ok(goodHeaderChecks.length > 0 && goodHeaderChecks.every((item) => item.passed),
+    'the documented secure response-header fixture should pass');
+
+  process.stdout.write('Q-013 runtime verifier self-tests passed\n');
+}
+
+if (process.argv.includes('--self-test')) {
+  try {
+    runSelfTests();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown Q-013 self-test failure';
+    process.stderr.write('Q-013 runtime verifier self-test failed: ' + message + '\n');
+    process.exitCode = 1;
+  }
+} else {
+  run().catch((error) => {
+    const message = error instanceof Error ? error.message : 'Unknown Q-013 verifier failure';
+    process.stderr.write('Q-013 runtime verifier could not start: ' + message + '\n');
+    process.exitCode = 1;
+  });
+}
