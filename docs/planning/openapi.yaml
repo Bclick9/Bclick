@@ -4414,9 +4414,7 @@ paths:
       summary: Read a CMS resource
       operationId: ReadACmsResource
       description: Requires cms.write or cms.publish as appropriate. Draft detail includes version and audit 
-        metadata. ETag is returned for subsequent If-Match writes. The generic resource path excludes 
-        skin-games; game ordering is handled by the dedicated /api/v1/admin/cms/skin-games/{gameId}/reorder 
-        route.
+        metadata. ETag is returned for subsequent If-Match writes. The generic resource path excludes skin-games; game ordering uses the persisted catalogue operations /api/v1/admin/casino/skin-games/reorder and /api/v1/admin/casino/skin-games/{gameId}/order-position.
       security:
         - adminSession: []
       parameters:
@@ -5137,63 +5135,6 @@ paths:
           description: Retriable failure only when allowed by the selected PSP webhook contract.
     description: Unversioned external callback endpoint. This path is intentionally outside /api/v1; 
       response/signature semantics must match the registered provider contract.
-  /api/v1/admin/cms/skin-games/{gameId}/reorder:
-    patch:
-      tags:
-        - Backoffice
-      security:
-        - adminSession: []
-      summary: Reorder a game within a CMS skin
-      operationId: reorderCmsSkinGame
-      description: Requires cms.write and an If-Match value for the current skin/order version. Changes 
-        presentation order only; it does not alter provider game IDs or availability.
-      parameters:
-        - name: gameId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/XRequestId'
-        - $ref: '#/components/parameters/CsrfToken'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-                - skinId
-                - position
-              properties:
-                skinId:
-                  type: string
-                  format: uuid
-                position:
-                  type: integer
-                  minimum: 0
-      responses:
-        '200':
-          description: Skin ordering updated; returns current ETag and audit metadata.
-          headers:
-            ETag:
-              $ref: '#/components/headers/ETag'
-            X-Request-Id:
-              $ref: '#/components/headers/XRequestId'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CmsResourceResponse'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '412':
-          description: ETag mismatch; re-fetch current order before retry.
-        '428':
-          description: If-Match is required.
   /csp-report:
     post:
       tags:
