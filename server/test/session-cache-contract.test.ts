@@ -35,6 +35,34 @@ test('Q-020b login and player/admin session responses are non-cacheable on valid
     assert.equal(loginValidation.headers['x-request-id'], 'q020b-login-invalid-body');
     assert.equal(loginValidation.headers['cache-control'], 'no-store');
 
+    const loginMissingOrigin = await app.inject({
+      method: 'POST', url: '/api/v1/auth/login',
+      headers: { 'x-request-id': 'q020b-login-missing-origin' },
+      payload: { email: 'missing-origin@example.test', password: 'Local-Test-Password-123!' },
+    });
+    assert.equal(loginMissingOrigin.statusCode, 403, loginMissingOrigin.body);
+    assert.deepEqual(loginMissingOrigin.json(), {
+      error: { code: 'ORIGIN_INVALID', message: 'Request Origin is not allowed' },
+      requestId: 'q020b-login-missing-origin',
+    });
+    assert.equal(loginMissingOrigin.headers['x-request-id'], 'q020b-login-missing-origin');
+    assert.equal(loginMissingOrigin.headers['cache-control'], 'no-store');
+    assert.equal(loginMissingOrigin.headers['set-cookie'], undefined);
+
+    const loginUnexpectedFailure = await app.inject({
+      method: 'POST', url: '/api/v1/auth/login',
+      headers: { origin: 'https://localhost:5173', 'x-request-id': 'q020b-login-safe-500' },
+      payload: { email: 'runtime-error@example.test', password: 'Local-Test-Password-123!' },
+    });
+    assert.equal(loginUnexpectedFailure.statusCode, 500, loginUnexpectedFailure.body);
+    assert.deepEqual(loginUnexpectedFailure.json(), {
+      error: { code: 'INTERNAL_ERROR', message: 'The request could not be completed' },
+      requestId: 'q020b-login-safe-500',
+    });
+    assert.equal(loginUnexpectedFailure.headers['x-request-id'], 'q020b-login-safe-500');
+    assert.equal(loginUnexpectedFailure.headers['cache-control'], 'no-store');
+    assert.equal(loginUnexpectedFailure.headers['set-cookie'], undefined);
+
     const playerSession = await app.inject({
       method: 'GET', url: '/api/v1/auth/session',
       headers: { 'x-request-id': 'q020b-player-session-anon' },
