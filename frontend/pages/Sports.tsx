@@ -7,7 +7,6 @@ import {
 import { MatchCard, PageTitle } from '../components/cards'
 import { SPORTS_EVENTS, SPORT_CATEGORIES } from '../data/catalog'
 import { cn } from '../lib/shadcn/utils'
-import { getWinHouseBottomGap } from '../lib/winhouseEmbed'
 
 const ICONS: Record<string, LucideIcon> = {
   Trophy, CircleDot, Dribbble, Snowflake, Volleyball, Gamepad2, Swords,
@@ -66,41 +65,15 @@ export default function Sports() {
     script.dataset.lang = 'en'
     script.dataset.width = '100%'
     script.dataset.height = 'calc(100dvh - 54px)'
-    // Only documented header controls can be hidden with data-hide. The provider
-    // bottom tab bar has no documented hide option, so keep both navigations
-    // tappable by placing the provider's bar above Bclick's fixed mobile nav.
+    // Hide the documented provider header controls. These values do not hide
+    // WinHouse's mainnav/subbar; the public API has no documented switch for it.
     script.dataset.hide = 'favorites,clock,settings'
 
-    const syncBottomGap = () => {
-      const navigation = document.querySelector<HTMLElement>(
-        'nav[aria-label="Sportsbook navigation"]',
-      )
-      const gap = String(getWinHouseBottomGap(navigation))
-      if (script.dataset.bottomGap !== gap) {
-        script.dataset.bottomGap = gap
-        // refit() is part of WinHouse's documented embed API.
-        window.WinHouseEmbed?.refit?.()
-      }
-    }
-
-    syncBottomGap()
-    const navigation = document.querySelector<HTMLElement>(
-      'nav[aria-label="Sportsbook navigation"]',
-    )
-    const navigationResizeObserver = typeof ResizeObserver === 'undefined'
-      ? null
-      : new ResizeObserver(syncBottomGap)
-    if (navigation) navigationResizeObserver?.observe(navigation)
-
-    const navigationMutationObserver = new MutationObserver(syncBottomGap)
-    if (navigation) {
-      navigationMutationObserver.observe(navigation, {
-        attributes: true,
-        attributeFilter: ['class', 'aria-hidden', 'hidden', 'style'],
-      })
-    }
-    window.addEventListener('resize', syncBottomGap)
-    window.addEventListener('orientationchange', syncBottomGap)
+    // Product requirement: show only Bclick's fixed mobile bottom navigation.
+    // Deliberately do not subtract its height here: keeping data-bottom-gap at
+    // zero leaves the provider's own bottom tabs at the viewport edge, underneath
+    // Bclick's higher-z-index nav. This is a visual overlay, not DOM removal.
+    script.dataset.bottomGap = '0'
 
     const frameObserver = new MutationObserver(configureFrame)
     frameObserver.observe(target, { childList: true, subtree: true })
