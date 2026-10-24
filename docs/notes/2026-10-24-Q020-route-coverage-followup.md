@@ -1,11 +1,11 @@
-# Q-020 route-coverage follow-up — 202.-10-24
+# Q-020 route-coverage follow-up — 2026-10-24
 
-**Status: Increment passed CI; Q-020 remains OPEN. PR #140 is not merged.** This record is a checkpoint, not a closure declaration.
+**Status: Q-020 remains OPEN. PR #140 is not merged.** Later CI on the current branch found a contract mismatch after strict request validation was enabled; do not use the earlier green checkpoint as current-head evidence. This record is a checkpoint, not a closure declaration.
 
 ## Audited state and scope
 
 - Repository: `Bclick9/Bclick`.
-- `main` was verified at `cecd9a5d34b17005f2cdaa5d2253ce0e90a12c0d` before this continuation. The work in this record is on `docs/q020-disposition-matrix-202.-10-23`, currently at `e9bc94e9ab3101b5ff7ada118fd0d57de269f640`.
+- `main` was verified at `cecd9a5d34b17005f2cdaa5d2253ce0e90a12c0d` before this continuation. The work in this record is on `docs/q020-disposition-matrix-2026-10-23`, currently at `e9bc94e9ab3101b5ff7ada118fd0d57de269f640`.
 - Tracking: [Issue #56 — Q-020 route/OpenAPI reconciliation](https://github.com/Bclick9/Bclick/issues/56), remains open. [PR #140](https://github.com/Bclick9/Bclick/pull/140), remains in review.
 - Baseline: 198 OpenAPI operation entries; 49 explicit method/path declarations in the audited route-registration modules, all matching an OpenAPI operation; 149 OpenAPI operations without an explicit matching declaration in those modules.
 - The 149 contract-only operations are **classified for planning**, not treated as missing implementations to fill indiscriminately: 91 planned/unimplemented roadmap scope; 56 gate-blocked or dependent on later domain/vendor/owner decisions; 1 operation explicitly expected to remain absent in the current increment (`GET /api/v1/wallets`, whose existing integration test expects 404); and 1 potential stale-contract path to reconcile rather than duplicate (`PATCH /api/v1/admin/cms/skin-games/{gameId}/reorder`). Do not turn any classification into automatic permission to implement a route.
@@ -25,7 +25,7 @@
    - `POST /api/v1/admin/auth/mfa/recovery-codes`.
    These focused route tests use an explicit stub IdentityService. They do not prove real-service token expiry/replay, recovery-code replacement/consumption, or the Phase 4 runbook/audit-redaction controls tracked separately under Issue #55.
 5. Located and closed a direct test-evidence gap for `GET /api/v1/admin/bigbang/games`: the new test checks authorized output, `no-store`, paging/filter SQL, anonymous 401 before DB access, missing-permission 403 with denial audit, and invalid `pageSize` rejection with request-ID parity before DB access. The test fixture now snapshots SQL parameter arrays so later query construction cannot mutate recorded evidence.
-6. Recorded a separate P0 financial-spec discrepancy under Q-009 in the route matrix: current wallet tests/Migration 008 assert TND precision 2, while the Library's `10-payments-and-settlement.md` requires a three-decimal TND exponent and `12-open-questions.md` Q-009 requires written provider agreements and third-decimal golden fixtures. Q-020 must not silently change money semantics. No TND routing for any provider is authorized until the Q-009 evidence/decision is closed.
+6. Reconciled the apparent Q-009 precision discrepancy against the current GitHub decision record: docs/notes/2026-10-22-Q009-tnd-precision-decision.md records the Owner-approved TND exponent 2, provider-support evidence, golden fixtures and Migration 008 acceptance. The shared Library 10-payments-and-settlement.md and 12-open-questions.md retain older conflicting language and should be synchronized separately; Q-020 does not reopen the accepted currency-scale decision. This alone does not authorize non-local migrations or live provider routing; Q-006, Q-010, Q-011, Q-013 and deployment/compliance gates remain.
 
 ## Latest CI evidence — commit `e9bc94e9ab3101b5ff7ada118fd0d57de269f640`
 
@@ -51,10 +51,10 @@ The earlier API run at `510f5b2` exposed a faulty test-fixture assumption (SQL p
 2. Compare each implemented response body/header against the OpenAPI response schema, not just status code and service behavior; verify validation envelope and request-ID parity on negative paths.
 3. Cover administrative authorization/Origin/CSRF/RBAC and audit behavior at route level without replacing real security controls with permissive fixtures.
 4. Keep actual token expiry/replay and TOTP/recovery-code/audit/runbook requirements separate from stub-service route tests; coordinate the remaining Phase 4 acceptance with Issue #55.
-5. Reconcile the TND 2-vs-3 decimal contradiction through Q-009 / Finance / provider evidence before any provider-specific TND routing. Do not modify wallet precision or financial flows as an incidental Q-020 change.
+5. Synchronize the older shared Library precision wording with the accepted Q-009 decision note; do not re-open or alter the TND=2 runtime decision as part of Q-020. Before any non-local migration, verify the target database's own history and TND ledger/projection state. Live provider routing remains blocked by Q-006, Q-010, Q-011, Q-013 and applicable deployment/compliance controls.
 6. Keep the contract-only operation list reconciled with the roadmap and Open Questions. Add tests for callback contracts only after corresponding handlers exist and the required Q-006/vendor decision is accepted.
 7. Continue recording CI links and test names in Issue #56. **Do not close Issue #56 until the per-operation runtime evidence and the required conformance review are complete.**
 
 ## Safety boundary retained
 
-No BigBang, WinHouse, PSP or aggregator callback handler was invented. No deposit/withdrawal execution, FX execution, wager settlement, wallet posting, Premium enablement or real-money launch was added or activated. Q-006, Q-009, Q-010, Q-011 and Q-013 remain independent gates. Passing CI does not close the Q-011 isolated base-backup/WAL restore drill or authorize deployment.
+No BigBang, WinHouse, PSP or aggregator callback handler was invented. No deposit/withdrawal execution, FX execution, wager settlement, wallet posting, Premium enablement or real-money launch was added or activated. Q-006, Q-010, Q-011 and Q-013 remain independent release gates; Q-009's precision decision is accepted but is not deployment authorization. Passing CI does not close the Q-011 isolated base-backup/WAL restore drill or authorize deployment.
