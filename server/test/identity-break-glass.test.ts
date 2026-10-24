@@ -83,6 +83,10 @@ testFn('break-glass command refuses development, missing attestations, and targe
   }, 'production'), { code: 'TARGET_CANNOT_APPROVE_OWN_RECOVERY' });
   assert.throws(() => parseBreakGlassRequest({
     ...env,
+    BCLICK_BREAK_GLASS_REQUESTER_IDENTITY: targetEmail,
+  }, 'production'), { code: 'TARGET_CANNOT_REQUEST_OWN_RECOVERY' });
+  assert.throws(() => parseBreakGlassRequest({
+    ...env,
     BCLICK_BREAK_GLASS_ACKNOWLEDGEMENT: 'yes',
   }, 'production'), { code: 'ACKNOWLEDGEMENT_REQUIRED' });
   assert.throws(() => parseBreakGlassRequest({
