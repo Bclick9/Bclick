@@ -3,7 +3,16 @@
 {$SITE_HOST} {
   encode zstd gzip
 
+  # This example only proxies API JSON; it does not serve the storefront/Backoffice.
+  # CSP for the WinHouse embed must be authored at the actual storefront-serving layer.
   @api path /api/*
+  header @api {
+    Content-Security-Policy "default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "no-referrer"
+    Strict-Transport-Security "max-age=31536000"
+  }
   reverse_proxy @api api:3000
 
   handle {
