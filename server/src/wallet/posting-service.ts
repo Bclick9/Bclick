@@ -291,6 +291,9 @@ function normalizeRequest(request: WalletPostingRequest): NormalizedRequest {
     fail(400, 'INVALID_AUDIT_ACTOR', 'Audit actor type is invalid');
   }
   const actorId = request.actorId == null ? null : requireUuid(request.actorId, 'actor ID');
+  if (request.actorType !== 'system' && actorId === null) {
+    fail(400, 'INVALID_AUDIT_ACTOR', 'Player and admin postings require an actor ID');
+  }
   const requestId = request.requestId === undefined ? randomUUID() : requiredLabel(request.requestId, 'request ID', 128);
   if (!REQUEST_ID_PATTERN.test(requestId)) fail(400, 'VALIDATION_ERROR', 'Request ID is invalid');
   const sourceType = optionalLabel(request.sourceType, 'source type', 64);
