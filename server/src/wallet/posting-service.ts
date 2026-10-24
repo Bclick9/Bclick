@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { createHash, randomUUID } from 'node:crypto';
 import { Pool, type PoolClient, type QueryResultRow } from 'pg';
 
@@ -132,6 +133,8 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/;
 const MAX_BIGINT = 9_223_372_036_854_775_807n;
 const MIN_BIGINT = -9_223_372_036_854_775_808n;
+const MAX_METADATA_BYTES = 16 * 1024;
+const SENSITIVE_METADATA_KEY = /secret|token|signature|password|credential|authorization|cookie|session|api[-_]?key/i;
 
 interface NormalizedEntry {
   walletAccountId: string;
@@ -264,6 +267,20 @@ function canonicalJson(value: unknown, seen = new Set<object>()): string {
   return result;
 }
 
+function assertSafeMetadata(value: unknown): void {
+  if (Array.isArray(value)) {
+    for (const item of value) assertSafeMetadata(item);
+    return;
+  }
+  if (value === null || typeof value !== 'object') return;
+  for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
+    if (SENSITIVE_METADATA_KEY.test(key)) {
+      fail(400, 'INVALID_METADATA', 'Metadata must not contain secret-bearing fields');
+    }
+    assertSafeMetadata(nestedValue);
+  }
+}
+
 function normalizeRequest(request: WalletPostingRequest): NormalizedRequest {
   if (!MOVEMENT_TYPES.has(request.movementType)) {
     fail(400, 'INVALID_MOVEMENT_TYPE', 'Movement type is not supported by the wallet ledger');
@@ -322,7 +339,12 @@ function normalizeRequest(request: WalletPostingRequest): NormalizedRequest {
   if (rawMetadata === null || typeof rawMetadata !== 'object' || Array.isArray(rawMetadata)) {
     fail(400, 'INVALID_METADATA', 'Journal metadata must be a JSON object');
   }
-  const metadata = JSON.parse(canonicalJson(rawMetadata)) as Record<string, unknown>;
+  const canonicalMetadata = canonicalJson(rawMetadata);
+  if (Buffer.byteLength(canonicalMetadata, 'utf8') > MAX_METADATA_BYTES) {
+    fail(400, 'INVALID_METADATA', 'Journal metadata exceeds the 16 KiB limit');
+  }
+  const metadata = JSON.parse(canonicalMetadata) as Record<string, unknown>;
+  assertSafeMetadata(metadata);
   const canonicalPayload = {
     movementType: request.movementType,
     sourceType,
