@@ -8,8 +8,10 @@ info:
     callback URL path must be confirmed against the actual account settings / Callback
     Lab before registration. Public docs currently show action, call_id, timestamp and
     key query parameters; amounts and balances are integers described as cents, and
-    responses must always use HTTP 200 with error and balance in JSON. TND's 3dp scale
-    is unconfirmed and blocks production use.
+    responses must always use HTTP 200 with error and balance in JSON. Aggregator's exact
+    TND integer unit scale remains unconfirmed; do not infer 2dp, 3dp or another mapping
+    from examples that label integer amounts as cents. This A-01 gate blocks production
+    use of Aggregator TND callbacks.
 servers:
   - url: https://your.site
     description: Replace with the registered Bclick environment hostname after approval.
