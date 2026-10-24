@@ -183,7 +183,14 @@ jobs:
         run: |
           /tmp/schemathesis-venv/bin/schemathesis --config-file /tmp/bclick-q020-schemathesis.toml run docs/planning/openapi.yaml \
             --url http://127.0.0.1:3000 \
-            --include-path-regex '^/api/v1/(?:casino/(?:categories|display-categories|providers|games|games/by-slug/\{slug\}|games/\{gameId\})|auth/password-reset/(?:request|confirm))$' \
+            --include-path '/api/v1/casino/categories' \
+            --include-path '/api/v1/casino/display-categories' \
+            --include-path '/api/v1/casino/providers' \
+            --include-path '/api/v1/casino/games' \
+            --include-path '/api/v1/casino/games/by-slug/{slug}' \
+            --include-path '/api/v1/casino/games/{gameId}' \
+            --include-path '/api/v1/auth/password-reset/request' \
+            --include-path '/api/v1/auth/password-reset/confirm' \
             --header 'Origin: https://localhost:5173' \
             --checks all \
             --max-examples 10 \
