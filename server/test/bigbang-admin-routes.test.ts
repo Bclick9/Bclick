@@ -60,7 +60,7 @@ function fakeDatabase() {
   const calls: Array<{ sql: string; values: unknown[] }> = [];
   const database = {
     async query(sql: string, values: unknown[] = []) {
-      calls.push({ sql, values });
+      calls.push({ sql, values: [...values] });
       if (sql.includes('casino.provider-settings.access-denied')) {
         return { rows: [{ id: 'audit-id' }], rowCount: 1 };
       }
