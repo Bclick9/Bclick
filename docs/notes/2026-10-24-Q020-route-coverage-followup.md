@@ -118,3 +118,15 @@ The intermediate `7671ad6` edit briefly produced a malformed generated-client de
 The matrix already records the expanded upload test, but the icon upload route remains **Partial**, not signed off. Remaining evidence includes a distinct valid-image-bytes versus mismatched `Content-Type` case; route-level denied Origin/CSRF/RBAC behavior with real controls rather than only a stub Identity fixture; and the separate Q-004 quarantine/scan/storage safeguards. Public icon GET still needs explicit inactive/unknown-key and safe filesystem-failure/path-traversal coverage plus full OpenAPI response/header comparison.
 
 Q-020 remains OPEN. No provider callback, wallet-posting, deposit/withdrawal, FX, wager-settlement, Premium, or real-money path was added or enabled by this increment.
+
+
+## Current PR-head follow-up — 2026-10-24; `96a5885`
+
+The matrix and existing upload rejection test now include an explicit valid-image/mismatched-header case: valid PNG bytes with `Content-Type: image/jpeg` must return `415 IMAGE_TYPE_INVALID`. The focused test passed in the current-head CI and continues to assert the request-ID/error envelope and absence of database, file, or audit-success side effects.
+
+- [API, OpenAPI and Schemathesis checks](https://github.com/Bclick9/Bclick/actions/runs/40083380806) — passed: **101/101 API tests**, **68/68 Health generated cases**, **458/458 controlled Q-020 generated cases** across the eight selected operations. OpenAPI lint and generated-client regeneration/drift checks passed.
+- [Application builds](https://github.com/Bclick9/Bclick/actions/runs/40083380808) — passed.
+- [Compose/bootstrap, migrations/Identity and PowerShell checks](https://github.com/Bclick9/Bclick/actions/runs/40083380804) — passed.
+- [Wallet Migration 006 disposable-PostgreSQL rehearsal](https://github.com/Bclick9/Bclick/actions/runs/40083380819) — passed; this is not a staging restore or production migration authorization.
+
+The current code head for that validation was `96a58857c74300dfdc78d6454edaa47a15c2249e`. The category icon upload remains Partial because real-control Origin/CSRF/RBAC denial evidence, Q-004 quarantine/scanning/storage safeguards, and the public icon-read inactive-key/filesystem/path-traversal cases are still open. Q-020 remains OPEN; no callback or real-money execution route was enabled.
