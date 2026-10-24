@@ -87,3 +87,34 @@ No BigBang, WinHouse, PSP or aggregator callback handler was invented. No deposi
 - Updated the route matrix to correct the public-read security description and reflect observed coverage. Both routes remain partial: the upload route still needs a content-type mismatch case and explicit denied Origin/CSRF/RBAC evidence, and the media quarantine/scanner decision remains gated by Q-004; the read route still needs inactive-key/filesystem failure and fuller response-contract evidence.
 - Code/test commit: [`7671ad6`](https://github.com/Bclick9/Bclick/commit/7671ad6301d0537885c54484ea8c10c6ff24a6ef). CI runs triggered for this commit: [API/OpenAPI/client/Schemathesis](https://github.com/Bclick9/Bclick/actions/runs/40081802869), [application builds](https://github.com/Bclick9/Bclick/actions/runs/40081802851), [Compose/Identity/PowerShell smoke](https://github.com/Bclick9/Bclick/actions/runs/40081802844), and [Migration 006 disposable PostgreSQL rehearsal](https://github.com/Bclick9/Bclick/actions/runs/40081802837). They were still running when this note was prepared; prior green results on `64df669` are not being reused as evidence for this increment.
 - Q-020 remains OPEN. No callback, wallet posting, FX, deposit/withdrawal, wager-settlement, Premium or real-money route was added or enabled.
+
+
+## Verified PR-head follow-up — 2026-10-24; head `d716dc4`
+
+This entry supersedes the earlier `64df669` checkpoint when describing the current PR head. PR #140 remains open and unmerged; its current head is `d716dc4d009a2cef0220d4dff3781efe17978117`.
+
+### Current-head CI evidence
+
+- [API skeleton and contract checks](https://github.com/Bclick9/Bclick/actions/runs/40082019851) — passed. The API test run reports **101 tests, 101 passed, 0 failed**. Health baseline: **68/68 generated cases passed**. The controlled Q-020 Schemathesis profile selected eight implemented operations and reports **452/452 generated cases passed**.
+- The same workflow passed OpenAPI duplicate-key/reference/operation checks and both OpenAPI lints; it regenerated `packages/api-client/src/generated/openapi.d.ts` and the committed-declaration drift check passed.
+- [Application builds](https://github.com/Bclick9/Bclick/actions/runs/40082019856) — passed.
+- [Local Compose bootstrap smoke, migrations/Identity, and PowerShell checks](https://github.com/Bclick9/Bclick/actions/runs/40082019869) — passed.
+- [Wallet Migration 006 disposable-PostgreSQL rehearsal](https://github.com/Bclick9/Bclick/actions/runs/40082019872) — passed; this is disposable CI evidence only, not a staging restore or production migration approval.
+
+### Icon upload coverage verified at the current head
+
+The existing `display-category icon upload rejects undersized, oversized and invalid image bytes with request-id and error-envelope parity` test now covers:
+- undersized payload → `413 IMAGE_SIZE_INVALID`;
+- payload larger than 5 MiB → `413 REQUEST_REJECTED` from the bounded parser;
+- invalid image bytes → `415 IMAGE_TYPE_INVALID`;
+- for rejected uploads, response/body request-ID parity, zero catalogue lookup/update/audit-success SQL calls, and no file creation.
+
+Additional current tests verify a missing category returns 404 before writing, and an invalid public icon filename returns 400 before database access. The positive case stores/audits a valid PNG and reads back the exact bytes with `nosniff`.
+
+The intermediate `7671ad6` edit briefly produced a malformed generated-client declaration for the public icon path. Commit `d716dc4` repaired that declaration. **The current-head CI above, not an assumed CI result for the intermediate commit, is the validation evidence.** The generated-client regeneration/drift step passed on the repaired head.
+
+### Q-020 status and next gap
+
+The matrix already records the expanded upload test, but the icon upload route remains **Partial**, not signed off. Remaining evidence includes a distinct valid-image-bytes versus mismatched `Content-Type` case; route-level denied Origin/CSRF/RBAC behavior with real controls rather than only a stub Identity fixture; and the separate Q-004 quarantine/scan/storage safeguards. Public icon GET still needs explicit inactive/unknown-key and safe filesystem-failure/path-traversal coverage plus full OpenAPI response/header comparison.
+
+Q-020 remains OPEN. No provider callback, wallet-posting, deposit/withdrawal, FX, wager-settlement, Premium, or real-money path was added or enabled by this increment.
