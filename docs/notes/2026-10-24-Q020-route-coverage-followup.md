@@ -1,11 +1,11 @@
-# Q-020 route-coverage follow-up — 2026-10-24
+# Q-020 route-coverage follow-up — 202.-10-24
 
 **Status: Increment passed CI; Q-020 remains OPEN. PR #140 is not merged.** This record is a checkpoint, not a closure declaration.
 
 ## Audited state and scope
 
 - Repository: `Bclick9/Bclick`.
-- `main` was verified at `cecd9a5d34b17005f2cdaa5d2253ce0e90a12c0d` before this continuation. The work in this record is on `docs/q020-disposition-matrix-2026-10-23`, currently at `e9bc94e9ab3101b5ff7ada118fd0d57de269f640`.
+- `main` was verified at `cecd9a5d34b17005f2cdaa5d2253ce0e90a12c0d` before this continuation. The work in this record is on `docs/q020-disposition-matrix-202.-10-23`, currently at `e9bc94e9ab3101b5ff7ada118fd0d57de269f640`.
 - Tracking: [Issue #56 — Q-020 route/OpenAPI reconciliation](https://github.com/Bclick9/Bclick/issues/56), remains open. [PR #140](https://github.com/Bclick9/Bclick/pull/140), remains in review.
 - Baseline: 198 OpenAPI operation entries; 49 explicit method/path declarations in the audited route-registration modules, all matching an OpenAPI operation; 149 OpenAPI operations without an explicit matching declaration in those modules.
 - The 149 contract-only operations are **classified for planning**, not treated as missing implementations to fill indiscriminately: 91 planned/unimplemented roadmap scope; 56 gate-blocked or dependent on later domain/vendor/owner decisions; 1 operation explicitly expected to remain absent in the current increment (`GET /api/v1/wallets`, whose existing integration test expects 404); and 1 potential stale-contract path to reconcile rather than duplicate (`PATCH /api/v1/admin/cms/skin-games/{gameId}/reorder`). Do not turn any classification into automatic permission to implement a route.
