@@ -965,11 +965,8 @@ export interface paths {
     "/api/v1/assets/casino-display-categories/{categoryId}/{fileName}": {
         parameters: {
             query?: never;
-                        header?: {
-                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}"/api/v1/assets/casino-display-categories/{categoryId}/{fileName}": {
-        parameters: {
-            query?: never;
-            ; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+            header?: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
