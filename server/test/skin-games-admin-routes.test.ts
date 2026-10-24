@@ -682,8 +682,10 @@ test('display-category icon upload rejects undersized, oversized and invalid ima
 
       assert.equal(response.statusCode, entry.statusCode, entry.name + ': ' + response.body);
       assert.deepEqual(response.json().error, { code: entry.code, message: entry.message }, entry.name);
+      assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId'], entry.name);
       assert.equal(response.json().requestId, requestId, entry.name);
       assert.equal(response.headers['x-request-id'], requestId, entry.name);
+      assert.equal(response.headers['content-type']?.split(';')[0], 'application/json', entry.name);
       assert.equal(
         fixture.calls.some((call) => call.sql.includes('SELECT id::text AS id,custom_icon_key FROM public.casino_display_categories WHERE id=$1::uuid')),
         false,
@@ -724,8 +726,10 @@ test('display-category icon upload returns a safe 404 before file creation when 
 
     assert.equal(response.statusCode, 404, response.body);
     assert.deepEqual(response.json().error, { code: 'NOT_FOUND', message: 'Display category was not found' });
+    assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
     assert.equal(response.json().requestId, requestId);
     assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
     assert.equal(
       fixture.calls.filter((call) => call.sql.includes('SELECT id::text AS id,custom_icon_key FROM public.casino_display_categories WHERE id=$1::uuid')).length,
       1,
@@ -757,8 +761,10 @@ test('active display-category asset rejects invalid filenames before database ac
 
     assert.equal(response.statusCode, 400, response.body);
     assert.deepEqual(response.json().error, { code: 'VALIDATION_ERROR', message: 'Request validation failed' });
+    assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
     assert.equal(response.json().requestId, requestId);
     assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
     assert.equal(fixture.calls.length, 0, 'filename schema rejection must occur before the catalogue lookup');
   } finally {
     await app.close();
@@ -949,6 +955,7 @@ test('public display-category icon refuses encoded path traversal before databas
     assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
     assert.equal(response.json().requestId, requestId);
     assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
     assert.equal(fixture.calls.length, 0, 'path traversal must be rejected by schema before DB/filesystem access');
   } finally {
     await app.close();
@@ -987,6 +994,7 @@ test('public display-category icon returns 404 when its persisted active file is
     assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
     assert.equal(response.json().requestId, requestId);
     assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
     assert.equal(response.body.includes(uploadDirectory), false);
   } finally {
     await app.close();
@@ -1028,6 +1036,7 @@ test('public display-category icon handles non-ENOENT filesystem failures with a
     assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
     assert.equal(response.json().requestId, requestId);
     assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
     assert.equal(response.body.includes(uploadDirectory), false);
   } finally {
     await app.close();
