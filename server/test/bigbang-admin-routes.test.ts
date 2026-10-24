@@ -376,7 +376,66 @@ test('provider disable is persisted with an atomic audit record', async () => {
   }
 });
 
-test('game disable is persisted with an atomic audit record', async () => {
+test('game mutation rejects hostile Origin and insufficient RBAC before mutation', async () => {
+  const originFixture = fakeDatabase();
+  const originApp = buildApp({
+    database: null,
+    catalogDatabase: originFixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+  });
+  const originRequestId = 'q020-bb-game-origin-denied';
+  try {
+    const response = await originApp.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/bigbang/games/' + GAME_ID,
+      headers: { ...authHeaders({ origin: 'https://attacker.example' }), 'x-request-id': originRequestId },
+      payload: { enabled: false },
+    });
+    assert.equal(response.statusCode, 403, response.body);
+    assert.deepEqual(response.json().error, { code: 'ORIGIN_INVALID', message: 'Request Origin is not allowed' });
+    assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
+    assert.equal(response.json().requestId, originRequestId);
+    assert.equal(response.headers['x-request-id'], originRequestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(originFixture.calls.length, 0, 'hostile Origin must not query, mutate or audit-success');
+  } finally {
+    await originApp.close();
+  }
+
+  const permissionFixture = fakeDatabase();
+  const permissionApp = buildApp({
+    database: null,
+    catalogDatabase: permissionFixture.database,
+    identity: fakeIdentity(['admin.session.read']),
+    identityConfig: config(),
+  });
+  const permissionRequestId = 'q020-bb-game-rbac-denied';
+  try {
+    const response = await permissionApp.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/bigbang/games/' + GAME_ID,
+      headers: { ...authHeaders({ origin: ADMIN_ORIGIN }), 'x-request-id': permissionRequestId },
+      payload: { enabled: false },
+    });
+    assert.equal(response.statusCode, 403, response.body);
+    assert.deepEqual(response.json().error, {
+      code: 'FORBIDDEN',
+      message: 'The administrator lacks the required provider-settings permission',
+    });
+    assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
+    assert.equal(response.json().requestId, permissionRequestId);
+    assert.equal(response.headers['x-request-id'], permissionRequestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(permissionFixture.calls.length, 1, 'RBAC denial should only insert its denial audit');
+    assert.match(permissionFixture.calls[0]!.sql, /casino\\.provider-settings\\.access-denied/);
+    assert.equal(permissionFixture.calls.some((call) => call.sql.includes('UPDATE public.casino_games')), false);
+  } finally {
+    await permissionApp.close();
+  }
+});
+
+test('game disable is persisted with an atomic audit record and exact response envelope', async () => {
   const fixture = fakeDatabase();
   const app = buildApp({
     database: null,
@@ -384,20 +443,31 @@ test('game disable is persisted with an atomic audit record', async () => {
     identity: fakeIdentity(),
     identityConfig: config(),
   });
+  const requestId = 'q020-bb-game-disable-success';
   try {
     const response = await app.inject({
       method: 'PATCH',
       url: '/api/v1/admin/bigbang/games/' + GAME_ID,
-      headers: authHeaders({ origin: ADMIN_ORIGIN }),
+      headers: { ...authHeaders({ origin: ADMIN_ORIGIN }), 'x-request-id': requestId },
       payload: { enabled: false },
     });
     assert.equal(response.statusCode, 200, response.body);
-    assert.equal(response.json().data.enabled, false);
+    assert.deepEqual(Object.keys(response.json()).sort(), ['data', 'requestId']);
+    assert.deepEqual(response.json().data, {
+      id: GAME_ID,
+      slug: 'hot-hot-fruit-habanero',
+      title: 'Hot Hot Fruit',
+      enabled: false,
+      updatedAt: '2026-10-22T10:06:00.000Z',
+    });
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
     assert.equal(fixture.calls.length, 1);
     const call = fixture.calls[0]!;
-    assert.match(call.sql, /UPDATE public\.casino_games/);
+    assert.match(call.sql, /UPDATE public\\.casino_games/);
     assert.match(call.sql, /source_mode='standard'/);
-    assert.match(call.sql, /INSERT INTO public\.audit_events/);
+    assert.match(call.sql, /INSERT INTO public\\.audit_events/);
     assert.deepEqual(call.values.slice(0, 3), [GAME_ID, false, ADMIN_ID]);
     assert.equal(call.values[4], 'casino.game.disabled');
   } finally {
