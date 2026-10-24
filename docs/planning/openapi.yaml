@@ -102,6 +102,7 @@ paths:
       tags: [Authentication]
       security: []
       summary: Authenticate and create a server-side session
+      description: Login success and errors are non-cacheable because they are session-sensitive.
       operationId: loginPlayer
       requestBody:
         required: true
@@ -115,11 +116,15 @@ paths:
             Set-Cookie: {$ref: '#/components/headers/SessionCookie'}
             X-Request-Id:
               $ref: '#/components/headers/XRequestId'
+            Cache-Control: {$ref: '#/components/headers/CacheControlNoStore'}
           content:
             application/json:
               schema: {$ref: '#/components/schemas/PlayerResponse'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '429': {$ref: '#/components/responses/RateLimited'}
+        '400': {$ref: '#/components/responses/NoStoreValidationError'}
+        '401': {$ref: '#/components/responses/NoStoreUnauthorized'}
+        '403': {$ref: '#/components/responses/NoStoreForbidden'}
+        '429': {$ref: '#/components/responses/NoStoreRateLimited'}
+        '500': {$ref: '#/components/responses/NoStoreInternalError'}
       parameters:
         - $ref: '#/components/parameters/XRequestId'
   /api/v1/auth/logout:
@@ -137,6 +142,7 @@ paths:
     get:
       tags: [Authentication]
       summary: Get the current player session and minimal player summary
+      description: Session content and all session error responses are non-cacheable.
       responses:
         '200':
           description: Current session.
@@ -146,7 +152,10 @@ paths:
           headers:
             X-Request-Id:
               $ref: '#/components/headers/XRequestId'
-        '401': {$ref: '#/components/responses/Unauthorized'}
+            Cache-Control: {$ref: '#/components/headers/CacheControlNoStore'}
+        '401': {$ref: '#/components/responses/NoStoreUnauthorized'}
+        '403': {$ref: '#/components/responses/NoStoreForbidden'}
+        '500': {$ref: '#/components/responses/NoStoreInternalError'}
       parameters:
         - $ref: '#/components/parameters/XRequestId'
       operationId: getAuthSession
@@ -336,7 +345,8 @@ paths:
       - $ref: '#/components/parameters/Currency'
     get:
       tags: [Wallet]
-      summary: Read current cached projection of the player's wallet
+      summary: Read current ledger-projection balance for the authenticated player and settlement currency.
+      description: Every success and error response is non-cacheable; the handler never exposes another player's wallet.
       responses:
         '200':
           description: Exact decimal strings from the local ledger projection.
@@ -349,11 +359,12 @@ paths:
                   data: {$ref: '#/components/schemas/WalletBalance'}
                   requestId: {type: string}
           headers:
-            X-Request-Id:
-              $ref: '#/components/headers/XRequestId'
-        '400': {$ref: '#/components/responses/ValidationError'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/NotFound'}
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+            Cache-Control: {$ref: '#/components/headers/CacheControlNoStore'}
+        '400': {$ref: '#/components/responses/NoStoreValidationError'}
+        '401': {$ref: '#/components/responses/NoStoreUnauthorized'}
+        '404': {$ref: '#/components/responses/NoStoreNotFound'}
+        '500': {$ref: '#/components/responses/NoStoreInternalError'}
       parameters:
         - $ref: '#/components/parameters/XRequestId'
       operationId: getWalletsByCurrencyBalance
@@ -363,39 +374,26 @@ paths:
     get:
       tags: [Wallet]
       summary: Return this player's ledger-backed statement
+      description: Cursor pagination uses cursor/limit only. page and pageSize are intentionally unsupported. Every success and error response is non-cacheable.
       parameters:
         - {name: cursor, in: query, schema: {type: string, maxLength: 512}}
         - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 25}}
         - {name: from, in: query, schema: {type: string, format: date-time}}
         - {name: to, in: query, description: Exclusive end time, schema: {type: string, format: date-time}}
         - $ref: '#/components/parameters/XRequestId'
-        - name: page
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: pageSize
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 25
       responses:
         '200':
-          description: Page of posted ledger-backed movements.
+          description: Page of posted ledger-backed movements using nextCursor and pageSize.
           content:
             application/json:
               schema: {$ref: '#/components/schemas/StatementResponse'}
           headers:
-            X-Request-Id:
-              $ref: '#/components/headers/XRequestId'
-        '400': {$ref: '#/components/responses/ValidationError'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/NotFound'}
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+            Cache-Control: {$ref: '#/components/headers/CacheControlNoStore'}
+        '400': {$ref: '#/components/responses/NoStoreValidationError'}
+        '401': {$ref: '#/components/responses/NoStoreUnauthorized'}
+        '404': {$ref: '#/components/responses/NoStoreNotFound'}
+        '500': {$ref: '#/components/responses/NoStoreInternalError'}
       operationId: getWalletsByCurrencyStatement
   /api/v1/wallets/fx-quotes:
     post:
@@ -1162,9 +1160,9 @@ paths:
       tags:
         - Backoffice
       summary: Get the current admin session and permissions
-      description: Authoritative bootstrap endpoint for AdminAuthContext. Returns admin identity, effective 
-        permission strings, roles, MFA state and expiry. Permissions are server-computed; frontend flags are 
-        presentation only.
+      description: Authoritative bootstrap endpoint for AdminAuthContext. Returns admin identity, effective
+        permission strings, roles, MFA state and expiry. Permissions are server-computed; frontend flags are
+        presentation only. Session content and all session error responses are non-cacheable.
       operationId: getAdminSession
       security:
         - adminSession: []
@@ -1177,10 +1175,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AdminSessionResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+            Cache-Control: {$ref: '#/components/headers/CacheControlNoStore'}
+        '401': {$ref: '#/components/responses/NoStoreUnauthorized'}
+        '403': {$ref: '#/components/responses/NoStoreForbidden'}
+        '500': {$ref: '#/components/responses/NoStoreInternalError'}
   /api/v1/admin/media:
     post:
       tags:
@@ -6528,6 +6528,9 @@ components:
         minLength: 8
         maxLength: 128
         pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$'
+    CacheControlNoStore:
+      description: Sensitive authentication/session and player financial responses must not be stored by shared or private caches.
+      schema: {type: string, const: no-store}
     ExpiredSessionCookie:
       description: 'Player logout/revocation clears __Host-bclick_session (Secure; HttpOnly; Path=/; no Domain; Max-Age=0)
         and __Host-bclick_player_csrf (Secure; Path=/; no Domain; Max-Age=0). __Host- requires Secure, Path=/, and no Domain.'
@@ -6606,6 +6609,55 @@ components:
       description: Request throttled. Retry-After may be provided.
       headers:
         Retry-After: {schema: {type: integer}}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+    NoStoreValidationError:
+      description: Input rejected; response must not be cached.
+      headers:
+        X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+        Cache-Control: {$ref: '#/components/headers/CacheControlNoStore'}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+    NoStoreUnauthorized:
+      description: No valid session or credentials; response must not be cached.
+      headers:
+        X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+        Cache-Control: {$ref: '#/components/headers/CacheControlNoStore'}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+    NoStoreForbidden:
+      description: Authenticated but not authorized; response must not be cached.
+      headers:
+        X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+        Cache-Control: {$ref: '#/components/headers/CacheControlNoStore'}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+    NoStoreNotFound:
+      description: Resource missing or inaccessible; response must not be cached.
+      headers:
+        X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+        Cache-Control: {$ref: '#/components/headers/CacheControlNoStore'}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+    NoStoreInternalError:
+      description: Internal failure; response must not be cached.
+      headers:
+        X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+        Cache-Control: {$ref: '#/components/headers/CacheControlNoStore'}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+    NoStoreRateLimited:
+      description: Request throttled; response must not be cached.
+      headers:
+        Retry-After: {schema: {type: integer}}
+        X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+        Cache-Control: {$ref: '#/components/headers/CacheControlNoStore'}
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorResponse'}
