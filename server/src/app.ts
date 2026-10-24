@@ -111,7 +111,7 @@ export function buildApp(options: BuildAppOptions) {
       || (request.method === 'GET' && (
         pathname === '/api/v1/auth/session'
         || pathname === '/api/v1/admin/session'
-        || /^\\/api\\/v1\\/wallets\\/[^/]+\\/(?:balance|statement)$/.test(pathname)
+        || (pathname.startsWith('/api/v1/wallets/') && pathname.split('/').length === 6 && (pathname.endsWith('/balance') || pathname.endsWith('/statement')))
       ));
 
     // Set this before route/schema validation so authenticated/session/financial
