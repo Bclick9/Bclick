@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readdir, rm, unlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { deflateSync } from 'node:zlib';
@@ -1017,6 +1017,48 @@ test('public display-category icon handles non-ENOENT filesystem failures with a
     assert.equal(response.json().requestId, requestId);
     assert.equal(response.headers['x-request-id'], requestId);
     assert.equal(response.body.includes(uploadDirectory), false);
+  } finally {
+    await app.close();
+    await rm(uploadDirectory, { recursive: true, force: true });
+  }
+});
+
+test('display-category icon upload fails safely when persistent storage cannot be created and leaves no orphaned file', async () => {
+  const fixture = fakeDatabase();
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(), 'bclick-category-icon-write-failure-'));
+  const storageRoot = path.join(uploadDirectory, 'casino-display-categories');
+  await writeFile(storageRoot, 'do-not-overwrite');
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+    uploadDirectory,
+  });
+  const requestId = 'q020-icon-upload-fs-failure';
+
+  try {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID + '/icon',
+      headers: { ...authHeaders(true), 'content-type': 'image/png', 'x-request-id': requestId },
+      payload: validPng64(),
+    });
+
+    assert.equal(response.statusCode, 500, response.body);
+    assert.deepEqual(response.json().error, {
+      code: 'INTERNAL_ERROR',
+      message: 'The Skin Games request could not be completed',
+    });
+    assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(response.body.includes(uploadDirectory), false);
+    assert.equal(fixture.calls.filter((call) => call.sql.includes('SELECT id::text AS id,custom_icon_key FROM public.casino_display_categories WHERE id=$1::uuid')).length, 1);
+    assert.equal(fixture.calls.some((call) => call.sql.includes('casino.display-category.icon-updated')), false);
+    assert.equal(await readFile(storageRoot, 'utf8'), 'do-not-overwrite');
+    assert.deepEqual(await readdir(uploadDirectory), ['casino-display-categories']);
   } finally {
     await app.close();
     await rm(uploadDirectory, { recursive: true, force: true });
