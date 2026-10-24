@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { deflateSync } from 'node:zlib';
@@ -94,7 +94,7 @@ type FakeGame = {
   updatedBy: string | null;
 };
 
-function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?: boolean; providerTierEnabled?: boolean; sourceAvailable?: boolean; catalogAvailable?: boolean; listFailure?: { code: string; message: string } } = {}) {
+function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?: boolean; providerTierEnabled?: boolean; sourceAvailable?: boolean; catalogAvailable?: boolean; categoryExists?: boolean; listFailure?: { code: string; message: string } } = {}) {
   const calls: Array<{ sql: string; values: unknown[] }> = [];
   const mode = options.mode ?? 'standard';
   let currentCustomImageKey: string | null = null;
@@ -168,7 +168,8 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
         return { rows: [{ categoryId: DISPLAY_CATEGORY_ID, gameIds: categoryGameIds }], rowCount: 1 };
       }
       if (sql.includes('SELECT id::text AS id,custom_icon_key FROM public.casino_display_categories WHERE id=$1::uuid')) {
-        return { rows: [{ id: DISPLAY_CATEGORY_ID, custom_icon_key: currentCategoryIconKey }], rowCount: 1 };
+        const rows = options.categoryExists === false ? [] : [{ id: DISPLAY_CATEGORY_ID, custom_icon_key: currentCategoryIconKey }];
+        return { rows, rowCount: rows.length };
       }
       if (sql.includes('WITH changed AS') && sql.includes('casino.display-category.icon-updated')) {
         assert.ok(sql.includes('INSERT INTO public.audit_events'));
@@ -591,6 +592,129 @@ test('admin can upload a validated custom icon and serve only the active categor
   } finally {
     await app.close();
     await rm(uploadDirectory, { recursive: true, force: true });
+  }
+});
+
+test('display-category icon upload rejects undersized and invalid image bytes with request-id and error-envelope parity', async () => {
+  const cases = [
+    {
+      name: 'undersized payload',
+      payload: Buffer.from('tiny'),
+      statusCode: 413,
+      code: 'IMAGE_SIZE_INVALID',
+      message: 'Category icon must be a supported image no larger than 5 MiB',
+    },
+    {
+      name: 'invalid image bytes',
+      payload: Buffer.from('this-is-not-a-valid-png-image-payload'),
+      statusCode: 415,
+      code: 'IMAGE_TYPE_INVALID',
+      message: 'Upload a valid PNG, JPEG or WebP image whose bytes match its Content-Type',
+    },
+  ] as const;
+
+  for (const entry of cases) {
+    const fixture = fakeDatabase();
+    const uploadDirectory = await mkdtemp(path.join(tmpdir(), 'bclick-category-icon-invalid-'));
+    const app = buildApp({
+      database: null,
+      catalogDatabase: fixture.database,
+      identity: fakeIdentity(),
+      identityConfig: config(),
+      uploadDirectory,
+    });
+    const requestId = 'q020-icon-invalid-' + (entry.statusCode === 413 ? 'size' : 'bytes');
+
+    try {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID + '/icon',
+        headers: { ...authHeaders(true), 'content-type': 'image/png', 'x-request-id': requestId },
+        payload: entry.payload,
+      });
+
+      assert.equal(response.statusCode, entry.statusCode, entry.name + ': ' + response.body);
+      assert.deepEqual(response.json().error, { code: entry.code, message: entry.message }, entry.name);
+      assert.equal(response.json().requestId, requestId, entry.name);
+      assert.equal(response.headers['x-request-id'], requestId, entry.name);
+      assert.equal(
+        fixture.calls.some((call) => call.sql.includes('SELECT id::text AS id,custom_icon_key FROM public.casino_display_categories WHERE id=$1::uuid')),
+        false,
+        entry.name + ': validation must precede category lookup',
+      );
+      assert.equal(
+        fixture.calls.some((call) => call.sql.includes('casino.display-category.icon-updated')),
+        false,
+        entry.name + ': invalid image must never persist metadata or audit success',
+      );
+      assert.deepEqual(await readdir(uploadDirectory), [], entry.name + ': invalid image must not create files');
+    } finally {
+      await app.close();
+      await rm(uploadDirectory, { recursive: true, force: true });
+    }
+  }
+});
+
+test('display-category icon upload returns a safe 404 before file creation when the category does not exist', async () => {
+  const fixture = fakeDatabase({ categoryExists: false });
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(), 'bclick-category-icon-missing-'));
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+    uploadDirectory,
+  });
+  const requestId = 'q020-icon-category-not-found';
+
+  try {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID + '/icon',
+      headers: { ...authHeaders(true), 'content-type': 'image/png', 'x-request-id': requestId },
+      payload: validPng64(),
+    });
+
+    assert.equal(response.statusCode, 404, response.body);
+    assert.deepEqual(response.json().error, { code: 'NOT_FOUND', message: 'Display category was not found' });
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(
+      fixture.calls.filter((call) => call.sql.includes('SELECT id::text AS id,custom_icon_key FROM public.casino_display_categories WHERE id=$1::uuid')).length,
+      1,
+    );
+    assert.equal(fixture.calls.some((call) => call.sql.includes('casino.display-category.icon-updated')), false);
+    assert.deepEqual(await readdir(uploadDirectory), [], 'missing category must be checked before any filesystem write');
+  } finally {
+    await app.close();
+    await rm(uploadDirectory, { recursive: true, force: true });
+  }
+});
+
+test('active display-category asset rejects invalid filenames before database access', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+  });
+  const requestId = 'q020-icon-filename-invalid';
+
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/assets/casino-display-categories/' + DISPLAY_CATEGORY_ID + '/not-a-uuid.png',
+      headers: { 'x-request-id': requestId },
+    });
+
+    assert.equal(response.statusCode, 400, response.body);
+    assert.deepEqual(response.json().error, { code: 'VALIDATION_ERROR', message: 'Request validation failed' });
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(fixture.calls.length, 0, 'filename schema rejection must occur before the catalogue lookup');
+  } finally {
+    await app.close();
   }
 });
 

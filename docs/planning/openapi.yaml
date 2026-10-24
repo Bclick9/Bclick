@@ -1706,6 +1706,9 @@ paths:
       responses:
         '201':
           description: Icon stored and category metadata audited.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
           content:
             application/json:
               schema:
@@ -1724,13 +1727,28 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
-        '413': {description: Image exceeds the 5 MiB upload limit or is empty/too small.}
-        '415': {description: 'Unsupported image content type, invalid image bytes or content-type mismatch.'}
+        '413':
+          description: Image exceeds the 5 MiB upload limit or is empty/too small.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '415':
+          description: Unsupported image content type, invalid image bytes or content-type mismatch.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
       operationId: uploadAdminCasinoDisplayCategoryIcon
   /api/v1/assets/casino-display-categories/{categoryId}/{fileName}:
     parameters:
       - {name: categoryId, in: path, required: true, schema: {type: string, format: uuid}}
-      - {name: fileName, in: path, required: true, schema: {type: string, pattern: '^[0-9a-fA-F-]{36}\\.(png|jpg|webp)$'}}
+      - {name: fileName, in: path, required: true, schema: {type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\.(png|jpg|webp)$'}}
+      - $ref: '#/components/parameters/XRequestId'
     get:
       tags: [Casino]
       security: []
@@ -1746,6 +1764,9 @@ paths:
           headers:
             Cache-Control: {schema: {type: string}}
             X-Content-Type-Options: {schema: {type: string}}
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+        '400': {$ref: '#/components/responses/ValidationError'}
         '404': {$ref: '#/components/responses/NotFound'}
       operationId: getCasinoDisplayCategoryIcon
   /api/v1/admin/casino/display-categories/{categoryId}:
