@@ -355,7 +355,7 @@ chown -R postgres:postgres /restore-root
   $restoredMigrations = (Scalar $script:Restore "SELECT count(*)::text || '|' || max(name)::text FROM public.pgmigrations;").Split('|')
   $restoreMigrationCount = if ($restoredMigrations.Count -eq 2) { [int]$restoredMigrations[0] } else { -1 }
   $restoreLatest = if ($restoredMigrations.Count -eq 2) { $restoredMigrations[1] } else { '' }
-  Assert-Pass 'Restored migration inventory is complete' (($restoreMigrationCount -eq 17) -and ($restoreLatest -eq '1793966400000_casino_display_category_scope_017')) ("count=" + $restoreMigrationCount + "; latest=" + $restoreLatest)
+  Assert-Pass 'Restored migration inventory is complete' (($restoreMigrationCount -eq 19) -and ($restoreLatest -eq '1793966400000_casino_display_category_scope_017')) ("count=" + $restoreMigrationCount + "; latest=" + $restoreLatest)
 
   $script:JournalCount = [int](Scalar $script:Restore 'SELECT count(*) FROM public.journal_transactions;')
   $script:EntryCount = [int](Scalar $script:Restore 'SELECT count(*) FROM public.ledger_entries;')
