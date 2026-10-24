@@ -1498,9 +1498,10 @@ test('Skin Games public image route rejects inactive/traversal keys and maps mis
       headers: { 'x-request-id': traversalRequestId },
     });
     assert.equal(traversal.statusCode, 400, traversal.body);
-    assert.deepEqual(Object.keys(traversal.json()).sort(), ['error', 'requestId']);
-    assert.equal(traversal.json().error.code, 'VALIDATION_ERROR');
-    assert.equal(traversal.json().requestId, traversalRequestId);
+    assert.deepEqual(traversal.json(), {
+      error: { code: 'VALIDATION_ERROR', message: 'Request validation failed' },
+      requestId: traversalRequestId,
+    });
     assert.equal(traversal.headers['x-request-id'], traversalRequestId);
     assert.equal(traversal.headers['content-type']?.split(';')[0], 'application/json');
     assert.equal(fixture.calls.length, beforeTraversal, 'invalid traversal filename must be rejected before DB access');
@@ -1624,15 +1625,22 @@ test('Skin Games image upload returns a safe generic error when persistent stora
     uploadDirectory: blockedDirectory,
   });
   try {
+    const requestId = 'q020-skin-image-storage-write-failure';
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/image',
-      headers: { ...authHeaders(true), 'content-type': 'image/png' },
+      headers: { ...authHeaders(true), 'content-type': 'image/png', 'x-request-id': requestId },
       payload: validPng64(),
     });
     assert.equal(response.statusCode, 500, response.body);
-    assert.equal(response.json().error.code, 'INTERNAL_ERROR');
-    assert.equal(response.json().error.message, 'The Skin Games request could not be completed');
+    assert.deepEqual(response.json(), {
+      error: { code: 'INTERNAL_ERROR', message: 'The Skin Games request could not be completed' },
+      requestId,
+    });
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(fixture.calls.some((call) => call.sql.includes("'casino.skin-game.image-updated'")), false,
+      'filesystem write failure must not persist presentation metadata or success audit');
     assert.doesNotMatch(response.body, /ENOTDIR|not-a-directory|skin-games-write-failure/);
   } finally {
     await app.close();
@@ -1788,5 +1796,82 @@ test('Q-020b remaining admin mutations reject Origin/CSRF/RBAC denials before mu
     } finally {
       await deniedApp.close();
     }
+  }
+});
+
+
+test('Skin Games image upload rejects a body above 5 MiB with the shared safe 413 envelope before side effects', async () => {
+  const fixture = fakeDatabase();
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(), 'bclick-skin-games-oversize-'));
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+    uploadDirectory,
+  });
+  try {
+    const requestId = 'q020-skin-image-oversized-body';
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/image',
+      headers: {
+        ...authHeaders(true),
+        origin: ADMIN_ORIGIN,
+        'content-type': 'image/png',
+        'x-request-id': requestId,
+      },
+      payload: Buffer.alloc(5 * 1024 * 1024 + 1),
+    });
+    assert.equal(response.statusCode, 413, response.body);
+    assert.deepEqual(response.json(), {
+      error: { code: 'REQUEST_REJECTED', message: 'Request could not be processed' },
+      requestId,
+    });
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(fixture.calls.length, 0, 'oversized body must be rejected before catalogue queries or audit writes');
+    assert.deepEqual(await readdir(uploadDirectory), [], 'oversized body must not create game image storage');
+  } finally {
+    await app.close();
+    await rm(uploadDirectory, { recursive: true, force: true });
+  }
+});
+
+test('Skin Games image upload rejects malformed game UUID before catalogue or storage effects', async () => {
+  const fixture = fakeDatabase();
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(), 'bclick-skin-games-invalid-game-id-'));
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+    uploadDirectory,
+  });
+  try {
+    const requestId = 'q020-skin-image-invalid-game-id';
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/casino/skin-games/not-a-canonical-uuid/image',
+      headers: {
+        ...authHeaders(true),
+        origin: ADMIN_ORIGIN,
+        'content-type': 'image/png',
+        'x-request-id': requestId,
+      },
+      payload: validPng64(),
+    });
+    assert.equal(response.statusCode, 400, response.body);
+    assert.deepEqual(response.json(), {
+      error: { code: 'VALIDATION_ERROR', message: 'Request validation failed' },
+      requestId,
+    });
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(fixture.calls.length, 0, 'malformed UUID must fail schema validation before catalogue query');
+    assert.deepEqual(await readdir(uploadDirectory), [], 'malformed UUID must not create a directory or file');
+  } finally {
+    await app.close();
+    await rm(uploadDirectory, { recursive: true, force: true });
   }
 });
