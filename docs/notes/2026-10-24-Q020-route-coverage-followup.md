@@ -1,6 +1,6 @@
 # Q-020 route-coverage follow-up — 2026-10-24
 
-**Status: Q-020 remains OPEN. PR #140 is not merged.** The provider-cursor contract mismatch and a Schemathesis-discovered control-character input failure have been corrected, and an exact positive response-contract test was added for `GET /api/v1/casino/display-categories`. Current-head commit [`64df669`](https://github.com/Bclick9/Bclick/commit/64df669c4e5435e22cc6e02717321a2d464342b7) passed all required CI; details are below. This record is a checkpoint, not a closure declaration.
+**Status: Q-020 remains OPEN. PR #140 is not merged.** This cumulative follow-up contains historical checkpoints; the latest code/test checkpoint is [`f85749f`](https://github.com/Bclick9/Bclick/commit/f85749fe284f4e268a8318053b8856f06ce80757), which adds explicit `415 IMAGE_TYPE_INVALID` behavior for unsupported category-icon upload media types. See the final section for its CI evidence. Older sections remain historical context, not the current gap list.
 
 ## Audited state and scope
 
@@ -150,3 +150,21 @@ Validated implementation/test head: `a1d43e33a868805cff02967b7994aa530f3da4e6` o
 - [Migration 006 disposable-PostgreSQL rehearsal](https://github.com/Bclick9/Bclick/actions/runs/40085094215) — passed; this is not staging-restore evidence or production migration approval.
 
 **Status remains Partial / OPEN.** This focused result does not close Q-020 or the wider route matrix. Q-004 media quarantine, scanning and storage-isolation requirements remain a separate gate. Issue #55 remains OPEN for identity-token expiry/reuse/replay, recovery-code single-use/replay and related MFA/runbook evidence. CI success does not close either gate. No wallet, provider-callback, payment, FX, wager-settlement, Premium or real-money route was enabled by this increment.
+
+
+## Current code/test follow-up — 2026-10-24; `f85749f`
+
+This checkpoint supersedes earlier statements in this cumulative note that category-icon Origin/CSRF/RBAC denials, inactive keys, missing files, filesystem failures, traversal, or body/header assertions were still outstanding. Those cases were added on the preceding implementation/test head `a1d43e3`; the current code/test head adds one further contract correction.
+
+- **Confirmed mismatch:** the icon upload handler previously checked whether the parsed body was a Buffer before checking the declared media type. Since Fastify can parse `text/plain` as text, that unsupported type could return `413 IMAGE_SIZE_INVALID` instead of the OpenAPI-declared `415` media-type error.
+- **Correction:** `server/src/bigbang/skin-games-admin-routes.ts` now allow-lists only `image/png`, `image/jpeg`, and `image/webp` before inspecting the body size or image signature. Unsupported `text/plain` returns the safe `415 IMAGE_TYPE_INVALID` envelope.
+- **Regression evidence:** `server/test/skin-games-admin-routes.test.ts` adds `text/plain` to the rejection table and asserts status, exact error object and top-level keys, JSON content type, `X-Request-Id`/body parity, zero category lookup/audit-success writes, and no upload files. The same table retains undersized, oversized, invalid-byte and valid-PNG/mismatched-JPEG cases.
+- **CI for code/test commit `f85749fe284f4e268a8318053b8856f06ce80757`:**
+  - [API, OpenAPI and bounded Schemathesis](https://github.com/Bclick9/Bclick/actions/runs/40085487173) — passed, **109/109 API tests**, **68/68 Health generated cases**, **458/458 controlled Q-020 generated cases** over eight selected implemented operations; contract guard, OpenAPI lint, generated-client regeneration/drift all passed.
+  - [Application builds](https://github.com/Bclick9/Bclick/actions/runs/40085487308) — passed.
+  - [Compose/bootstrap, Identity smoke and PowerShell checks](https://github.com/Bclick9/Bclick/actions/runs/40085487205) — passed.
+  - [Migration 006 disposable PostgreSQL rehearsal](https://github.com/Bclick9/Bclick/actions/runs/40085487237) — passed; this is not proof of the owner's local or any staging/production database migration state.
+- **Security boundary:** route-level Origin/RBAC logic and the production `verifyCsrfToken` HMAC verifier are exercised with signed and invalid tokens. The Identity session resolution is still a test fixture; these tests do not close real session expiry, revocation, token reuse/replay, TOTP or recovery-code semantics.
+- **Response-contract boundary:** for category icons, tests assert exact JSON key sets/error objects and correlation-ID parity on representative success/error responses; image success byte-compares the payload and verifies the declared image type, `Cache-Control`, CSP, `X-Content-Type-Options`, and `X-Request-Id`. This is focused assertion-level evidence, not automated OpenAPI schema sign-off for all 49 declared handlers.
+
+**Q-020 remains OPEN.** Keep Q-004 media quarantine/scanning/storage isolation separate, and keep Issue #55's real Identity/MFA/recovery/runbook/audit-redaction acceptance independent. Do not enable callback, wallet-posting, payment, FX, wager-settlement, Premium, or real-money paths.
