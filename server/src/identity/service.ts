@@ -153,7 +153,7 @@ export class IdentityService {
                   $9,now(),$10,now(),$11,$12,$13,$14,now(),now())
           RETURNING id,email,player_number,username,display_name,first_name,last_name,gender,country_code,city,address,
                     phone_number_e164,postal_code,settlement_currency,language,preferred_language,
-                    preferred_display_currency,status,verification_status,email_verification_status,created_at,updated_at`,
+                    preferred_display_currency,status,verification_status,email_verification_status,kyc_tier,kyc_lock,created_at,updated_at`,
         [
           id, email, passwordHash, name, input.countryCode, input.settlementCurrency,
           input.preferredLanguage, input.preferredDisplayCurrency ?? null, input.dateOfBirth,
@@ -214,7 +214,7 @@ export class IdentityService {
       && await this.allowAttempt('player-login-ip', remoteAddress, 900, 20);
     const lookupColumn = isEmail ? 'email_normalized' : 'username_normalized';
     const result = await this.repository.query<DbRow>(`SELECT id,email,username,player_number,display_name,first_name,last_name,gender,country_code,city,address,
-        phone_number_e164,postal_code,password_hash,status,verification_status,settlement_currency,language,preferred_display_currency
+        phone_number_e164,postal_code,password_hash,status,verification_status,email_verification_status,kyc_tier,kyc_lock,settlement_currency,language,preferred_display_currency
       FROM players WHERE ${lookupColumn}=$1`, [normalizedIdentifier]);
     const row = result.rows[0];
     const passwordOkay = await verifyPassword(password, String(row?.password_hash ?? DUMMY_HASH));
@@ -251,7 +251,7 @@ export class IdentityService {
     } as const;
     if (type === 'player') {
       const found = await this.repository.query<DbRow>(`SELECT id,email,player_number,username,display_name,first_name,last_name,gender,country_code,city,address,
-          phone_number_e164,postal_code,settlement_currency,language,preferred_display_currency,status,verification_status,created_at,updated_at
+          phone_number_e164,postal_code,settlement_currency,language,preferred_display_currency,status,verification_status,email_verification_status,kyc_tier,kyc_lock,created_at,updated_at
         FROM players WHERE id=$1`, [String(row.principal_id)]);
       const player = found.rows[0];
       return player ? { ...base, type, status: String(player.status), player: player as Record<string, unknown> } : null;
@@ -389,7 +389,7 @@ export class IdentityService {
         SET ${assignments.join(',')},updated_at=now()
         WHERE id=$1
         RETURNING id,email,player_number,username,display_name,first_name,last_name,gender,country_code,city,address,
-          phone_number_e164,postal_code,settlement_currency,language,preferred_display_currency,status,verification_status,created_at,updated_at`,
+          phone_number_e164,postal_code,settlement_currency,language,preferred_display_currency,status,verification_status,email_verification_status,kyc_tier,kyc_lock,created_at,updated_at`,
       values);
       const player = result.rows[0];
       if (!player) throw new IdentityFault(404, 'NOT_FOUND', 'Player not found');

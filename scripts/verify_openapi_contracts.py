@@ -149,9 +149,11 @@ def verify_error_fixtures(spec: dict[str, Any]) -> int:
     # Representative contract mappings. These are schema/fixture checks, not route execution.
     cases = [
         ("/api/v1/auth/register", "post", "400", "#/components/responses/ValidationError"),
-        ("/api/v1/auth/login", "post", "401", "#/components/responses/Unauthorized"),
-        ("/api/v1/admin/session", "get", "401", "#/components/responses/Unauthorized"),
-        ("/api/v1/admin/session", "get", "403", "#/components/responses/Forbidden"),
+        # These sensitive session/auth operations intentionally use no-store error variants.
+        # Keep exact response-ref checks so they cannot silently regress to cacheable responses.
+        ("/api/v1/auth/login", "post", "401", "#/components/responses/NoStoreUnauthorized"),
+        ("/api/v1/admin/session", "get", "401", "#/components/responses/NoStoreUnauthorized"),
+        ("/api/v1/admin/session", "get", "403", "#/components/responses/NoStoreForbidden"),
         ("/api/v1/wallets/fx-executions", "post", "422", "#/components/responses/BusinessRefusal"),
     ]
     for path, method, status, response_ref in cases:

@@ -67,7 +67,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Authenticate and create a server-side session */
+        /**
+         * Authenticate and create a server-side session
+         * @description Login success and errors are non-cacheable because they are session-sensitive.
+         */
         post: operations["loginPlayer"];
         delete?: never;
         options?: never;
@@ -99,7 +102,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get the current player session and minimal player summary */
+        /**
+         * Get the current player session and minimal player summary
+         * @description Session content and all session error responses are non-cacheable.
+         */
         get: operations["getAuthSession"];
         put?: never;
         post?: never;
@@ -205,7 +211,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Read current cached projection of the player's wallet */
+        /**
+         * Read current ledger-projection balance for the authenticated player and settlement currency.
+         * @description Every success and error response is non-cacheable; the handler never exposes another player's wallet.
+         */
         get: operations["getWalletsByCurrencyBalance"];
         put?: never;
         post?: never;
@@ -224,7 +233,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Return this player's ledger-backed statement */
+        /**
+         * Return this player's ledger-backed statement
+         * @description Cursor pagination uses cursor/limit only. page and pageSize are intentionally unsupported. Every success and error response is non-cacheable.
+         */
         get: operations["getWalletsByCurrencyStatement"];
         put?: never;
         post?: never;
@@ -672,7 +684,7 @@ export interface paths {
         };
         /**
          * Get the current admin session and permissions
-         * @description Authoritative bootstrap endpoint for AdminAuthContext. Returns admin identity, effective permission strings, roles, MFA state and expiry. Permissions are server-computed; frontend flags are presentation only.
+         * @description Authoritative bootstrap endpoint for AdminAuthContext. Returns admin identity, effective permission strings, roles, MFA state and expiry. Permissions are server-computed; frontend flags are presentation only. Session content and all session error responses are non-cacheable.
          */
         get: operations["getAdminSession"];
         put?: never;
@@ -5441,6 +5453,73 @@ export interface components {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
+        /** @description Input rejected; response must not be cached. */
+        NoStoreValidationError: {
+            headers: {
+                "X-Request-Id": components["headers"]["XRequestId"];
+                "Cache-Control": components["headers"]["CacheControlNoStore"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description No valid session or credentials; response must not be cached. */
+        NoStoreUnauthorized: {
+            headers: {
+                "X-Request-Id": components["headers"]["XRequestId"];
+                "Cache-Control": components["headers"]["CacheControlNoStore"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Authenticated but not authorized; response must not be cached. */
+        NoStoreForbidden: {
+            headers: {
+                "X-Request-Id": components["headers"]["XRequestId"];
+                "Cache-Control": components["headers"]["CacheControlNoStore"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Resource missing or inaccessible; response must not be cached. */
+        NoStoreNotFound: {
+            headers: {
+                "X-Request-Id": components["headers"]["XRequestId"];
+                "Cache-Control": components["headers"]["CacheControlNoStore"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Internal failure; response must not be cached. */
+        NoStoreInternalError: {
+            headers: {
+                "X-Request-Id": components["headers"]["XRequestId"];
+                "Cache-Control": components["headers"]["CacheControlNoStore"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Request throttled; response must not be cached. */
+        NoStoreRateLimited: {
+            headers: {
+                "Retry-After"?: number;
+                "X-Request-Id": components["headers"]["XRequestId"];
+                "Cache-Control": components["headers"]["CacheControlNoStore"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
         /** @description Service unavailable. Body uses the standard ErrorResponse schema. */
         ServiceUnavailable: {
             headers: {
@@ -5512,6 +5591,8 @@ export interface components {
         ETag: string;
         /** @description Server-generated or validated correlation identifier. */
         XRequestId: string;
+        /** @description Sensitive authentication/session and player financial responses must not be stored by shared or private caches. */
+        CacheControlNoStore: "no-store";
         /** @description Player logout/revocation clears __Host-bclick_session (Secure; HttpOnly; Path=/; no Domain; Max-Age=0) and __Host-bclick_player_csrf (Secure; Path=/; no Domain; Max-Age=0). __Host- requires Secure, Path=/, and no Domain. */
         ExpiredSessionCookie: string;
         /** @description After successful TOTP or one-time recovery-code verification, emit __Host-bclick_admin_session (Secure; HttpOnly; SameSite=Strict; Path=/; no Domain) plus __Host-bclick_admin_csrf (Secure; SameSite=Strict; Path=/; no Domain; not HttpOnly) bound to that full session. Also expire __Host-bclick_admin_challenge. Rotate CSRF on session rotation/privilege change; clear it on admin logout/revocation. If this is the first session following enrollment TOTP verification, also clear __Host-bclick_admin_enrollment and __Host-bclick_admin_enrollment_csrf. A __Host- cookie requires Secure, Path=/, and no Domain. */
@@ -5627,14 +5708,18 @@ export interface operations {
                 headers: {
                     "Set-Cookie": components["headers"]["SessionCookie"];
                     "X-Request-Id": components["headers"]["XRequestId"];
+                    "Cache-Control": components["headers"]["CacheControlNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["PlayerResponse"];
                 };
             };
-            401: components["responses"]["Unauthorized"];
-            429: components["responses"]["RateLimited"];
+            400: components["responses"]["NoStoreValidationError"];
+            401: components["responses"]["NoStoreUnauthorized"];
+            403: components["responses"]["NoStoreForbidden"];
+            429: components["responses"]["NoStoreRateLimited"];
+            500: components["responses"]["NoStoreInternalError"];
         };
     };
     postAuthLogout: {
@@ -5678,13 +5763,16 @@ export interface operations {
             200: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
+                    "Cache-Control": components["headers"]["CacheControlNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["PlayerResponse"];
                 };
             };
-            401: components["responses"]["Unauthorized"];
+            401: components["responses"]["NoStoreUnauthorized"];
+            403: components["responses"]["NoStoreForbidden"];
+            500: components["responses"]["NoStoreInternalError"];
         };
     };
     postAuthPasswordResetRequest: {
@@ -5916,6 +6004,7 @@ export interface operations {
             200: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
+                    "Cache-Control": components["headers"]["CacheControlNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -5925,9 +6014,10 @@ export interface operations {
                     };
                 };
             };
-            400: components["responses"]["ValidationError"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
+            400: components["responses"]["NoStoreValidationError"];
+            401: components["responses"]["NoStoreUnauthorized"];
+            404: components["responses"]["NoStoreNotFound"];
+            500: components["responses"]["NoStoreInternalError"];
         };
     };
     getWalletsByCurrencyStatement: {
@@ -5938,8 +6028,6 @@ export interface operations {
                 from?: string;
                 /** @description Exclusive end time */
                 to?: string;
-                page?: number;
-                pageSize?: number;
             };
             header?: {
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
@@ -5952,19 +6040,21 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Page of posted ledger-backed movements. */
+            /** @description Page of posted ledger-backed movements using nextCursor and pageSize. */
             200: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
+                    "Cache-Control": components["headers"]["CacheControlNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["StatementResponse"];
                 };
             };
-            400: components["responses"]["ValidationError"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
+            400: components["responses"]["NoStoreValidationError"];
+            401: components["responses"]["NoStoreUnauthorized"];
+            404: components["responses"]["NoStoreNotFound"];
+            500: components["responses"]["NoStoreInternalError"];
         };
     };
     postWalletsFxQuotes: {
@@ -6719,14 +6809,17 @@ export interface operations {
             /** @description Authenticated admin session. */
             200: {
                 headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "Cache-Control": components["headers"]["CacheControlNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["AdminSessionResponse"];
                 };
             };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
+            401: components["responses"]["NoStoreUnauthorized"];
+            403: components["responses"]["NoStoreForbidden"];
+            500: components["responses"]["NoStoreInternalError"];
         };
     };
     postAdminMedia: {
