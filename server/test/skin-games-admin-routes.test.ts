@@ -1498,9 +1498,10 @@ test('Skin Games public image route rejects inactive/traversal keys and maps mis
       headers: { 'x-request-id': traversalRequestId },
     });
     assert.equal(traversal.statusCode, 400, traversal.body);
-    assert.deepEqual(Object.keys(traversal.json()).sort(), ['error', 'requestId']);
-    assert.equal(traversal.json().error.code, 'VALIDATION_ERROR');
-    assert.equal(traversal.json().requestId, traversalRequestId);
+    assert.deepEqual(traversal.json(), {
+      error: { code: 'VALIDATION_ERROR', message: 'Request validation failed' },
+      requestId: traversalRequestId,
+    });
     assert.equal(traversal.headers['x-request-id'], traversalRequestId);
     assert.equal(traversal.headers['content-type']?.split(';')[0], 'application/json');
     assert.equal(fixture.calls.length, beforeTraversal, 'invalid traversal filename must be rejected before DB access');
@@ -1624,15 +1625,22 @@ test('Skin Games image upload returns a safe generic error when persistent stora
     uploadDirectory: blockedDirectory,
   });
   try {
+    const requestId = 'q020-skin-image-storage-write-failure';
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/image',
-      headers: { ...authHeaders(true), 'content-type': 'image/png' },
+      headers: { ...authHeaders(true), 'content-type': 'image/png', 'x-request-id': requestId },
       payload: validPng64(),
     });
     assert.equal(response.statusCode, 500, response.body);
-    assert.equal(response.json().error.code, 'INTERNAL_ERROR');
-    assert.equal(response.json().error.message, 'The Skin Games request could not be completed');
+    assert.deepEqual(response.json(), {
+      error: { code: 'INTERNAL_ERROR', message: 'The Skin Games request could not be completed' },
+      requestId,
+    });
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(fixture.calls.some((call) => call.sql.includes("'casino.skin-game.image-updated'")), false,
+      'filesystem write failure must not persist presentation metadata or success audit');
     assert.doesNotMatch(response.body, /ENOTDIR|not-a-directory|skin-games-write-failure/);
   } finally {
     await app.close();
