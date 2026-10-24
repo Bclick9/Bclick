@@ -1459,8 +1459,6 @@ test('Skin Games public image route rejects inactive/traversal keys and maps mis
   const fixture = fakeDatabase();
   const uploadDirectory = await mkdtemp(path.join(tmpdir(),'bclick-skin-games-asset-errors-'));
   let app: ReturnType<typeof buildApp> | null = null;
-  let blockedRoot = '';
-  let blockedRootParent = '';
   try {
     app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config(), uploadDirectory });
     const uploadId = 'q020-skin-asset-error-setup';
@@ -1521,10 +1519,32 @@ test('Skin Games public image route rejects inactive/traversal keys and maps mis
     assert.equal(missing.headers['x-request-id'], missingRequestId);
     assert.equal(missing.headers['content-type']?.split(';')[0], 'application/json');
     assert.doesNotMatch(missing.body, /\/tmp\/|bclick-skin-games-asset-errors/);
+
+    // Replace the active asset's parent directory with a regular file. The DB key still
+    // resolves as active, but stat() now fails with ENOTDIR. This exercises the non-ENOENT
+    // filesystem-error branch rather than only the missing-file branch above.
+    const blockedGameDirectory = path.dirname(imageFilePath);
+    await rm(blockedGameDirectory, { recursive: true, force: true });
+    await writeFile(blockedGameDirectory, 'not-a-directory');
+    const filesystemRequestId = 'q020-skin-asset-filesystem-failure';
+    const unreadable = await app.inject({
+      method: 'GET',
+      url: imageUrl,
+      headers: { 'x-request-id': filesystemRequestId },
+    });
+    assert.equal(unreadable.statusCode, 500, unreadable.body);
+    assert.deepEqual(unreadable.json().error, {
+      code: 'INTERNAL_ERROR',
+      message: 'The Skin Games request could not be completed',
+    });
+    assert.deepEqual(Object.keys(unreadable.json()).sort(), ['error', 'requestId']);
+    assert.equal(unreadable.json().requestId, filesystemRequestId);
+    assert.equal(unreadable.headers['x-request-id'], filesystemRequestId);
+    assert.equal(unreadable.headers['content-type']?.split(';')[0], 'application/json');
+    assert.doesNotMatch(unreadable.body, /ENOTDIR|not-a-directory|bclick-skin-games-asset-errors|\/tmp\//);
   } finally {
     if(app) await app.close();
     await rm(uploadDirectory,{recursive:true,force:true});
-    if(blockedRootParent) await rm(blockedRootParent,{recursive:true,force:true});
   }
 });
 
