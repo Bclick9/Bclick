@@ -67,7 +67,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Authenticate and create a server-side session */
+        /**
+         * Authenticate and create a server-side session
+         * @description Login success and errors are non-cacheable because they are session-sensitive.
+         */
         post: operations["loginPlayer"];
         delete?: never;
         options?: never;
@@ -99,7 +102,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get the current player session and minimal player summary */
+        /**
+         * Get the current player session and minimal player summary
+         * @description Session content and all session error responses are non-cacheable.
+         */
         get: operations["getAuthSession"];
         put?: never;
         post?: never;
@@ -205,7 +211,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Read current cached projection of the player's wallet */
+        /**
+         * Read current ledger-projection balance for the authenticated player and settlement currency.
+         * @description Every success and error response is non-cacheable; the handler never exposes another player's wallet.
+         */
         get: operations["getWalletsByCurrencyBalance"];
         put?: never;
         post?: never;
@@ -224,7 +233,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Return this player's ledger-backed statement */
+        /**
+         * Return this player's ledger-backed statement
+         * @description Cursor pagination uses cursor/limit only. page and pageSize are intentionally unsupported. Every success and error response is non-cacheable.
+         */
         get: operations["getWalletsByCurrencyStatement"];
         put?: never;
         post?: never;
@@ -672,7 +684,7 @@ export interface paths {
         };
         /**
          * Get the current admin session and permissions
-         * @description Authoritative bootstrap endpoint for AdminAuthContext. Returns admin identity, effective permission strings, roles, MFA state and expiry. Permissions are server-computed; frontend flags are presentation only.
+         * @description Authoritative bootstrap endpoint for AdminAuthContext. Returns admin identity, effective permission strings, roles, MFA state and expiry. Permissions are server-computed; frontend flags are presentation only. Session content and all session error responses are non-cacheable.
          */
         get: operations["getAdminSession"];
         put?: never;
