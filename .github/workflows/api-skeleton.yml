@@ -181,9 +181,8 @@ jobs:
 
       - name: Run Schemathesis against implemented non-financial routes
         run: |
-          /tmp/schemathesis-venv/bin/schemathesis run docs/planning/openapi.yaml \
+          /tmp/schemathesis-venv/bin/schemathesis --config-file /tmp/bclick-q020-schemathesis.toml run docs/planning/openapi.yaml \
             --url http://127.0.0.1:3000 \
-            --config /tmp/bclick-q020-schemathesis.toml \
             --include-path-regex '^/api/v1/(?:casino/(?:categories|display-categories|providers|games|games/by-slug/\{slug\}|games/\{gameId\})|auth/password-reset/(?:request|confirm))$' \
             --header 'Origin: https://localhost:5173' \
             --checks all \
