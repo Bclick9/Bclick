@@ -28,6 +28,7 @@ services:
       NODE_ENV: development
       HOST: 0.0.0.0
       PORT: 3000
+      ENABLE_WALLET_API: ${ENABLE_WALLET_API:-false}
       DB_POOL_MAX: 10
       BCLICK_UPLOAD_DIR: /var/lib/bclick/uploads
       DATABASE_URL: postgresql://${POSTGRES_USER:-bclick_dev}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the repository-root .env}@postgres:5432/${POSTGRES_DB:-bclick}
