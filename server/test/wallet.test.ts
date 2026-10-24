@@ -129,10 +129,41 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
     );
     assert.equal(tndCurrency.rows[0]?.decimal_places, 2, 'Migration 008 must configure TND to two decimal places');
 
-    const anonymousBalance = await app.inject({ method: 'GET', url: '/api/v1/wallets/TND/balance' });
-    assert.equal(anonymousBalance.statusCode, 401);
-    const anonymousStatement = await app.inject({ method: 'GET', url: '/api/v1/wallets/TND/statement' });
-    assert.equal(anonymousStatement.statusCode, 401);
+    const anonymousBalance = await app.inject({
+      method: 'GET', url: '/api/v1/wallets/TND/balance',
+      headers: { 'x-request-id': 'q020b-wallet-balance-anon' },
+    });
+    assert.equal(anonymousBalance.statusCode, 401, anonymousBalance.body);
+    assert.deepEqual(anonymousBalance.json(), {
+      error: { code: 'UNAUTHORIZED', message: 'A valid player session is required' },
+      requestId: 'q020b-wallet-balance-anon',
+    });
+    assert.equal(anonymousBalance.headers['x-request-id'], 'q020b-wallet-balance-anon');
+    assert.equal(anonymousBalance.headers['cache-control'], 'no-store');
+
+    const anonymousStatement = await app.inject({
+      method: 'GET', url: '/api/v1/wallets/TND/statement',
+      headers: { 'x-request-id': 'q020b-wallet-statement-anon' },
+    });
+    assert.equal(anonymousStatement.statusCode, 401, anonymousStatement.body);
+    assert.deepEqual(anonymousStatement.json(), {
+      error: { code: 'UNAUTHORIZED', message: 'A valid player session is required' },
+      requestId: 'q020b-wallet-statement-anon',
+    });
+    assert.equal(anonymousStatement.headers['x-request-id'], 'q020b-wallet-statement-anon');
+    assert.equal(anonymousStatement.headers['cache-control'], 'no-store');
+
+    const anonymousPlayerSession = await app.inject({
+      method: 'GET', url: '/api/v1/auth/session',
+      headers: { 'x-request-id': 'q020b-player-session-401' },
+    });
+    assert.equal(anonymousPlayerSession.statusCode, 401, anonymousPlayerSession.body);
+    assert.deepEqual(anonymousPlayerSession.json(), {
+      error: { code: 'UNAUTHORIZED', message: 'A valid player session is required' },
+      requestId: 'q020b-player-session-401',
+    });
+    assert.equal(anonymousPlayerSession.headers['x-request-id'], 'q020b-player-session-401');
+    assert.equal(anonymousPlayerSession.headers['cache-control'], 'no-store');
 
     const email = 'wallet-' + randomUUID() + '@example.test';
     const registered = await app.inject({
@@ -153,16 +184,57 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
     });
     assert.equal(registered.statusCode, 201, registered.body);
     const playerId = String(registered.json().data.player.id);
-    const cookies = cookiesFrom(registered.headers['set-cookie']);
-    assert.ok(cookies['__Host-bclick_session'], 'registration establishes the player session');
+    const registeredPlayer = registered.json().data.player;
+    for (const key of ['id', 'status', 'emailVerificationStatus', 'kycTier', 'kycLock', 'settlementCurrency']) {
+      assert.ok(Object.prototype.hasOwnProperty.call(registeredPlayer, key),
+        'player response satisfies OpenAPI PlayerSummary required field: ' + key);
+    }
+    assert.equal(registered.headers['x-request-id'], registered.json().requestId);
+
+    const playerLogin = await app.inject({
+      method: 'POST', url: '/api/v1/auth/login',
+      headers: {
+        origin: 'https://localhost:5173',
+        'x-request-id': 'q020b-player-login-success',
+      },
+      payload: { email, password: 'Local-Wallet-Test-Password-123!' },
+    });
+    assert.equal(playerLogin.statusCode, 200, playerLogin.body);
+    assert.equal(playerLogin.headers['cache-control'], 'no-store');
+    assert.equal(playerLogin.headers['x-request-id'], 'q020b-player-login-success');
+    assert.equal(playerLogin.json().requestId, 'q020b-player-login-success');
+    assert.deepEqual(Object.keys(playerLogin.json()).sort(), ['data', 'requestId']);
+    assert.deepEqual(Object.keys(playerLogin.json().data).sort(), ['player']);
+    const loggedInPlayer = playerLogin.json().data.player;
+    for (const key of ['id', 'status', 'emailVerificationStatus', 'kycTier', 'kycLock', 'settlementCurrency']) {
+      assert.ok(Object.prototype.hasOwnProperty.call(loggedInPlayer, key),
+        'login response satisfies OpenAPI PlayerSummary required field: ' + key);
+    }
+    assert.equal(loggedInPlayer.id, playerId);
+
+    const cookies = cookiesFrom(playerLogin.headers['set-cookie']);
+    assert.ok(cookies['__Host-bclick_session'], 'login establishes the player session');
+    const playerSession = await app.inject({
+      method: 'GET', url: '/api/v1/auth/session',
+      headers: { cookie: cookieHeader(cookies), 'x-request-id': 'q020b-player-session-success' },
+    });
+    assert.equal(playerSession.statusCode, 200, playerSession.body);
+    assert.equal(playerSession.headers['cache-control'], 'no-store');
+    assert.equal(playerSession.headers['x-request-id'], 'q020b-player-session-success');
+    assert.equal(playerSession.json().requestId, 'q020b-player-session-success');
+    assert.deepEqual(playerSession.json().data, playerLogin.json().data,
+      'player session projection must match the successful login response');
 
     const emptyWallet = await app.inject({
       method: 'GET',
       url: '/api/v1/wallets/TND/balance',
-      headers: { cookie: cookieHeader(cookies) },
+      headers: { cookie: cookieHeader(cookies), 'x-request-id': 'q020b-wallet-balance-empty' },
     });
     assert.equal(emptyWallet.statusCode, 200, emptyWallet.body);
     assert.equal(emptyWallet.headers['cache-control'], 'no-store');
+    assert.equal(emptyWallet.headers['x-request-id'], 'q020b-wallet-balance-empty');
+    assert.equal(emptyWallet.json().requestId, 'q020b-wallet-balance-empty');
+    assert.deepEqual(Object.keys(emptyWallet.json()).sort(), ['data', 'requestId']);
     assert.deepEqual(emptyWallet.json().data, {
       currency: 'TND',
       balance: '0.00',
@@ -176,17 +248,53 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
     const crossCurrency = await app.inject({
       method: 'GET',
       url: '/api/v1/wallets/EUR/balance',
-      headers: { cookie: cookieHeader(cookies) },
+      headers: { cookie: cookieHeader(cookies), 'x-request-id': 'q020b-wallet-currency-404' },
     });
-    assert.equal(crossCurrency.statusCode, 404);
+    assert.equal(crossCurrency.statusCode, 404, crossCurrency.body);
+    assert.deepEqual(crossCurrency.json(), {
+      error: { code: 'NOT_FOUND', message: 'Wallet not found' },
+      requestId: 'q020b-wallet-currency-404',
+    });
+    assert.equal(crossCurrency.headers['x-request-id'], 'q020b-wallet-currency-404');
+    assert.equal(crossCurrency.headers['cache-control'], 'no-store');
     const emptyStatement = await app.inject({
       method: 'GET',
       url: '/api/v1/wallets/TND/statement',
-      headers: { cookie: cookieHeader(cookies) },
+      headers: { cookie: cookieHeader(cookies), 'x-request-id': 'q020b-wallet-statement-empty' },
     });
     assert.equal(emptyStatement.statusCode, 200, emptyStatement.body);
+    assert.equal(emptyStatement.headers['cache-control'], 'no-store');
+    assert.equal(emptyStatement.headers['x-request-id'], 'q020b-wallet-statement-empty');
+    assert.equal(emptyStatement.json().requestId, 'q020b-wallet-statement-empty');
+    assert.deepEqual(Object.keys(emptyStatement.json()).sort(), ['data', 'page', 'requestId']);
     assert.deepEqual(emptyStatement.json().data, []);
-    assert.equal(emptyStatement.json().page.pageSize, 25);
+    assert.deepEqual(emptyStatement.json().page, { nextCursor: null, pageSize: 25 });
+
+    const invalidCursor = await app.inject({
+      method: 'GET',
+      url: '/api/v1/wallets/TND/statement?cursor=not-a-cursor',
+      headers: { cookie: cookieHeader(cookies), 'x-request-id': 'q020b-wallet-cursor-invalid' },
+    });
+    assert.equal(invalidCursor.statusCode, 400, invalidCursor.body);
+    assert.deepEqual(invalidCursor.json(), {
+      error: { code: 'VALIDATION_ERROR', message: 'Statement cursor is invalid' },
+      requestId: 'q020b-wallet-cursor-invalid',
+    });
+    assert.equal(invalidCursor.headers['x-request-id'], 'q020b-wallet-cursor-invalid');
+    assert.equal(invalidCursor.headers['cache-control'], 'no-store');
+
+    const reversedDateRange = await app.inject({
+      method: 'GET',
+      url: '/api/v1/wallets/TND/statement?from=2026-01-02T00%3A00%3A00Z&to=2026-01-01T00%3A00%3A00Z',
+      headers: { cookie: cookieHeader(cookies), 'x-request-id': 'q020b-wallet-date-order' },
+    });
+    assert.equal(reversedDateRange.statusCode, 400, reversedDateRange.body);
+    assert.deepEqual(reversedDateRange.json(), {
+      error: { code: 'VALIDATION_ERROR', message: 'from must be earlier than the exclusive to boundary' },
+      requestId: 'q020b-wallet-date-order',
+    });
+    assert.equal(reversedDateRange.headers['x-request-id'], 'q020b-wallet-date-order');
+    assert.equal(reversedDateRange.headers['cache-control'], 'no-store');
 
     const accountResult = await pool.query<{ id: string; account_kind: string }>(`
       SELECT id,account_kind FROM wallet_accounts
@@ -218,9 +326,12 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
     const creditedWallet = await app.inject({
       method: 'GET',
       url: '/api/v1/wallets/TND/balance',
-      headers: { cookie: cookieHeader(cookies) },
+      headers: { cookie: cookieHeader(cookies), 'x-request-id': 'q020b-wallet-balance-credited' },
     });
     assert.equal(creditedWallet.statusCode, 200, creditedWallet.body);
+    assert.equal(creditedWallet.headers['cache-control'], 'no-store');
+    assert.equal(creditedWallet.headers['x-request-id'], 'q020b-wallet-balance-credited');
+    assert.equal(creditedWallet.json().requestId, 'q020b-wallet-balance-credited');
     assert.equal(creditedWallet.json().data.balance, '12.34');
     assert.equal(creditedWallet.json().data.available, '12.34');
     assert.equal(creditedWallet.json().data.held, '0.00');
@@ -228,9 +339,15 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
     const creditedStatement = await app.inject({
       method: 'GET',
       url: '/api/v1/wallets/TND/statement?limit=1',
-      headers: { cookie: cookieHeader(cookies) },
+      headers: { cookie: cookieHeader(cookies), 'x-request-id': 'q020b-wallet-statement-credited' },
     });
     assert.equal(creditedStatement.statusCode, 200, creditedStatement.body);
+    assert.equal(creditedStatement.headers['cache-control'], 'no-store');
+    assert.equal(creditedStatement.headers['x-request-id'], 'q020b-wallet-statement-credited');
+    assert.equal(creditedStatement.json().requestId, 'q020b-wallet-statement-credited');
+    assert.deepEqual(Object.keys(creditedStatement.json()).sort(), ['data', 'page', 'requestId']);
+    assert.deepEqual(Object.keys(creditedStatement.json().data[0]).sort(),
+      ['amount', 'createdAt', 'currency', 'description', 'id', 'reference', 'status', 'type']);
     assert.equal(creditedStatement.json().data.length, 1);
     assert.equal(creditedStatement.json().data[0].id, creditJournalId);
     assert.equal(creditedStatement.json().data[0].amount, '12.34');
