@@ -2180,7 +2180,7 @@ paths:
       tags: [Backoffice]
       security: [adminSession: []]
       summary: Upload persistent custom artwork for a canonical game UUID
-      description: Requires casino.provider-settings.manage, MFA, Origin and CSRF. PNG/JPEG/WebP are validated from bytes, limited to 5 MiB, assigned a server-generated filename and stored on the configured persistent upload volume. blob URLs are never stored.
+      description: Requires casino.provider-settings.manage, MFA, Origin and CSRF. PNG/JPEG/WebP are validated from bytes, limited to 5 MiB, assigned a server-generated filename and stored on the configured persistent upload volume. blob URLs are never stored. Media quarantine, malware scanning and storage isolation remain subject to Q-004 and are not implied by this API contract.
       parameters:
         - $ref: '#/components/parameters/CsrfToken'
       requestBody:
@@ -2192,6 +2192,8 @@ paths:
       responses:
         '201':
           description: Image stored persistently and audit record written.
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
           content:
             application/json:
               schema:
@@ -2206,35 +2208,59 @@ paths:
                       customImageUrl: {type: string, format: uri-reference}
                       contentType: {type: string, enum: [image/png, image/jpeg, image/webp]}
                   requestId: {type: string}
-        '400': {description: Invalid UUID.}
+        '400': {$ref: '#/components/responses/ValidationError'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
-        '409': {description: Premium artwork edits are locked.}
-        '413': {description: Image exceeds the 5 MiB limit.}
-        '415': {description: Unsupported or invalid image bytes.}
+        '409':
+          description: Premium artwork edits are locked.
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '413':
+          description: Image is smaller than the supported minimum or exceeds the 5 MiB limit.
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '415':
+          description: Unsupported media type, invalid image bytes or Content-Type does not match the image signature.
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '500': {$ref: '#/components/responses/InternalError'}
       operationId: postAdminSkinGameImage
   /api/v1/assets/casino-games/{gameId}/{fileName}:
     get:
       tags: [Casino catalogue]
       summary: Read generated persistent game artwork
-      description: Serves only the current custom image referenced by the catalogue record.
+      description: Serves only the current custom image referenced by the catalogue record. Malformed filenames are rejected before database access; inactive or missing files return a safe 404. Filesystem failures return a generic 500 without exposing storage paths.
       parameters:
         - {name: gameId, in: path, required: true, schema: {type: string, format: uuid}}
-        - {name: fileName, in: path, required: true, schema: {type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\.(png|jpg|webp)$'}}
+        - {name: fileName, in: path, required: true, schema: {type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\\.(png|jpg|webp)$'}}
         - $ref: '#/components/parameters/XRequestId'
       responses:
         '200':
-          description: Validated image bytes.
+          description: Validated image bytes. The server-generated asset URL identifies only the active custom image.
           content:
             image/png: {schema: {type: string, format: binary}}
             image/jpeg: {schema: {type: string, format: binary}}
             image/webp: {schema: {type: string, format: binary}}
           headers:
             Cache-Control: {schema: {type: string, const: "public, max-age=31536000, immutable"}}
+            Content-Security-Policy: {schema: {type: string, const: "default-src 'none'; sandbox"}}
             X-Content-Type-Options: {schema: {type: string, const: nosniff}}
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+        '400': {$ref: '#/components/responses/ValidationError'}
         '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
       operationId: getCasinoGamePersistentAsset
+
   /api/v1/admin/providers/{providerCode}/catalog-sync:
     parameters:
       - name: providerCode
