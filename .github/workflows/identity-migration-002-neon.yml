@@ -80,7 +80,7 @@ jobs:
             ["server/migrations/1792512000000_identity_sessions.sql"]="e82d0af78853136a33321489847ab2b0ae1573d8"
             ["server/migrations/1792584000000_identity_domain_migration_001.sql"]="dde5b276dd1220dba5107d7989b6c1378ead101a"
             ["server/migrations/1792670400000_identity_sessions_split_002.sql"]="e215f7a03c74fa140f9c8b1c568e58f56a67a46c"
-            # M003-M013 are pinned only in this disposable CI inventory;
+            # M003-M017 are pinned only in this disposable CI inventory;
             # none is added to the guarded live-Neon migration inventory below.
             ["server/migrations/1792756800000_identity_player_credentials_003.sql"]="aa26b9a9888b1f244f14a32272fd7467cfc3876f"
             ["server/migrations/1792843200000_player_profile_details_004.sql"]="8b88f9a6ff10033e36b51918d6abb1c7df668abb"
@@ -93,6 +93,10 @@ jobs:
             ["server/migrations/1793448000000_bigbang_provider_controls_011.sql"]="4839645140752a913863ec6f75d02db12be6ec42"
             ["server/migrations/1793534400000_casino_skin_games_presentation_012.sql"]="7278a04053384c77c6ece3bf28a4130d183ad45f"
             ["server/migrations/1793620800000_casino_skin_game_title_override_013.sql"]="7fa1d2925b72a01691d3df8ab1e524c2c0328d38"
+            ["server/migrations/1793707200000_casino_legacy_alias_retirement_014.sql"]="e9686d0c43412cb6a8c00deb89c308409b70098d"
+            ["server/migrations/1793793600000_casino_curated_display_categories_015.sql"]="b271ad414386b1853e0031f28fa757f8bfa3bcfa"
+            ["server/migrations/1793880000000_casino_display_category_icons_016.sql"]="6d805c6ed534f2dc8fe32a812c7e91e52d08bb3a"
+            ["server/migrations/1793966400000_casino_display_category_scope_017.sql"]="ffd64d6e2db93ca9a8e69a4a4dab7eaf51f7b813"
           )
           for path in "${!expected_blobs[@]}"; do
             actual="$(git hash-object "$path")"
@@ -115,6 +119,10 @@ jobs:
             "server/migrations/1793448000000_bigbang_provider_controls_011.sql"
             "server/migrations/1793534400000_casino_skin_games_presentation_012.sql"
             "server/migrations/1793620800000_casino_skin_game_title_override_013.sql"
+            "server/migrations/1793707200000_casino_legacy_alias_retirement_014.sql"
+            "server/migrations/1793793600000_casino_curated_display_categories_015.sql"
+            "server/migrations/1793880000000_casino_display_category_icons_016.sql"
+            "server/migrations/1793966400000_casino_display_category_scope_017.sql"
           )
           diff -u <(printf '%s\n' "${expected_migrations[@]}") <(printf '%s\n' "${actual_migrations[@]}")
       - name: Create the exact three-migration pre-Migration-002 checkpoint on disposable PostgreSQL
