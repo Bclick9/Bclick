@@ -54,6 +54,8 @@ function responseHeaders(rawHeaders, requestUrl) {
     if (name === 'content-security-policy') {
       // Preserve policy structure while ensuring a per-response nonce is never committed as evidence.
       value = value.replace(/'nonce-[^']+'/gi, "'nonce-[REDACTED]'");
+      value = value.replace(/(https?:\/\/[^?\s;'"]+)\?[^;\s,'"]*/gi, '$1?[QUERY_REDACTED]');
+      value = value.replace(/(https?:\/\/[^#\s;'"]+)#[^;\s,'"]*/gi, '$1#[FRAGMENT_REDACTED]');
     }
     if (name === 'location') {
       try {
@@ -448,7 +450,7 @@ async function run() {
 function runSelfTests() {
   const captured = responseHeaders([
     'Content-Security-Policy',
-    "default-src 'none'; base-uri 'none'; script-src 'self' https://iframe.winhouse.bet 'nonce-SHOULD_NOT_APPEAR'; script-src-elem 'self' https://iframe.winhouse.bet; frame-src https://iframe.winhouse.bet; frame-ancestors 'none'; form-action 'none'",
+    "default-src 'none'; base-uri 'none'; script-src 'self' https://iframe.winhouse.bet 'nonce-SHOULD_NOT_APPEAR'; script-src-elem 'self' https://iframe.winhouse.bet; frame-src https://iframe.winhouse.bet; frame-ancestors 'none'; report-uri https://report.example/security?token=QUERY_SECRET_SHOULD_NOT_APPEAR#fragment; form-action 'none'",
     'Set-Cookie',
     'session=SHOULD_NOT_APPEAR; HttpOnly',
     'Location',
@@ -458,6 +460,7 @@ function runSelfTests() {
   assert.equal(captured['set-cookie'], undefined, 'Cookie headers are never captured');
   assert.match(captured['content-security-policy'][0], /'nonce-\[REDACTED\]'/);
   assert.equal(captured['content-security-policy'][0].includes('SHOULD_NOT_APPEAR'), false);
+  assert.equal(captured['content-security-policy'][0].includes('QUERY_SECRET_SHOULD_NOT_APPEAR'), false);
   assert.deepEqual(captured.location, ['https://bclick.example/sports']);
   assert.equal(sourceMatchesWinHouse('https://iframe.winhouse.bet'), true);
   assert.equal(sourceMatchesWinHouse('https://eviliframe.winhouse.bet'), false);
