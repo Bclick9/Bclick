@@ -164,7 +164,7 @@ export function assertBreakGlassDatabaseTarget(databaseUrl: string, expectedTarg
 
   let databaseName = '';
   try {
-    databaseName = decodeURIComponent(parsed.pathname.replace(/^\\/+/, ''));
+    databaseName = decodeURIComponent(parsed.pathname.replace(/^\/+/, ''));
   } catch {
     throw new BreakGlassOperationError('INVALID_DATABASE_URL');
   }
