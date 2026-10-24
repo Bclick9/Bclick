@@ -263,7 +263,7 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
     type: 'object',
     additionalProperties: false,
     properties: {
-      cursor: { type: 'string', maxLength: 2048 },
+      cursor: { type: 'string', maxLength: 512 },
       page: { type: 'integer', minimum: 1, default: 1 },
       pageSize: { type: 'integer', minimum: 1, maximum: 100, default: 25 },
     },
