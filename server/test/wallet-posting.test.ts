@@ -195,6 +195,16 @@ test('Phase 5A: wallet posting service idempotency, state transitions, concurren
         { walletAccountId: systemAccount('payment-clearing', 'EUR').id, currencyCode: 'EUR', amountMinor: -5n, entrySequence: 2 },
       ],
     };
+    await assert.rejects(
+      posting.post({
+        ...concurrentSameKeyRequest,
+        idempotencyScope: 'phase5a:metadata-secret-rejection',
+        idempotencyKey: 'metadata-secret-001',
+        metadata: { walletApiKey: 'must-not-be-persisted' },
+      }),
+      (error: unknown) => assertWalletFault(error, 'INVALID_METADATA'),
+    );
+
     const sameKeyResults = await Promise.all([
       posting.post(concurrentSameKeyRequest),
       posting.post(concurrentSameKeyRequest),
