@@ -97,10 +97,10 @@ jobs:
             "1793361600000_bigbang_tier_aware_source_identity_010.sql"
             "1793448000000_bigbang_provider_controls_011.sql"
             "1793534400000_casino_skin_games_presentation_012.sql"
-            "1793620800000_casino_skin_game_title_override_013.sql",
-            "1793707200000_casino_legacy_alias_retirement_014.sql",
-            "1793793600000_casino_curated_display_categories_015.sql",
-            "1793880000000_casino_display_category_icons_016.sql",
+            "1793620800000_casino_skin_game_title_override_013.sql"
+            "1793707200000_casino_legacy_alias_retirement_014.sql"
+            "1793793600000_casino_curated_display_categories_015.sql"
+            "1793880000000_casino_display_category_icons_016.sql"
             "1793966400000_casino_display_category_scope_017.sql"
           )
           diff -u <(printf '%s\n' "${expected_migrations[@]}") <(printf '%s\n' "${actual_migrations[@]}")
