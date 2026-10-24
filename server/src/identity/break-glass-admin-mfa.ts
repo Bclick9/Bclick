@@ -5,6 +5,7 @@ import { Pool, type PoolClient, type QueryResultRow } from 'pg';
 import { normalizeEmail } from './crypto.js';
 
 export const BREAK_GLASS_ACKNOWLEDGEMENT = 'RESET ADMIN MFA AND REVOKE ALL ADMIN SESSIONS';
+export const BREAK_GLASS_FEATURE_FLAG = 'BCLICK_ADMIN_MFA_BREAK_GLASS_ENABLED';
 const BREAK_GLASS_SCOPE = 'sole-admin-out-of-band';
 
 export interface AdminMfaBreakGlassRequest {
@@ -112,8 +113,16 @@ export function parseBreakGlassRequest(
   env: Readonly<Record<string, string | undefined>>,
   nodeEnv: string,
 ): AdminMfaBreakGlassRequest {
-  if (nodeEnv !== 'production' && nodeEnv !== 'staging') {
+  // This operator command is deliberately staging-only until a separate, reviewed release decision.
+  // The feature flag cannot override this unconditional production refusal.
+  if (nodeEnv === 'production') {
+    throw new BreakGlassOperationError('PRODUCTION_EXECUTION_BLOCKED');
+  }
+  if (nodeEnv !== 'staging') {
     throw new BreakGlassOperationError('SHARED_ENVIRONMENT_ONLY');
+  }
+  if (env[BREAK_GLASS_FEATURE_FLAG] !== 'true') {
+    throw new BreakGlassOperationError('FEATURE_FLAG_DISABLED');
   }
   if (env.BCLICK_BREAK_GLASS_EXECUTION !== 'EXECUTE') {
     throw new BreakGlassOperationError('EXPLICIT_EXECUTION_REQUIRED');
