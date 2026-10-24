@@ -5,9 +5,10 @@
 | Source | Version/date context | Use in this review |
 |---|---|---|
 | Project Library `WINHOUSE_AGENT.md` | Embedded version string: `2026-09-20`; byte size 23,021; SHA-256 `00de9e66c76627eee31af1f9ccba93371432abfffebff39d026d512e53dc2d6b` | The project’s archived agent-oriented integration contract |
-| Public integration guide | https://iframe.winhouse.bet/docs, reviewed 2026-10-24 | The current human-readable public guide, including loader, sizing, CSP, account models, SSO, seamless wallet, and troubleshooting |
+| Public integration guide | https://iframe.winhouse.bet/docs, reviewed 2026-10-24 | Current human-readable guide, including loader, sizing, CSP, account models, SSO, seamless wallet, and troubleshooting |
+| Official machine-readable agent guide | https://iframe.winhouse.bet/docs/agent.md, identified by the Project Owner as the current official source on 2026-10-24 | Canonical current agent contract; use this live source for ongoing implementation review rather than treating the archived Library copy as current |
 
-The direct live URL https://iframe.winhouse.bet/docs/agent.md was not readable by the web retrieval interface in this run because it served `text/markdown`; the Library snapshot was read in full, and the public guide explicitly describes itself as the human-readable counterpart. Do not claim that this review re-fingerprinted the live markdown file or that the provider confirmed the Library bytes are its currently approved revision.
+The Project Owner supplied the current official machine-readable URL `https://iframe.winhouse.bet/docs/agent.md`; the official human-readable guide links to `/docs/agent.md` as its machine-readable integration contract. The web reader did not return raw markdown bytes for independent SHA-256 fingerprinting, so no live-file hash is claimed. The archived Library copy is historical and may be stale; there is no need to email WinHouse asking them to resend the general agent document. Record the official URL as the live source and only hash a locally downloaded exact copy if a future evidence requirement needs byte-level provenance.
 
 ## Embed contract established by the two sources
 
@@ -42,6 +43,6 @@ Follow the documented order:
 
 ## Current implementation state
 
-PR #164 (merged as `18d77ba903d5cfc098eb5024c9b6b3fc00974b6f`) measures Bclick's actual visible fixed sports navigation and feeds that size to the loader's `data-bottom-gap`. Tests cover visible, hidden, and invalid measurements. The live provider/domain/CSP browser check is still outstanding, so Q-013 remains open. Q-006 remains open for vendor provenance, the `data-hide` version difference, unsupported UI controls/routing, tenant settings, callback/reconciliation evidence, and authenticated provider responses.
+PR #164 (merged as `18d77ba903d5cfc098eb5024c9b6b3fc00974b6f`) measures Bclick's actual visible fixed sports navigation and feeds that size to the loader's `data-bottom-gap`. Tests cover visible, hidden, and invalid measurements. The live provider/domain/CSP browser check is still outstanding, so Q-013 remains open. The official current URLs remove the need to ask the vendor to resend generic agent documentation. Q-006 remains open for tenant-specific seamless-wallet enablement, credential separation/rotation, any tenant-specific raw-body signature requirement, retry/conflicting duplicate/refund/rollback behavior not settled by the published contract, reconciliation evidence, domain/IP rules and official support/escalation details. The archived `data-hide` difference is historical documentation drift; use the current official guide for implementation, while retaining an explicit browser check for the UI overlay.
 
 No vendor correspondence is claimed to have been sent by this review.
