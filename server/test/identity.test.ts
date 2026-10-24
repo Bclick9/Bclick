@@ -20,6 +20,7 @@ import {
   hashPassword,
   normalizeEmail,
   totpCode,
+  tokenHash,
   verifyCsrfToken,
   verifyPassword,
   verifyTotp,
@@ -498,6 +499,26 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     });
     assert.equal(replayedEnrollment.statusCode, 401);
 
+    // Phase 4: issue recovery codes through the real IdentityService and PostgreSQL repository.
+    const recoveryIssue = await appUnderTest.inject({
+      method: 'POST', url: '/api/v1/admin/auth/mfa/recovery-codes',
+      headers: csrfHeaders(activeAdminJar, '__Host-bclick_admin_csrf', 'https://localhost:5174'),
+      payload: { totpCode: totpCode(totpSecret), reason: 'Phase 4 single-use recovery acceptance' },
+    });
+    assert.equal(recoveryIssue.statusCode, 200, recoveryIssue.body);
+    const issuedRecoveryCodes = recoveryIssue.json().data.codes as string[];
+    assert.equal(issuedRecoveryCodes.length, 10, 'recovery regeneration returns ten codes exactly once');
+    const oneTimeRecoveryCode = String(issuedRecoveryCodes[0]);
+    assert.ok(oneTimeRecoveryCode.length >= 8);
+    const initialRecoveryRows = await database.query<{ code_hash: string; consumed_at: Date | null }>(
+      'SELECT code_hash, consumed_at FROM admin_mfa_recovery_codes WHERE admin_id=$1 ORDER BY created_at ASC',
+      [adminId],
+    );
+    assert.equal(initialRecoveryRows.rows.length, 10);
+    assert.ok(initialRecoveryRows.rows.every((row) => row.consumed_at === null));
+    assert.notEqual(initialRecoveryRows.rows[0]?.code_hash, oneTimeRecoveryCode,
+      'the database stores password hashes, never a plaintext recovery code');
+
     // Acceptance 5: logging out one context does not revoke the other context.
     const firstAdminSessionToken = activeAdminJar['__Host-bclick_admin_session']!;
     const adminLogout = await appUnderTest.inject({
@@ -561,7 +582,7 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     const secondMfa = await appUnderTest.inject({
       method: 'POST', url: '/api/v1/admin/auth/mfa/verify',
       headers: { cookie: cookieHeader(secondAdminJar), origin: 'https://localhost:5174' },
-      payload: { challengeId: secondChallengeId, factor: 'totp', code: totpCode(totpSecret) },
+      payload: { challengeId: secondChallengeId, factor: 'recovery_code', code: oneTimeRecoveryCode },
     });
     assert.equal(secondMfa.statusCode, 200, secondMfa.body);
     secondAdminJar = cookieMapFromResponse(secondMfa.headers['set-cookie'], secondAdminJar);
@@ -575,6 +596,72 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
       payload: { challengeId: secondChallengeId, factor: 'totp', code: totpCode(totpSecret) },
     });
     assert.equal(replayedMfaChallenge.statusCode, 401, 'consumed MFA challenges must not be replayable');
+
+    // A successful recovery-code exchange created the full session; the code must fail in a NEW challenge.
+    // Clear only this disposable test principal's email login limiter so this replay assertion is independent
+    // of the earlier deliberately-created concurrent and expired challenge cases.
+    await database.query(
+      "DELETE FROM rate_limits WHERE scope='admin-login-email' AND subject_hash=$1",
+      [tokenHash(normalizeEmail(adminEmail), identityConfig.sessionHashKey)],
+    );
+    const recoveryReplayLogin = await appUnderTest.inject({
+      method: 'POST', url: '/api/v1/admin/auth/login',
+      headers: { origin: 'https://localhost:5174' },
+      payload: { email: adminEmail, password: adminPassword },
+    });
+    assert.equal(recoveryReplayLogin.statusCode, 202, recoveryReplayLogin.body);
+    assert.equal(recoveryReplayLogin.json().data.status, 'mfa_required');
+    const recoveryReplayJar = cookieMapFromResponse(recoveryReplayLogin.headers['set-cookie']);
+    const recoveryReplayChallengeId = String(recoveryReplayLogin.json().data.challengeId);
+    assert.ok(recoveryReplayJar['__Host-bclick_admin_challenge']);
+    const recoveryCodeReplay = await appUnderTest.inject({
+      method: 'POST', url: '/api/v1/admin/auth/mfa/verify',
+      headers: { cookie: cookieHeader(recoveryReplayJar), origin: 'https://localhost:5174' },
+      payload: { challengeId: recoveryReplayChallengeId, factor: 'recovery_code', code: oneTimeRecoveryCode },
+    });
+    assert.equal(recoveryCodeReplay.statusCode, 401,
+      'a recovery code already redeemed through the real IdentityService must fail in a fresh challenge');
+    assert.equal(recoveryCodeReplay.json().error.code, 'UNAUTHORIZED');
+    assert.equal(recoveryCodeReplay.json().data, undefined, 'rejected recovery replay must not return a session');
+    const recoveryRowsAfterReplay = await database.query<{ consumed: number; remaining: number; total: number }>(`
+      SELECT count(*) FILTER (WHERE consumed_at IS NOT NULL)::int AS consumed,
+        count(*) FILTER (WHERE consumed_at IS NULL)::int AS remaining,
+        count(*)::int AS total
+      FROM admin_mfa_recovery_codes WHERE admin_id=$1`, [adminId]);
+    assert.deepEqual(recoveryRowsAfterReplay.rows[0], { consumed: 1, remaining: 9, total: 10 },
+      'one-time redemption consumes only the used code; replay cannot consume other codes');
+
+    // The security audit records only event metadata; passwords, TOTP material, recovery codes,
+    // browser/session/CSRF cookie values and challenge credentials must never appear in audit JSON.
+    const identityAudit = await database.query<{ action: string; outcome: string; metadata: Record<string, unknown> }>(
+      'SELECT action, outcome, metadata FROM audit_events WHERE actor_id=$1 OR subject_id=$1 ORDER BY created_at ASC',
+      [adminId],
+    );
+    const regenerationAudit = identityAudit.rows.find((row) => row.action === 'admin.mfa.recovery_codes.regenerate');
+    assert.ok(regenerationAudit, 'recovery-code regeneration must be audited');
+    assert.deepEqual(regenerationAudit.metadata, { count: 10, reasonLength: 'Phase 4 single-use recovery acceptance'.length });
+    const successfulRecoveryAudit = identityAudit.rows.find((row) =>
+      row.action === 'admin.login.mfa' && row.outcome === 'success'
+      && row.metadata?.factor === 'recovery_code');
+    assert.ok(successfulRecoveryAudit, 'successful recovery-code authentication must be audited');
+    assert.deepEqual(successfulRecoveryAudit.metadata, { factor: 'recovery_code' });
+    const rejectedRecoveryAudit = identityAudit.rows.find((row) =>
+      row.action === 'admin.login.mfa' && row.outcome === 'denied'
+      && row.metadata?.factor === 'recovery_code');
+    assert.ok(rejectedRecoveryAudit, 'replayed recovery authentication must be recorded as denied');
+    assert.deepEqual(rejectedRecoveryAudit.metadata, { factor: 'recovery_code' });
+    const auditDump = JSON.stringify(identityAudit.rows);
+    const sensitiveValues = [
+      adminPassword, playerPassword, totpSecret, oneTimeRecoveryCode,
+      ...Object.values(playerJar), ...Object.values(activeAdminJar), ...Object.values(oldEnrollmentJar),
+      ...Object.values(secondAdminJar), ...Object.values(competingAdminJar), ...Object.values(recoveryReplayJar),
+    ].filter((value): value is string => typeof value === 'string' && value.length >= 12);
+    for (const secretValue of sensitiveValues) {
+      assert.equal(auditDump.includes(secretValue), false,
+        'audit events must not contain plaintext passwords, TOTP seed, recovery codes, or cookie/session values');
+    }
+    assert.equal(auditDump.includes('Phase 4 single-use recovery acceptance'), false,
+      'audit metadata records reason length, not the recovery reason text');
 
     // Q-002: challenge expiry is enforced independently of the browser-binding proof.
     const expiredPasswordStep = await appUnderTest.inject({
