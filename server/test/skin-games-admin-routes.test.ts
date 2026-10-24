@@ -1790,3 +1790,80 @@ test('Q-020b remaining admin mutations reject Origin/CSRF/RBAC denials before mu
     }
   }
 });
+
+
+test('Skin Games image upload rejects a body above 5 MiB with the shared safe 413 envelope before side effects', async () => {
+  const fixture = fakeDatabase();
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(), 'bclick-skin-games-oversize-'));
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+    uploadDirectory,
+  });
+  try {
+    const requestId = 'q020-skin-image-oversized-body';
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/image',
+      headers: {
+        ...authHeaders(true),
+        origin: ADMIN_ORIGIN,
+        'content-type': 'image/png',
+        'x-request-id': requestId,
+      },
+      payload: Buffer.alloc(5 * 1024 * 1024 + 1),
+    });
+    assert.equal(response.statusCode, 413, response.body);
+    assert.deepEqual(response.json(), {
+      error: { code: 'REQUEST_REJECTED', message: 'Request could not be processed' },
+      requestId,
+    });
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(fixture.calls.length, 0, 'oversized body must be rejected before catalogue queries or audit writes');
+    assert.deepEqual(await readdir(uploadDirectory), [], 'oversized body must not create game image storage');
+  } finally {
+    await app.close();
+    await rm(uploadDirectory, { recursive: true, force: true });
+  }
+});
+
+test('Skin Games image upload rejects malformed game UUID before catalogue or storage effects', async () => {
+  const fixture = fakeDatabase();
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(), 'bclick-skin-games-invalid-game-id-'));
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+    uploadDirectory,
+  });
+  try {
+    const requestId = 'q020-skin-image-invalid-game-id';
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/casino/skin-games/not-a-canonical-uuid/image',
+      headers: {
+        ...authHeaders(true),
+        origin: ADMIN_ORIGIN,
+        'content-type': 'image/png',
+        'x-request-id': requestId,
+      },
+      payload: validPng64(),
+    });
+    assert.equal(response.statusCode, 400, response.body);
+    assert.deepEqual(response.json(), {
+      error: { code: 'VALIDATION_ERROR', message: 'Request validation failed' },
+      requestId,
+    });
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(fixture.calls.length, 0, 'malformed UUID must fail schema validation before catalogue query');
+    assert.deepEqual(await readdir(uploadDirectory), [], 'malformed UUID must not create a directory or file');
+  } finally {
+    await app.close();
+    await rm(uploadDirectory, { recursive: true, force: true });
+  }
+});
