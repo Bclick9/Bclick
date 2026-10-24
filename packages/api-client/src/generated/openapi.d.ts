@@ -7180,29 +7180,18 @@ export interface operations {
             /** @description Game control updated and audited. */
             200: {
                 headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["BigBangAdminGameControlResponse"];
                 };
             };
-            /** @description Invalid game ID or request body. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+            400: components["responses"]["ValidationError"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Update or audit persistence failed; the mutation is not reported as successful. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+            500: components["responses"]["InternalError"];
         };
     };
     getAdminCasinoDisplayCategories: {
