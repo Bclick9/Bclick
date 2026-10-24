@@ -14,8 +14,8 @@ This runbook is a checklist, not evidence that recovery has been tested. Do not 
 1. Record drill start time and the newest successfully archived WAL segment/backup timestamp.
 2. Restore the base backup into an isolated empty data directory; configure archive retrieval and a point-in-time recovery target.
 3. Start the restored instance on an isolated/private port. Confirm recovery reaches the requested target and record any missing WAL, upload lag or key/retrieval error.
-4. Run ordered migrations in the expected deployment sequence and compare schema version to the release under test.
-5. Run data consistency checks. Once ledger tables exist, verify each posted journal balances per currency and recompute every `account_balances` projection against ledger entries. Reconcile delayed/in-doubt provider movements before any financial route could be opened.
+4. Apply ordered migrations in the expected deployment sequence and compare schema version to the release under test.
+5. Run data consistency checks. The wallet/ledger schema was introduced by Migration 006, and Migration 008 establishes TND 2dp (EUR/USD remain 2dp). Verify every posted journal in the restored dataset balances per currency and recompute each account_balances projection from ledger_entries. In the isolated restored staging clone, also use an approved disposable fixture to exercise the reconciliation check when the dataset has no suitable journal rows. Retain fixture provenance and query/test results; do not infer success from schema existence or treat an empty query as proof of financial integrity.
 6. Verify email/provider side effects remain suppressed in the drill environment. Test stale archive, invalid key, missing WAL, disk full and restore failure alert paths.
 7. Record measured RPO and RTO, evidence locations, discrepancies, owner and remediation. Do not convert targets into claims unless the timed result meets them.
 8. Destroy the isolated restored data only after evidence is stored under the approved retention policy.
