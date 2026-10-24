@@ -10,6 +10,8 @@ const BREAK_GLASS_SCOPE = 'sole-admin-out-of-band';
 export interface AdminMfaBreakGlassRequest {
   targetEmail: string;
   confirmTargetEmail: string;
+  databaseTarget: string;
+  confirmDatabaseTarget: string;
   requesterIdentity: string;
   approverIdentity: string;
   incidentTicket: string;
@@ -45,6 +47,7 @@ function safeLabel(value: string, field: string, maxLength = 200): string {
 
 function requireIdentityApproval(request: AdminMfaBreakGlassRequest): {
   targetEmail: string;
+  databaseTarget: string;
   requesterIdentity: string;
   approverIdentity: string;
   incidentTicket: string;
@@ -57,6 +60,10 @@ function requireIdentityApproval(request: AdminMfaBreakGlassRequest): {
   }
   if (normalizeEmail(request.confirmTargetEmail) !== targetEmail) {
     throw new BreakGlassOperationError('TARGET_CONFIRMATION_MISMATCH');
+  }
+  const databaseTarget = safeLabel(request.databaseTarget, 'database_target', 512);
+  if (safeLabel(request.confirmDatabaseTarget, 'confirm_database_target', 512) !== databaseTarget) {
+    throw new BreakGlassOperationError('DATABASE_TARGET_CONFIRMATION_MISMATCH');
   }
   if (request.acknowledgement !== BREAK_GLASS_ACKNOWLEDGEMENT) {
     throw new BreakGlassOperationError('ACKNOWLEDGEMENT_REQUIRED');
@@ -89,6 +96,7 @@ function requireIdentityApproval(request: AdminMfaBreakGlassRequest): {
 
   return {
     targetEmail,
+    databaseTarget,
     requesterIdentity,
     approverIdentity,
     incidentTicket,
@@ -122,6 +130,8 @@ export function parseBreakGlassRequest(
   const request: AdminMfaBreakGlassRequest = {
     targetEmail: required('BCLICK_BREAK_GLASS_TARGET_EMAIL'),
     confirmTargetEmail: required('BCLICK_BREAK_GLASS_CONFIRM_TARGET_EMAIL'),
+    databaseTarget: required('BCLICK_BREAK_GLASS_DATABASE_TARGET'),
+    confirmDatabaseTarget: required('BCLICK_BREAK_GLASS_CONFIRM_DATABASE_TARGET'),
     requesterIdentity: required('BCLICK_BREAK_GLASS_REQUESTER_IDENTITY'),
     approverIdentity: required('BCLICK_BREAK_GLASS_APPROVER_IDENTITY'),
     incidentTicket: required('BCLICK_BREAK_GLASS_INCIDENT_TICKET'),
@@ -134,6 +144,41 @@ export function parseBreakGlassRequest(
   };
   requireIdentityApproval(request);
   return request;
+}
+
+
+/**
+ * Match a typed host:port/database confirmation to the actual connection string.
+ * This is an operator-error guard, not proof of out-of-band approval.
+ */
+export function assertBreakGlassDatabaseTarget(databaseUrl: string, expectedTarget: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(databaseUrl);
+  } catch {
+    throw new BreakGlassOperationError('INVALID_DATABASE_URL');
+  }
+  if (parsed.protocol !== 'postgres:' && parsed.protocol !== 'postgresql:') {
+    throw new BreakGlassOperationError('INVALID_DATABASE_URL');
+  }
+
+  let databaseName = '';
+  try {
+    databaseName = decodeURIComponent(parsed.pathname.replace(/^\\/+/, ''));
+  } catch {
+    throw new BreakGlassOperationError('INVALID_DATABASE_URL');
+  }
+  const host = parsed.hostname.toLowerCase();
+  const port = parsed.port || '5432';
+  if (!host || !databaseName || databaseName.includes('/')) {
+    throw new BreakGlassOperationError('INVALID_DATABASE_URL');
+  }
+
+  const canonicalTarget = `${host}:${port}/${databaseName}`;
+  if (safeLabel(expectedTarget, 'database_target', 512) !== canonicalTarget) {
+    throw new BreakGlassOperationError('DATABASE_TARGET_MISMATCH');
+  }
+  return databaseName;
 }
 
 interface AdminRow extends QueryResultRow {
@@ -164,6 +209,7 @@ async function writeAudit(
       requestId,
       JSON.stringify({
         scope: BREAK_GLASS_SCOPE,
+        databaseTarget: request.databaseTarget,
         incidentTicket: request.incidentTicket,
         requesterIdentity: request.requesterIdentity,
         approverIdentity: request.approverIdentity,
@@ -279,12 +325,17 @@ async function main(): Promise<void> {
     const request = parseBreakGlassRequest(process.env, process.env.NODE_ENV ?? '');
     const databaseUrl = process.env.DATABASE_URL?.trim();
     if (!databaseUrl) throw new BreakGlassOperationError('DATABASE_URL_REQUIRED');
+    const expectedDatabaseName = assertBreakGlassDatabaseTarget(databaseUrl, request.databaseTarget);
     pool = new Pool({
       connectionString: databaseUrl,
       max: 1,
       connectionTimeoutMillis: 5_000,
       application_name: 'bclick-admin-mfa-break-glass',
     });
+    const connectedDatabase = await pool.query<{ database_name: string }>('SELECT current_database() AS database_name');
+    if (connectedDatabase.rows[0]?.database_name !== expectedDatabaseName) {
+      throw new BreakGlassOperationError('CONNECTED_DATABASE_MISMATCH');
+    }
     const result = await executeAdminMfaBreakGlassReset(pool, request);
     process.stdout.write(JSON.stringify({
       event: 'admin_mfa_break_glass_completed',
