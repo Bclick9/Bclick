@@ -26,3 +26,6 @@ Thumbs.db
 # Persistent local development uploads (custom game artwork)
 .local/uploads/
 server/.local/uploads/
+
+# Local Q-011 base-backup/WAL restore artifacts can contain database contents.
+.local/q011-restore-drill/

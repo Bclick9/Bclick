@@ -23,3 +23,20 @@ This runbook is a checklist, not evidence that recovery has been tested. Do not 
 ## Acceptance
 
 Target launch objectives in the source plan are RPO ≤15 minutes and RTO ≤8 hours, measured in an actual drill. These are not achieved by writing a cron job. Off-host archive health and a successful restore are required before real-money launch.
+
+
+## Local Docker rehearsal (preparatory only)
+
+A Windows PowerShell harness is available at `infra/restore-drill/run-local-restore-drill.ps1`. From the repository root, with Docker Desktop running and the locked pnpm workspace installed:
+
+```powershell
+pnpm install --frozen-lockfile
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\infra\restore-drill\run-local-restore-drill.ps1
+```
+
+The script creates uniquely named, disposable PostgreSQL containers and volumes; it does not reuse the normal local Compose database. It applies the current checked-in migrations to the fresh test database, creates one balanced disposable TND 2dp ledger journal, takes a physical `pg_basebackup`, verifies the backup manifest, archives WAL, and restores a separate database to a named recovery point. It verifies that the post-target marker is absent, validates per-currency journal balance and `account_balances` against `ledger_entries`, and records local timings and SHA-256 manifests.
+
+Backup, WAL and the redacted JSON summary are retained under `.local/q011-restore-drill/<run-id>/`; that path is git-ignored because backup contents are database material. Do not upload the backup directory to chat or commit it. The script generates a random disposable password and does not write it into the evidence JSON. On successful completion, it removes its containers and named volumes. To preserve containers/volumes after a failure for local debugging, run with `-KeepDockerResourcesOnFailure` and remove them manually when done.
+
+**Evidence boundary:** this rehearsal intentionally reports a simulated local recovery-point interval, not live archive freshness or an achieved production RPO. The measured local restore duration is not a staging RTO result. It does not test off-host durability, encryption-key recovery, independent alert delivery or real staging. Keep `infra/restore-drill/last-drill.md` as `NOT RUN` for Q-011 acceptance until an actual isolated base-backup + WAL recovery and independent monitoring checks meet the full gate. Use a PostgreSQL major version matching the eventual target deployment for the formal drill; the default `postgres:18.6-alpine` matches the current repository Compose/CI image for local rehearsal.
