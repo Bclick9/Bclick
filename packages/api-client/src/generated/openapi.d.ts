@@ -7351,7 +7351,6 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            500: components["responses"]["InternalError"];
             /** @description Image exceeds the 5 MiB upload limit or is empty/too small. */
             413: {
                 headers: {
@@ -7372,6 +7371,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            500: components["responses"]["InternalError"];
         };
     };
     getCasinoDisplayCategoryIcon: {
