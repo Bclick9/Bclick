@@ -97,7 +97,7 @@ function Export-Volume([string]$Volume, [string]$Destination, [string]$Subdirect
   New-Item -ItemType Directory -Force -Path $Destination | Out-Null
   $copyFrom = if ($Subdirectory -eq 'base') { '/source/base/.' } else { '/source/.' }
   $sourceCheck = if ($Subdirectory -eq 'base') { 'test -d /source/base' } else { 'test -d /source' }
-  $exportScript = 'set -eu; ' + $sourceCheck + '; cp -a ' + $copyFrom + ' /out/; test -d /out'
+  $exportScript = 'set -eu; ' + $sourceCheck + '; cp -R ' + $copyFrom + ' /out/; chmod -R a+rX /out; test -d /out'
   $null = Invoke-DockerCmd @(
     'run', '--rm', '--user', '0',
     '--mount', ("type=volume,source=" + $Volume + ",target=/source,readonly"),
@@ -226,7 +226,7 @@ try {
   if ($ms.Count -ne 2) { throw 'Could not parse current migration inventory.' }
   $script:MigrationCount = [int]$ms[0]
   $script:LatestMigration = $ms[1]
-  Assert-Pass 'All 17 checked-in migrations are applied' ($script:MigrationCount -eq 17) ("count=" + $script:MigrationCount + "; latest=" + $script:LatestMigration)
+  Assert-Pass 'All 19 checked-in migrations are applied' ($script:MigrationCount -eq 19) ("count=" + $script:MigrationCount + "; latest=" + $script:LatestMigration)
   Assert-Pass 'Latest migration is scope 017' ($script:LatestMigration -eq '1793966400000_casino_display_category_scope_017') $script:LatestMigration
 
   $script:Stage = 'seed-fixture'
