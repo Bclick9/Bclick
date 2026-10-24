@@ -271,7 +271,11 @@ $q011_fixture$;
   $script:Stage = 'basebackup'
   Say 'Taking physical pg_basebackup with streamed WAL and validating it with pg_verifybackup.'
   $script:BackupStarted = (Get-Date).ToUniversalTime()
-  $null = Invoke-DockerCmd @('exec', $script:Source, 'sh', '-ec', 'mkdir -p /q011-backup/base && test -z "$(ls -A /q011-backup/base)"')
+  $null = Invoke-DockerCmd @('exec', $script:Source, 'sh', '-ec', 'mkdir -p /q011-backup/base')
+$backupDirEntries = Invoke-DockerCmd @('exec', $script:Source, 'find', '/q011-backup/base', '-mindepth', '1', '-maxdepth', '1', '-print')
+if (-not [string]::IsNullOrWhiteSpace($backupDirEntries)) {
+  throw 'Backup destination is not empty; refusing to overwrite existing backup files.'
+}
   $null = Invoke-DockerCmd @('exec', '--env', ("PGPASSWORD=" + $script:DbPassword), $script:Source, 'pg_basebackup', '-h', '127.0.0.1', '-U', $script:DbUser, '-D', '/q011-backup/base', '-Fp', '-Xs', '-P', '--checkpoint=fast')
   $script:BackupCompleted = (Get-Date).ToUniversalTime()
   $null = Invoke-DockerCmd @('exec', $script:Source, 'pg_verifybackup', '/q011-backup/base')
