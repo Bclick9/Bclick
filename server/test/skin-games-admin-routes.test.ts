@@ -1520,7 +1520,16 @@ test('Skin Games public image route rejects inactive/traversal keys and maps mis
     assert.equal(missing.json().requestId, missingRequestId);
     assert.equal(missing.headers['x-request-id'], missingRequestId);
     assert.equal(missing.headers['content-type']?.split(';')[0], 'application/json');
-    assert.doesNotMatch(missing.body, new RegExp(uploadDirectory.replace(/[.*+?^${}()|[\]\\]/g, '\\test('Skin Games image upload returns a safe generic error when persistent storage cannot be written', async () => {')));
+    assert.doesNotMatch(missing.body, /\/tmp\/|bclick-skin-games-asset-errors/);
+  } finally {
+    if(app) await app.close();
+    await rm(uploadDirectory,{recursive:true,force:true});
+    if(blockedRootParent) await rm(blockedRootParent,{recursive:true,force:true});
+  }
+});
+
+
+test('Skin Games image upload returns a safe generic error when persistent storage cannot be written', async () => {')));
 
     await app.close();
     app = null;
