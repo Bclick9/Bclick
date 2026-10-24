@@ -369,6 +369,37 @@ test('public provider directory returns only enabled Standard providers and forb
 });
 
 
+test('Q-020 provider cursor schema enforces the OpenAPI 512-character maximum before route handling', async () => {
+  const fixture = catalogDatabase();
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    logLevel: 'silent',
+  });
+  const cursor = Buffer.from('0'.repeat(400)).toString('base64url');
+  const requestId = 'q020-provider-cursor-schema-limit';
+  assert.ok(cursor.length > 512, 'fixture cursor must exceed the OpenAPI maximum');
+
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/casino/providers?cursor=' + cursor,
+      headers: { 'x-request-id': requestId },
+    });
+
+    assert.equal(response.statusCode, 400, response.body);
+    assert.deepEqual(response.json().error, {
+      code: 'VALIDATION_ERROR',
+      message: 'Request validation failed',
+    });
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(fixture.calls.length, 0, 'oversized cursor must be rejected by route schema before database access');
+  } finally {
+    await app.close();
+  }
+});
+
 test('Q-020 documents validation envelopes for malformed catalogue cursors and display type', async () => {
   const fixture = catalogDatabase();
   const app = buildApp({
