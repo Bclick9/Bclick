@@ -16,6 +16,8 @@ export interface ServerConfig {
   readonly databaseUrl: string;
   readonly dbPoolMax: number;
   readonly logLevel: LogLevel;
+  /** Exact HTTP Host authorities accepted by the API; empty only in local/test environments. */
+  readonly allowedHosts: readonly string[];
 }
 
 export type EnvironmentInput = Readonly<Record<string, string | undefined>>;
@@ -55,6 +57,43 @@ function parseInteger(
   }
 
   return parsed;
+}
+
+
+function parseAllowedHosts(env: EnvironmentInput, nodeEnv: RuntimeEnvironment): string[] {
+  const items = (env.BCLICK_ALLOWED_HOSTS ?? '').split(',').map((item) => item.trim()).filter(Boolean);
+  if (items.length === 0) {
+    if (nodeEnv === 'staging' || nodeEnv === 'production') {
+      throw new Error('BCLICK_ALLOWED_HOSTS is required in staging and production');
+    }
+    return [];
+  }
+
+  const hosts = items.map((item) => {
+    const candidate = item.toLowerCase();
+    if (/[*\\s\\/\\\\@?#,\\u0000-\\u001f\\u007f]/.test(candidate)) {
+      throw new Error('BCLICK_ALLOWED_HOSTS must contain exact host authorities without wildcards or paths');
+    }
+
+    let parsed: URL;
+    try {
+      parsed = new URL('http://' + candidate);
+    } catch {
+      throw new Error('BCLICK_ALLOWED_HOSTS contains an invalid host authority');
+    }
+    if (
+      parsed.host !== candidate
+      || parsed.username
+      || parsed.password
+      || parsed.pathname !== '/'
+      || parsed.search
+      || parsed.hash
+    ) {
+      throw new Error('BCLICK_ALLOWED_HOSTS must contain exact host authorities, optionally with a port');
+    }
+    return parsed.host;
+  });
+  return [...new Set(hosts)];
 }
 
 function parseDatabaseUrl(raw: string | undefined): string {
@@ -109,5 +148,6 @@ export function parseServerConfig(env: EnvironmentInput): ServerConfig {
     databaseUrl: parseDatabaseUrl(env.DATABASE_URL),
     dbPoolMax: parseInteger('DB_POOL_MAX', env.DB_POOL_MAX, 10, 1, 50),
     logLevel: rawLogLevel as LogLevel,
+    allowedHosts: parseAllowedHosts(env, rawEnvironment as RuntimeEnvironment),
   };
 }
