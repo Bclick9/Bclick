@@ -198,9 +198,28 @@ test('Phase 5A: wallet posting service idempotency, state transitions, concurren
     await assert.rejects(
       posting.post({
         ...concurrentSameKeyRequest,
+        idempotencyScope: 'phase5a:actor-id-required',
+        idempotencyKey: 'actor-id-required-001',
+        actorType: 'player',
+        actorId: null,
+      }),
+      (error: unknown) => assertWalletFault(error, 'INVALID_AUDIT_ACTOR'),
+    );
+    await assert.rejects(
+      posting.post({
+        ...concurrentSameKeyRequest,
         idempotencyScope: 'phase5a:metadata-secret-rejection',
         idempotencyKey: 'metadata-secret-001',
         metadata: { walletApiKey: 'must-not-be-persisted' },
+      }),
+      (error: unknown) => assertWalletFault(error, 'INVALID_METADATA'),
+    );
+    await assert.rejects(
+      posting.post({
+        ...concurrentSameKeyRequest,
+        idempotencyScope: 'phase5a:metadata-size-limit',
+        idempotencyKey: 'metadata-size-limit-001',
+        metadata: { note: 'x'.repeat(16 * 1024) },
       }),
       (error: unknown) => assertWalletFault(error, 'INVALID_METADATA'),
     );
