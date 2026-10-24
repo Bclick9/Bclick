@@ -51,6 +51,11 @@ function requestIdFromHeader(header: unknown): string {
 
 export function buildApp(options: BuildAppOptions) {
   const app = Fastify({
+    ajv: {
+      // Do not silently strip undeclared input properties: additionalProperties:false
+      // must reject contract violations so they reach the safe VALIDATION_ERROR handler.
+      customOptions: { removeAdditional: false },
+    },
     logger: {
       level: options.logLevel ?? 'info',
       serializers: {
@@ -73,6 +78,23 @@ export function buildApp(options: BuildAppOptions) {
           'req.headers["x-callback-token"]',
         ],
         censor: '[REDACTED]',
+      },
+    },
+    routerOptions: {
+      // Align the router limit with the longest explicitly supported path parameter
+      // (casino game slug: 120) while keeping a strict upper bound.
+      maxParamLength: 120,
+      onMaxParamLength(_path, request, response) {
+        // This callback runs before Fastify decorates the request/reply objects.
+        // Never echo the overlong path segment to the client or logs.
+        const requestId = requestIdFromHeader(request.headers['x-request-id']);
+        response.statusCode = 414;
+        response.setHeader('Content-Type', 'application/json; charset=utf-8');
+        response.setHeader('X-Request-Id', requestId);
+        response.end(JSON.stringify({
+          error: { code: 'URI_TOO_LONG', message: 'Request parameter is too long' },
+          requestId,
+        }));
       },
     },
     genReqId(request) {

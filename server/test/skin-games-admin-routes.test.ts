@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { deflateSync } from 'node:zlib';
@@ -8,11 +8,13 @@ import test from 'node:test';
 import { buildApp } from '../src/app.js';
 import type { IdentityConfig } from '../src/identity/config.js';
 import type { AuthSession, IdentityService } from '../src/identity/service.js';
+import { createCsrfToken, verifyCsrfToken } from '../src/identity/crypto.js';
 import type { SqlExecutor } from '../src/identity/repository.js';
 
 const ADMIN_ORIGIN = 'http://localhost:5174';
 const SESSION_COOKIE = '__Host-bclick_admin_session=admin-session';
-const CSRF_COOKIE = '__Host-bclick_admin_csrf=csrf-token-value-123456789';
+const CSRF_TOKEN = createCsrfToken('admin', 'session-id', 1, 'b'.repeat(64));
+const CSRF_COOKIE = '__Host-bclick_admin_csrf=' + CSRF_TOKEN;
 const ADMIN_ID = '8d01ab53-7f9c-4e67-b4e8-64c5a409a7a9';
 const GAME_ID = 'ebc75e97-68a5-40f8-8177-65db54ace749';
 const PREMIUM_GAME_ID = 'df2c7acb-ae64-4d2a-9b8c-7c5e0e3aa7bc';
@@ -33,7 +35,13 @@ function config(): IdentityConfig {
   };
 }
 
-function fakeIdentity() {
+function fakeIdentity(options: {
+  permissions?: string[];
+  status?: string;
+  mfaVerified?: boolean;
+  mfaEnabled?: boolean;
+} = {}) {
+  const status = options.status ?? 'active';
   const session: AuthSession = {
     id: 'session-id',
     type: 'admin',
@@ -41,18 +49,18 @@ function fakeIdentity() {
     version: 1,
     authenticatedAt: '2026-10-23T08:00:00.000Z',
     expiresAt: '2026-10-23T16:00:00.000Z',
-    status: 'active',
-    admin: { id: ADMIN_ID, status: 'active', mfa_enabled: true },
+    status,
+    admin: { id: ADMIN_ID, status, mfa_enabled: options.mfaEnabled ?? true },
     roles: ['project-admin'],
-    permissions: [PERMISSION],
-    mfaVerified: true,
+    permissions: options.permissions ?? [PERMISSION],
+    mfaVerified: options.mfaVerified ?? true,
   };
   return {
     async resolveSession(type: 'player' | 'admin', token: string | undefined) {
       return type === 'admin' && token === 'admin-session' ? session : null;
     },
-    verifyCsrfForSession(_session: AuthSession, token: string) {
-      return token === 'csrf-token-value-123456789';
+    verifyCsrfForSession(currentSession: AuthSession, token: string) {
+      return verifyCsrfToken(token, 'admin', currentSession.id, currentSession.version, config().csrfSigningKey);
     },
   } as unknown as IdentityService;
 }
@@ -62,7 +70,7 @@ function authHeaders(unsafe = false) {
     cookie: SESSION_COOKIE + '; ' + CSRF_COOKIE,
     ...(unsafe ? {
       origin: ADMIN_ORIGIN,
-      'x-csrf-token': 'csrf-token-value-123456789',
+      'x-csrf-token': CSRF_TOKEN,
     } : {}),
   };
 }
@@ -94,7 +102,7 @@ type FakeGame = {
   updatedBy: string | null;
 };
 
-function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?: boolean; providerTierEnabled?: boolean; sourceAvailable?: boolean; catalogAvailable?: boolean; listFailure?: { code: string; message: string } } = {}) {
+function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?: boolean; providerTierEnabled?: boolean; sourceAvailable?: boolean; catalogAvailable?: boolean; categoryExists?: boolean; listFailure?: { code: string; message: string } } = {}) {
   const calls: Array<{ sql: string; values: unknown[] }> = [];
   const mode = options.mode ?? 'standard';
   let currentCustomImageKey: string | null = null;
@@ -136,7 +144,7 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
       if (sql.includes('SELECT id::text AS id,category_type AS type FROM public.casino_display_categories WHERE id=$1::uuid')) {
         return { rows: [{ id: DISPLAY_CATEGORY_ID, type: 'casino' }], rowCount: 1 };
       }
-      if (sql.includes('SELECT id::text AS id FROM public.casino_display_categories WHERE id=$1::uuid')) {
+      if (sql.includes('SELECT id::text AS id FROM public.casino_display_categories WHERE id=$1::uuid') && !sql.includes('AND custom_icon_key=$2')) {
         return { rows: [{ id: DISPLAY_CATEGORY_ID }], rowCount: 1 };
       }
       if (sql.includes('SELECT COALESCE(array_agg(m.game_id::text ORDER BY m.game_id)')) {
@@ -168,7 +176,8 @@ function fakeDatabase(options: { mode?: 'standard' | 'premium'; providerEnabled?
         return { rows: [{ categoryId: DISPLAY_CATEGORY_ID, gameIds: categoryGameIds }], rowCount: 1 };
       }
       if (sql.includes('SELECT id::text AS id,custom_icon_key FROM public.casino_display_categories WHERE id=$1::uuid')) {
-        return { rows: [{ id: DISPLAY_CATEGORY_ID, custom_icon_key: currentCategoryIconKey }], rowCount: 1 };
+        const rows = options.categoryExists === false ? [] : [{ id: DISPLAY_CATEGORY_ID, custom_icon_key: currentCategoryIconKey }];
+        return { rows, rowCount: rows.length };
       }
       if (sql.includes('WITH changed AS') && sql.includes('casino.display-category.icon-updated')) {
         assert.ok(sql.includes('INSERT INTO public.audit_events'));
@@ -569,25 +578,550 @@ test('admin can upload a validated custom icon and serve only the active categor
   const uploadDirectory = await mkdtemp(path.join(tmpdir(), 'bclick-category-icon-test-'));
   const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config(), uploadDirectory });
   try {
+    const uploadRequestId = 'q020-icon-upload-positive';
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID + '/icon',
-      headers: { ...authHeaders(true), 'content-type': 'image/png' },
+      headers: { ...authHeaders(true), 'content-type': 'image/png', 'x-request-id': uploadRequestId },
       payload: validPng64(),
     });
     assert.equal(response.statusCode, 201, response.body);
-    assert.equal(response.json().data.categoryId, DISPLAY_CATEGORY_ID);
-    assert.equal(response.json().data.iconUrl.startsWith('/api/v1/assets/casino-display-categories/'), true);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(response.headers['x-request-id'], uploadRequestId);
+    const uploadBody = response.json();
+    assert.deepEqual(Object.keys(uploadBody).sort(), ['data', 'requestId']);
+    assert.equal(uploadBody.requestId, uploadRequestId);
+    assert.deepEqual(Object.keys(uploadBody.data).sort(), ['categoryId', 'contentType', 'iconUrl']);
+    assert.equal(uploadBody.data.categoryId, DISPLAY_CATEGORY_ID);
+    assert.equal(uploadBody.data.contentType, 'image/png');
+    assert.match(
+      uploadBody.data.iconUrl,
+      new RegExp('^/api/v1/assets/casino-display-categories/' + DISPLAY_CATEGORY_ID + '/[0-9a-f-]{36}\\.png$'),
+    );
     const persisted = fixture.calls.find((call) => call.sql.includes('casino.display-category.icon-updated'));
     assert.ok(persisted);
     assert.ok(persisted.sql.includes('INSERT INTO public.audit_events'));
     assert.ok(String(persisted.values[1]).startsWith('casino-display-categories/'));
 
-    const icon = await app.inject({ method: 'GET', url: response.json().data.iconUrl });
+    const readRequestId = 'q020-icon-read-positive';
+    const icon = await app.inject({
+      method: 'GET',
+      url: uploadBody.data.iconUrl,
+      headers: { 'x-request-id': readRequestId },
+    });
     assert.equal(icon.statusCode, 200);
     assert.equal(icon.headers['content-type'], 'image/png');
     assert.equal(icon.headers['x-content-type-options'], 'nosniff');
+    assert.equal(icon.headers['cache-control'], 'public, max-age=31536000, immutable');
+    assert.equal(icon.headers['content-security-policy'], "default-src 'none'; sandbox");
+    assert.equal(icon.headers['x-request-id'], readRequestId);
     assert.ok(icon.rawPayload.equals(validPng64()));
+  } finally {
+    await app.close();
+    await rm(uploadDirectory, { recursive: true, force: true });
+  }
+});
+
+test('display-category icon upload rejects undersized, oversized and invalid image bytes with request-id and error-envelope parity', async () => {
+  const cases = [
+    {
+      name: 'unsupported text/plain Content-Type',
+      contentType: 'text/plain',
+      payload: Buffer.from('not-an-image'),
+      statusCode: 415,
+      code: 'IMAGE_TYPE_INVALID',
+      message: 'Upload a valid PNG, JPEG or WebP image whose bytes match its Content-Type',
+    },
+    {
+      name: 'undersized payload',
+      contentType: 'image/png',
+      payload: Buffer.from('tiny'),
+      statusCode: 413,
+      code: 'IMAGE_SIZE_INVALID',
+      message: 'Category icon must be a supported image no larger than 5 MiB',
+    },
+    {
+      name: 'oversized payload',
+      contentType: 'image/png',
+      // Fastify's bounded content-type parser rejects this before the route handler,
+      // so the shared safe envelope is REQUEST_REJECTED rather than IMAGE_SIZE_INVALID.
+      payload: Buffer.alloc(5 * 1024 * 1024 + 1),
+      statusCode: 413,
+      code: 'REQUEST_REJECTED',
+      message: 'Request could not be processed',
+    },
+    {
+      name: 'invalid image bytes',
+      contentType: 'image/png',
+      payload: Buffer.from('this-is-not-a-valid-png-image-payload'),
+      statusCode: 415,
+      code: 'IMAGE_TYPE_INVALID',
+      message: 'Upload a valid PNG, JPEG or WebP image whose bytes match its Content-Type',
+    },
+    {
+      name: 'PNG bytes with mismatched JPEG Content-Type',
+      contentType: 'image/jpeg',
+      payload: validPng64(),
+      statusCode: 415,
+      code: 'IMAGE_TYPE_INVALID',
+      message: 'Upload a valid PNG, JPEG or WebP image whose bytes match its Content-Type',
+    },
+  ] as const;
+
+  for (const entry of cases) {
+    const fixture = fakeDatabase();
+    const uploadDirectory = await mkdtemp(path.join(tmpdir(), 'bclick-category-icon-invalid-'));
+    const app = buildApp({
+      database: null,
+      catalogDatabase: fixture.database,
+      identity: fakeIdentity(),
+      identityConfig: config(),
+      uploadDirectory,
+    });
+    const requestId = 'q020-icon-invalid-' + entry.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+
+    try {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID + '/icon',
+        headers: { ...authHeaders(true), 'content-type': entry.contentType, 'x-request-id': requestId },
+        payload: entry.payload,
+      });
+
+      assert.equal(response.statusCode, entry.statusCode, entry.name + ': ' + response.body);
+      assert.deepEqual(response.json().error, { code: entry.code, message: entry.message }, entry.name);
+      assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId'], entry.name);
+      assert.equal(response.json().requestId, requestId, entry.name);
+      assert.equal(response.headers['x-request-id'], requestId, entry.name);
+      assert.equal(response.headers['content-type']?.split(';')[0], 'application/json', entry.name);
+      assert.equal(
+        fixture.calls.some((call) => call.sql.includes('SELECT id::text AS id,custom_icon_key FROM public.casino_display_categories WHERE id=$1::uuid')),
+        false,
+        entry.name + ': validation must precede category lookup',
+      );
+      assert.equal(
+        fixture.calls.some((call) => call.sql.includes('casino.display-category.icon-updated')),
+        false,
+        entry.name + ': invalid image must never persist metadata or audit success',
+      );
+      assert.deepEqual(await readdir(uploadDirectory), [], entry.name + ': invalid image must not create files');
+    } finally {
+      await app.close();
+      await rm(uploadDirectory, { recursive: true, force: true });
+    }
+  }
+});
+
+test('display-category icon upload returns a safe 404 before file creation when the category does not exist', async () => {
+  const fixture = fakeDatabase({ categoryExists: false });
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(), 'bclick-category-icon-missing-'));
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+    uploadDirectory,
+  });
+  const requestId = 'q020-icon-category-not-found';
+
+  try {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID + '/icon',
+      headers: { ...authHeaders(true), 'content-type': 'image/png', 'x-request-id': requestId },
+      payload: validPng64(),
+    });
+
+    assert.equal(response.statusCode, 404, response.body);
+    assert.deepEqual(response.json().error, { code: 'NOT_FOUND', message: 'Display category was not found' });
+    assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(
+      fixture.calls.filter((call) => call.sql.includes('SELECT id::text AS id,custom_icon_key FROM public.casino_display_categories WHERE id=$1::uuid')).length,
+      1,
+    );
+    assert.equal(fixture.calls.some((call) => call.sql.includes('casino.display-category.icon-updated')), false);
+    assert.deepEqual(await readdir(uploadDirectory), [], 'missing category must be checked before any filesystem write');
+  } finally {
+    await app.close();
+    await rm(uploadDirectory, { recursive: true, force: true });
+  }
+});
+
+test('active display-category asset rejects invalid filenames before database access', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+  });
+  const requestId = 'q020-icon-filename-invalid';
+
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/assets/casino-display-categories/' + DISPLAY_CATEGORY_ID + '/not-a-uuid.png',
+      headers: { 'x-request-id': requestId },
+    });
+
+    assert.equal(response.statusCode, 400, response.body);
+    assert.deepEqual(response.json().error, { code: 'VALIDATION_ERROR', message: 'Request validation failed' });
+    assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(fixture.calls.length, 0, 'filename schema rejection must occur before the catalogue lookup');
+  } finally {
+    await app.close();
+  }
+});
+
+
+test('display-category icon upload rejects a malformed category ID with the OpenAPI 400 envelope before DB or storage access', async () => {
+  const fixture = fakeDatabase();
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(), 'bclick-category-icon-invalid-category-id-'));
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+    uploadDirectory,
+  });
+  const requestId = 'q020-icon-invalid-category-id';
+
+  try {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/casino/display-categories/not-a-uuid/icon',
+      headers: { ...authHeaders(true), 'content-type': 'image/png', 'x-request-id': requestId },
+      payload: validPng64(),
+    });
+
+    assert.equal(response.statusCode, 400, response.body);
+    assert.deepEqual(response.json().error, { code: 'VALIDATION_ERROR', message: 'Request validation failed' });
+    assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(fixture.calls.length, 0, 'invalid category ID must be rejected before DB access');
+    assert.deepEqual(await readdir(uploadDirectory), [], 'invalid category ID must not create files');
+  } finally {
+    await app.close();
+    await rm(uploadDirectory, { recursive: true, force: true });
+  }
+});
+
+test('display-category icon upload rejects disallowed Origin and invalid or missing signed CSRF before DB/filesystem effects', async () => {
+  const cases: Array<{ name: string; headers: Record<string, string>; statusCode: number; code: string; message: string }> = [
+    {
+      name: 'untrusted Origin',
+      statusCode: 403,
+      headers: { ...authHeaders(true), origin: 'https://attacker.example' },
+      code: 'ORIGIN_INVALID',
+      message: 'Request Origin is not allowed',
+    },
+    {
+      name: 'missing Origin',
+      statusCode: 403,
+      headers: { cookie: SESSION_COOKIE + '; ' + CSRF_COOKIE, 'x-csrf-token': CSRF_TOKEN },
+      code: 'ORIGIN_INVALID',
+      message: 'Request Origin is not allowed',
+    },
+    {
+      name: 'missing CSRF header',
+      statusCode: 403,
+      headers: { cookie: SESSION_COOKIE + '; ' + CSRF_COOKIE, origin: ADMIN_ORIGIN },
+      code: 'CSRF_INVALID',
+      message: 'CSRF validation failed',
+    },
+    {
+      name: 'CSRF header differs from cookie',
+      statusCode: 403,
+      headers: { ...authHeaders(true), 'x-csrf-token': 'tampered-token-value' },
+      code: 'CSRF_INVALID',
+      message: 'CSRF validation failed',
+    },
+    {
+      name: 'missing administrator session',
+      statusCode: 401,
+      headers: { cookie: CSRF_COOKIE, origin: ADMIN_ORIGIN, 'x-csrf-token': CSRF_TOKEN },
+      code: 'UNAUTHORIZED',
+      message: 'A valid administrator session is required',
+    },
+    {
+      name: 'matching but unsigned CSRF cookie and header',
+      statusCode: 403,
+      headers: {
+        cookie: SESSION_COOKIE + '; __Host-bclick_admin_csrf=not-a-valid-signed-token',
+        origin: ADMIN_ORIGIN,
+        'x-csrf-token': 'not-a-valid-signed-token',
+      },
+      code: 'CSRF_INVALID',
+      message: 'CSRF validation failed',
+    },
+  ];
+
+  for (const entry of cases) {
+    const fixture = fakeDatabase();
+    const uploadDirectory = await mkdtemp(path.join(tmpdir(), 'bclick-category-icon-origin-csrf-'));
+    const app = buildApp({
+      database: null,
+      catalogDatabase: fixture.database,
+      identity: fakeIdentity(),
+      identityConfig: config(),
+      uploadDirectory,
+    });
+    const requestId = 'q020-icon-security-' + entry.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+
+    try {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID + '/icon',
+        headers: { ...entry.headers, 'content-type': 'image/png', 'x-request-id': requestId },
+        payload: validPng64(),
+      });
+
+      assert.equal(response.statusCode, entry.statusCode, entry.name + ': ' + response.body);
+      assert.deepEqual(response.json().error, { code: entry.code, message: entry.message }, entry.name);
+      assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId'], entry.name);
+      assert.equal(response.json().requestId, requestId, entry.name);
+      assert.equal(response.headers['x-request-id'], requestId, entry.name);
+      assert.equal(response.headers['content-type']?.split(';')[0], 'application/json', entry.name);
+      assert.equal(fixture.calls.length, 0, entry.name + ': denial must happen before DB access');
+      assert.deepEqual(await readdir(uploadDirectory), [], entry.name + ': denial must not create files');
+    } finally {
+      await app.close();
+      await rm(uploadDirectory, { recursive: true, force: true });
+    }
+  }
+});
+
+test('display-category icon upload uses the real admin permission guard and audits denied RBAC without writing a file', async () => {
+  const fixture = fakeDatabase();
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(), 'bclick-category-icon-rbac-'));
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity({ permissions: [] }),
+    identityConfig: config(),
+    uploadDirectory,
+  });
+  const requestId = 'q020-icon-rbac-denied';
+
+  try {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID + '/icon',
+      headers: { ...authHeaders(true), 'content-type': 'image/png', 'x-request-id': requestId },
+      payload: validPng64(),
+    });
+
+    assert.equal(response.statusCode, 403, response.body);
+    assert.deepEqual(response.json().error, {
+      code: 'FORBIDDEN',
+      message: 'The administrator lacks the required provider-settings permission',
+    });
+    assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(fixture.calls.filter((call) => call.sql.includes('casino.provider-settings.access-denied')).length, 1);
+    assert.equal(fixture.calls.some((call) => call.sql.includes('SELECT id::text AS id,custom_icon_key FROM public.casino_display_categories WHERE id=$1::uuid')), false);
+    assert.equal(fixture.calls.some((call) => call.sql.includes('casino.display-category.icon-updated')), false);
+    assert.deepEqual(await readdir(uploadDirectory), []);
+  } finally {
+    await app.close();
+    await rm(uploadDirectory, { recursive: true, force: true });
+  }
+});
+
+test('public display-category icon rejects inactive or unknown keys with a safe 404 before filesystem reads', async () => {
+  const fixture = fakeDatabase();
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(), 'bclick-category-icon-inactive-'));
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+    uploadDirectory,
+  });
+  const fileName = '94a4c5a1-8cb4-4efc-9b92-05a9c3045f72.png';
+  const requestId = 'q020-icon-inactive-key';
+
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/assets/casino-display-categories/' + DISPLAY_CATEGORY_ID + '/' + fileName,
+      headers: { 'x-request-id': requestId },
+    });
+
+    assert.equal(response.statusCode, 404, response.body);
+    assert.deepEqual(response.json().error, { code: 'NOT_FOUND', message: 'Category icon was not found' });
+    assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(fixture.calls.length, 1);
+    assert.equal(fixture.calls[0]?.sql.includes('custom_icon_key=$2'), true);
+    assert.equal(fixture.calls[0]?.values[1], 'casino-display-categories/' + DISPLAY_CATEGORY_ID + '/' + fileName);
+    assert.deepEqual(await readdir(uploadDirectory), []);
+  } finally {
+    await app.close();
+    await rm(uploadDirectory, { recursive: true, force: true });
+  }
+});
+
+test('public display-category icon refuses encoded path traversal before database access', async () => {
+  const fixture = fakeDatabase();
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(), 'bclick-category-icon-traversal-'));
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+    uploadDirectory,
+  });
+  const requestId = 'q020-icon-path-traversal';
+
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/assets/casino-display-categories/' + DISPLAY_CATEGORY_ID + '/..%2F..%2F..%2Fetc%2Fpasswd',
+      headers: { 'x-request-id': requestId },
+    });
+
+    assert.equal(response.statusCode, 400, response.body);
+    assert.deepEqual(response.json().error, { code: 'VALIDATION_ERROR', message: 'Request validation failed' });
+    assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(fixture.calls.length, 0, 'path traversal must be rejected by schema before DB/filesystem access');
+  } finally {
+    await app.close();
+    await rm(uploadDirectory, { recursive: true, force: true });
+  }
+});
+
+test('public display-category icon returns 404 when its persisted active file is missing and never leaks storage paths', async () => {
+  const fixture = fakeDatabase();
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(), 'bclick-category-icon-missing-file-'));
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+    uploadDirectory,
+  });
+
+  try {
+    const uploaded = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID + '/icon',
+      headers: { ...authHeaders(true), 'content-type': 'image/png', 'x-request-id': 'q020-icon-missing-file-upload' },
+      payload: validPng64(),
+    });
+    assert.equal(uploaded.statusCode, 201, uploaded.body);
+    const iconUrl = uploaded.json().data.iconUrl as string;
+    const fileName = iconUrl.split('/').at(-1)!;
+    const filePath = path.join(uploadDirectory, 'casino-display-categories', DISPLAY_CATEGORY_ID, fileName);
+    await unlink(filePath);
+
+    const requestId = 'q020-icon-missing-file-read';
+    const response = await app.inject({ method: 'GET', url: iconUrl, headers: { 'x-request-id': requestId } });
+    assert.equal(response.statusCode, 404, response.body);
+    assert.deepEqual(response.json().error, { code: 'NOT_FOUND', message: 'Category icon was not found' });
+    assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(response.body.includes(uploadDirectory), false);
+  } finally {
+    await app.close();
+    await rm(uploadDirectory, { recursive: true, force: true });
+  }
+});
+
+test('public display-category icon handles non-ENOENT filesystem failures with a safe 500 envelope', async () => {
+  const fixture = fakeDatabase();
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(), 'bclick-category-icon-filesystem-failure-'));
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+    uploadDirectory,
+  });
+
+  try {
+    const uploaded = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID + '/icon',
+      headers: { ...authHeaders(true), 'content-type': 'image/png', 'x-request-id': 'q020-icon-fs-failure-upload' },
+      payload: validPng64(),
+    });
+    assert.equal(uploaded.statusCode, 201, uploaded.body);
+    const iconUrl = uploaded.json().data.iconUrl as string;
+    const categoryDirectory = path.join(uploadDirectory, 'casino-display-categories', DISPLAY_CATEGORY_ID);
+    await rm(categoryDirectory, { recursive: true, force: true });
+    await writeFile(categoryDirectory, 'not-a-directory');
+
+    const requestId = 'q020-icon-fs-failure-read';
+    const response = await app.inject({ method: 'GET', url: iconUrl, headers: { 'x-request-id': requestId } });
+    assert.equal(response.statusCode, 500, response.body);
+    assert.deepEqual(response.json().error, {
+      code: 'INTERNAL_ERROR',
+      message: 'The Skin Games request could not be completed',
+    });
+    assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(response.body.includes(uploadDirectory), false);
+  } finally {
+    await app.close();
+    await rm(uploadDirectory, { recursive: true, force: true });
+  }
+});
+
+test('display-category icon upload fails safely when persistent storage cannot be created and leaves no orphaned file', async () => {
+  const fixture = fakeDatabase();
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(), 'bclick-category-icon-write-failure-'));
+  const storageRoot = path.join(uploadDirectory, 'casino-display-categories');
+  await writeFile(storageRoot, 'do-not-overwrite');
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+    uploadDirectory,
+  });
+  const requestId = 'q020-icon-upload-fs-failure';
+
+  try {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID + '/icon',
+      headers: { ...authHeaders(true), 'content-type': 'image/png', 'x-request-id': requestId },
+      payload: validPng64(),
+    });
+
+    assert.equal(response.statusCode, 500, response.body);
+    assert.deepEqual(response.json().error, {
+      code: 'INTERNAL_ERROR',
+      message: 'The Skin Games request could not be completed',
+    });
+    assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(response.body.includes(uploadDirectory), false);
+    assert.equal(fixture.calls.filter((call) => call.sql.includes('SELECT id::text AS id,custom_icon_key FROM public.casino_display_categories WHERE id=$1::uuid')).length, 1);
+    assert.equal(fixture.calls.some((call) => call.sql.includes('casino.display-category.icon-updated')), false);
+    assert.equal(await readFile(storageRoot, 'utf8'), 'do-not-overwrite');
+    assert.deepEqual(await readdir(uploadDirectory), ['casino-display-categories']);
   } finally {
     await app.close();
     await rm(uploadDirectory, { recursive: true, force: true });
@@ -760,16 +1294,22 @@ test('Skin Games uploads a validated persistent image and serves it without a bl
   const app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config(), uploadDirectory });
   try {
     const image = validPng64();
+    const uploadRequestId = 'q020-skin-image-success';
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/image',
-      headers: { ...authHeaders(true), 'content-type': 'image/png' },
+      headers: { ...authHeaders(true), 'content-type': 'image/png', 'x-request-id': uploadRequestId },
       payload: image,
     });
     assert.equal(response.statusCode, 201, response.body);
+    assert.deepEqual(Object.keys(response.json()).sort(), ['data', 'requestId']);
     const data = response.json().data;
+    assert.deepEqual(Object.keys(data).sort(), ['contentType', 'customImageUrl', 'gameId']);
     assert.equal(data.gameId, GAME_ID);
     assert.equal(data.contentType, 'image/png');
+    assert.equal(response.json().requestId, uploadRequestId);
+    assert.equal(response.headers['x-request-id'], uploadRequestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
     const imageAudit = fixture.calls.find((call) => call.sql.includes("'casino.skin-game.image-updated'"));
     assert.ok(imageAudit, 'image persistence must write an audit event');
     assert.match(
@@ -781,16 +1321,295 @@ test('Skin Games uploads a validated persistent image and serves it without a bl
     assert.match(data.customImageUrl, /^\/api\/v1\/assets\/casino-games\//);
     assert.equal(data.customImageUrl.includes('blob:'), false);
 
-    const read = await app.inject({ method: 'GET', url: data.customImageUrl });
+    const imageRequestId = 'q020-skin-image-read-success';
+    const read = await app.inject({
+      method: 'GET',
+      url: data.customImageUrl,
+      headers: { 'x-request-id': imageRequestId },
+    });
     assert.equal(read.statusCode, 200, read.body);
     assert.equal(read.headers['content-type'], 'image/png');
+    assert.equal(read.headers['cache-control'], 'public, max-age=31536000, immutable');
+    assert.equal(read.headers['content-security-policy'], "default-src 'none'; sandbox");
     assert.equal(read.headers['x-content-type-options'], 'nosniff');
+    assert.equal(read.headers['x-request-id'], imageRequestId);
     assert.deepEqual(read.rawPayload, image);
   } finally {
     await app.close();
     await rm(uploadDirectory,{recursive:true,force:true});
   }
 });
+
+
+test('Skin Games image upload rejects invalid Origin and CSRF with production guards before file/database side effects and enforces RBAC', async () => {
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(),'bclick-skin-games-security-'));
+  try {
+    const deniedFixture = fakeDatabase();
+    const app = buildApp({
+      database: null,
+      catalogDatabase: deniedFixture.database,
+      identity: fakeIdentity(),
+      identityConfig: config(),
+      uploadDirectory,
+    });
+    const omitHeader = (headers: Record<string, string>, name: string): Record<string, string> => {
+      const copy = { ...headers };
+      delete copy[name];
+      return copy;
+    };
+    const validUploadHeaders = { ...authHeaders(true), 'content-type': 'image/png' };
+    const unsignedToken = 'unsigned-csrf-token-123456789';
+    const cases = [
+      {
+        name: 'missing Origin',
+        headers: omitHeader(validUploadHeaders, 'origin'),
+        code: 'ORIGIN_INVALID',
+        message: 'Request Origin is not allowed',
+      },
+      {
+        name: 'hostile Origin',
+        headers: { ...validUploadHeaders, origin: 'https://attacker.example' },
+        code: 'ORIGIN_INVALID',
+        message: 'Request Origin is not allowed',
+      },
+      {
+        name: 'missing CSRF header',
+        headers: omitHeader(validUploadHeaders, 'x-csrf-token'),
+        code: 'CSRF_INVALID',
+        message: 'CSRF validation failed',
+      },
+      {
+        name: 'mismatched CSRF cookie and header',
+        headers: { ...validUploadHeaders, 'x-csrf-token': 'mismatched-csrf-value-123456789' },
+        code: 'CSRF_INVALID',
+        message: 'CSRF validation failed',
+      },
+      {
+        name: 'unsigned CSRF token',
+        headers: {
+          ...validUploadHeaders,
+          cookie: SESSION_COOKIE + '; __Host-bclick_admin_csrf=' + unsignedToken,
+          'x-csrf-token': unsignedToken,
+        },
+        code: 'CSRF_INVALID',
+        message: 'CSRF validation failed',
+      },
+    ];
+    try {
+      for (const entry of cases) {
+        const requestId = 'q020-skin-image-security-' + entry.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/image',
+          headers: { ...entry.headers, 'x-request-id': requestId },
+          payload: validPng64(),
+        });
+        assert.equal(response.statusCode, 403, entry.name + ': ' + response.body);
+        assert.deepEqual(response.json().error, { code: entry.code, message: entry.message }, entry.name);
+        assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId'], entry.name);
+        assert.equal(response.json().requestId, requestId, entry.name);
+        assert.equal(response.headers['x-request-id'], requestId, entry.name);
+        assert.equal(response.headers['content-type']?.split(';')[0], 'application/json', entry.name);
+        assert.equal(deniedFixture.calls.length, 0, entry.name + ': denied request must not query or write audit-success');
+        assert.deepEqual(await readdir(uploadDirectory), [], entry.name + ': denied request must not create an upload directory or file');
+      }
+    } finally {
+      await app.close();
+    }
+
+    const permissionFixture = fakeDatabase();
+    const permissionApp = buildApp({
+      database: null,
+      catalogDatabase: permissionFixture.database,
+      identity: fakeIdentity({ permissions: [] }),
+      identityConfig: config(),
+      uploadDirectory,
+    });
+    try {
+      const requestId = 'q020-skin-image-rbac-denied';
+      const response = await permissionApp.inject({
+        method: 'POST',
+        url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/image',
+        headers: { ...validUploadHeaders, 'x-request-id': requestId },
+        payload: validPng64(),
+      });
+      assert.equal(response.statusCode, 403, response.body);
+      assert.deepEqual(response.json().error, {
+        code: 'FORBIDDEN',
+        message: 'The administrator lacks the required provider-settings permission',
+      });
+      assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
+      assert.equal(response.json().requestId, requestId);
+      assert.equal(response.headers['x-request-id'], requestId);
+      assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+      assert.equal(permissionFixture.calls.length, 1, 'RBAC denial should write only the denial audit');
+      assert.ok(permissionFixture.calls[0]!.sql.includes('casino.provider-settings.access-denied'));
+      assert.equal(permissionFixture.calls.some((call) => call.sql.includes("casino.skin-game.image-updated")), false);
+      assert.deepEqual(await readdir(uploadDirectory), [], 'RBAC denial must not create an upload directory or file');
+    } finally {
+      await permissionApp.close();
+    }
+  } finally {
+    await rm(uploadDirectory,{recursive:true,force:true});
+  }
+});
+
+
+test('Skin Games public image route rejects inactive/traversal keys and maps missing or unreadable files to safe OpenAPI envelopes', async () => {
+  const fixture = fakeDatabase();
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(),'bclick-skin-games-asset-errors-'));
+  let app: ReturnType<typeof buildApp> | null = null;
+  try {
+    app = buildApp({ database: null, catalogDatabase: fixture.database, identity: fakeIdentity(), identityConfig: config(), uploadDirectory });
+    const uploadId = 'q020-skin-asset-error-setup';
+    const uploaded = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/image',
+      headers: { ...authHeaders(true), 'content-type': 'image/png', 'x-request-id': uploadId },
+      payload: validPng64(),
+    });
+    assert.equal(uploaded.statusCode, 201, uploaded.body);
+    const imageUrl = uploaded.json().data.customImageUrl as string;
+    const relativeAssetPath = imageUrl.replace(/^\/api\/v1\/assets\//, '');
+    assert.ok(relativeAssetPath.startsWith('casino-games/' + GAME_ID + '/'));
+    const imageFilePath = path.join(uploadDirectory, relativeAssetPath);
+    const inactiveFileName = '11111111-1111-4111-8111-111111111111.png';
+
+    const beforeInactive = fixture.calls.length;
+    const inactiveRequestId = 'q020-skin-asset-inactive';
+    const inactive = await app.inject({
+      method: 'GET',
+      url: '/api/v1/assets/casino-games/' + GAME_ID + '/' + inactiveFileName,
+      headers: { 'x-request-id': inactiveRequestId },
+    });
+    assert.equal(inactive.statusCode, 404, inactive.body);
+    assert.deepEqual(inactive.json().error, { code: 'NOT_FOUND', message: 'Image was not found' });
+    assert.deepEqual(Object.keys(inactive.json()).sort(), ['error', 'requestId']);
+    assert.equal(inactive.json().requestId, inactiveRequestId);
+    assert.equal(inactive.headers['x-request-id'], inactiveRequestId);
+    assert.equal(inactive.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(fixture.calls.length, beforeInactive + 1, 'inactive key should be checked in the DB and denied before filesystem reads');
+
+    const beforeTraversal = fixture.calls.length;
+    const traversalRequestId = 'q020-skin-asset-traversal';
+    const traversal = await app.inject({
+      method: 'GET',
+      url: '/api/v1/assets/casino-games/' + GAME_ID + '/%2E%2E%2F..%2Fsecret.png',
+      headers: { 'x-request-id': traversalRequestId },
+    });
+    assert.equal(traversal.statusCode, 400, traversal.body);
+    assert.deepEqual(Object.keys(traversal.json()).sort(), ['error', 'requestId']);
+    assert.equal(traversal.json().error.code, 'VALIDATION_ERROR');
+    assert.equal(traversal.json().requestId, traversalRequestId);
+    assert.equal(traversal.headers['x-request-id'], traversalRequestId);
+    assert.equal(traversal.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(fixture.calls.length, beforeTraversal, 'invalid traversal filename must be rejected before DB access');
+
+    await unlink(imageFilePath);
+    const missingRequestId = 'q020-skin-asset-file-missing';
+    const missing = await app.inject({
+      method: 'GET',
+      url: imageUrl,
+      headers: { 'x-request-id': missingRequestId },
+    });
+    assert.equal(missing.statusCode, 404, missing.body);
+    assert.deepEqual(missing.json().error, { code: 'NOT_FOUND', message: 'Image was not found' });
+    assert.deepEqual(Object.keys(missing.json()).sort(), ['error', 'requestId']);
+    assert.equal(missing.json().requestId, missingRequestId);
+    assert.equal(missing.headers['x-request-id'], missingRequestId);
+    assert.equal(missing.headers['content-type']?.split(';')[0], 'application/json');
+    assert.doesNotMatch(missing.body, /\/tmp\/|bclick-skin-games-asset-errors/);
+
+    // Replace the active asset's parent directory with a regular file. The DB key still
+    // resolves as active, but stat() now fails with ENOTDIR. This exercises the non-ENOENT
+    // filesystem-error branch rather than only the missing-file branch above.
+    const blockedGameDirectory = path.dirname(imageFilePath);
+    await rm(blockedGameDirectory, { recursive: true, force: true });
+    await writeFile(blockedGameDirectory, 'not-a-directory');
+    const filesystemRequestId = 'q020-skin-asset-filesystem-failure';
+    const unreadable = await app.inject({
+      method: 'GET',
+      url: imageUrl,
+      headers: { 'x-request-id': filesystemRequestId },
+    });
+    assert.equal(unreadable.statusCode, 500, unreadable.body);
+    assert.deepEqual(unreadable.json().error, {
+      code: 'INTERNAL_ERROR',
+      message: 'The Skin Games request could not be completed',
+    });
+    assert.deepEqual(Object.keys(unreadable.json()).sort(), ['error', 'requestId']);
+    assert.equal(unreadable.json().requestId, filesystemRequestId);
+    assert.equal(unreadable.headers['x-request-id'], filesystemRequestId);
+    assert.equal(unreadable.headers['content-type']?.split(';')[0], 'application/json');
+    assert.doesNotMatch(unreadable.body, /ENOTDIR|not-a-directory|bclick-skin-games-asset-errors|\/tmp\//);
+  } finally {
+    if(app) await app.close();
+    await rm(uploadDirectory,{recursive:true,force:true});
+  }
+});
+
+
+
+test('Skin Games image upload rejects unsupported media types before size checks and validates size/signature before storage', async () => {
+  const fixture = fakeDatabase();
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(),'bclick-skin-games-media-validation-'));
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+    uploadDirectory,
+  });
+  const cases = [
+    {
+      name: 'unsupported text/plain',
+      contentType: 'text/plain',
+      payload: 'not an image',
+      statusCode: 415,
+      code: 'IMAGE_TYPE_INVALID',
+      message: 'Upload a valid PNG, JPEG or WebP image whose bytes match its Content-Type',
+    },
+    {
+      name: 'undersized PNG',
+      contentType: 'image/png',
+      payload: Buffer.alloc(8),
+      statusCode: 413,
+      code: 'IMAGE_SIZE_INVALID',
+      message: 'Image must be a supported image no larger than 5 MiB',
+    },
+    {
+      name: 'valid PNG bytes mislabeled as JPEG',
+      contentType: 'image/jpeg',
+      payload: validPng64(),
+      statusCode: 415,
+      code: 'IMAGE_TYPE_INVALID',
+      message: 'Upload a valid PNG, JPEG or WebP image whose bytes match its Content-Type',
+    },
+  ];
+  try {
+    for (const [index, entry] of cases.entries()) {
+      const requestId = 'q020-skin-image-media-' + (index + 1);
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/image',
+        headers: { ...authHeaders(true), 'content-type': entry.contentType, 'x-request-id': requestId },
+        payload: entry.payload,
+      });
+      assert.equal(response.statusCode, entry.statusCode, entry.name + ': ' + response.body);
+      assert.deepEqual(response.json().error, { code: entry.code, message: entry.message }, entry.name);
+      assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId'], entry.name);
+      assert.equal(response.json().requestId, requestId, entry.name);
+      assert.equal(response.headers['x-request-id'], requestId, entry.name);
+      assert.equal(response.headers['content-type']?.split(';')[0], 'application/json', entry.name);
+      assert.equal(fixture.calls.length, 0, entry.name + ': media/size/signature rejection must precede catalogue DB effects');
+      assert.deepEqual(await readdir(uploadDirectory), [], entry.name + ': rejected upload must not create files');
+    }
+  } finally {
+    await app.close();
+    await rm(uploadDirectory,{recursive:true,force:true});
+  }
+});
+
 
 test('Skin Games image upload returns a safe generic error when persistent storage cannot be written', async () => {
   const fixture = fakeDatabase();
