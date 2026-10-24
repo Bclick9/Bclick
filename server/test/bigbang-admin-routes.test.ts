@@ -653,3 +653,101 @@ test('Q-020 admin BigBang games GET has direct success, permission-denial and sc
     await schemaApp.close();
   }
 });
+
+
+test('Q-020b provider-tier mutation rejects Origin/CSRF and RBAC denial before tier update', async () => {
+  const cases = [
+    {
+      name: 'missing-origin',
+      headers: authHeaders(),
+      code: 'ORIGIN_INVALID',
+      message: 'Request Origin is not allowed',
+    },
+    {
+      name: 'hostile-origin',
+      headers: authHeaders({ origin: 'https://attacker.invalid' }),
+      code: 'ORIGIN_INVALID',
+      message: 'Request Origin is not allowed',
+    },
+    {
+      name: 'missing-csrf',
+      headers: authHeaders({ origin: ADMIN_ORIGIN, header: false }),
+      code: 'CSRF_INVALID',
+      message: 'CSRF validation failed',
+    },
+    {
+      name: 'mismatched-csrf',
+      headers: authHeaders({ origin: ADMIN_ORIGIN, headerToken: 'mismatched-csrf-value-123456789' }),
+      code: 'CSRF_INVALID',
+      message: 'CSRF validation failed',
+    },
+    {
+      name: 'unsigned-csrf',
+      headers: authHeaders({
+        origin: ADMIN_ORIGIN,
+        cookieToken: 'unsigned-csrf-token-123456789',
+        headerToken: 'unsigned-csrf-token-123456789',
+      }),
+      code: 'CSRF_INVALID',
+      message: 'CSRF validation failed',
+    },
+  ] as const;
+
+  const fixture = fakeDatabase();
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+  });
+  try {
+    for (const entry of cases) {
+      const requestId = 'q020-bb-tier-denied-' + entry.name;
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/v1/admin/bigbang/providers/habanero/tiers/standard',
+        headers: { ...entry.headers, 'x-request-id': requestId },
+        payload: { enabled: false },
+      });
+      assert.equal(response.statusCode, 403, entry.name + ': ' + response.body);
+      assert.deepEqual(response.json(), {
+        error: { code: entry.code, message: entry.message },
+        requestId,
+      });
+      assert.equal(response.headers['x-request-id'], requestId);
+      assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+      assert.equal(fixture.calls.length, 0, entry.name + ': denied request must not query, mutate or audit-success');
+    }
+  } finally {
+    await app.close();
+  }
+
+  const deniedFixture = fakeDatabase();
+  const deniedApp = buildApp({
+    database: null,
+    catalogDatabase: deniedFixture.database,
+    identity: fakeIdentity(['admin.session.read']),
+    identityConfig: config(),
+  });
+  const requestId = 'q020-bb-tier-rbac-denied';
+  try {
+    const response = await deniedApp.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/bigbang/providers/habanero/tiers/standard',
+      headers: { ...authHeaders({ origin: ADMIN_ORIGIN }), 'x-request-id': requestId },
+      payload: { enabled: false },
+    });
+    assert.equal(response.statusCode, 403, response.body);
+    assert.deepEqual(response.json(), {
+      error: { code: 'FORBIDDEN', message: 'The administrator lacks the required provider-settings permission' },
+      requestId,
+    });
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(deniedFixture.calls.length, 1, 'only the expected RBAC denial audit is allowed');
+    assert.match(deniedFixture.calls[0]!.sql, /casino\.provider-settings\.access-denied/);
+    assert.equal(deniedFixture.calls.some((call) => call.sql.includes('UPDATE public.casino_provider_tier_settings')), false);
+  } finally {
+    await deniedApp.close();
+  }
+});
