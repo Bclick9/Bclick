@@ -81,11 +81,17 @@ jobs:
             ["server/migrations/1793016000000_wallet_ledger_foundation_006.sql"]="245028f593912ecf1bb972b6ec52a1c9d3fb84dc"
             ["server/migrations/1793102400000_bigbang_catalogue_007.sql"]="ee72b82a1ea300a7390dae37639063de3052d0f4"
             ["server/migrations/1793188800000_tnd_provider_precision_008.sql"]="a84926fad268d003bba8fa10125006ef220e7f2d"
-            # M009-M012 are included only in the disposable PostgreSQL migration inventory.
+            # M009-M017 are included only in the disposable PostgreSQL migration inventory.
             ["server/migrations/1793275200000_bigbang_legacy_slug_aliases_009.sql"]="695a0411f463b93648830fa59e8c6b4935b9e163"
             ["server/migrations/1793361600000_bigbang_tier_aware_source_identity_010.sql"]="31adba70e09eb15f0be28d037b860a8087470c83"
             ["server/migrations/1793448000000_bigbang_provider_controls_011.sql"]="4839645140752a913863ec6f75d02db12be6ec42"
             ["server/migrations/1793534400000_casino_skin_games_presentation_012.sql"]="7278a04053384c77c6ece3bf28a4130d183ad45f"
+            # M013-M017 are pinned only in the disposable PostgreSQL inventory.
+            ["server/migrations/1793620800000_casino_skin_game_title_override_013.sql"]="7fa1d2925b72a01691d3df8ab1e524c2c0328d38"
+            ["server/migrations/1793707200000_casino_legacy_alias_retirement_014.sql"]="e9686d0c43412cb6a8c00deb89c308409b70098d"
+            ["server/migrations/1793793600000_casino_curated_display_categories_015.sql"]="b271ad414386b1853e0031f28fa757f8bfa3bcfa"
+            ["server/migrations/1793880000000_casino_display_category_icons_016.sql"]="6d805c6ed534f2dc8fe32a812c7e91e52d08bb3a"
+            ["server/migrations/1793966400000_casino_display_category_scope_017.sql"]="ffd64d6e2db93ca9a8e69a4a4dab7eaf51f7b813"
           )
           for path in "${!expected_blobs[@]}"; do
             actual="$(git hash-object "$path")"
@@ -107,6 +113,11 @@ jobs:
             "server/migrations/1793361600000_bigbang_tier_aware_source_identity_010.sql"
             "server/migrations/1793448000000_bigbang_provider_controls_011.sql"
             "server/migrations/1793534400000_casino_skin_games_presentation_012.sql"
+            "server/migrations/1793620800000_casino_skin_game_title_override_013.sql"
+            "server/migrations/1793707200000_casino_legacy_alias_retirement_014.sql"
+            "server/migrations/1793793600000_casino_curated_display_categories_015.sql"
+            "server/migrations/1793880000000_casino_display_category_icons_016.sql"
+            "server/migrations/1793966400000_casino_display_category_scope_017.sql"
           )
           diff -u <(printf '%s\n' "${expected_migrations[@]}") <(printf '%s\n' "${actual_migrations[@]}")
 
