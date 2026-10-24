@@ -30,7 +30,7 @@ The script uses the same PostgreSQL image as the current repository Compose/CI s
 ### What the script does
 
 1. Makes uniquely named Docker volumes and containers, generates a random disposable database password and exposes the source database only on a random loopback port.
-2. Temporarily sets `DATABASE_URL` for the migration subprocess and applies the repository's checked-in migrations to that newly created database. It restores the previous environment value afterward.
+2. Temporarily sets `DATABASE_URL` for the migration subprocess and applies the repository's checked-in 19-migration chain to that newly created database. It restores the previous environment value afterward.
 3. Inserts one labelled balanced TND ledger fixture (1,234 minor units = TND 12.34 under the accepted TND 2dp contract) and a marker table, then takes a physical `pg_basebackup` and runs `pg_verifybackup`.
 4. Creates a named recovery point, commits a marker after that point, forces WAL switching and waits for an archived segment.
 5. Restores to a second, independent data volume using `restore_command` and `recovery_target_name`.
