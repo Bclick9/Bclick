@@ -1472,7 +1472,7 @@ test('Skin Games public image route rejects inactive/traversal keys and maps mis
     });
     assert.equal(uploaded.statusCode, 201, uploaded.body);
     const imageUrl = uploaded.json().data.customImageUrl as string;
-    const relativeAssetPath = imageUrl.replace(/^\\/api\\/v1\\/assets\\//, '');
+    const relativeAssetPath = imageUrl.replace(/^\/api\/v1\/assets\//, '');
     assert.ok(relativeAssetPath.startsWith('casino-games/' + GAME_ID + '/'));
     const imageFilePath = path.join(uploadDirectory, relativeAssetPath);
     const inactiveFileName = '11111111-1111-4111-8111-111111111111.png';
