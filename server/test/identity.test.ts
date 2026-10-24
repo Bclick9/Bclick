@@ -280,9 +280,12 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
 
     const adminSession = await appUnderTest.inject({
       method: 'GET', url: '/api/v1/admin/session',
-      headers: { cookie: cookieHeader(activeAdminJar) },
+      headers: { cookie: cookieHeader(activeAdminJar), 'x-request-id': 'q020b-admin-session-active' },
     });
     assert.equal(adminSession.statusCode, 200, adminSession.body);
+    assert.equal(adminSession.headers['cache-control'], 'no-store');
+    assert.equal(adminSession.headers['x-request-id'], 'q020b-admin-session-active');
+    assert.equal(adminSession.json().requestId, 'q020b-admin-session-active');
     assert.equal(adminSession.json().data.admin.status, 'active');
     assert.equal(adminSession.json().data.admin.displayName, 'Test Project Admin');
     assert.deepEqual(adminSession.json().data.mfa, { enabled: true, method: 'totp' });
@@ -741,17 +744,25 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
     // A known locked/disabled account with a valid full session receives 403, not a success payload.
     await database.query("UPDATE admin_users SET status='locked' WHERE id=$1", [adminId]);
     const lockedAdminSession = await appUnderTest.inject({
-      method: 'GET', url: '/api/v1/admin/session', headers: { cookie: cookieHeader(secondAdminJar) },
+      method: 'GET', url: '/api/v1/admin/session',
+      headers: { cookie: cookieHeader(secondAdminJar), 'x-request-id': 'q020b-admin-session-locked' },
     });
     assert.equal(lockedAdminSession.statusCode, 403);
     assert.equal(lockedAdminSession.json().error.code, 'FORBIDDEN');
+    assert.equal(lockedAdminSession.headers['cache-control'], 'no-store');
+    assert.equal(lockedAdminSession.headers['x-request-id'], 'q020b-admin-session-locked');
+    assert.equal(lockedAdminSession.json().requestId, 'q020b-admin-session-locked');
 
     await database.query("UPDATE admin_users SET status='disabled' WHERE id=$1", [adminId]);
     const disabledAdminSession = await appUnderTest.inject({
-      method: 'GET', url: '/api/v1/admin/session', headers: { cookie: cookieHeader(secondAdminJar) },
+      method: 'GET', url: '/api/v1/admin/session',
+      headers: { cookie: cookieHeader(secondAdminJar), 'x-request-id': 'q020b-admin-session-disabled' },
     });
     assert.equal(disabledAdminSession.statusCode, 403);
     assert.equal(disabledAdminSession.json().error.code, 'FORBIDDEN');
+    assert.equal(disabledAdminSession.headers['cache-control'], 'no-store');
+    assert.equal(disabledAdminSession.headers['x-request-id'], 'q020b-admin-session-disabled');
+    assert.equal(disabledAdminSession.json().requestId, 'q020b-admin-session-disabled');
 
     await database.query("UPDATE admin_users SET status='active' WHERE id=$1", [adminId]);
     const restoredAdminSession = await appUnderTest.inject({
@@ -770,9 +781,13 @@ test('Identity runtime acceptance: browser-bound MFA, cross-context CSRF 403 and
       [liveSessionRows.rows[0]!.id],
     );
     const expiredAdminSession = await appUnderTest.inject({
-      method: 'GET', url: '/api/v1/admin/session', headers: { cookie: cookieHeader(secondAdminJar) },
+      method: 'GET', url: '/api/v1/admin/session',
+      headers: { cookie: cookieHeader(secondAdminJar), 'x-request-id': 'q020b-admin-session-expired' },
     });
     assert.equal(expiredAdminSession.statusCode, 401);
+    assert.equal(expiredAdminSession.headers['cache-control'], 'no-store');
+    assert.equal(expiredAdminSession.headers['x-request-id'], 'q020b-admin-session-expired');
+    assert.equal(expiredAdminSession.json().requestId, 'q020b-admin-session-expired');
   } finally {
     try {
       if (app) await app.close();
