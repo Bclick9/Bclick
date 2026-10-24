@@ -322,7 +322,7 @@ function normalizeRequest(request: WalletPostingRequest): NormalizedRequest {
   if (rawMetadata === null || typeof rawMetadata !== 'object' || Array.isArray(rawMetadata)) {
     fail(400, 'INVALID_METADATA', 'Journal metadata must be a JSON object');
   }
-  const metadata = rawMetadata as Record<string, unknown>;
+  const metadata = JSON.parse(canonicalJson(rawMetadata)) as Record<string, unknown>;
   const canonicalPayload = {
     movementType: request.movementType,
     sourceType,
@@ -331,7 +331,7 @@ function normalizeRequest(request: WalletPostingRequest): NormalizedRequest {
     reversalOfId,
     actorType: request.actorType,
     actorId,
-    metadata: JSON.parse(canonicalJson(metadata)) as Record<string, unknown>,
+    metadata,
     entries: entries.map((entry) => ({
       walletAccountId: entry.walletAccountId,
       currencyCode: entry.currencyCode,
