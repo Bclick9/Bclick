@@ -1743,6 +1743,7 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '500': {$ref: '#/components/responses/InternalError'}
       operationId: uploadAdminCasinoDisplayCategoryIcon
   /api/v1/assets/casino-display-categories/{categoryId}/{fileName}:
     parameters:
@@ -1763,11 +1764,13 @@ paths:
             image/webp: {schema: {type: string, format: binary}}
           headers:
             Cache-Control: {schema: {type: string}}
+            Content-Security-Policy: {schema: {type: string}}
             X-Content-Type-Options: {schema: {type: string}}
             X-Request-Id:
               $ref: '#/components/headers/XRequestId'
         '400': {$ref: '#/components/responses/ValidationError'}
         '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
       operationId: getCasinoDisplayCategoryIcon
   /api/v1/admin/casino/display-categories/{categoryId}:
     parameters:
@@ -6506,6 +6509,9 @@ components:
   responses:
     ValidationError:
       description: Input rejected without financial side effects.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorResponse'}
@@ -6516,16 +6522,33 @@ components:
           schema: {$ref: '#/components/schemas/ErrorResponse'}
     Unauthorized:
       description: No valid session or credentials.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorResponse'}
     Forbidden:
       description: Authenticated but not authorized.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorResponse'}
     NotFound:
       description: Resource missing or inaccessible to this actor.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+    InternalError:
+      description: Internal operation failure. The response does not expose filesystem paths, dependency messages, or other implementation details.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorResponse'}

@@ -5357,6 +5357,7 @@ export interface components {
         /** @description Input rejected without financial side effects. */
         ValidationError: {
             headers: {
+                "X-Request-Id": components["headers"]["XRequestId"];
                 [name: string]: unknown;
             };
             content: {
@@ -5375,6 +5376,7 @@ export interface components {
         /** @description No valid session or credentials. */
         Unauthorized: {
             headers: {
+                "X-Request-Id": components["headers"]["XRequestId"];
                 [name: string]: unknown;
             };
             content: {
@@ -5384,6 +5386,7 @@ export interface components {
         /** @description Authenticated but not authorized. */
         Forbidden: {
             headers: {
+                "X-Request-Id": components["headers"]["XRequestId"];
                 [name: string]: unknown;
             };
             content: {
@@ -5393,6 +5396,17 @@ export interface components {
         /** @description Resource missing or inaccessible to this actor. */
         NotFound: {
             headers: {
+                "X-Request-Id": components["headers"]["XRequestId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Internal operation failure. The response does not expose filesystem paths, dependency messages, or other implementation details. */
+        InternalError: {
+            headers: {
+                "X-Request-Id": components["headers"]["XRequestId"];
                 [name: string]: unknown;
             };
             content: {
@@ -7337,6 +7351,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             /** @description Image exceeds the 5 MiB upload limit or is empty/too small. */
             413: {
                 headers: {
@@ -7378,6 +7393,7 @@ export interface operations {
             200: {
                 headers: {
                     "Cache-Control"?: string;
+                    "Content-Security-Policy"?: string;
                     "X-Content-Type-Options"?: string;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
@@ -7390,6 +7406,7 @@ export interface operations {
             };
             400: components["responses"]["ValidationError"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     deleteAdminCasinoDisplayCategory: {
