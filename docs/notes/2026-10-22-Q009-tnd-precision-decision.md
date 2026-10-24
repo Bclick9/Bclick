@@ -34,3 +34,8 @@ The current public WinHouse docs also confirm that the amount used in the wallet
 - [ ] Before applying to any non-local existing database, separately verify that database's migration history, TND ledger entries, and projected TND balances in an approved non-production target. This note does not establish any staging/Production execution; do not run the migration against Neon or Production as part of this work.
 
 **Implementation status:** Q-009's product decision and code/dev-test acceptance are satisfied. The Owner's local Docker PostgreSQL migration ledger records Migration 008 as id 10, named 1793188800000_tnd_provider_precision_008, with a 2026-10-22 application timestamp. This is local-development evidence only, not proof about any shared environment. Production TND routing remains gated by Q-006's outstanding provider event contract, Q-010 wallet posting/idempotency tests, Q-011 restore evidence, and all applicable security/compliance/release gates.
+
+
+## Project Owner reaffirmation — 2026-10-24
+
+The Project Owner has reaffirmed **TND=2dp as final for Bclick's accepted money model**, citing a separate official legal document held by the Owner. The code baseline remains TND/EUR/USD = 2dp; no currency precision change is required from this reaffirmation. The cited legal document was not attached to this repository for independent review or hashing in this update, so no claim is made about the document's wording or legal scope. This does not remove separate provider callback, aggregator wire-scale, restore, security or release gates.
