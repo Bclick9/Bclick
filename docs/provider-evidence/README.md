@@ -50,3 +50,17 @@ The Q-006 issue is the correspondence/evidence log: record the real recipient or
 ## WinHouse public docs reconciliation (2026-10-24)
 
 The live human-readable guide was reviewed against the archived `WINHOUSE_AGENT.md` Library snapshot. The comparison records the loader/CSP/mobile sizing baseline, the `data-hide` documentation mismatch, and the unsupported betslip/count/bottom-nav/route hooks that require explicit provider evidence: [WinHouse public documentation review](./winhouse-public-docs-review-2026-10-24.md). This is a local evidence note only; no provider message is claimed sent.
+
+
+## Current official agent documentation URLs (checked 2026-10-24)
+
+The Project Owner identified these live, official machine-readable documents as the current integration sources; use them directly rather than asking either provider to resend generic agent specs:
+
+- **WinHouse:** https://iframe.winhouse.bet/docs/agent.md (the official human-readable index at https://iframe.winhouse.bet/docs links to this machine-readable contract).
+- **BigBang Casino:** https://api.bigbangcasino.bet/docs/agent.md (the official human-readable index at https://api.bigbangcasino.bet/docs/ links to this machine-readable contract; the current API guide lists changelog v1.11, Oct 2026).
+
+The public guide retrieval exposed rendered contract text but the raw `text/markdown` file was not independently downloaded for exact-byte hashing in this review. Do not invent or reuse a SHA-256 for these live URLs; the old Library snapshots' hashes remain fingerprints of those archived bytes only. A future exact-byte hash may be recorded only after the URL is successfully downloaded and hashed.
+
+The current WinHouse public JavaScript surface is `window.WinHouseEmbed = { frame, refit(), setLaunch(token), logout() }`. The official guide does not document `openBetslip` or `selectionCount`. Current Bclick code does not reference those legacy helpers, and frontend regression coverage now prevents reintroducing them. They are out of scope and are not questions to send to WinHouse.
+
+The accepted Q-009 decision remains **TND=2dp, EUR=2dp and USD=2dp**. The Project Owner reconfirmed on 2026-10-24 that the TND decision is supported by a separate official legal document held by the Owner. The legal document has not been uploaded or byte-fingerprinted in this repository, so this note records the Owner's decision and does not claim an independent review of that unseen file. No code change to reopen the currency scale is required; historical migration 006 remains historical and migration 008 is the forward-only transition to the accepted two-decimal registry.
