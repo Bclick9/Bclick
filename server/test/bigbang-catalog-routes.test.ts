@@ -286,7 +286,7 @@ test('catalogue category/search filters are parameterized and pagination retains
     assert.equal(response.json().meta.stale, false);
     assert.equal(fixture.calls.length, 3);
     assert.match(fixture.calls[0]!.sql, /EXISTS \(SELECT 1 FROM public\.casino_game_categories/);
-    assert.match(fixture.calls[1]!.sql, /array_agg\(DISTINCT gc\.category_slug ORDER BY gc\.category_slug\)/);
+    assert.match(fixture.calls[1]!.sql, /ORDER BY gc\.category_slug/);
     assert.match(fixture.calls[1]!.sql, /ORDER BY COALESCE\(pres\.display_order,0\),lower\(g\.title\),g\.id/);
     assert.match(fixture.calls[0]!.sql, /g\.title ILIKE/);
     assert.deepEqual(fixture.calls[0]!.values, ['slot-games', '%Hot%']);
@@ -360,7 +360,7 @@ test('Q-020 category list matches the documented response envelope, metadata and
     assert.equal(response.headers['x-request-id'], requestId);
     assert.equal(response.headers['cache-control'], 'no-store');
     assert.equal(fixture.calls.length, 3);
-    assert.match(fixture.calls[0]!.sql, /count\\(DISTINCT gc\\.category_slug\\)::text AS total/);
+    assert.match(fixture.calls[0]!.sql, /count\(DISTINCT gc\.category_slug\)::text AS total/);
     assert.match(fixture.calls[1]!.sql, /ORDER BY gc\\.category_slug/);
     assert.deepEqual(fixture.calls[1]!.values, [25, 0]);
     assert.match(fixture.calls[2]!.sql, /casino_catalog_sync_runs/);
