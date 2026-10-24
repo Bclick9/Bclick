@@ -380,6 +380,7 @@ test('Q-020 documents validation envelopes for malformed catalogue cursors and d
   const cases = [
     { url: '/api/v1/casino/categories?cursor=not-a-valid-cursor', requestId: 'q020-category-cursor' },
     { url: '/api/v1/casino/providers?cursor=not-a-valid-cursor', requestId: 'q020-provider-cursor' },
+    { url: '/api/v1/casino/providers?cursor=' + Buffer.from('0'.repeat(400)).toString('base64url'), requestId: 'q020-provider-cursor-too-long' },
     { url: '/api/v1/casino/games?cursor=not-a-valid-cursor', requestId: 'q020-games-cursor' },
     { url: '/api/v1/casino/display-categories?type=', requestId: 'q020-display-type' },
   ];
