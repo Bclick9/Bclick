@@ -14,7 +14,7 @@ If any mutation or the audit insert fails, the transaction rolls back. If the ta
 ## Preconditions before an operator runs it
 
 - The incident/ticket is verified through the approved out-of-band process and the ticket reference is recorded.
-- An approver independent of the target has verified and approved the sole-administrator exception. The requester and approver must differ. A target administrator may request help but must never approve their own recovery.
+- An independent requester/incident commander and an approver have verified and approved the sole-administrator exception. The requester, approver and target must be three distinct identities; the target is the subject of the incident, not the requester or approver for this reset.
 - The tool and runbook have an explicit recorded identity/security review. The deployment gate (Q-011 and the target-environment approval) is independently recorded as approved. A GitHub merge or green CI alone does not satisfy either review.
 - The operator has verified the target database through the approved operations inventory, is using a dedicated least-privilege break-glass database credential, and has an approved incident/backup procedure. Never print or paste DATABASE_URL.
 - The CLI requires the canonical target `lowercase-host:port/database_name` twice and compares it with the host, port and database encoded in DATABASE_URL before connecting. After connecting, it also checks `current_database()` before any mutation. This catches accidental target mismatches; it does not replace independent verification of the approved operations inventory.
