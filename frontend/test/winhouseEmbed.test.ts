@@ -1,45 +1,23 @@
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 
-import {
-  getWinHouseBottomGap,
-  type WinHouseNavigationMeasurement,
-} from '../lib/winhouseEmbed'
+const sportsSource = await readFile(
+  fileURLToPath(new URL('../pages/Sports.tsx', import.meta.url)),
+  'utf8',
+)
+const bottomNavSource = await readFile(
+  fileURLToPath(new URL('../components/BottomNav.tsx', import.meta.url)),
+  'utf8',
+)
 
-function navigation(options: {
-  height?: number
-  ariaHidden?: string | null
-  hasLayout?: boolean
-  hidden?: boolean
-} = {}): WinHouseNavigationMeasurement {
-  const height = options.height ?? 56
-  return {
-    hidden: options.hidden ?? false,
-    getAttribute(name) {
-      return name === 'aria-hidden' ? options.ariaHidden ?? null : null
-    },
-    getClientRects() {
-      return { length: options.hasLayout === false ? 0 : 1 }
-    },
-    getBoundingClientRect() {
-      return { height }
-    },
-  }
-}
-
-test('WinHouse bottom gap uses the actual rendered navigation height, rounded up', () => {
-  assert.equal(getWinHouseBottomGap(navigation({ height: 78.2 })), 79)
+test('WinHouse loader hides only the documented header controls and overlays its bottom nav', () => {
+  assert.match(sportsSource, /script\.dataset\.hide = 'favorites,clock,settings'/)
+  assert.match(sportsSource, /script\.dataset\.bottomGap = '0'/)
+  assert.match(bottomNavSource, /fixed bottom-0 inset-x-0 z-50/)
 })
 
-test('WinHouse bottom gap is zero when the custom nav is absent or hidden', () => {
-  assert.equal(getWinHouseBottomGap(null), 0)
-  assert.equal(getWinHouseBottomGap(navigation({ hidden: true })), 0)
-  assert.equal(getWinHouseBottomGap(navigation({ ariaHidden: 'true' })), 0)
-  assert.equal(getWinHouseBottomGap(navigation({ hasLayout: false })), 0)
-})
-
-test('WinHouse bottom gap fails closed for invalid or non-positive measurements', () => {
-  assert.equal(getWinHouseBottomGap(navigation({ height: Number.NaN })), 0)
-  assert.equal(getWinHouseBottomGap(navigation({ height: -1 })), 0)
-  assert.equal(getWinHouseBottomGap(navigation({ height: 0 })), 0)
+test('Bclick does not rely on undocumented data-hide values for the full provider subbar', () => {
+  assert.doesNotMatch(sportsSource, /script\.dataset\.hide\s*=\s*['"][^'"]*(?:subbar|mainnav|bottom-nav)/i)
 })

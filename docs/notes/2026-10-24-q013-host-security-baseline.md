@@ -36,10 +36,10 @@ Do not infer a complete policy from these two directives. The API-only Caddy exa
 
 ### Unsupported provider controls to confirm
 
-The public guide does not document:
+The public guide's `data-hide` option removes only the documented header controls `favorites`, `clock`, and `settings`. It does not document an option to hide the entire `.subbar` or its `.mainnav` links (`Sports`, `Live`, `My Bets`). It also does not document:
 - a command to open the provider betslip,
 - a public betslip selection-count property,
-- a way to hide the provider's bottom tab bar,
+- a way to hide/remove the provider's bottom tab bar from inside its frame,
 - or the current `#...` route-fragment convention used by Bclick's nav.
 
 The frontend currently treats optional `openBetslip`/selection-count properties as best-effort compatibility only; they are not contract-backed and must not be claimed as accepted behavior. Until WinHouse confirms supported equivalents, do not manipulate cross-origin DOM or invent postMessage commands. Q-006 remains the appropriate evidence track for these questions.
@@ -47,5 +47,5 @@ The frontend currently treats optional `openBetslip`/selection-count properties 
 ### Verification still required
 
 - CI verifies the static integration helper, app build, and tests; it cannot prove the live provider key/domain allow-list.
-- A real browser check on the deployed storefront must confirm the loader script is allowed by the actual `script-src`, the generated frame is allowed by `frame-src`, the vendor page accepts Bclick's registered domain, bottom navigation is not overlapped, and the betslip remains reachable at phone sizes.
+- A real browser check on the deployed storefront must confirm the loader script is allowed by the actual CSP, the generated frame is allowed by `frame-src`, and the vendor page accepts Bclick's registered domain. Verify the site bottom nav visually covers the provider bottom nav at phone sizes and explicitly test Betslip reachability. Because this is an overlay, a hidden provider control is not available through the iframe unless WinHouse exposes a supported action from the parent.
 - Keep this note as implementation guidance, not proof that WinHouse delivered or approved the current public contract. No provider communication is claimed by this note.
