@@ -85,6 +85,10 @@ testFn('break-glass command refuses development, missing attestations, and targe
     ...env,
     BCLICK_BREAK_GLASS_ACKNOWLEDGEMENT: 'yes',
   }, 'production'), { code: 'ACKNOWLEDGEMENT_REQUIRED' });
+  assert.throws(() => parseBreakGlassRequest({
+    ...env,
+    BCLICK_BREAK_GLASS_CONFIRM_DATABASE_TARGET: 'other-db.example.test:5432/bclick_prod',
+  }, 'production'), { code: 'DATABASE_TARGET_CONFIRMATION_MISMATCH' });
 });
 
 testFn('break-glass reset atomically revokes admin state on disposable PostgreSQL and denies re-use', {
