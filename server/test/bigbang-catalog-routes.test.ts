@@ -458,6 +458,10 @@ test('Q-020 documents validation envelopes for malformed catalogue cursors and d
     { url: '/api/v1/casino/providers?cursor=' + Buffer.from('0'.repeat(400)).toString('base64url'), requestId: 'q020-provider-cursor-too-long' },
     { url: '/api/v1/casino/games?cursor=not-a-valid-cursor', requestId: 'q020-games-cursor' },
     { url: '/api/v1/casino/display-categories?type=', requestId: 'q020-display-type' },
+    { url: '/api/v1/casino/games?displayCategory=trending%00games', requestId: 'q020-games-display-category-nul' },
+    { url: '/api/v1/casino/games?category=slot%00games', requestId: 'q020-games-category-nul' },
+    { url: '/api/v1/casino/games?provider=haba%00nero', requestId: 'q020-games-provider-nul' },
+    { url: '/api/v1/casino/games?query=Hot%00Fruit', requestId: 'q020-games-query-nul' },
   ];
 
   try {

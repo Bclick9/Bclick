@@ -595,11 +595,11 @@ paths:
       security: []
       summary: Search the local normalized catalogue; never call vendor for each card
       parameters:
-        - {name: category, in: query, description: Filter by provider/source category slug., schema: {type: string, maxLength: 80}}
-        - {name: displayCategory, in: query, description: Filter to currently visible games assigned to a Bclick-managed display category slug with matching game type., schema: {type: string, minLength: 1, maxLength: 80}}
+        - {name: category, in: query, description: Filter by provider/source category slug., schema: {type: string, minLength: 1, maxLength: 80, pattern: '^[^\u0000-\u001F\u007F]*$'}}
+        - {name: displayCategory, in: query, description: Filter to currently visible games assigned to a Bclick-managed display category slug with matching game type., schema: {type: string, minLength: 1, maxLength: 80, pattern: '^[^\u0000-\u001F\u007F]*$'}}
         - {name: type, in: query, description: Restrict the catalogue to the selected storefront game type., schema: {type: string, enum: [casino, live-casino, crash-games]}}
-        - {name: provider, in: query, schema: {type: string, maxLength: 80}}
-        - {name: query, in: query, schema: {type: string, maxLength: 100}}
+        - {name: provider, in: query, schema: {type: string, minLength: 1, maxLength: 80, pattern: '^[^\u0000-\u001F\u007F]*$'}}
+        - {name: query, in: query, schema: {type: string, maxLength: 100, pattern: '^[^\u0000-\u001F\u007F]*$'}}
         - {name: mode, in: query, schema: {type: string, enum: [demo, real]}}
         - {name: pageSize, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 24}}
         - {name: cursor, in: query, schema: {type: string, maxLength: 512}}
