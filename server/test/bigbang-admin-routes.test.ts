@@ -751,3 +751,67 @@ test('Q-020b provider-tier mutation rejects Origin/CSRF and RBAC denial before t
     await deniedApp.close();
   }
 });
+
+
+test('Q-020b BigBang game mutation rejects missing Origin and invalid CSRF before database effects', async () => {
+  const cases = [
+    {
+      name: 'missing-origin',
+      headers: authHeaders(),
+      code: 'ORIGIN_INVALID',
+      message: 'Request Origin is not allowed',
+    },
+    {
+      name: 'missing-csrf',
+      headers: authHeaders({ origin: ADMIN_ORIGIN, header: false }),
+      code: 'CSRF_INVALID',
+      message: 'CSRF validation failed',
+    },
+    {
+      name: 'mismatched-csrf',
+      headers: authHeaders({ origin: ADMIN_ORIGIN, headerToken: 'mismatched-csrf-value-123456789' }),
+      code: 'CSRF_INVALID',
+      message: 'CSRF validation failed',
+    },
+    {
+      name: 'unsigned-csrf',
+      headers: authHeaders({
+        origin: ADMIN_ORIGIN,
+        cookieToken: 'unsigned-csrf-token-123456789',
+        headerToken: 'unsigned-csrf-token-123456789',
+      }),
+      code: 'CSRF_INVALID',
+      message: 'CSRF validation failed',
+    },
+  ] as const;
+
+  const fixture = fakeDatabase();
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+  });
+  try {
+    for (const entry of cases) {
+      const requestId = 'q020-bb-game-denied-' + entry.name;
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/v1/admin/bigbang/games/' + GAME_ID,
+        headers: { ...entry.headers, 'x-request-id': requestId },
+        payload: { enabled: false },
+      });
+      assert.equal(response.statusCode, 403, entry.name + ': ' + response.body);
+      assert.deepEqual(response.json(), {
+        error: { code: entry.code, message: entry.message },
+        requestId,
+      });
+      assert.equal(response.headers['x-request-id'], requestId);
+      assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+      assert.equal(fixture.calls.length, 0,
+        entry.name + ': denied game mutation must not query, update, or write a success audit');
+    }
+  } finally {
+    await app.close();
+  }
+});
