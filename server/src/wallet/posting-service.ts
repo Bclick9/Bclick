@@ -234,10 +234,10 @@ function parseMinorAmount(value: bigint | string): bigint {
 
 function canonicalJson(value: unknown, seen = new Set<object>()): string {
   if (value === null) return 'null';
-  if (typeof value === 'string' || typeof value === 'boolean') return JSON.stringify(value);
+  if (typeof value === 'string' || typeof value === 'boolean') return JSON.stringify(value) ?? 'null';
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) fail(400, 'INVALID_METADATA', 'Metadata contains a non-finite number');
-    return JSON.stringify(value);
+    return JSON.stringify(value) ?? 'null';
   }
   if (typeof value !== 'object') {
     fail(400, 'INVALID_METADATA', 'Metadata must contain only JSON values');
