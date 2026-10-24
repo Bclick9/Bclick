@@ -772,6 +772,40 @@ test('active display-category asset rejects invalid filenames before database ac
 });
 
 
+test('display-category icon upload rejects a malformed category ID with the OpenAPI 400 envelope before DB or storage access', async () => {
+  const fixture = fakeDatabase();
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(), 'bclick-category-icon-invalid-category-id-'));
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+    uploadDirectory,
+  });
+  const requestId = 'q020-icon-invalid-category-id';
+
+  try {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/casino/display-categories/not-a-uuid/icon',
+      headers: { ...authHeaders(true), 'content-type': 'image/png', 'x-request-id': requestId },
+      payload: validPng64(),
+    });
+
+    assert.equal(response.statusCode, 400, response.body);
+    assert.deepEqual(response.json().error, { code: 'VALIDATION_ERROR', message: 'Request validation failed' });
+    assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(fixture.calls.length, 0, 'invalid category ID must be rejected before DB access');
+    assert.deepEqual(await readdir(uploadDirectory), [], 'invalid category ID must not create files');
+  } finally {
+    await app.close();
+    await rm(uploadDirectory, { recursive: true, force: true });
+  }
+});
+
 test('display-category icon upload rejects disallowed Origin and invalid or missing signed CSRF before DB/filesystem effects', async () => {
   const cases: Array<{ name: string; headers: Record<string, string>; statusCode: number; code: string; message: string }> = [
     {
