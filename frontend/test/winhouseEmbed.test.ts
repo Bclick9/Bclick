@@ -13,6 +13,8 @@ const bottomNavSource = await readFile(
 )
 
 test('WinHouse loader hides only the documented header controls and overlays its bottom nav', () => {
+  assert.match(sportsSource, /script\.dataset\.embed = '1'/)
+  assert.match(sportsSource, /WINHOUSE_BOOK_BASE =[^\n]*\n\s*`[^`]*embed=1/)
   assert.match(sportsSource, /script\.dataset\.hide = 'favorites,clock,settings'/)
   assert.match(sportsSource, /script\.dataset\.bottomGap = '0'/)
   assert.match(bottomNavSource, /fixed bottom-0 inset-x-0 z-50/)
