@@ -1529,6 +1529,68 @@ test('Skin Games public image route rejects inactive/traversal keys and maps mis
 });
 
 
+
+test('Skin Games image upload rejects unsupported media types before size checks and validates size/signature before storage', async () => {
+  const fixture = fakeDatabase();
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(),'bclick-skin-games-media-validation-'));
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+    uploadDirectory,
+  });
+  const cases = [
+    {
+      name: 'unsupported text/plain',
+      contentType: 'text/plain',
+      payload: 'not an image',
+      statusCode: 415,
+      code: 'IMAGE_TYPE_INVALID',
+      message: 'Upload a valid PNG, JPEG or WebP image whose bytes match its Content-Type',
+    },
+    {
+      name: 'undersized PNG',
+      contentType: 'image/png',
+      payload: Buffer.alloc(8),
+      statusCode: 413,
+      code: 'IMAGE_SIZE_INVALID',
+      message: 'Image must be a supported image no larger than 5 MiB',
+    },
+    {
+      name: 'valid PNG bytes mislabeled as JPEG',
+      contentType: 'image/jpeg',
+      payload: validPng64(),
+      statusCode: 415,
+      code: 'IMAGE_TYPE_INVALID',
+      message: 'Upload a valid PNG, JPEG or WebP image whose bytes match its Content-Type',
+    },
+  ];
+  try {
+    for (const [index, entry] of cases.entries()) {
+      const requestId = 'q020-skin-image-media-' + (index + 1);
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/v1/admin/casino/skin-games/' + GAME_ID + '/image',
+        headers: { ...authHeaders(true), 'content-type': entry.contentType, 'x-request-id': requestId },
+        payload: entry.payload,
+      });
+      assert.equal(response.statusCode, entry.statusCode, entry.name + ': ' + response.body);
+      assert.deepEqual(response.json().error, { code: entry.code, message: entry.message }, entry.name);
+      assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId'], entry.name);
+      assert.equal(response.json().requestId, requestId, entry.name);
+      assert.equal(response.headers['x-request-id'], requestId, entry.name);
+      assert.equal(response.headers['content-type']?.split(';')[0], 'application/json', entry.name);
+      assert.equal(fixture.calls.length, 0, entry.name + ': media/size/signature rejection must precede catalogue DB effects');
+      assert.deepEqual(await readdir(uploadDirectory), [], entry.name + ': rejected upload must not create files');
+    }
+  } finally {
+    await app.close();
+    await rm(uploadDirectory,{recursive:true,force:true});
+  }
+});
+
+
 test('Skin Games image upload returns a safe generic error when persistent storage cannot be written', async () => {
   const fixture = fakeDatabase();
   const tempRoot = await mkdtemp(path.join(tmpdir(),'bclick-skin-games-write-failure-'));
