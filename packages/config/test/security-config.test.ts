@@ -28,7 +28,7 @@ test('shared environments accept only exact host authorities', () => {
   assert.deepEqual(config.allowedHosts, ['api.bclick.example', 'api2.bclick.example:8443']);
 });
 
-test('host allowlist rejects wildcard, path, whitespace, userinfo, invalid port, and duplicates', () => {
+test('host allowlist rejects invalid authorities and de-duplicates case-insensitively', () => {
   for (const invalid of [
     '*.bclick.example',
     'api.bclick.example/path',
