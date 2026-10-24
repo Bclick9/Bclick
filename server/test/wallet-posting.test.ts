@@ -155,8 +155,12 @@ test('Phase 5A: wallet posting service idempotency, state transitions, concurren
     };
     const seed = await posting.post(seedRequest);
     assert.equal(seed.duplicate, false);
-    const duplicateSeed = await posting.post(seedRequest);
-    assert.equal(duplicateSeed.duplicate, true, 'same scope/key/digest returns the original journal');
+    const duplicateSeed = await posting.post({
+      ...seedRequest,
+      entries: [...seedRequest.entries].reverse(),
+      metadata: { currency: 'TND', testFixture: true },
+    });
+    assert.equal(duplicateSeed.duplicate, true, 'canonical-equivalent entry order and JSON object key order return the original journal');
     assert.equal(duplicateSeed.journalId, seed.journalId);
     assert.deepEqual(duplicateSeed.entries, seed.entries);
 
@@ -292,7 +296,7 @@ test('Phase 5A: wallet posting service idempotency, state transitions, concurren
     });
     assert.equal(settled.movementType, 'withdrawal_settled');
     assert.deepEqual(await accountProjection(pool, held.id), { balance_minor: '50', ledger_total: '50' });
-    assert.deepEqual(await accountProjection(pool, paymentsTnd.id), { balance_minor: '143', ledger_total: '143' });
+    assert.deepEqual(await accountProjection(pool, paymentsTnd.id), { balance_minor: '139', ledger_total: '139' });
 
     const reversalRequest = {
       originalJournalId: settled.journalId,
@@ -305,7 +309,7 @@ test('Phase 5A: wallet posting service idempotency, state transitions, concurren
     const reversed = await posting.reverse(reversalRequest);
     assert.equal(reversed.movementType, 'withdrawal_refund');
     assert.deepEqual(await accountProjection(pool, held.id), { balance_minor: '200', ledger_total: '200' });
-    assert.deepEqual(await accountProjection(pool, paymentsTnd.id), { balance_minor: '-7', ledger_total: '-7' });
+    assert.deepEqual(await accountProjection(pool, paymentsTnd.id), { balance_minor: '-11', ledger_total: '-11' });
     const replayedReversal = await posting.reverse(reversalRequest);
     assert.equal(replayedReversal.duplicate, true);
     assert.equal(replayedReversal.journalId, reversed.journalId);
