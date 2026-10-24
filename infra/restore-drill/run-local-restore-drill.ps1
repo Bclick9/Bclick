@@ -55,7 +55,7 @@ function Say([string]$Message) {
   Write-Host ('[{0:u}] {1}' -f (Get-Date).ToUniversalTime(), $Message)
 }
 
-function Docker([string[]]$DockerArguments, [switch]$AllowFailure) {
+function Invoke-DockerCmd([string[]]$DockerArguments, [switch]$AllowFailure) {
   $raw = & docker @DockerArguments 2>&1
   $code = $LASTEXITCODE
   $out = ($raw | ForEach-Object { [string]$_ }) -join [Environment]::NewLine
@@ -70,7 +70,7 @@ function DbSql([string]$Container, [string]$Sql, [switch]$Quiet) {
   $a = @('exec', '--env', ("PGPASSWORD=" + $script:DbPassword), $Container, 'psql', '-X', '-v', 'ON_ERROR_STOP=1', '-U', $script:DbUser, '-d', $script:DbName)
   if ($Quiet) { $a += @('-q', '-t', '-A') }
   $a += @('-c', $Sql)
-  return Docker $a
+  return Invoke-DockerCmd $a
 }
 
 function Scalar([string]$Container, [string]$Sql) {
@@ -89,7 +89,7 @@ function Wait-Ready([string]$Container) {
     if ($LASTEXITCODE -eq 0) { return }
     Start-Sleep -Seconds 2
   }
-  $logs = Docker @('logs', '--tail', '50', $Container) -AllowFailure
+  $logs = Invoke-DockerCmd @('logs', '--tail', '50', $Container) -AllowFailure
   throw ("PostgreSQL did not become ready. Sanitized logs: " + $logs)
 }
 
@@ -98,7 +98,7 @@ function Export-Volume([string]$Volume, [string]$Destination, [string]$Subdirect
   $copyFrom = if ($Subdirectory -eq 'base') { '/source/base/.' } else { '/source/.' }
   $sourceCheck = if ($Subdirectory -eq 'base') { 'test -d /source/base' } else { 'test -d /source' }
   $exportScript = 'set -eu; ' + $sourceCheck + '; cp -a ' + $copyFrom + ' /out/; test -d /out'
-  $null = Docker @(
+  $null = Invoke-DockerCmd @(
     'run', '--rm', '--user', '0',
     '--mount', ("type=volume,source=" + $Volume + ",target=/source,readonly"),
     '--mount', ("type=bind,source=" + $Destination + ",target=/out"),
@@ -140,8 +140,8 @@ function Export-Artifacts {
 
 function Cleanup([bool]$Keep) {
   if ($Keep) { Say 'Keeping disposable Docker resources after failure because -KeepDockerResourcesOnFailure was supplied.'; return }
-  foreach ($c in $script:CreatedContainers) { $null = Docker @('rm', '--force', $c) -AllowFailure }
-  foreach ($v in $script:CreatedVolumes) { $null = Docker @('volume', 'rm', '--force', $v) -AllowFailure }
+  foreach ($c in $script:CreatedContainers) { $null = Invoke-DockerCmd @('rm', '--force', $c) -AllowFailure }
+  foreach ($v in $script:CreatedVolumes) { $null = Invoke-DockerCmd @('volume', 'rm', '--force', $v) -AllowFailure }
 }
 
 function UtcText($Value) {
@@ -153,20 +153,21 @@ function UtcText($Value) {
 try {
   $script:Stage = 'preflight'
   Say "Starting disposable local PITR rehearsal $($script:RunId)."
+  New-Item -ItemType Directory -Force -Path $script:ArtifactRoot | Out-Null
   if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { throw 'Docker CLI is not installed or is not on PATH.' }
   if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) { throw 'pnpm is not installed or is not on PATH.' }
   if (-not (Test-Path -LiteralPath (Join-Path $script:Root 'pnpm-lock.yaml'))) { throw 'Repository pnpm-lock.yaml is missing.' }
-  $null = Docker @('info', '--format', '{{.ServerVersion}}')
-  $null = Docker @('image', 'pull', $PostgresImage)
-  $script:ImageId = Docker @('image', 'inspect', '--format', '{{.Id}}', $PostgresImage)
+  $null = Invoke-DockerCmd @('info', '--format', '{{.ServerVersion}}')
+  $null = Invoke-DockerCmd @('image', 'pull', $PostgresImage)
+  $script:ImageId = Invoke-DockerCmd @('image', 'inspect', '--format', '{{.Id}}', $PostgresImage)
   New-Item -ItemType Directory -Force -Path $script:ArtifactRoot | Out-Null
 
   foreach ($v in $script:AllVolumes) {
-    $null = Docker @('volume', 'create', $v)
+    $null = Invoke-DockerCmd @('volume', 'create', $v)
     $script:CreatedVolumes += $v
   }
   $script:Stage = 'prepare-volumes'
-  $null = Docker @(
+  $null = Invoke-DockerCmd @(
     'run', '--rm', '--user', '0',
     '--mount', ("type=volume,source=" + $script:WalVol + ",target=/wal"),
     '--mount', ("type=volume,source=" + $script:BackupVol + ",target=/backup"),
@@ -181,7 +182,7 @@ try {
 
   $script:Stage = 'start-source'
   Say 'Starting disposable PostgreSQL with archive_mode on and loopback-only port publication.'
-  $null = Docker @(
+  $null = Invoke-DockerCmd @(
     'run', '--detach', '--name', $script:Source,
     '--env', ("POSTGRES_USER=" + $script:DbUser),
     '--env', ("POSTGRES_PASSWORD=" + $script:DbPassword),
@@ -200,7 +201,7 @@ try {
   )
   $script:CreatedContainers += $script:Source
   Wait-Ready $script:Source
-  $portText = Docker @('port', $script:Source, '5432/tcp')
+  $portText = Invoke-DockerCmd @('port', $script:Source, '5432/tcp')
   $m = [regex]::Match($portText, ':(\d+)\s*$')
   if (-not $m.Success) { throw 'Could not determine the random local host port.' }
   $script:SourcePort = [int]$m.Groups[1].Value
@@ -268,10 +269,10 @@ $q011_fixture$;
   $script:Stage = 'basebackup'
   Say 'Taking physical pg_basebackup with streamed WAL and validating it with pg_verifybackup.'
   $script:BackupStarted = (Get-Date).ToUniversalTime()
-  $null = Docker @('exec', $script:Source, 'sh', '-ec', 'mkdir -p /q011-backup/base && test -z "$(ls -A /q011-backup/base)"')
-  $null = Docker @('exec', '--env', ("PGPASSWORD=" + $script:DbPassword), $script:Source, 'pg_basebackup', '-h', '127.0.0.1', '-U', $script:DbUser, '-D', '/q011-backup/base', '-Fp', '-Xs', '-P', '--checkpoint=fast')
+  $null = Invoke-DockerCmd @('exec', $script:Source, 'sh', '-ec', 'mkdir -p /q011-backup/base && test -z "$(ls -A /q011-backup/base)"')
+  $null = Invoke-DockerCmd @('exec', '--env', ("PGPASSWORD=" + $script:DbPassword), $script:Source, 'pg_basebackup', '-h', '127.0.0.1', '-U', $script:DbUser, '-D', '/q011-backup/base', '-Fp', '-Xs', '-P', '--checkpoint=fast')
   $script:BackupCompleted = (Get-Date).ToUniversalTime()
-  $null = Docker @('exec', $script:Source, 'pg_verifybackup', '/q011-backup/base')
+  $null = Invoke-DockerCmd @('exec', $script:Source, 'pg_verifybackup', '/q011-backup/base')
   Assert-Pass 'pg_basebackup manifest passed pg_verifybackup' $true 'pg_verifybackup exited with code zero.'
 
   $script:Stage = 'archive-target'
@@ -320,14 +321,14 @@ touch "__RESTORE_DIR__/recovery.signal"
 chown -R postgres:postgres /restore-root
 '@
   $prepare = $prepare.Replace('__RESTORE_DIR__', $restoreDir)
-  $null = Docker @(
+  $null = Invoke-DockerCmd @(
     'run', '--rm', '--user', '0',
     '--mount', ("type=volume,source=" + $script:BackupVol + ",target=/q011-backup,readonly"),
     '--mount', ("type=volume,source=" + $script:WalVol + ",target=/q011-wal,readonly"),
     '--mount', ("type=volume,source=" + $script:RestoreVol + ",target=/restore-root"),
     '--entrypoint', 'sh', $PostgresImage, '-ec', $prepare
   )
-  $null = Docker @(
+  $null = Invoke-DockerCmd @(
     'run', '--detach', '--name', $script:Restore,
     '--mount', ("type=volume,source=" + $script:RestoreVol + ",target=/var/lib/postgresql"),
     '--mount', ("type=volume,source=" + $script:WalVol + ",target=/q011-wal,readonly"),
