@@ -8438,6 +8438,7 @@ export interface operations {
             };
             409: components["responses"]["Conflict"];
             422: components["responses"]["BusinessRefusal"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getPaymentsWithdrawalsByPaymentId: {
