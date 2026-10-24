@@ -83,10 +83,6 @@ export default function Sports() {
     return () => {
       disposed = true
       frameObserver.disconnect()
-      navigationResizeObserver?.disconnect()
-      navigationMutationObserver.disconnect()
-      window.removeEventListener('resize', syncBottomGap)
-      window.removeEventListener('orientationchange', syncBottomGap)
       script.removeEventListener('load', configureFrame)
       script.remove()
 

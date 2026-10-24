@@ -23,3 +23,10 @@ test('WinHouse loader hides only the documented header controls and overlays its
 test('Bclick does not rely on undocumented data-hide values for the full provider subbar', () => {
   assert.doesNotMatch(sportsSource, /script\.dataset\.hide\s*=\s*['"][^'"]*(?:subbar|mainnav|bottom-nav)/i)
 })
+
+test('WinHouse cleanup does not reference observers removed with bottom-gap logic', () => {
+  assert.doesNotMatch(
+    sportsSource,
+    /\b(?:navigationResizeObserver|navigationMutationObserver|syncBottomGap)\b/,
+  )
+})
