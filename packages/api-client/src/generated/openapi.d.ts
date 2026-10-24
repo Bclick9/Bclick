@@ -7896,9 +7896,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching \`^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$\`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (\`__Host-bclick_player_csrf\` or \`__Host-bclick_admin_csrf\`) and be bound to the current server session. Enrollment endpoints use \`__Host-bclick_admin_enrollment_csrf\` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -7917,6 +7917,7 @@ export interface operations {
             /** @description Image stored persistently and audit record written. */
             201: {
                 headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -7933,44 +7934,48 @@ export interface operations {
                     };
                 };
             };
-            /** @description Invalid UUID. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+            400: components["responses"]["ValidationError"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Premium artwork edits are locked. */
             409: {
                 headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
-            /** @description Image exceeds the 5 MiB limit. */
+            /** @description Image is smaller than the supported minimum or exceeds the 5 MiB limit. */
             413: {
                 headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
-            /** @description Unsupported or invalid image bytes. */
+            /** @description Unsupported media type, invalid image bytes or Content-Type does not match the image signature. */
             415: {
                 headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
+            500: components["responses"]["InternalError"];
         };
     };
     getCasinoGamePersistentAsset: {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching \`^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$\`; invalid or absent IDs are replaced by a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
@@ -7985,7 +7990,9 @@ export interface operations {
             200: {
                 headers: {
                     "Cache-Control"?: "public, max-age=31536000, immutable";
+                    "Content-Security-Policy"?: "default-src 'none'; sandbox";
                     "X-Content-Type-Options"?: "nosniff";
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -7994,7 +8001,9 @@ export interface operations {
                     "image/webp": string;
                 };
             };
+            400: components["responses"]["ValidationError"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     postAdminProvidersByProviderCodeCatalogSync: {
