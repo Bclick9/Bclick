@@ -37,6 +37,8 @@ function assertValidationEnvelope(
   assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
   assert.equal(response.json().requestId, requestId);
   assert.equal(response.headers['x-request-id'], requestId);
+  assert.equal(response.headers['cache-control'], 'no-store',
+    'wallet validation failures must never be stored by browsers or shared caches');
 }
 
 test('Q-020 wallet balance/statement reject malformed path and query inputs with safe validation envelope before authentication or DB access', async () => {
@@ -68,6 +70,16 @@ test('Q-020 wallet balance/statement reject malformed path and query inputs with
       name: 'statement page size above 100 is rejected',
       url: '/api/v1/wallets/TND/statement?limit=101',
       requestId: 'q020-wallet-statement-limit',
+    },
+    {
+      name: 'retired offset page parameter is rejected instead of silently ignored',
+      url: '/api/v1/wallets/TND/statement?page=2',
+      requestId: 'q020-wallet-statement-page-retired',
+    },
+    {
+      name: 'retired pageSize parameter is rejected instead of silently ignored',
+      url: '/api/v1/wallets/TND/statement?pageSize=10',
+      requestId: 'q020-wallet-statement-page-size-retired',
     },
     {
       name: 'malformed statement date-time is rejected',
