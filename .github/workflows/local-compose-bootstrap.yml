@@ -5,11 +5,16 @@ on:
     paths:
       - 'start-bclick-local.ps1'
       - 'infra/compose/compose.yaml'
+      - 'infra/restore-drill/**'
+      - '.gitignore'
+      - 'infra/restore-drill/**'
+      - '.gitignore'
       - 'server/**'
       - 'packages/**'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'server/Dockerfile'
+      - 'docs/notes/2026-10-24-q011-local-restore-rehearsal.md'
       - '.github/workflows/local-compose-bootstrap.yml'
   push:
     branches: [main]
@@ -21,6 +26,7 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'server/Dockerfile'
+      - 'docs/notes/2026-10-24-q011-local-restore-rehearsal.md'
       - '.github/workflows/local-compose-bootstrap.yml'
 
 permissions:
@@ -47,6 +53,7 @@ jobs:
           $tokens = $null
           $parseErrors = $null
           [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'start-bclick-local.ps1'), [ref]$tokens, [ref]$parseErrors) | Out-Null
+          [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'infra/restore-drill/run-local-restore-drill.ps1'), [ref]$tokens, [ref]$parseErrors) | Out-Null
           if ($parseErrors.Count -gt 0) {
             $parseErrors | ForEach-Object { Write-Error $_.Message }
             exit 1
@@ -95,6 +102,45 @@ jobs:
             exit 1
           fi
           echo "PASS: fresh Compose database migrated; health/ready=200; auth/session=401."
+  local-pitr-rehearsal:
+    name: Disposable PostgreSQL base backup, WAL and PITR restore rehearsal
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Parse local restore drill script
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'infra/restore-drill/run-local-restore-drill.ps1'), [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -gt 0) {
+            $parseErrors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
+      - name: Install locked workspace
+        run: pnpm install --frozen-lockfile
+      - name: Run disposable base-backup plus WAL point-in-time restore
+        shell: pwsh
+        run: ./infra/restore-drill/run-local-restore-drill.ps1
+      - name: Confirm no run result is misclassified as Q-011 acceptance
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Path .local/q011-restore-drill -Filter evidence.json -Recurse
+          if (-not $files) { throw 'Local restore drill did not write evidence.json.' }
+          $report = Get-Content -Raw -LiteralPath $files[0].FullName | ConvertFrom-Json
+          if ($report.status -ne 'LOCAL_REHEARSAL_PASSED') { throw 'Local restore rehearsal did not pass.' }
+          if ($report.q011Acceptance.accepted -ne $false) { throw 'Local rehearsal must not claim Q-011 acceptance.' }
+          Write-Host 'PASS: disposable PITR and ledger reconciliation passed; Q-011 remains unaccepted.'
+
   windows-powershell-51:
     name: Parse script with Windows PowerShell 5.1
     runs-on: windows-latest
@@ -106,6 +152,7 @@ jobs:
           $tokens = $null
           $parseErrors = $null
           [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'start-bclick-local.ps1'), [ref]$tokens, [ref]$parseErrors) | Out-Null
+          [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'infra/restore-drill/run-local-restore-drill.ps1'), [ref]$tokens, [ref]$parseErrors) | Out-Null
           if ($parseErrors.Count -gt 0) {
             $parseErrors | ForEach-Object { Write-Error $_.Message }
             exit 1
