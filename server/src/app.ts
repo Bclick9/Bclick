@@ -13,6 +13,7 @@ import { registerBigBangAdminRoutes } from './bigbang/admin-routes.js';
 import { registerSkinGamesAdminRoutes } from './bigbang/skin-games-admin-routes.js';
 import { registerSandboxDemoLaunchRoute } from './bigbang/demo-launch.js';
 import type { BigBangApiClient } from './bigbang/client.js';
+import { registerWalletPaymentRoutes } from './wallet/payment-routes.js';
 
 export interface DatabaseProbe {
   query(sql: string): Promise<unknown>;
@@ -31,6 +32,8 @@ export interface BuildAppOptions {
   uploadDirectory?: string;
   /** Exact incoming Host authorities. Configure in shared environments; forwarded host headers are never trusted. */
   allowedHosts?: readonly string[];
+  /** Default-off kill switch. Even when true, payment handlers remain unavailable until their service is wired and gates pass. */
+  walletApiEnabled?: boolean;
 }
 
 const healthResponseSchema = {
@@ -114,6 +117,11 @@ export function buildApp(options: BuildAppOptions) {
     reply.header('X-Frame-Options', 'DENY');
     reply.header('Referrer-Policy', 'no-referrer');
 
+    const pathname = request.url.split('?', 1)[0] || '/';
+    const isWalletPaymentMutation = request.method === 'POST'
+      && (pathname === '/api/v1/payments/deposits' || pathname === '/api/v1/payments/withdrawals');
+    if (isWalletPaymentMutation) reply.header('Cache-Control', 'no-store');
+
     // Only the original Host authority is security-relevant here. Fastify trustProxy
     // is explicitly false, so X-Forwarded-Host and Forwarded cannot override it.
     if (allowedHosts.size > 0) {
@@ -132,7 +140,15 @@ export function buildApp(options: BuildAppOptions) {
       }
     }
 
-    const pathname = request.url.split('?', 1)[0] || '/';
+    // This guard runs before body parsing, route validation, authentication/CSRF or service calls.
+    // An invalid or absent request body cannot bypass or change the closed-gate response.
+    if (isWalletPaymentMutation && options.walletApiEnabled !== true) {
+      return reply.code(503).send({
+        error: { code: 'WALLET_API_DISABLED', message: 'Wallet payment APIs are disabled' },
+        requestId: request.id,
+      });
+    }
+
     const isPrivateReadOrLogin =
       (request.method === 'POST' && pathname === '/api/v1/auth/login')
       || (request.method === 'GET' && (
@@ -143,7 +159,7 @@ export function buildApp(options: BuildAppOptions) {
 
     // Set this before route/schema validation so authenticated/session/financial
     // success and error responses are consistently non-cacheable.
-    if (isPrivateReadOrLogin) reply.header('Cache-Control', 'no-store');
+    if (isPrivateReadOrLogin || isWalletPaymentMutation) reply.header('Cache-Control', 'no-store');
 
     const isHealthPath =
       pathname === '/api/v1/health/live' || pathname === '/api/v1/health/ready';
@@ -248,6 +264,8 @@ export function buildApp(options: BuildAppOptions) {
       message: 'Route not found',
     });
   });
+
+  registerWalletPaymentRoutes(app);
 
   if (options.identity && options.identityConfig) {
     registerIdentityRoutes(app, options.identity, options.identityConfig);

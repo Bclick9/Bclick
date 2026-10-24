@@ -18,6 +18,7 @@ test('parses validated server configuration and safe defaults', () => {
   assert.equal(config.port, 3020);
   assert.equal(config.dbPoolMax, 10);
   assert.equal(config.logLevel, 'info');
+  assert.equal(config.walletApiEnabled, false, 'wallet/payment APIs default off');
   assert.equal(config.databaseUrl, validEnvironment.DATABASE_URL);
 });
 
@@ -56,4 +57,30 @@ test('binds local development to loopback and rejects public bind addresses', ()
   const config = parseServerConfig({ ...validEnvironment, NODE_ENV: 'development', HOST: undefined });
   assert.equal(config.host, '127.0.0.1');
   assert.throws(() => parseServerConfig({ ...validEnvironment, HOST: '0.0.0.0' }), /loopback address/);
+});
+
+
+test('ENABLE_WALLET_API is a strict opt-in, but never permits payment routes in staging or production', () => {
+  assert.equal(parseServerConfig({ ...validEnvironment, ENABLE_WALLET_API: 'false' }).walletApiEnabled, false);
+  assert.equal(parseServerConfig({ ...validEnvironment, ENABLE_WALLET_API: 'true' }).walletApiEnabled, true,
+    'local/test flag can be parsed for fail-closed route testing; the payment service is still not wired');
+  for (const invalid of ['yes', '1', 'enabled', 'TRUE-ish']) {
+    assert.throws(
+      () => parseServerConfig({ ...validEnvironment, ENABLE_WALLET_API: invalid }),
+      /ENABLE_WALLET_API must be exactly true or false/,
+      invalid,
+    );
+  }
+  for (const nodeEnv of ['staging', 'production']) {
+    assert.throws(
+      () => parseServerConfig({
+        ...validEnvironment,
+        NODE_ENV: nodeEnv,
+        BCLICK_ALLOWED_HOSTS: 'api.bclick.example',
+        ENABLE_WALLET_API: 'true',
+      }),
+      /ENABLE_WALLET_API must remain false/,
+      nodeEnv,
+    );
+  }
 });

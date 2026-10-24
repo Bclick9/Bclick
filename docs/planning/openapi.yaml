@@ -2512,6 +2512,7 @@ paths:
               schema: {type: string, const: no-store}
         '422': {$ref: '#/components/responses/BusinessRefusal'}
         '409': {$ref: '#/components/responses/Conflict'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
       operationId: postPaymentsWithdrawals
   /api/v1/payments/withdrawals/{paymentId}:
     parameters:

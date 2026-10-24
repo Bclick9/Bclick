@@ -18,6 +18,8 @@ export interface ServerConfig {
   readonly logLevel: LogLevel;
   /** Exact HTTP Host authorities accepted by the API; empty only in local/test environments. */
   readonly allowedHosts: readonly string[];
+  /** Deposit/withdrawal endpoints stay unavailable until the payment orchestration and release gates are accepted. */
+  readonly walletApiEnabled: boolean;
 }
 
 export type EnvironmentInput = Readonly<Record<string, string | undefined>>;
@@ -59,6 +61,14 @@ function parseInteger(
   return parsed;
 }
 
+function parseBooleanFlag(env: EnvironmentInput, name: string, fallback = false): boolean {
+  const raw = env[name];
+  if (raw === undefined || raw.trim() === "") return fallback;
+  const value = raw.trim().toLowerCase();
+  if (value === "true") return true;
+  if (value === "false") return false;
+  throw new Error(`${name} must be exactly true or false`);
+}
 
 function parseAllowedHosts(env: EnvironmentInput, nodeEnv: RuntimeEnvironment): string[] {
   const items = (env.BCLICK_ALLOWED_HOSTS ?? '').split(',').map((item) => item.trim()).filter(Boolean);
@@ -150,13 +160,20 @@ export function parseServerConfig(env: EnvironmentInput): ServerConfig {
     throw new Error('Local API development/test must bind to a loopback address');
   }
 
+  const nodeEnv = rawEnvironment as RuntimeEnvironment;
+  const walletApiEnabled = parseBooleanFlag(env, 'ENABLE_WALLET_API', false);
+  if (walletApiEnabled && (nodeEnv === 'staging' || nodeEnv === 'production')) {
+    throw new Error('ENABLE_WALLET_API must remain false in staging/production until payment and release gates are explicitly accepted');
+  }
+
   return {
-    nodeEnv: rawEnvironment as RuntimeEnvironment,
+    nodeEnv,
     host,
     port: parseInteger('PORT', env.PORT, 3000, 1, 65_535),
     databaseUrl: parseDatabaseUrl(env.DATABASE_URL),
     dbPoolMax: parseInteger('DB_POOL_MAX', env.DB_POOL_MAX, 10, 1, 50),
     logLevel: rawLogLevel as LogLevel,
-    allowedHosts: parseAllowedHosts(env, rawEnvironment as RuntimeEnvironment),
+    allowedHosts: parseAllowedHosts(env, nodeEnv),
+    walletApiEnabled,
   };
 }
