@@ -91,6 +91,23 @@ function fakeDatabase() {
       if (sql.includes('FROM public.casino_games g') && sql.includes('count(DISTINCT g.id)::text AS total')) {
         return { rows: [{ total: '1' }], rowCount: 1 };
       }
+      if (sql.includes('FROM public.casino_games g') && sql.includes('AS "providerCode"')) {
+        return {
+          rows: [{
+            id: GAME_ID,
+            slug: 'hot-hot-fruit-habanero',
+            title: 'Hot Hot Fruit',
+            providerCode: 'habanero',
+            providerName: 'Habanero',
+            sourceAvailable: true,
+            gameAvailable: true,
+            enabled: true,
+            providerEnabled: true,
+            updatedAt: '2026-10-22T10:06:00.000Z',
+          }],
+          rowCount: 1,
+        };
+      }
       if (sql.includes('WITH changed AS') && sql.includes('UPDATE public.casino_provider_tier_settings')) {
         assert.match(sql, /INSERT INTO public\.audit_events/);
         assert.match(sql, /CROSS JOIN audited/);
@@ -351,5 +368,107 @@ test('Standard provider tier can be disabled with an audit event, but Premium ti
     assert.equal(fixture.calls.length, callsBeforePremium);
   } finally {
     await app.close();
+  }
+});
+
+
+test('Q-020 admin BigBang games GET has direct success, permission-denial and schema-negative route evidence', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+  });
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/bigbang/games?page=1&pageSize=25&providerCode=habanero&query=Hot',
+      headers: { cookie: SESSION_COOKIE, 'x-request-id': 'q020-admin-games-ok' },
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.equal(response.headers['x-request-id'], 'q020-admin-games-ok');
+    assert.equal(response.headers['cache-control'], 'no-store');
+    assert.deepEqual(response.json().data, [{
+      id: GAME_ID,
+      slug: 'hot-hot-fruit-habanero',
+      title: 'Hot Hot Fruit',
+      provider: { code: 'habanero', name: 'Habanero' },
+      sourceAvailable: true,
+      catalogAvailable: true,
+      enabled: true,
+      providerEnabled: true,
+      updatedAt: '2026-10-22T10:06:00.000Z',
+    }]);
+    assert.deepEqual(response.json().page, { page: 1, pageSize: 25, total: 1, nextPage: null });
+    assert.equal(fixture.calls.length, 2, 'the list endpoint should make only count and page queries');
+    assert.deepEqual(fixture.calls[0]!.values, ['habanero', '%Hot%']);
+    assert.match(fixture.calls[0]!.sql, /p\.code=\$1/);
+    assert.match(fixture.calls[0]!.sql, /g\.title ILIKE \$2/);
+    assert.deepEqual(fixture.calls[1]!.values, ['habanero', '%Hot%', 25, 0]);
+    assert.doesNotMatch(fixture.calls[1]!.sql, /Hot/);
+  } finally {
+    await app.close();
+  }
+
+  const missingSessionDb = fakeDatabase();
+  const missingSessionApp = buildApp({
+    database: null,
+    catalogDatabase: missingSessionDb.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+  });
+  try {
+    const denied = await missingSessionApp.inject({
+      method: 'GET',
+      url: '/api/v1/admin/bigbang/games',
+    });
+    assert.equal(denied.statusCode, 401);
+    assert.equal(denied.json().error.code, 'UNAUTHORIZED');
+    assert.equal(missingSessionDb.calls.length, 0, 'anonymous GET must not query game data');
+  } finally {
+    await missingSessionApp.close();
+  }
+
+  const insufficientPermissionDb = fakeDatabase();
+  const insufficientPermissionApp = buildApp({
+    database: null,
+    catalogDatabase: insufficientPermissionDb.database,
+    identity: fakeIdentity([]),
+    identityConfig: config(),
+  });
+  try {
+    const denied = await insufficientPermissionApp.inject({
+      method: 'GET',
+      url: '/api/v1/admin/bigbang/games',
+      headers: { cookie: SESSION_COOKIE },
+    });
+    assert.equal(denied.statusCode, 403);
+    assert.equal(denied.json().error.code, 'FORBIDDEN');
+    assert.ok(insufficientPermissionDb.calls.some((call) => call.sql.includes('casino.provider-settings.access-denied')));
+  } finally {
+    await insufficientPermissionApp.close();
+  }
+
+  const schemaDb = fakeDatabase();
+  const schemaApp = buildApp({
+    database: null,
+    catalogDatabase: schemaDb.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+  });
+  try {
+    const invalid = await schemaApp.inject({
+      method: 'GET',
+      url: '/api/v1/admin/bigbang/games?pageSize=101',
+      headers: { cookie: SESSION_COOKIE, 'x-request-id': 'q020-admin-games-invalid' },
+    });
+    assert.equal(invalid.statusCode, 400);
+    assert.equal(invalid.json().error.code, 'VALIDATION_ERROR');
+    assert.equal(invalid.json().requestId, 'q020-admin-games-invalid');
+    assert.equal(invalid.headers['x-request-id'], 'q020-admin-games-invalid');
+    assert.equal(schemaDb.calls.length, 0, 'invalid paging must be rejected before DB access');
+  } finally {
+    await schemaApp.close();
   }
 });
