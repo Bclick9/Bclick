@@ -21,13 +21,14 @@ If any mutation or the audit insert fails, the transaction rolls back. If the ta
 - The target email is independently confirmed. The command itself checks that the target is the only admin_users row.
 - A separate secure channel is arranged for recovery instructions. The CLI does not display a recovery code or new credential.
 
-The required environment variables are attestations, not cryptographic verification of an external ticketing service. The operator process remains responsible for confirming the references and identities. The command refuses by default and requires an explicit execution flag, both approval attestations, the target email typed twice, an incident ticket, two approval references, the sole-admin scope and an exact acknowledgement phrase.
+The required environment variables are attestations, not cryptographic verification of an external ticketing service. The operator process remains responsible for confirming the references and identities. The command is staging-only in this release: the feature flag is off by default, the operator must explicitly enable it after review, and NODE_ENV=production is rejected unconditionally even if the feature flag is set. It also requires an explicit execution flag, both approval attestations, the target email typed twice, an incident ticket, two approval references, the sole-admin scope and an exact acknowledgement phrase.
 
 ## Required runtime environment
 
 Set these variables only in the approved operator shell; do not include values in shell command history or a shared terminal recording:
 
-- NODE_ENV: staging or production, matching the target.
+- NODE_ENV: staging only. The command refuses NODE_ENV=production unconditionally in this release.
+- BCLICK_ADMIN_MFA_BREAK_GLASS_ENABLED: true only in an approved staging rehearsal after the independent identity/security review; unset/false means the command is disabled. This flag does not authorize production use.
 - DATABASE_URL: the approved target connection string supplied securely by the deployment system.
 - BCLICK_BREAK_GLASS_EXECUTION: EXECUTE.
 - BCLICK_BREAK_GLASS_APPROVAL_VERIFIED: YES, only after verifying independent out-of-band approval.
@@ -59,4 +60,4 @@ The Testcontainers integration test is a disposable-database rehearsal of mutati
 
 ## Release boundary
 
-This document and command do not close Issue #55 or Q-011, prove a production restore, authorize deployment, or enable wallet posting, callbacks, payments, FX, wagers, Premium or any real-money operation.
+This document and command do not close Issue #55 or Q-011, prove a production restore, authorize deployment, or enable wallet posting, callbacks, payments, FX, wagers, Premium or any real-money operation. The executable is unconditionally blocked in production in this release; any future production support requires a separate reviewed change and explicit gate approval.
