@@ -50,6 +50,10 @@ function responseHeaders(rawHeaders, requestUrl) {
     const name = String(rawHeaders[i]).toLowerCase();
     if (!SAFE_HEADERS.has(name)) continue;
     let value = String(rawHeaders[i + 1]).trim();
+    if (name === 'content-security-policy') {
+      // Preserve policy structure while ensuring a per-response nonce is never committed as evidence.
+      value = value.replace(/'nonce-[^']+'/gi, "'nonce-[REDACTED]'");
+    }
     if (name === 'location') {
       try {
         const location = new URL(value, requestUrl);
@@ -193,8 +197,18 @@ function checkCommonHeaders(name, response, expectedFrames) {
     JSON.stringify(headerValues(response, 'strict-transport-security')));
   const policies = cspPolicies(response);
   check(name + ': Content-Security-Policy present', policies.length > 0, 'policy count=' + policies.length);
-  check(name + ': X-Frame-Options', exactHeader(response, 'x-frame-options', 'DENY'),
-    JSON.stringify(headerValues(response, 'x-frame-options')));
+  const frameOptions = headerValues(response, 'x-frame-options').map((value) => value.trim().toLowerCase());
+  let frameOptionsAccepted = false;
+  if (JSON.stringify(expectedFrames) === JSON.stringify(["'none'"])) {
+    frameOptionsAccepted = frameOptions.length > 0 && frameOptions.every((value) => value === 'deny');
+  } else if (JSON.stringify(expectedFrames) === JSON.stringify(["'self'"])) {
+    frameOptionsAccepted = frameOptions.length > 0 && frameOptions.every((value) => value === 'sameorigin');
+  } else {
+    // X-Frame-Options cannot express an arbitrary origin allow-list; DENY would conflict with CSP.
+    frameOptionsAccepted = frameOptions.length === 0;
+  }
+  check(name + ': X-Frame-Options does not contradict approved ancestors', frameOptionsAccepted,
+    JSON.stringify(frameOptions));
   if (policies.length > 0) {
     const ancestorChecks = policies.map((policy) => {
       const actual = (policy.get('frame-ancestors') || []).map((item) => item.toLowerCase()).sort();
@@ -218,24 +232,33 @@ function checkStorefrontCsp(name, response) {
   const policies = cspPolicies(response);
   if (policies.length === 0) return;
   const scriptChecks = [];
+  const scriptElementChecks = [];
   const frameChecks = [];
   const weakSourceChecks = [];
   for (const policy of policies) {
     const scriptSources = policy.get('script-src') || [];
+    const scriptElementSources = policy.get('script-src-elem') || scriptSources;
+    const scriptAttributeSources = policy.get('script-src-attr') || [];
     const frameSources = policy.get('frame-src') || [];
     scriptChecks.push(scriptSources.some(sourceMatchesWinHouse));
+    // script-src-elem, when present, overrides script-src for external <script> elements.
+    scriptElementChecks.push(scriptElementSources.some(sourceMatchesWinHouse));
     frameChecks.push(frameSources.some(sourceMatchesWinHouse));
     weakSourceChecks.push(
       !scriptSources.some(hasBroadSource)
+      && !scriptElementSources.some(hasBroadSource)
+      && !scriptAttributeSources.some(hasBroadSource)
       && !frameSources.some(hasBroadSource),
     );
   }
   check(name + ': explicit script-src permits official WinHouse loader origin',
     scriptChecks.every(Boolean), 'all effective policies must permit https://iframe.winhouse.bet');
+  check(name + ': effective script-src-elem permits official loader',
+    scriptElementChecks.every(Boolean), 'script-src-elem overrides script-src when present');
   check(name + ': explicit frame-src permits WinHouse frame origin',
     frameChecks.every(Boolean), 'all effective policies must permit https://iframe.winhouse.bet');
-  check(name + ': no broad script/frame source or unsafe-inline/unsafe-eval',
-    weakSourceChecks.every(Boolean), 'checked script-src and frame-src in every effective policy');
+  check(name + ': no broad script/frame sources or unsafe-inline/unsafe-eval',
+    weakSourceChecks.every(Boolean), 'checked script-src, script-src-elem, script-src-attr and frame-src in every effective policy');
 }
 
 function alternatePortOrigin(origin) {
