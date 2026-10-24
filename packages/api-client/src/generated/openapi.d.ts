@@ -2051,7 +2051,7 @@ export interface paths {
         };
         /**
          * Read a CMS resource
-         * @description Requires cms.write or cms.publish as appropriate. Draft detail includes version and audit metadata. ETag is returned for subsequent If-Match writes. The generic resource path excludes skin-games; game ordering is handled by the dedicated /api/v1/admin/cms/skin-games/{gameId}/reorder route.
+         * @description Requires cms.write or cms.publish as appropriate. Draft detail includes version and audit metadata. ETag is returned for subsequent If-Match writes. The generic resource path excludes skin-games; game ordering uses the persisted catalogue operations /api/v1/admin/casino/skin-games/reorder and /api/v1/admin/casino/skin-games/{gameId}/order-position.
          */
         get: operations["ReadACmsResource"];
         put?: never;
@@ -2363,26 +2363,6 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/cms/skin-games/{gameId}/reorder": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Reorder a game within a CMS skin
-         * @description Requires cms.write and an If-Match value for the current skin/order version. Changes presentation order only; it does not alter provider game IDs or availability.
-         */
-        patch: operations["reorderCmsSkinGame"];
         trace?: never;
     };
     "/csp-report": {
@@ -11069,61 +11049,6 @@ export interface operations {
             };
             /** @description Retriable failure only when allowed by the selected PSP webhook contract. */
             "5XX": {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    reorderCmsSkinGame: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
-                "If-Match": components["parameters"]["IfMatch"];
-                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
-                "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
-                "X-CSRF-Token": components["parameters"]["CsrfToken"];
-            };
-            path: {
-                gameId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: uuid */
-                    skinId: string;
-                    position: number;
-                };
-            };
-        };
-        responses: {
-            /** @description Skin ordering updated; returns current ETag and audit metadata. */
-            200: {
-                headers: {
-                    ETag: components["headers"]["ETag"];
-                    "X-Request-Id": components["headers"]["XRequestId"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CmsResourceResponse"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            409: components["responses"]["Conflict"];
-            /** @description ETag mismatch; re-fetch current order before retry. */
-            412: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description If-Match is required. */
-            428: {
                 headers: {
                     [name: string]: unknown;
                 };
