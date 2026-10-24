@@ -430,7 +430,7 @@ test('provider list exposes independent Standard and fail-closed Premium tier co
   }
 });
 
-test('Standard provider tier can be disabled with an audit event, but Premium tier stays unavailable', async () => {
+test('provider tier mutation matches OpenAPI success/error envelopes and keeps Premium fail-closed', async () => {
   const fixture = fakeDatabase();
   const app = buildApp({
     database: null,
@@ -439,30 +439,43 @@ test('Standard provider tier can be disabled with an audit event, but Premium ti
     identityConfig: config(),
   });
   try {
+    const standardRequestId = 'q020-bb-tier-standard-success';
     const response = await app.inject({
       method: 'PATCH',
       url: '/api/v1/admin/bigbang/providers/habanero/tiers/standard',
-      headers: authHeaders({ origin: ADMIN_ORIGIN }),
+      headers: { ...authHeaders({ origin: ADMIN_ORIGIN }), 'x-request-id': standardRequestId },
       payload: { enabled: false },
     });
     assert.equal(response.statusCode, 200, response.body);
+    assert.deepEqual(Object.keys(response.json()).sort(), ['data', 'requestId']);
     assert.deepEqual(response.json().data, {
       code: 'habanero', mode: 'standard', enabled: false, updatedAt: '2026-10-23T08:10:00.000Z',
     });
+    assert.equal(response.json().requestId, standardRequestId);
+    assert.equal(response.headers['x-request-id'], standardRequestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
     const tierMutation = fixture.calls.find((call) => call.sql.includes('UPDATE public.casino_provider_tier_settings'));
     assert.ok(tierMutation);
-    assert.match(tierMutation.sql, /INSERT INTO public\.audit_events/);
+    assert.match(tierMutation.sql, /INSERT INTO public\\.audit_events/);
     assert.deepEqual(tierMutation.values.slice(0, 4), ['habanero', 'standard', false, ADMIN_ID]);
 
     const callsBeforePremium = fixture.calls.length;
+    const premiumRequestId = 'q020-bb-tier-premium-locked';
     const premium = await app.inject({
       method: 'PATCH',
       url: '/api/v1/admin/bigbang/providers/habanero/tiers/premium',
-      headers: authHeaders({ origin: ADMIN_ORIGIN }),
+      headers: { ...authHeaders({ origin: ADMIN_ORIGIN }), 'x-request-id': premiumRequestId },
       payload: { enabled: true },
     });
-    assert.equal(premium.statusCode, 409);
-    assert.equal(premium.json().error.code, 'PREMIUM_NOT_AVAILABLE');
+    assert.equal(premium.statusCode, 409, premium.body);
+    assert.deepEqual(premium.json().error, {
+      code: 'PREMIUM_NOT_AVAILABLE',
+      message: 'Premium provider controls remain locked until authorized Premium catalogue sync and launch support are implemented',
+    });
+    assert.deepEqual(Object.keys(premium.json()).sort(), ['error', 'requestId']);
+    assert.equal(premium.json().requestId, premiumRequestId);
+    assert.equal(premium.headers['x-request-id'], premiumRequestId);
+    assert.equal(premium.headers['content-type']?.split(';')[0], 'application/json');
     assert.equal(fixture.calls.length, callsBeforePremium);
   } finally {
     await app.close();
