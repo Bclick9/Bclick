@@ -26,3 +26,22 @@ Do not assume Aggregator uses either 2dp or 3dp. Its integer `amount`/`balance` 
 These vectors prove only the sample bet/win signatures, balances, and stated precision/rounding/refusal behavior. They do **not** settle every callback type, conflicting duplicate handling, idempotency, refunds/cashouts, player/session mapping, source/game eligibility, sandbox reconciliation, or production readiness.
 
 Keep Q-006, Q-010, Q-011, Q-013, Q-004, applicable compliance, and deployment/release approval independent. Passing these fixtures must not enable a live callback, wager, payment, FX, wallet posting, or other real-money path.
+
+
+## Versioned source artifacts recorded for Q-006
+
+The following byte-level SHA-256 values were computed from the exact source files available in the Project Library on **2026-10-24**. They identify the archived local artifacts; they are **not** proof that a message was sent to a vendor, that a given vendor authored each byte, or that tenant-specific production settings have been confirmed.
+
+| Artifact | Library version | Size (bytes) | SHA-256 | Provenance / status |
+|---|---:|---:|---|---|
+| `BIGBANG_AGENT.md` | 1 | 20,552 | `60b7b046dd1f56cbd4cf3577b349fe9f1ffbde3b2df1538d6ece7c2368b59b74` | Project Library artifact; match against vendor-issued revision/delivery record |
+| `WINHOUSE_AGENT.md` | 1 | 23,021 | `00de9e66c76627eee31af1f9ccba93371432abfffebff39d026d512e53dc2d6b` | Project Library artifact; match against vendor-issued revision/delivery record |
+| `tnd-2dp-vendor-fixtures.json` | 1 | 4,793 | `8f41e3c2336d1905241251f937d6b9cd548305922d439ebda3c67e15e60ccba0` | Source fixture in the Project Library; `dummy_secret` is test-only |
+
+The Q-006 issue is the correspondence/evidence log: record the real recipient or authenticated support channel, sent timestamp, ticket/message identifier, exact attachment version/hash, and response artifact. As of this manifest update, **no send timestamp, recipient, or provider ticket has been evidenced here; do not mark correspondence sent**. Never store callback tokens, API keys, or production secrets in the repository or issue body.
+
+## Documented contracts versus remaining provider gates
+
+- The BigBang agent describes `balance_change` HMAC-SHA256 over `username + amount + game + game_category + transaction_id`, without separators, using the amount's shortest JavaScript-style decimal representation. It also documents stable `transaction_id` retries and atomic database posting. The optional raw-body `X-Body-Signature` requirement and tenant configuration need separate confirmation before implementing that check.
+- The WinHouse agent describes a separate callback query token and wallet API key, HMAC-SHA256 over `username + amount + action + ticket_id + transaction_id` without separators, on-wire amount stringification, constant-time comparison, idempotent same-payload retries, conflicting-duplicate refusal, atomic posting, and overdraft refusal. Confirm the tenant's enabled seamless-wallet model, domain/IP allow-listing, key rotation, and reconciliation/support process from actual tenant/vendor evidence.
+- The source docs and TND fixture are baselines, not blanket evidence that every callback variant, retry/out-of-order case, reversal/cashout, player/session mapping, sandbox reconciliation, or production release control is closed. Keep Q-006, Q-010, Q-011 and Q-013 as independent gates.
