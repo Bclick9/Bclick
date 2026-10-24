@@ -30,3 +30,9 @@ test('WinHouse cleanup does not reference observers removed with bottom-gap logi
     /\b(?:navigationResizeObserver|navigationMutationObserver|syncBottomGap)\b/,
   )
 })
+
+test('WinHouse integration does not reference legacy undocumented betslip/count helpers', () => {
+  assert.doesNotMatch(sportsSource, /\\bopenBetslip\\b/)
+  assert.doesNotMatch(sportsSource, /\\bselectionCount\\b/)
+  assert.match(sportsSource, /window\\.WinHouseEmbed\\?\\.refit\\?\\.\\(\\)/)
+})
