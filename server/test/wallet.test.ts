@@ -225,6 +225,48 @@ test('Phase 5 wallet ledger rehearsal: double entry, immutable posting, no overd
     assert.deepEqual(playerSession.json().data, playerLogin.json().data,
       'player session projection must match the successful login response');
 
+    const hostileOriginLogin = await app.inject({
+      method: 'POST', url: '/api/v1/auth/login',
+      headers: { origin: 'https://attacker.invalid', 'x-request-id': 'q020b-login-hostile-origin' },
+      payload: { email, password: 'Local-Wallet-Test-Password-123!' },
+    });
+    assert.equal(hostileOriginLogin.statusCode, 403, hostileOriginLogin.body);
+    assert.deepEqual(hostileOriginLogin.json(), {
+      error: { code: 'ORIGIN_INVALID', message: 'Request Origin is not allowed' },
+      requestId: 'q020b-login-hostile-origin',
+    });
+    assert.equal(hostileOriginLogin.headers['x-request-id'], 'q020b-login-hostile-origin');
+    assert.equal(hostileOriginLogin.headers['cache-control'], 'no-store');
+    assert.equal(hostileOriginLogin.headers['set-cookie'], undefined,
+      'rejected login Origin cannot mint session cookies');
+
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      const requestId = 'q020b-login-bad-password-' + attempt;
+      const failedLogin = await app.inject({
+        method: 'POST', url: '/api/v1/auth/login',
+        headers: { origin: 'https://localhost:5173', 'x-request-id': requestId },
+        payload: { email, password: 'Definitely-Wrong-Password-123!' },
+      });
+      assert.equal(failedLogin.headers['x-request-id'], requestId);
+      assert.equal(failedLogin.json().requestId, requestId);
+      assert.equal(failedLogin.headers['cache-control'], 'no-store');
+      assert.equal(failedLogin.headers['set-cookie'], undefined,
+        'failed login cannot mint authenticated session cookies');
+      if (attempt < 5) {
+        assert.equal(failedLogin.statusCode, 401, failedLogin.body);
+        assert.deepEqual(failedLogin.json(), {
+          error: { code: 'UNAUTHORIZED', message: 'Username/email or password is incorrect' },
+          requestId,
+        });
+      } else {
+        assert.equal(failedLogin.statusCode, 429, failedLogin.body);
+        assert.deepEqual(failedLogin.json(), {
+          error: { code: 'RATE_LIMITED', message: 'Too many login attempts' },
+          requestId,
+        });
+      }
+    }
+
     const emptyWallet = await app.inject({
       method: 'GET',
       url: '/api/v1/wallets/TND/balance',
