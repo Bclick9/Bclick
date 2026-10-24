@@ -49,6 +49,8 @@ test('identity crypto primitives normalize identifiers, use RFC TOTP and bind CS
   assert.equal(allowExactOrigin('https://localhost:5173', ['https://localhost:5173']), true);
   assert.equal(allowExactOrigin('https://localhost:5173/path', ['https://localhost:5173']), false);
   assert.equal(allowExactOrigin('https://evil.example', ['https://localhost:5173']), false);
+  assert.equal(allowExactOrigin('https://localhost:5174', ['https://localhost:5173']), false, 'an origin on another port is not same-origin');
+  assert.equal(allowExactOrigin('https://localhost:5173.attacker.invalid', ['https://localhost:5173']), false, 'a hostname suffix is not same-origin');
   const cookie = buildCookie('__Host-bclick_admin_csrf', 'token');
   assert.match(cookie, /Secure/);
   assert.match(cookie, /Path=\//);
