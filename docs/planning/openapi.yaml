@@ -164,6 +164,7 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [email]
               properties: {email: {type: string, format: email, maxLength: 254}}
       responses:
@@ -184,6 +185,7 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [token, newPassword]
               properties:
                 token: {type: string, minLength: 32, maxLength: 512}
