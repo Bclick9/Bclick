@@ -124,6 +124,17 @@ function exactHeader(response, name, expected) {
   return values.length > 0 && values.every((value) => value.trim().toLowerCase() === expected.toLowerCase());
 }
 
+function secureReferrerPolicy(response) {
+  const accepted = new Set([
+    'no-referrer',
+    'same-origin',
+    'strict-origin',
+    'strict-origin-when-cross-origin',
+  ]);
+  const values = headerValues(response, 'referrer-policy');
+  return values.length > 0 && values.every((value) => accepted.has(value.trim().toLowerCase()));
+}
+
 function hstsIsStrong(response) {
   const values = headerValues(response, 'strict-transport-security');
   return values.length > 0 && values.every((value) => {
@@ -191,7 +202,7 @@ function checkCommonHeaders(name, response, expectedFrames) {
   check(name + ': status 200', response.statusCode === 200, 'HTTP ' + response.statusCode);
   check(name + ': X-Content-Type-Options', exactHeader(response, 'x-content-type-options', 'nosniff'),
     JSON.stringify(headerValues(response, 'x-content-type-options')));
-  check(name + ': Referrer-Policy', exactHeader(response, 'referrer-policy', 'no-referrer'),
+  check(name + ': Referrer-Policy is an explicit restrictive value', secureReferrerPolicy(response),
     JSON.stringify(headerValues(response, 'referrer-policy')));
   check(name + ': HSTS at HTTPS edge', hstsIsStrong(response),
     JSON.stringify(headerValues(response, 'strict-transport-security')));
