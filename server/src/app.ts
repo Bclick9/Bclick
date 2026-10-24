@@ -119,7 +119,12 @@ export function buildApp(options: BuildAppOptions) {
     if (allowedHosts.size > 0) {
       const hostHeader = request.headers.host;
       const host = typeof hostHeader === 'string' ? hostHeader.trim().toLowerCase() : '';
-      if (!host || /[,\\s\\u0000-\\u001f\\u007f]/.test(host) || !allowedHosts.has(host)) {
+      if (
+        !host
+        || host.includes(',')
+        || [...host].some((char) => char.charCodeAt(0) <= 0x20 || char.charCodeAt(0) === 0x7f)
+        || !allowedHosts.has(host)
+      ) {
         return reply.code(421).send({
           error: { code: 'HOST_INVALID', message: 'Request Host is not allowed' },
           requestId: request.id,
