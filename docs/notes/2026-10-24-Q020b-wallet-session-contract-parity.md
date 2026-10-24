@@ -1,24 +1,25 @@
 # Q-020b wallet/session contract parity — 2026-10-24
 
-**Scope:** the bounded player-login/session and wallet balance/statement read cohort in Issue #141. This does not reopen original Q-020 and is not a blanket approval of all routes.
+**Status: merged in PR #145 and verified on current main.** This is a bounded cohort under Issue #141. It does not reopen original Q-020 and does not claim all 49 route declarations are fully contract-signed-off.
 
 ## Implemented
 
-- `POST /api/v1/auth/login`, `GET /api/v1/auth/session`, `GET /api/v1/admin/session`, and wallet `balance` / `statement` set `Cache-Control: no-store` in the request hook before route validation. This covers validation, authentication, authorization, not-found, rate-limit, success and unexpected-error paths rather than only successful handlers.
-- Login/session and wallet OpenAPI operations now declare their supported error statuses and no-store headers. The generated API client is updated to the same declaration.
-- Player response construction includes the OpenAPI-required `emailVerificationStatus`, `kycTier` and `kycLock` fields, and real-service SQL projections fetch those existing player columns for registration, login, session read and profile update.
-- Removed misleading `page` / `pageSize` query parameters from the wallet statement OpenAPI contract: the implementation supports `cursor` / `limit`, and its returned page object is `{ nextCursor, pageSize }`. The route correctly rejects undocumented query keys.
-- Tests assert exact 200/400/401/403/404/429/500 envelopes where applicable, request-ID header/body parity, no-store on successes and failures, no session cookie on rejected login, and response body projections against required OpenAPI fields.
-- The real PostgreSQL wallet integration test asserts empty/credited balance and statements, unauthenticated reads, cross-settlement-currency denial, invalid/replayed cursor handling, and reversed date-range rejection.
+- POST /api/v1/auth/login, GET /api/v1/auth/session, GET /api/v1/admin/session and wallet balance/statement set Cache-Control: no-store in the early request hook, including validation, authentication, authorization, not-found, rate-limit, success and unexpected-error responses.
+- OpenAPI and the generated TypeScript client declare the exact error responses and Cache-Control no-store response header for these operations. The generated client is checked against the actual generator in CI.
+- Player response construction includes the OpenAPI-required emailVerificationStatus, kycTier and kycLock fields. The real-service SQL projections now fetch the existing columns for register/login/session/profile reads where used.
+- Wallet statement OpenAPI now documents the actual cursor/limit contract and rejects the retired page/pageSize query parameters. The runtime response page object is { nextCursor, pageSize }.
+- Real PostgreSQL-backed tests assert login success, malformed request, missing/hostile Origin, wrong password, rate-limit, safe unexpected error, active/anonymous player session, active/locked/disabled/expired admin session, wallet balance/statement success and denial, invalid/replayed cursor, date ordering, and invalid currency/cross-settlement-currency responses.
+- The checks compare exact safe response bodies, request-ID header/body parity, cache headers, content type, and absence of session cookies on denied login.
 
-## Current test evidence
+## CI evidence
 
-This note is authored before CI for the new branch has completed; do not treat the claims above as accepted until the PR's API tests, OpenAPI lint/client generation and app build all pass on the final head. Any failure must be fixed or listed as a residual before merging.
+- [PR #145](https://github.com/Bclick9/Bclick/pull/145) merged as c192e3669efa2cc486860520260b5cbff4145b7c after all required final-head workflows passed.
+- [Current-main API/OpenAPI/generated-client and contract tests](https://github.com/Bclick9/Bclick/actions/runs/40095341049), [Compose/Identity/PowerShell checks](https://github.com/Bclick9/Bclick/actions/runs/40095340984), and [application build](https://github.com/Bclick9/Bclick/actions/runs/40095340980) passed at main commit df0ba5734b1f12ae7ba24c70d08b87d279d5018a.
 
-## Remaining bounded work
+## Explicit residuals
 
-- The route matrix stays at **Substantial, not contract sign-off** for these paths until all final-CI assertions are reviewed. Explicit active/inactive admin-session cache-header assertions and unexpected service-error cases can still be improved.
-- Other admin mutations outside the already-tested provider/tier and icon/image cases remain in Q-020b's fixed scope and need their named Origin/CSRF/RBAC/no-side-effect assertions before Issue #141 is closed.
-- Q-004 media quarantine/scanning and storage isolation, Phase 4 shared-environment break-glass recovery under Issue #55, Q-006, Q-010, Q-011, Q-013, production operations, compliance and deployment approval remain independent gates.
+- This cohort does not sign off all 49 routes. Other registration/logout/profile/email/password-reset/MFA operations and list/filter pagination, unsupported identifiers/modes, unknown resources and complete 404/500 response parity remain explicitly deferred in the broader route matrix.
+- Issue #55 remains independent and OPEN until shared-environment sole-administrator break-glass recovery has an independently approved executable procedure and rehearsal.
+- Q-004 media quarantine/scanning/storage isolation, Q-006 provider evidence, Q-010 wallet posting/idempotency, Q-011 backup/WAL restore RPO/RTO, Q-013 CSP/frame/host-header review and compliance/deployment approval remain separate gates.
 
-No wallet posting or real-money payment, deposit/withdrawal, wager, provider callback, FX-execution or Premium path is added or enabled by this cohort.
+No wallet posting, deposits/withdrawals, wager settlement, provider callbacks, FX execution, Premium activation, or real-money route is added or enabled.
