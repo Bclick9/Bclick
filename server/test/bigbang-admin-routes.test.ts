@@ -428,7 +428,7 @@ test('game mutation rejects hostile Origin and insufficient RBAC before mutation
     assert.equal(response.headers['x-request-id'], permissionRequestId);
     assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
     assert.equal(permissionFixture.calls.length, 1, 'RBAC denial should only insert its denial audit');
-    assert.match(permissionFixture.calls[0]!.sql, /casino\\.provider-settings\\.access-denied/);
+    assert.ok(permissionFixture.calls[0]!.sql.includes('casino.provider-settings.access-denied'));
     assert.equal(permissionFixture.calls.some((call) => call.sql.includes('UPDATE public.casino_games')), false);
   } finally {
     await permissionApp.close();
@@ -465,9 +465,9 @@ test('game disable is persisted with an atomic audit record and exact response e
     assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
     assert.equal(fixture.calls.length, 1);
     const call = fixture.calls[0]!;
-    assert.match(call.sql, /UPDATE public\\.casino_games/);
+    assert.ok(call.sql.includes('UPDATE public.casino_games'));
     assert.match(call.sql, /source_mode='standard'/);
-    assert.match(call.sql, /INSERT INTO public\\.audit_events/);
+    assert.ok(call.sql.includes('INSERT INTO public.audit_events'));
     assert.deepEqual(call.values.slice(0, 3), [GAME_ID, false, ADMIN_ID]);
     assert.equal(call.values[4], 'casino.game.disabled');
   } finally {
