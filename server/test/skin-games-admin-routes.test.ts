@@ -595,7 +595,7 @@ test('admin can upload a validated custom icon and serve only the active categor
   }
 });
 
-test('display-category icon upload rejects undersized and invalid image bytes with request-id and error-envelope parity', async () => {
+test('display-category icon upload rejects undersized, oversized and invalid image bytes with request-id and error-envelope parity', async () => {
   const cases = [
     {
       name: 'undersized payload',
@@ -603,6 +603,15 @@ test('display-category icon upload rejects undersized and invalid image bytes wi
       statusCode: 413,
       code: 'IMAGE_SIZE_INVALID',
       message: 'Category icon must be a supported image no larger than 5 MiB',
+    },
+    {
+      name: 'oversized payload',
+      // Fastify's bounded content-type parser rejects this before the route handler,
+      // so the shared safe envelope is REQUEST_REJECTED rather than IMAGE_SIZE_INVALID.
+      payload: Buffer.alloc(5 * 1024 * 1024 + 1),
+      statusCode: 413,
+      code: 'REQUEST_REJECTED',
+      message: 'Request could not be processed',
     },
     {
       name: 'invalid image bytes',
@@ -623,7 +632,7 @@ test('display-category icon upload rejects undersized and invalid image bytes wi
       identityConfig: config(),
       uploadDirectory,
     });
-    const requestId = 'q020-icon-invalid-' + (entry.statusCode === 413 ? 'size' : 'bytes');
+    const requestId = 'q020-icon-invalid-' + entry.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
 
     try {
       const response = await app.inject({

@@ -965,7 +965,13 @@ export interface paths {
     "/api/v1/assets/casino-display-categories/{categoryId}/{fileName}": {
         parameters: {
             query?: never;
-            header?: never;
+                        header?: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}"/api/v1/assets/casino-display-categories/{categoryId}/{fileName}": {
+        parameters: {
+            query?: never;
+            ; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
             path: {
                 categoryId: string;
                 fileName: string;
@@ -7313,7 +7319,7 @@ export interface operations {
             /** @description Icon stored and category metadata audited. */
             201: {
                 headers: {
-                    "X-Request-Id"?: components["headers"]["XRequestId"];
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -7337,7 +7343,7 @@ export interface operations {
             /** @description Image exceeds the 5 MiB upload limit or is empty/too small. */
             413: {
                 headers: {
-                    "X-Request-Id"?: components["headers"]["XRequestId"];
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -7347,7 +7353,7 @@ export interface operations {
             /** @description Unsupported image content type, invalid image bytes or content-type mismatch. */
             415: {
                 headers: {
-                    "X-Request-Id"?: components["headers"]["XRequestId"];
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -7359,7 +7365,7 @@ export interface operations {
     getCasinoDisplayCategoryIcon: {
         parameters: {
             query?: never;
-            header: {
+            header?: {
                 /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
@@ -7376,7 +7382,7 @@ export interface operations {
                 headers: {
                     "Cache-Control"?: string;
                     "X-Content-Type-Options"?: string;
-                    "X-Request-Id"?: components["headers"]["XRequestId"];
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
                 content: {
