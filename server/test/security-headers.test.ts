@@ -82,6 +82,40 @@ test('untrusted forwarded host and Forwarded headers cannot override an approved
   }
 });
 
+test('Host allow-list matches the exact authority including port', async () => {
+  const app = buildApp({
+    database: null,
+    logLevel: 'silent',
+    allowedHosts: ['bclick.example.test:8443'],
+  });
+
+  try {
+    const approved = await app.inject({
+      method: 'GET',
+      url: '/api/v1/health/live',
+      headers: { host: 'bclick.example.test:8443' },
+    });
+    assert.equal(approved.statusCode, 200);
+
+    for (const host of [
+      'bclick.example.test',
+      'bclick.example.test:443',
+      'bclick.example.test:8444',
+      'bclick.example.test.attacker.invalid',
+      'bclick.example.test,attacker.invalid',
+    ]) {
+      const rejected = await app.inject({
+        method: 'GET',
+        url: '/api/v1/health/live',
+        headers: { host },
+      });
+      assert.equal(rejected.statusCode, 421, 'must reject Host authority ' + host);
+    }
+  } finally {
+    await app.close();
+  }
+});
+
 test('development compatibility allows hosts to remain unspecified only when no shared host policy is passed', async () => {
   const app = buildApp({ database: null, logLevel: 'silent' });
 
