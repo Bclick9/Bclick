@@ -1,7 +1,13 @@
 # Q-011 — local disposable Docker restore rehearsal
 
 **Prepared:** 2026-10-24  
-**Status:** script and CI validation in progress; no Owner-machine drill result has been recorded.
+**Status:** Owner-machine local Docker rehearsal passed; formal Q-011 acceptance remains open.
+
+## Owner-machine local result — 2026-10-24
+
+The Project Owner ran the current script on Windows successfully, run ID `20261024T172346Z-ddd2db2b`, with target `q011_local_before_incident`. The console confirmed all 19 migrations, source ledger consistency, base-backup verification, WAL archive advancement, named-point recovery/promotion, target-marker cutoff, restored migration inventory, TND fixture presence, per-currency journal balance, `account_balances` reconciliation, required projections, EUR/TND/USD precision at 2dp, and exported local backup/WAL artifacts. The run summary is at `.local/q011-restore-drill/20261024T172346Z-ddd2db2b/evidence.json` on the owner's machine; raw backup/WAL files remain local and are not committed.
+
+This confirms a **local disposable rehearsal only**. The script's simulated marker interval is not live archive freshness, and its local duration is not staging RTO. Off-host encrypted backup, independent alert delivery, independent encryption-key recovery, and an actual isolated staging restore with measured RPO ≤15 minutes and RTO ≤8 hours remain unproven.
 
 ## Purpose and limit
 
