@@ -83,6 +83,9 @@ function requireIdentityApproval(request: AdminMfaBreakGlassRequest): {
   if (requesterIdentity.toLowerCase() === approverIdentity.toLowerCase()) {
     throw new BreakGlassOperationError('REQUESTER_AND_APPROVER_MUST_DIFFER');
   }
+  if (requesterIdentity.toLowerCase() === targetEmail) {
+    throw new BreakGlassOperationError('TARGET_CANNOT_REQUEST_OWN_RECOVERY');
+  }
   if (approverIdentity.toLowerCase() === targetEmail) {
     throw new BreakGlassOperationError('TARGET_CANNOT_APPROVE_OWN_RECOVERY');
   }
