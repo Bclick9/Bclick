@@ -2,13 +2,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { buildApp } from '../src/app.js';
+import { createCsrfToken, verifyCsrfToken } from '../src/identity/crypto.js';
 import type { IdentityConfig } from '../src/identity/config.js';
 import type { AuthSession, IdentityService } from '../src/identity/service.js';
 import type { SqlExecutor } from '../src/identity/repository.js';
 
 const ADMIN_ORIGIN = 'http://localhost:5174';
 const SESSION_COOKIE = '__Host-bclick_admin_session=admin-session';
-const CSRF_COOKIE = '__Host-bclick_admin_csrf=csrf-token-value-123456789';
+const CSRF_TOKEN = createCsrfToken('admin', 'session-id', 1, 'b'.repeat(64));
+const CSRF_COOKIE = '__Host-bclick_admin_csrf=' + CSRF_TOKEN;
 const ADMIN_ID = '8d01ab53-7f9c-4e67-b4e8-64c5a409a7a9';
 const PROVIDER_ID = '5a03f96c-a9cb-4f98-8a54-29af7a9f77c3';
 const GAME_ID = 'ebc75e97-68a5-40f8-8177-65db54ace749';
@@ -50,8 +52,8 @@ function fakeIdentity(permissions: string[] = [PERMISSION]) {
     async resolveSession(type: 'player' | 'admin', token: string | undefined) {
       return type === 'admin' && token === 'admin-session' ? session : null;
     },
-    verifyCsrfForSession(_session: AuthSession, token: string) {
-      return token === 'csrf-token-value-123456789';
+    verifyCsrfForSession(currentSession: AuthSession, token: string) {
+      return verifyCsrfToken(token, 'admin', currentSession.id, currentSession.version, config().csrfSigningKey);
     },
   } as unknown as IdentityService;
 }
@@ -144,13 +146,21 @@ function fakeDatabase() {
   return { database, calls };
 }
 
-function authHeaders(options: { csrf?: boolean; origin?: string } = {}) {
+function authHeaders(options: {
+  csrf?: boolean;
+  header?: boolean;
+  origin?: string;
+  cookieToken?: string;
+  headerToken?: string;
+} = {}) {
   const cookies = [SESSION_COOKIE];
-  if (options.csrf !== false) cookies.push(CSRF_COOKIE);
+  if (options.csrf !== false) cookies.push('__Host-bclick_admin_csrf=' + (options.cookieToken ?? CSRF_TOKEN));
   return {
     cookie: cookies.join('; '),
     ...(options.origin ? { origin: options.origin } : {}),
-    ...(options.csrf !== false ? { 'x-csrf-token': 'csrf-token-value-123456789' } : {}),
+    ...(options.csrf !== false && options.header !== false
+      ? { 'x-csrf-token': options.headerToken ?? options.cookieToken ?? CSRF_TOKEN }
+      : {}),
   };
 }
 
@@ -227,7 +237,43 @@ test('administrator without provider-settings permission is denied and the denia
   }
 });
 
-test('provider state changes require Origin, CSRF and MFA-backed admin session before mutation', async () => {
+test('provider mutation rejects missing/hostile Origin and missing, mismatched or unsigned CSRF before database effects', async () => {
+  const cases = [
+    {
+      name: 'missing Origin',
+      headers: authHeaders(),
+      code: 'ORIGIN_INVALID',
+      message: 'Request Origin is not allowed',
+    },
+    {
+      name: 'hostile Origin',
+      headers: authHeaders({ origin: 'https://attacker.example' }),
+      code: 'ORIGIN_INVALID',
+      message: 'Request Origin is not allowed',
+    },
+    {
+      name: 'missing CSRF header',
+      headers: authHeaders({ origin: ADMIN_ORIGIN, header: false }),
+      code: 'CSRF_INVALID',
+      message: 'CSRF validation failed',
+    },
+    {
+      name: 'mismatched CSRF cookie and header',
+      headers: authHeaders({ origin: ADMIN_ORIGIN, headerToken: 'mismatched-csrf-value-123456789' }),
+      code: 'CSRF_INVALID',
+      message: 'CSRF validation failed',
+    },
+    {
+      name: 'unsigned CSRF token',
+      headers: authHeaders({
+        origin: ADMIN_ORIGIN,
+        cookieToken: 'unsigned-csrf-token-123456789',
+        headerToken: 'unsigned-csrf-token-123456789',
+      }),
+      code: 'CSRF_INVALID',
+      message: 'CSRF validation failed',
+    },
+  ];
   const fixture = fakeDatabase();
   const app = buildApp({
     database: null,
@@ -236,15 +282,56 @@ test('provider state changes require Origin, CSRF and MFA-backed admin session b
     identityConfig: config(),
   });
   try {
+    for (const entry of cases) {
+      const requestId = 'q020-bb-provider-' + entry.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/v1/admin/bigbang/providers/habanero',
+        headers: { ...entry.headers, 'x-request-id': requestId },
+        payload: { enabled: false },
+      });
+      assert.equal(response.statusCode, 403, entry.name + ': ' + response.body);
+      assert.deepEqual(response.json().error, { code: entry.code, message: entry.message }, entry.name);
+      assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId'], entry.name);
+      assert.equal(response.json().requestId, requestId, entry.name);
+      assert.equal(response.headers['x-request-id'], requestId, entry.name);
+      assert.equal(response.headers['content-type']?.split(';')[0], 'application/json', entry.name);
+      assert.equal(fixture.calls.length, 0, entry.name + ': denied request must not query, mutate or audit-success');
+    }
+  } finally {
+    await app.close();
+  }
+});
+
+test('provider mutation denies insufficient RBAC with an audited 403 before any update', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(['admin.session.read']),
+    identityConfig: config(),
+  });
+  const requestId = 'q020-bb-provider-rbac-denied';
+  try {
     const response = await app.inject({
       method: 'PATCH',
       url: '/api/v1/admin/bigbang/providers/habanero',
-      headers: authHeaders({ origin: ADMIN_ORIGIN, csrf: false }),
+      headers: { ...authHeaders({ origin: ADMIN_ORIGIN }), 'x-request-id': requestId },
       payload: { enabled: false },
     });
-    assert.equal(response.statusCode, 403);
-    assert.equal(response.json().error.code, 'CSRF_INVALID');
-    assert.equal(fixture.calls.length, 0);
+    assert.equal(response.statusCode, 403, response.body);
+    assert.deepEqual(response.json().error, {
+      code: 'FORBIDDEN',
+      message: 'The administrator lacks the required provider-settings permission',
+    });
+    assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(fixture.calls.length, 1, 'RBAC denial must only append its denial audit');
+    assert.match(fixture.calls[0]!.sql, /casino\.provider-settings\.access-denied/);
+    assert.equal(fixture.calls[0]!.values[1], ADMIN_ID);
+    assert.equal(fixture.calls.some((call) => call.sql.includes('UPDATE public.casino_providers')), false);
   } finally {
     await app.close();
   }
@@ -259,14 +346,25 @@ test('provider disable is persisted with an atomic audit record', async () => {
     identityConfig: config(),
   });
   try {
+    const requestId = 'q020-bb-provider-disable-success';
     const response = await app.inject({
       method: 'PATCH',
       url: '/api/v1/admin/bigbang/providers/habanero',
-      headers: authHeaders({ origin: ADMIN_ORIGIN }),
+      headers: { ...authHeaders({ origin: ADMIN_ORIGIN }), 'x-request-id': requestId },
       payload: { enabled: false },
     });
     assert.equal(response.statusCode, 200, response.body);
-    assert.equal(response.json().data.enabled, false);
+    assert.deepEqual(Object.keys(response.json()).sort(), ['data', 'requestId']);
+    assert.deepEqual(response.json().data, {
+      id: PROVIDER_ID,
+      code: 'habanero',
+      name: 'Habanero',
+      enabled: false,
+      updatedAt: '2026-10-22T10:05:00.000Z',
+    });
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
     assert.equal(fixture.calls.length, 1);
     const call = fixture.calls[0]!;
     assert.match(call.sql, /UPDATE public\.casino_providers/);
