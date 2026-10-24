@@ -5675,7 +5675,6 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    /** @description Login success and errors are non-cacheable because they are session-sensitive. */
     loginPlayer: {
         parameters: {
             query?: never;
@@ -5736,7 +5735,6 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
         };
     };
-    /** @description Session content and all session error responses are non-cacheable. */
     getAuthSession: {
         parameters: {
             query?: never;
@@ -5976,7 +5974,6 @@ export interface operations {
             };
         };
     };
-    /** @description Every success and error response is non-cacheable; the handler never exposes another player's wallet. */
     getWalletsByCurrencyBalance: {
         parameters: {
             query?: never;
@@ -6011,7 +6008,6 @@ export interface operations {
             500: components["responses"]["NoStoreInternalError"];
         };
     };
-    /** @description Cursor pagination uses cursor/limit only. page and pageSize are intentionally unsupported. Every success and error response is non-cacheable. */
     getWalletsByCurrencyStatement: {
         parameters: {
             query?: {
@@ -6786,7 +6782,6 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
         };
     };
-    /** @description Authoritative bootstrap endpoint for AdminAuthContext. Returns admin identity, effective permission strings, roles, MFA state and expiry. Permissions are server-computed; frontend flags are presentation only. Session content and all session error responses are non-cacheable. */
     getAdminSession: {
         parameters: {
             query?: never;
