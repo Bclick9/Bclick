@@ -22,7 +22,7 @@ The direct live URL https://iframe.winhouse.bet/docs/agent.md was not readable b
 
 The current public guide documents `data-hide="favorites,clock,settings"` for removing the named **header** controls. The archived `WINHOUSE_AGENT.md` version dated 2026-09-20 does not include `data-hide` in its loader attribute table. Treat `data-hide` as a feature documented by the currently published human-readable guide, but keep a provenance/version confirmation open with WinHouse before treating it as guaranteed across loader deployments.
 
-Neither the archived agent file nor the current public guide documents:
+Neither the archived agent file nor the current public guide documents a `data-hide` value for the full `.subbar` / `.mainnav` row (the `data-hide` option only covers favorites, clock, and settings). Neither source documents:
 - `WinHouseEmbed.openBetslip()`;
 - a public `selectionCount` or `totalOdds` field;
 - a documented method to hide the provider's bottom tab navigation;
