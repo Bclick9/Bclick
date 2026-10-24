@@ -203,7 +203,7 @@ interface CatalogPageOptions {
   readonly type?: CasinoDisplayType;
 }
 
-function readCatalogPage(request: FastifyRequest, reply: any): CatalogPageOptions | null {
+function readCatalogPage(request: FastifyRequest, reply: any, cursorMaxLength = 512): CatalogPageOptions | null {
   const query = request.query as Record<string, unknown>;
   const pageSize = query.pageSize === undefined ? 25 : Number(query.pageSize);
   const page = query.page === undefined ? 1 : Number(query.page);
@@ -216,7 +216,7 @@ function readCatalogPage(request: FastifyRequest, reply: any): CatalogPageOption
   }
   let offset = (page - 1) * pageSize;
   if (query.cursor !== undefined) {
-    if (typeof query.cursor !== 'string' || query.cursor.length > 2048) {
+    if (typeof query.cursor !== 'string' || query.cursor.length > cursorMaxLength) {
       errorResponse(reply, request, 400, 'VALIDATION_ERROR', 'Catalogue cursor is invalid');
       return null;
     }
@@ -270,12 +270,12 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
   };
   const categoryPaginationSchema = {
     ...paginationSchema,
-    properties: { ...paginationSchema.properties, type: { type: 'string', enum: [...CASINO_DISPLAY_TYPES] } },
+    properties: { ...paginationSchema.properties, cursor: { type: 'string', maxLength: 2048 }, type: { type: 'string', enum: [...CASINO_DISPLAY_TYPES] } },
   };
 
   // These read-only endpoints query only the local normalized catalogue. They never contact BigBang.
   app.get('/api/v1/casino/categories', { schema: { querystring: categoryPaginationSchema } }, async (request, reply) => {
-    const options = readCatalogPage(request, reply);
+    const options = readCatalogPage(request, reply, 2048);
     if (!options) return;
     // Availability is an operator kill switch. Do not retain responses past a mutation.
     reply.header('Cache-Control', 'no-store');
