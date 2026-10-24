@@ -56,6 +56,7 @@ testFn('break-glass command refuses development, missing attestations, and targe
   const targetEmail = 'sole-admin@example.test';
   const request = validRequest(targetEmail);
   const env: Record<string, string> = {
+    BCLICK_ADMIN_MFA_BREAK_GLASS_ENABLED: 'true',
     BCLICK_BREAK_GLASS_EXECUTION: 'EXECUTE',
     BCLICK_BREAK_GLASS_APPROVAL_VERIFIED: 'YES',
     BCLICK_BREAK_GLASS_DEPLOYMENT_GATE_VERIFIED: 'YES',
@@ -73,26 +74,29 @@ testFn('break-glass command refuses development, missing attestations, and targe
   };
 
   assert.throws(() => parseBreakGlassRequest(env, 'development'), { code: 'SHARED_ENVIRONMENT_ONLY' });
-  assert.throws(() => parseBreakGlassRequest({ ...env, BCLICK_BREAK_GLASS_APPROVAL_VERIFIED: 'NO' }, 'production'),
+  assert.throws(() => parseBreakGlassRequest({ ...env, BCLICK_ADMIN_MFA_BREAK_GLASS_ENABLED: 'false' }, 'staging'),
+    { code: 'FEATURE_FLAG_DISABLED' });
+  assert.throws(() => parseBreakGlassRequest(env, 'production'), { code: 'PRODUCTION_EXECUTION_BLOCKED' });
+  assert.throws(() => parseBreakGlassRequest({ ...env, BCLICK_BREAK_GLASS_APPROVAL_VERIFIED: 'NO' }, 'staging'),
     { code: 'OUT_OF_BAND_APPROVAL_NOT_ATTESTED' });
   assert.throws(() => parseBreakGlassRequest({ ...env, BCLICK_BREAK_GLASS_DEPLOYMENT_GATE_VERIFIED: 'NO' }, 'staging'),
     { code: 'DEPLOYMENT_GATE_NOT_ATTESTED' });
   assert.throws(() => parseBreakGlassRequest({
     ...env,
     BCLICK_BREAK_GLASS_APPROVER_IDENTITY: targetEmail,
-  }, 'production'), { code: 'TARGET_CANNOT_APPROVE_OWN_RECOVERY' });
+  }, 'staging'), { code: 'TARGET_CANNOT_APPROVE_OWN_RECOVERY' });
   assert.throws(() => parseBreakGlassRequest({
     ...env,
     BCLICK_BREAK_GLASS_REQUESTER_IDENTITY: targetEmail,
-  }, 'production'), { code: 'TARGET_CANNOT_REQUEST_OWN_RECOVERY' });
+  }, 'staging'), { code: 'TARGET_CANNOT_REQUEST_OWN_RECOVERY' });
   assert.throws(() => parseBreakGlassRequest({
     ...env,
     BCLICK_BREAK_GLASS_ACKNOWLEDGEMENT: 'yes',
-  }, 'production'), { code: 'ACKNOWLEDGEMENT_REQUIRED' });
+  }, 'staging'), { code: 'ACKNOWLEDGEMENT_REQUIRED' });
   assert.throws(() => parseBreakGlassRequest({
     ...env,
     BCLICK_BREAK_GLASS_CONFIRM_DATABASE_TARGET: 'other-db.example.test:5432/bclick_prod',
-  }, 'production'), { code: 'DATABASE_TARGET_CONFIRMATION_MISMATCH' });
+  }, 'staging'), { code: 'DATABASE_TARGET_CONFIRMATION_MISMATCH' });
 });
 
 testFn('break-glass reset atomically revokes admin state on disposable PostgreSQL and denies re-use', {
