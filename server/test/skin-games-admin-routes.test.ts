@@ -1529,48 +1529,6 @@ test('Skin Games public image route rejects inactive/traversal keys and maps mis
 });
 
 
-test('Skin Games image upload returns a safe generic error when persistent storage cannot be written', async () => {')));
-
-    await app.close();
-    app = null;
-
-    blockedRootParent = await mkdtemp(path.join(tmpdir(),'bclick-skin-games-asset-read-failure-'));
-    blockedRoot = path.join(blockedRootParent,'not-a-directory');
-    await writeFile(blockedRoot,'block the upload path');
-    const failingApp = buildApp({
-      database: null,
-      catalogDatabase: fixture.database,
-      identity: fakeIdentity(),
-      identityConfig: config(),
-      uploadDirectory: blockedRoot,
-    });
-    try {
-      const failureRequestId = 'q020-skin-asset-read-failure';
-      const failure = await failingApp.inject({
-        method: 'GET',
-        url: imageUrl,
-        headers: { 'x-request-id': failureRequestId },
-      });
-      assert.equal(failure.statusCode, 500, failure.body);
-      assert.deepEqual(failure.json().error, {
-        code: 'INTERNAL_ERROR',
-        message: 'The Skin Games request could not be completed',
-      });
-      assert.deepEqual(Object.keys(failure.json()).sort(), ['error', 'requestId']);
-      assert.equal(failure.json().requestId, failureRequestId);
-      assert.equal(failure.headers['x-request-id'], failureRequestId);
-      assert.equal(failure.headers['content-type']?.split(';')[0], 'application/json');
-      assert.doesNotMatch(failure.body, /ENOTDIR|not-a-directory|skin-games-asset-read-failure/);
-    } finally {
-      await failingApp.close();
-    }
-  } finally {
-    if(app) await app.close();
-    await rm(uploadDirectory,{recursive:true,force:true});
-    if(blockedRootParent) await rm(blockedRootParent,{recursive:true,force:true});
-  }
-});
-
 test('Skin Games image upload returns a safe generic error when persistent storage cannot be written', async () => {
   const fixture = fakeDatabase();
   const tempRoot = await mkdtemp(path.join(tmpdir(),'bclick-skin-games-write-failure-'));
