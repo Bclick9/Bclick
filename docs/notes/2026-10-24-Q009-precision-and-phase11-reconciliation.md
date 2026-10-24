@@ -26,3 +26,12 @@ Those operations persist ordering within source-tier boundaries and write audit 
 ## Q-020 transition
 
 Original Q-020 Phase 0.5 exit criterion is complete as documented in [Issue #56](https://github.com/Bclick9/Bclick/issues/56). The broader 49-route assertion-level evidence is tracked with a finite stop rule in [Q-020b #141](https://github.com/Bclick9/Bclick/issues/141). Q-004 media quarantine/scanning/storage isolation and Issue #55 real Identity/MFA/token/recovery/runbook/audit-redaction acceptance are independent open gates. Neither is closed by this note or by CI green.
+
+## Vendor fixture canonicalization — 2026-10-24
+
+The Project Owner supplied the BigBang/WinHouse TND sample JSON again. Its SHA-256 is `8f41e3c2336d1905241251f937d6b9cd548305922d439ebda3c67e15e60ccba0` (4,793 bytes as uploaded). The source states that both providers carry TND amounts at two decimals, and includes signed debit/credit vectors, expected balances, and the distinct BigBang-rounding versus WinHouse-rejection behavior. The source uses `test_secret_for_fixtures`; it is dummy test material only.
+
+For repository work, the single executable fixture remains `server/test/fixtures/tnd-wallet-provider-vectors.json`, verified by `server/test/provider-tnd-fixtures.test.ts`. The corresponding evidence index is `docs/provider-evidence/README.md`. Repeated uploads in the Project Library were confirmed byte-identical and moved under `/Bclick/provider-evidence/archive/`; the canonical Library source is `/Bclick/provider-evidence/tnd-2dp-vendor-fixtures.json`.
+
+This is evidence for Q-009's already accepted TND=2 scale for BigBang/WinHouse, not a new money-model change and not a reason to change historical migrations. Aggregator's integer amount/balance unit remains unconfirmed. Q-006 callback semantics, Q-010 idempotency/concurrency/reconciliation, Q-011 backup/restore, Q-013 browser/security review, Q-004 media security, compliance, and deployment gates remain independent. No live financial route is enabled by this evidence cataloguing.
+
