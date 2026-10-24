@@ -6,6 +6,7 @@ import type { SqlExecutor } from '../src/identity/repository.js';
 
 const GAME_ID = 'ebc75e97-68a5-40f8-8177-65db54ace749';
 const GAME_SLUG = 'hot-hot-fruit-habanero';
+const DISPLAY_CATEGORY_ID = '6be84fa3-e074-4f5d-a978-92a5e16f2631';
 
 const ROW = {
   id: GAME_ID,
@@ -36,6 +37,7 @@ function catalogDatabase(options: {
   readonly alias?: LegacyAliasFixture | null;
   readonly listRows?: (typeof ROW)[];
   readonly categoryRows?: { slug: string }[];
+  readonly displayCategoryRows?: Record<string, unknown>[];
   readonly total?: number;
 } = {}) {
   const calls: QueryCall[] = [];
@@ -43,11 +45,15 @@ function catalogDatabase(options: {
   const alias = options.alias ?? null;
   const listRows = options.listRows ?? [ROW];
   const categoryRows = options.categoryRows ?? [];
+  const displayCategoryRows = options.displayCategoryRows ?? [];
   const total = options.total ?? listRows.length;
 
   const database = {
     async query(sql: string, values: unknown[] = []) {
       calls.push({ sql, values });
+      if (sql.includes('WITH public_games AS (')) {
+        return { rows: displayCategoryRows, rowCount: displayCategoryRows.length };
+      }
       if (sql.includes('SELECT count(DISTINCT gc.category_slug)::text AS total')) {
         return { rows: [{ total: String(categoryRows.length) }], rowCount: 1 };
       }
@@ -364,6 +370,75 @@ test('Q-020 category list matches the documented response envelope, metadata and
     assert.match(fixture.calls[1]!.sql, /ORDER BY gc\.category_slug/);
     assert.deepEqual(fixture.calls[1]!.values, [25, 0]);
     assert.match(fixture.calls[2]!.sql, /casino_catalog_sync_runs/);
+  } finally {
+    await app.close();
+  }
+});
+
+test('Q-020 public display-category route matches the response envelope, game payload and cache headers', async () => {
+  const requestId = 'q020-display-category-response';
+  const fixture = catalogDatabase({
+    displayCategoryRows: [{
+      id: DISPLAY_CATEGORY_ID,
+      slug: 'trending-games',
+      name: 'Trending Games',
+      description: 'A curated selection',
+      icon: 'flame',
+      type: 'casino',
+      customIconKey: 'category-icons/trending.webp',
+      displayOrder: 7,
+      games: [{
+        id: GAME_ID,
+        slug: GAME_SLUG,
+        title: 'Hot Hot Fruit',
+        provider: { code: 'habanero', name: 'Habanero' },
+        categories: ['classic-slots', 'slot-games'],
+        imageUrl: 'https://assets.example.test/hot-hot-fruit.webp',
+        description: '',
+        available: true,
+        modes: { demo: false, real: false },
+      }],
+    }],
+  });
+  const app = buildApp({ database: null, catalogDatabase: fixture.database });
+
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/casino/display-categories',
+      headers: { 'x-request-id': requestId },
+    });
+
+    assert.equal(response.statusCode, 200, response.body);
+    assert.deepEqual(response.json(), {
+      data: [{
+        id: DISPLAY_CATEGORY_ID,
+        slug: 'trending-games',
+        name: 'Trending Games',
+        description: 'A curated selection',
+        icon: 'flame',
+        type: 'casino',
+        iconUrl: '/api/v1/assets/category-icons/trending.webp',
+        displayOrder: 7,
+        games: [{
+          id: GAME_ID,
+          slug: GAME_SLUG,
+          title: 'Hot Hot Fruit',
+          provider: { code: 'habanero', name: 'Habanero' },
+          categories: ['classic-slots', 'slot-games'],
+          imageUrl: 'https://assets.example.test/hot-hot-fruit.webp',
+          description: '',
+          available: true,
+          modes: { demo: false, real: false },
+        }],
+      }],
+      requestId,
+    });
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['cache-control'], 'no-store');
+    assert.equal(fixture.calls.length, 1);
+    assert.match(fixture.calls[0]!.sql, /c\.visible=true/);
+    assert.deepEqual(fixture.calls[0]!.values, [null]);
   } finally {
     await app.close();
   }
