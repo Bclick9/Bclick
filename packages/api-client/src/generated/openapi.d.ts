@@ -7896,9 +7896,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching \`^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$\`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (\`__Host-bclick_player_csrf\` or \`__Host-bclick_admin_csrf\`) and be bound to the current server session. Enrollment endpoints use \`__Host-bclick_admin_enrollment_csrf\` bound to the short-lived enrollment challenge; never accept a token from another context. */
+                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
                 "X-CSRF-Token": components["parameters"]["CsrfToken"];
             };
             path: {
@@ -7975,7 +7975,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching \`^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$\`; invalid or absent IDs are replaced by a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced by a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
                 "X-Request-Id"?: components["parameters"]["XRequestId"];
             };
             path: {
