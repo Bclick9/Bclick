@@ -123,7 +123,9 @@ function File-Manifest([string]$Path) {
   $sha = [Security.Cryptography.SHA256]::Create()
   try { $sum = ([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($joined)))).Replace('-', '').ToLowerInvariant() }
   finally { $sha.Dispose() }
-  $rows | Set-Content -LiteralPath (Join-Path $Path 'checksums.sha256') -Encoding ASCII
+  $manifestName = (Split-Path -Leaf $Path) + '.checksums.sha256'
+  $manifestPath = Join-Path (Split-Path -Parent $Path) $manifestName
+  $rows | Set-Content -LiteralPath $manifestPath -Encoding ASCII
   return [ordered]@{ fileCount = $files.Count; bytes = $total; manifestSha256 = $sum }
 }
 
