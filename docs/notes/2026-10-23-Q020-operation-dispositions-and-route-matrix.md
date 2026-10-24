@@ -6,13 +6,13 @@
 
 ## Executive result
 
-- Re-parsed the main OpenAPI 3.1 contract: **198** operations.
+- Re-parsed the current main OpenAPI 3.1 contract: **197** operations after retiring the obsolete CMS Skin Games reorder operation.
 - Re-audited current source declarations across six route modules: **49**; each has a normalized OpenAPI method/path match.
-- **149** contract operations have no corresponding explicit handler declaration in those current source modules. Every one is listed and assigned a provisional, reasoned disposition below.
-- Provisional classification is not a decision to implement. “Planned” means no current handler and roadmap/API-owner review is still needed; “blocked” marks independent security/domain gates; a single likely stale duplicate is called out for human decision rather than silently deleted.
+- **148** remaining contract operations have no corresponding explicit handler declaration in those current source modules. Each is listed and assigned a provisional, reasoned disposition below.
+- Provisional classifications are not decisions to implement. “Planned” means no current handler and roadmap/API-owner review is still needed; “blocked” marks independent security/domain gates. The previously flagged CMS Skin Games reorder declaration was reviewed against current handlers and the only CMS Skin Games consumer, then removed from OpenAPI and the generated client because it described an unimplemented, incompatible model; do not re-add it without an approved contract and matching handler.
 - This pass deliberately distinguishes a suite file existing from a per-operation positive/negative runtime assertion having been proven. The matrix records the suite association but does not mark every route compliant.
 
-## 1. The 149 contract-only operations — disposition
+## 1. The 148 remaining contract-only operations — disposition
 
 | Method | OpenAPI path | operationId | Current disposition | Gate / owner decision | Evidence-based rationale |
 |---|---|---|---|---|---|
@@ -104,7 +104,6 @@
 | `GET` | `/api/v1/admin/wallet-adjustment-requests/{adjustmentId}` | `ReadAWalletAdjustmentRequest` | BLOCKED/ROADMAP — wallet/payment capability | Q-010 + Q-011; legal/compliance and other domain gates as applicable | No unreviewed wallet posting, deposit/withdrawal execution or financial state transition should be introduced by a contract-coverage issue. Keep read-only/intent/admin review routes future until the responsible phase authorizes them. |
 | `GET` | `/api/v1/cms/skins` | `ListPublishedSkins` | PLANNED — CMS route not implemented | CMS roadmap and route/API contract reconciliation | Current implementation has the narrower persisted Skin Games/curated-category API under /api/v1/admin/casino; do not infer generic CMS publishing/media workflows from OpenAPI declarations alone. |
 | `POST` | `/callbacks/psp/{providerCode}` | `ReceiveSelectedPspWebhook` | BLOCKED — PSP callback, no runtime handler | PSP/finance decision + Q-010 + Q-011 + Q-013 | Selected PSP/signature semantics, isolated deployment/restore, idempotent settlement and reconciliation evidence are prerequisites. |
-| `PATCH` | `/api/v1/admin/cms/skin-games/{gameId}/reorder` | `reorderCmsSkinGame` | RECONCILE — possible stale/duplicate contract | Contract review; do not implement automatically | Current source uses /api/v1/admin/casino/skin-games/{gameId}/order-position and /api/v1/admin/casino/skin-games/reorder. Compare semantics/consumers, then retire or explicitly approve the older CMS route. |
 | `POST` | `/csp-report` | `receiveCspReport` | PLANNED — security telemetry endpoint | Security telemetry hardening | No route declaration found. A future implementation requires small body limits, allow-listed schema, rate limiting, URL/query redaction, short retention and cookie-free logging. |
 | `GET` | `/api/v1/payments/methods` | `listAvailablePaymentMethods` | BLOCKED/ROADMAP — wallet/payment capability | Q-010 + Q-011; legal/compliance and other domain gates as applicable | No unreviewed wallet posting, deposit/withdrawal execution or financial state transition should be introduced by a contract-coverage issue. Keep read-only/intent/admin review routes future until the responsible phase authorizes them. |
 | `POST` | `/api/v1/payments/deposits/{paymentId}/proof` | `uploadPaymentDepositProof` | BLOCKED/ROADMAP — wallet/payment capability | Q-010 + Q-011; legal/compliance and other domain gates as applicable | No unreviewed wallet posting, deposit/withdrawal execution or financial state transition should be introduced by a contract-coverage issue. Keep read-only/intent/admin review routes future until the responsible phase authorizes them. |
@@ -175,7 +174,7 @@
 | Bonuses | 1 |
 | Callbacks | 5 |
 | Casino | 2 |
-| CMS | 7 |
+| CMS | 6 |
 | KYC | 4 |
 | Payments | 6 |
 | Player | 12 |
@@ -183,7 +182,7 @@
 | Security telemetry | 1 |
 | Sportsbook | 2 |
 | Wallet/FX | 3 |
-| **Total** | **149** |
+| **Total** | **148** |
 
 The exact path-by-path disposition above is authoritative for this audit. Do not infer that all `PLANNED` rows need implementation; some may be superseded contract definitions, intentionally out of phase, or require removal after an owner-reviewed contract reconciliation.
 
@@ -424,6 +423,7 @@ Guard-marker detection is intentionally conservative and may miss checks hidden 
 - Added `server/test/identity-password-reset-contract.test.ts` with route-level positive and negative evidence for both `POST /api/v1/auth/password-reset/request` and `POST /api/v1/auth/password-reset/confirm`: success response, invalid-body rejection before service invocation, exact Origin rejection before service invocation, and `X-Request-Id` parity on responses.
 - The existing global Fastify validation-error fix remains the baseline: malformed request-schema input is expected to yield a safe `VALIDATION_ERROR` envelope, rather than leaking internal validation details.
 - Reconciled a proved request-schema mismatch for `GET /api/v1/casino/providers`: OpenAPI declares `cursor.maxLength=512`, while the shared Fastify pagination schema had allowed 2048. The providers schema and helper now enforce 512; categories explicitly retains its distinct 2048 limit; games already uses 512. Added a valid base64url cursor whose length is >512 and assertions for schema-layer 400/error envelope/request-ID parity/no database calls. CI result is tracked separately in the follow-up note.
+- Retired the unsupported `PATCH /api/v1/admin/cms/skin-games/{gameId}/reorder` contract after checking `backend/pages/cms/SkinGames.tsx`, registered Skin Games handlers, and the implemented order APIs. No current consumer used it, its `skinId`/`If-Match` model conflicted with the implemented catalog-wide order-position API, and no matching handler existed. Updated the generic CMS description and removed the generated `reorderCmsSkinGame` path/operation declaration.
 
 ### Gaps that remain explicit
 - The suite-to-route map needs a test-name/assertion-level crosswalk for every one of the 49 handlers; the current existence of `identity.test.ts`, catalog suites or Skin Games suites is not enough to claim full operation-level conformance.
@@ -440,10 +440,10 @@ Guard-marker detection is intentionally conservative and may miss checks hidden 
 
 ## 5. Immediate order of work
 
-1. Resolve the single likely obsolete contract path `PATCH /api/v1/admin/cms/skin-games/{gameId}/reorder`: compare consumers, documented body/security model, current `/api/v1/admin/casino/skin-games/reorder` and `/order-position` routes, and the owner's current CMS-skin scope. Do not add a duplicate route as a shortcut.
-2. Complete a true assertion-level crosswalk for all 49 operations, prioritize the uncovered identity/password/email/MFA and wallet-read operations, and add positive/negative cases only where tests are currently absent.
-3. Validate the new path-filtered Schemathesis job against the supported catalogue/password-reset subset; fix demonstrated response/input contract gaps, then add other route groups only when CI has the correct auth and data fixtures. Keep the existing `Health` job and static guard mandatory.
-4. Update this matrix, `docs/notes/PROGRESS.md`, and Issue #56 with per-test evidence and CI job links. Keep Issue #56 open until Q-020 completion criteria are met.
+1. Completed: retire the unsupported `PATCH /api/v1/admin/cms/skin-games/{gameId}/reorder` declaration from OpenAPI and the generated client after source/consumer review; do not recreate it as a duplicate endpoint.
+2. Complete the remaining assertion-level crosswalk for all 49 operations, prioritizing login/session and wallet-read response/error parity, administrative Origin/CSRF/RBAC denials and upload-input attack cases.
+3. Validate the path-filtered Schemathesis job against the supported catalogue/password-reset subset on the current contract revision; extend only when the target operations are implemented and the CI auth/data fixtures are correct.
+4. Record the retirement decision and current-head CI evidence in this matrix, `docs/notes/PROGRESS.md`, and Issue #56. Keep Issue #56 open until Q-020 completion criteria are met.
 
 ## 6. Method / reproducibility
 
