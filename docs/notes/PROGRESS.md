@@ -231,3 +231,30 @@ Q-020 remains OPEN; the broader matrix still has partial routes and is not signe
 - **Phase 11:** removing the unused `reorderCmsSkinGame` alias is not removing persistent ordering. The canonical paths remain `PATCH /api/v1/admin/casino/skin-games/reorder` and `PATCH /api/v1/admin/casino/skin-games/{gameId}/order-position`; they persist order with tier boundaries/audit evidence.
 - **Next parallel work:** continue only the finite route cohorts in Q-020b, and work Issue #55 real Identity/MFA/recovery acceptance independently. Keep Q-004, Q-006, Q-010, Q-011, Q-013, compliance and deployment gates open until their own evidence is accepted.
 - **Hard stop:** no provider callback handler, wallet posting, deposits/withdrawals, FX execution, wager settlement, Premium activation or real-money path was enabled by this transition.
+
+## Q-020b bounded route-contract exit checkpoint — 2026-10-24
+
+**Bounded follow-up status: all five named cohorts now have merged, operation-specific test evidence.** This checkpoint supersedes the older planning/status notes above that predate PRs #142–#149. It does not certify all 49 routes as fully contract-signed-off.
+
+### Merged implementation and evidence
+
+- **PR #142** (716b03f9db30f6f1f3ff911fd52fb3a82d1c1e66): Q-020b route hardening; provider/catalogue validation; category-icon and public asset Origin/CSRF/RBAC, MIME/signature, path and filesystem failure coverage; persistent Phase 11 drag and numeric ordering paths.
+- **PR #143** (239e88c49a4f254953d56aa01a13eeecd2039d95): bounded Q-020/ Q-009 documentation disposition, TND precision evidence reconciliation and Phase 11 ordering notes.
+- **PR #144** (08691cd6a739a68d87f3a3858942c1efd9b35b1b): real PostgreSQL-backed Identity/MFA recovery-code single-use/replay and audit-redaction evidence; local bootstrap and recovery runbooks.
+- **PR #145** (c192e3669efa2cc486860520260b5cbff4145b7c): player login/session and wallet balance/statement contract parity, no-store success/error headers, PlayerSummary required fields, cursor/limit OpenAPI alignment, and real PostgreSQL-backed success/error tests.
+- **PR #146** (8c5dbef81bcc7216cb22ba667de3fdd9e71cd174): missing/hostile Origin, missing/invalid CSRF and RBAC denials for eight existing curated-category/Skin Games mutations, proving no mutation/success audit on denial.
+- **PR #147** (e1c20c2f81960c4c160d3ed341efcf45e7def2b5): BigBang provider-tier mutation Origin/CSRF/RBAC denial evidence.
+- **PR #148** (830bec50b5939f7add8d7ef56dce93bb09e3cf13): game-image upload/read boundaries including >5 MiB parser rejection, malformed UUID, exact safe failure envelopes, traversal and storage error evidence.
+- **PR #149** (df0ba5734b1f12ae7ba24c70d08b87d279d5018a): BigBang game-mutation missing-Origin and missing/mismatched/unsigned-CSRF cases, alongside existing hostile-Origin and RBAC denial tests.
+
+### CI gate
+
+All PR-final-head required workflows passed before their merge. Current main is df0ba5734b1f12ae7ba24c70d08b87d279d5018a; its OpenAPI/generated-client check, API/types/tests/health/Schemathesis, application build, fresh local Identity/DB/PowerShell checks are recorded under [main API checks](https://github.com/Bclick9/Bclick/actions/runs/40095341049), [main Compose/Identity checks](https://github.com/Bclick9/Bclick/actions/runs/40095340984) and [main build](https://github.com/Bclick9/Bclick/actions/runs/40095340980). Reconfirm the final run statuses before using this record to close Issue #141.
+
+### Disposition and explicit deferrals
+
+The 49-route crosswalk remains broader than the finite Q-020b stop rule: 16 operations are marked **Substantial, not contract sign-off**, 33 remain **Partial**, and none is marked fully signed off for OpenAPI conformance. The individual rows retain residuals such as other registration/logout/profile/email/password-reset/MFA operations, list/filter pagination, malformed identifiers or provider modes, unknown resources and full response parity for 404/500 cases. Keep these on the broader route-contract follow-up; do not re-open the original Q-020 baseline to absorb them.
+
+**Issue #141 may be closed only for the completed bounded Q-020b cohorts after this crosswalk/progress record is merged and current-main CI is green.** Issue #55 remains OPEN until the shared-environment sole-administrator break-glass recovery process is independently approved and rehearsed. Q-004 media quarantine/scanning/storage isolation, Q-006 provider evidence, Q-010 wallet posting/idempotency, Q-011 backup/WAL restore RPO/RTO, Q-013 CSP/frame/host-header review, compliance and deployment approval remain separate OPEN gates.
+
+No provider callbacks, wallet posting, deposits/withdrawals, FX execution, wager settlement, Premium activation or real-money route was enabled by this work.
