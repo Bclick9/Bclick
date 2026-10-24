@@ -195,7 +195,8 @@ try {
     '-c', 'archive_mode=on',
     '-c', 'archive_timeout=30s',
     '-c', 'archive_command=test -f /q011-wal/%f || cp %p /q011-wal/%f',
-    '-c', 'max_wal_senders=5'
+    '-c', 'max_wal_senders=5',
+    '-c', 'listen_addresses=*'
   )
   $script:CreatedContainers += $script:Source
   Wait-Ready $script:Source
