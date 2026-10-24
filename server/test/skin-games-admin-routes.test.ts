@@ -599,6 +599,7 @@ test('display-category icon upload rejects undersized, oversized and invalid ima
   const cases = [
     {
       name: 'undersized payload',
+      contentType: 'image/png',
       payload: Buffer.from('tiny'),
       statusCode: 413,
       code: 'IMAGE_SIZE_INVALID',
@@ -606,6 +607,7 @@ test('display-category icon upload rejects undersized, oversized and invalid ima
     },
     {
       name: 'oversized payload',
+      contentType: 'image/png',
       // Fastify's bounded content-type parser rejects this before the route handler,
       // so the shared safe envelope is REQUEST_REJECTED rather than IMAGE_SIZE_INVALID.
       payload: Buffer.alloc(5 * 1024 * 1024 + 1),
@@ -615,7 +617,16 @@ test('display-category icon upload rejects undersized, oversized and invalid ima
     },
     {
       name: 'invalid image bytes',
+      contentType: 'image/png',
       payload: Buffer.from('this-is-not-a-valid-png-image-payload'),
+      statusCode: 415,
+      code: 'IMAGE_TYPE_INVALID',
+      message: 'Upload a valid PNG, JPEG or WebP image whose bytes match its Content-Type',
+    },
+    {
+      name: 'PNG bytes with mismatched JPEG Content-Type',
+      contentType: 'image/jpeg',
+      payload: validPng64(),
       statusCode: 415,
       code: 'IMAGE_TYPE_INVALID',
       message: 'Upload a valid PNG, JPEG or WebP image whose bytes match its Content-Type',
@@ -638,7 +649,7 @@ test('display-category icon upload rejects undersized, oversized and invalid ima
       const response = await app.inject({
         method: 'POST',
         url: '/api/v1/admin/casino/display-categories/' + DISPLAY_CATEGORY_ID + '/icon',
-        headers: { ...authHeaders(true), 'content-type': 'image/png', 'x-request-id': requestId },
+        headers: { ...authHeaders(true), 'content-type': entry.contentType, 'x-request-id': requestId },
         payload: entry.payload,
       });
 
