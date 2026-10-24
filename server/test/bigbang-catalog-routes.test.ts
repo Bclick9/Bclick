@@ -176,6 +176,53 @@ test('UUID lookup returns the same canonical game as slug lookup', async () => {
   }
 });
 
+
+test('Q-020 UUID game detail rejects malformed ids before DB access and returns a safe 404 for unknown ids', async () => {
+  const invalidFixture = catalogDatabase();
+  const invalidApp = buildApp({ database: null, catalogDatabase: invalidFixture.database, logLevel: 'silent' });
+
+  try {
+    const invalid = await invalidApp.inject({
+      method: 'GET',
+      url: '/api/v1/casino/games/not-a-uuid',
+      headers: { 'x-request-id': 'q020-game-id-invalid' },
+    });
+    assert.equal(invalid.statusCode, 400);
+    assert.deepEqual(invalid.json().error, {
+      code: 'VALIDATION_ERROR',
+      message: 'Game ID is invalid',
+    });
+    assert.equal(invalid.json().requestId, 'q020-game-id-invalid');
+    assert.equal(invalid.headers['x-request-id'], 'q020-game-id-invalid');
+    assert.equal(invalidFixture.calls.length, 0, 'invalid UUID must be rejected before catalogue DB access');
+  } finally {
+    await invalidApp.close();
+  }
+
+  const missingId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const missingFixture = catalogDatabase({ game: null });
+  const missingApp = buildApp({ database: null, catalogDatabase: missingFixture.database, logLevel: 'silent' });
+  try {
+    const missing = await missingApp.inject({
+      method: 'GET',
+      url: '/api/v1/casino/games/' + missingId,
+      headers: { 'x-request-id': 'q020-game-id-missing' },
+    });
+    assert.equal(missing.statusCode, 404);
+    assert.deepEqual(missing.json().error, {
+      code: 'NOT_FOUND',
+      message: 'Game not found',
+    });
+    assert.equal(missing.json().requestId, 'q020-game-id-missing');
+    assert.equal(missing.headers['x-request-id'], 'q020-game-id-missing');
+    assert.equal(missingFixture.calls.length, 1);
+    assert.match(missingFixture.calls[0]!.sql, /WHERE g\.id=\$1/);
+    assert.deepEqual(missingFixture.calls[0]!.values, [missingId]);
+  } finally {
+    await missingApp.close();
+  }
+});
+
 test('invalid slug is rejected before any database query and unknown slug returns a safe 404', async () => {
   const invalidFixture = catalogDatabase();
   const invalidApp = buildApp({ database: null, catalogDatabase: invalidFixture.database });
