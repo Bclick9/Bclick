@@ -71,7 +71,16 @@ function parseAllowedHosts(env: EnvironmentInput, nodeEnv: RuntimeEnvironment): 
 
   const hosts = items.map((item) => {
     const candidate = item.toLowerCase();
-    if (/[*\\s\\/\\\\@?#,\\u0000-\\u001f\\u007f]/.test(candidate)) {
+    if (
+      candidate.includes('*')
+      || candidate.includes('/')
+      || candidate.includes('\\')
+      || candidate.includes('@')
+      || candidate.includes('?')
+      || candidate.includes('#')
+      || candidate.includes(',')
+      || [...candidate].some((char) => char.charCodeAt(0) <= 0x20 || char.charCodeAt(0) === 0x7f)
+    ) {
       throw new Error('BCLICK_ALLOWED_HOSTS must contain exact host authorities without wildcards or paths');
     }
 
