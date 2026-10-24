@@ -6,6 +6,7 @@ import type { SqlExecutor } from '../src/identity/repository.js';
 
 const GAME_ID = 'ebc75e97-68a5-40f8-8177-65db54ace749';
 const GAME_SLUG = 'hot-hot-fruit-habanero';
+const DISPLAY_CATEGORY_ID = '6be84fa3-e074-4f5d-a978-92a5e16f2631';
 
 const ROW = {
   id: GAME_ID,
@@ -35,17 +36,30 @@ function catalogDatabase(options: {
   readonly game?: typeof ROW | null;
   readonly alias?: LegacyAliasFixture | null;
   readonly listRows?: (typeof ROW)[];
+  readonly categoryRows?: { slug: string }[];
+  readonly displayCategoryRows?: Record<string, unknown>[];
   readonly total?: number;
 } = {}) {
   const calls: QueryCall[] = [];
   const game = options.game === undefined ? ROW : options.game;
   const alias = options.alias ?? null;
   const listRows = options.listRows ?? [ROW];
+  const categoryRows = options.categoryRows ?? [];
+  const displayCategoryRows = options.displayCategoryRows ?? [];
   const total = options.total ?? listRows.length;
 
   const database = {
     async query(sql: string, values: unknown[] = []) {
       calls.push({ sql, values });
+      if (sql.includes('WITH public_games AS (')) {
+        return { rows: displayCategoryRows, rowCount: displayCategoryRows.length };
+      }
+      if (sql.includes('SELECT count(DISTINCT gc.category_slug)::text AS total')) {
+        return { rows: [{ total: String(categoryRows.length) }], rowCount: 1 };
+      }
+      if (sql.includes('SELECT DISTINCT gc.category_slug AS slug')) {
+        return { rows: categoryRows, rowCount: categoryRows.length };
+      }
       if (sql.includes('SELECT count(DISTINCT p.id)::text AS total')) {
         return { rows: [{ total: '1' }], rowCount: 1 };
       }
@@ -176,6 +190,53 @@ test('UUID lookup returns the same canonical game as slug lookup', async () => {
   }
 });
 
+
+test('Q-020 UUID game detail rejects malformed ids before DB access and returns a safe 404 for unknown ids', async () => {
+  const invalidFixture = catalogDatabase();
+  const invalidApp = buildApp({ database: null, catalogDatabase: invalidFixture.database, logLevel: 'silent' });
+
+  try {
+    const invalid = await invalidApp.inject({
+      method: 'GET',
+      url: '/api/v1/casino/games/not-a-uuid',
+      headers: { 'x-request-id': 'q020-game-id-invalid' },
+    });
+    assert.equal(invalid.statusCode, 400);
+    assert.deepEqual(invalid.json().error, {
+      code: 'VALIDATION_ERROR',
+      message: 'Game ID is invalid',
+    });
+    assert.equal(invalid.json().requestId, 'q020-game-id-invalid');
+    assert.equal(invalid.headers['x-request-id'], 'q020-game-id-invalid');
+    assert.equal(invalidFixture.calls.length, 0, 'invalid UUID must be rejected before catalogue DB access');
+  } finally {
+    await invalidApp.close();
+  }
+
+  const missingId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const missingFixture = catalogDatabase({ game: null });
+  const missingApp = buildApp({ database: null, catalogDatabase: missingFixture.database, logLevel: 'silent' });
+  try {
+    const missing = await missingApp.inject({
+      method: 'GET',
+      url: '/api/v1/casino/games/' + missingId,
+      headers: { 'x-request-id': 'q020-game-id-missing' },
+    });
+    assert.equal(missing.statusCode, 404);
+    assert.deepEqual(missing.json().error, {
+      code: 'NOT_FOUND',
+      message: 'Game not found',
+    });
+    assert.equal(missing.json().requestId, 'q020-game-id-missing');
+    assert.equal(missing.headers['x-request-id'], 'q020-game-id-missing');
+    assert.equal(missingFixture.calls.length, 1);
+    assert.match(missingFixture.calls[0]!.sql, /WHERE g\.id=\$1/);
+    assert.deepEqual(missingFixture.calls[0]!.values, [missingId]);
+  } finally {
+    await missingApp.close();
+  }
+});
+
 test('invalid slug is rejected before any database query and unknown slug returns a safe 404', async () => {
   const invalidFixture = catalogDatabase();
   const invalidApp = buildApp({ database: null, catalogDatabase: invalidFixture.database });
@@ -231,7 +292,7 @@ test('catalogue category/search filters are parameterized and pagination retains
     assert.equal(response.json().meta.stale, false);
     assert.equal(fixture.calls.length, 3);
     assert.match(fixture.calls[0]!.sql, /EXISTS \(SELECT 1 FROM public\.casino_game_categories/);
-    assert.match(fixture.calls[1]!.sql, /array_agg\(DISTINCT gc\.category_slug ORDER BY gc\.category_slug\)/);
+    assert.match(fixture.calls[1]!.sql, /ORDER BY gc\.category_slug/);
     assert.match(fixture.calls[1]!.sql, /ORDER BY COALESCE\(pres\.display_order,0\),lower\(g\.title\),g\.id/);
     assert.match(fixture.calls[0]!.sql, /g\.title ILIKE/);
     assert.deepEqual(fixture.calls[0]!.values, ['slot-games', '%Hot%']);
@@ -278,6 +339,111 @@ test('public catalogue list returns and searches by the player-facing title over
   }
 });
 
+test('Q-020 category list matches the documented response envelope, metadata and request headers', async () => {
+  const fixture = catalogDatabase({
+    categoryRows: [{ slug: 'classic-slots' }, { slug: 'slot-games' }],
+  });
+  const app = buildApp({ database: null, catalogDatabase: fixture.database });
+  const requestId = 'q020-category-list-shape';
+
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/casino/categories?page=1&pageSize=25',
+      headers: { 'x-request-id': requestId },
+    });
+
+    assert.equal(response.statusCode, 200, response.body);
+    assert.deepEqual(response.json(), {
+      data: [
+        { slug: 'classic-slots', title: 'Classic Slots', icon: null },
+        { slug: 'slot-games', title: 'Slots', icon: 'cherry' },
+      ],
+      page: { page: 1, pageSize: 25, total: 2, nextCursor: null },
+      meta: { resolvedLocale: 'en', stale: false, fetchedAt: '2026-10-22T10:00:00.000Z' },
+      requestId,
+    });
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['cache-control'], 'no-store');
+    assert.equal(fixture.calls.length, 3);
+    assert.match(fixture.calls[0]!.sql, /count\(DISTINCT gc\.category_slug\)::text AS total/);
+    assert.match(fixture.calls[1]!.sql, /ORDER BY gc\.category_slug/);
+    assert.deepEqual(fixture.calls[1]!.values, [25, 0]);
+    assert.match(fixture.calls[2]!.sql, /casino_catalog_sync_runs/);
+  } finally {
+    await app.close();
+  }
+});
+
+test('Q-020 public display-category route matches the response envelope, game payload and cache headers', async () => {
+  const requestId = 'q020-display-category-response';
+  const fixture = catalogDatabase({
+    displayCategoryRows: [{
+      id: DISPLAY_CATEGORY_ID,
+      slug: 'trending-games',
+      name: 'Trending Games',
+      description: 'A curated selection',
+      icon: 'flame',
+      type: 'casino',
+      customIconKey: 'category-icons/trending.webp',
+      displayOrder: 7,
+      games: [{
+        id: GAME_ID,
+        slug: GAME_SLUG,
+        title: 'Hot Hot Fruit',
+        provider: { code: 'habanero', name: 'Habanero' },
+        categories: ['classic-slots', 'slot-games'],
+        imageUrl: 'https://assets.example.test/hot-hot-fruit.webp',
+        description: '',
+        available: true,
+        modes: { demo: false, real: false },
+      }],
+    }],
+  });
+  const app = buildApp({ database: null, catalogDatabase: fixture.database });
+
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/casino/display-categories',
+      headers: { 'x-request-id': requestId },
+    });
+
+    assert.equal(response.statusCode, 200, response.body);
+    assert.deepEqual(response.json(), {
+      data: [{
+        id: DISPLAY_CATEGORY_ID,
+        slug: 'trending-games',
+        name: 'Trending Games',
+        description: 'A curated selection',
+        icon: 'flame',
+        type: 'casino',
+        iconUrl: '/api/v1/assets/category-icons/trending.webp',
+        displayOrder: 7,
+        games: [{
+          id: GAME_ID,
+          slug: GAME_SLUG,
+          title: 'Hot Hot Fruit',
+          provider: { code: 'habanero', name: 'Habanero' },
+          categories: ['classic-slots', 'slot-games'],
+          imageUrl: 'https://assets.example.test/hot-hot-fruit.webp',
+          description: '',
+          available: true,
+          modes: { demo: false, real: false },
+        }],
+      }],
+      requestId,
+    });
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['cache-control'], 'no-store');
+    assert.equal(fixture.calls.length, 1);
+    assert.match(fixture.calls[0]!.sql, /c\.visible=true/);
+    assert.deepEqual(fixture.calls[0]!.values, [null]);
+  } finally {
+    await app.close();
+  }
+});
+
 test('provider query is an exact Bclick provider identity, not a substring search', async () => {
   const fixture = catalogDatabase();
   const app = buildApp({ database: null, catalogDatabase: fixture.database });
@@ -316,6 +482,78 @@ test('public provider directory returns only enabled Standard providers and forb
     assert.match(fixture.calls[0]!.sql, /g\.bclick_enabled=true/);
     assert.match(fixture.calls[1]!.sql, /s\.source_mode='standard'/);
     assert.match(fixture.calls[1]!.sql, /p\.bclick_enabled=true/);
+  } finally {
+    await app.close();
+  }
+});
+
+
+test('Q-020 provider cursor schema enforces the OpenAPI 512-character maximum before route handling', async () => {
+  const fixture = catalogDatabase();
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    logLevel: 'silent',
+  });
+  const cursor = Buffer.from('0'.repeat(400)).toString('base64url');
+  const requestId = 'q020-provider-cursor-schema-limit';
+  assert.ok(cursor.length > 512, 'fixture cursor must exceed the OpenAPI maximum');
+
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/casino/providers?cursor=' + cursor,
+      headers: { 'x-request-id': requestId },
+    });
+
+    assert.equal(response.statusCode, 400, response.body);
+    assert.deepEqual(response.json().error, {
+      code: 'VALIDATION_ERROR',
+      message: 'Request validation failed',
+    });
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(fixture.calls.length, 0, 'oversized cursor must be rejected by route schema before database access');
+  } finally {
+    await app.close();
+  }
+});
+
+test('Q-020 documents validation envelopes for malformed catalogue cursors and display type', async () => {
+  const fixture = catalogDatabase();
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    logLevel: 'silent',
+  });
+
+  const cases = [
+    { url: '/api/v1/casino/categories?cursor=not-a-valid-cursor', requestId: 'q020-category-cursor' },
+    { url: '/api/v1/casino/providers?cursor=not-a-valid-cursor', requestId: 'q020-provider-cursor' },
+    { url: '/api/v1/casino/providers?cursor=' + Buffer.from('0'.repeat(400)).toString('base64url'), requestId: 'q020-provider-cursor-too-long' },
+    { url: '/api/v1/casino/games?cursor=not-a-valid-cursor', requestId: 'q020-games-cursor' },
+    { url: '/api/v1/casino/display-categories?type=', requestId: 'q020-display-type' },
+    { url: '/api/v1/casino/games?displayCategory=trending%00games', requestId: 'q020-games-display-category-nul' },
+    { url: '/api/v1/casino/games?category=slot%00games', requestId: 'q020-games-category-nul' },
+    { url: '/api/v1/casino/games?provider=haba%00nero', requestId: 'q020-games-provider-nul' },
+    { url: '/api/v1/casino/games?query=Hot%00Fruit', requestId: 'q020-games-query-nul' },
+  ];
+
+  try {
+    for (const entry of cases) {
+      const response = await app.inject({
+        method: 'GET',
+        url: entry.url,
+        headers: { 'x-request-id': entry.requestId },
+      });
+
+      assert.equal(response.statusCode, 400, entry.url);
+      assert.equal(response.json().error.code, 'VALIDATION_ERROR', entry.url);
+      assert.equal(response.json().requestId, entry.requestId, entry.url);
+      assert.equal(response.headers['x-request-id'], entry.requestId, entry.url);
+    }
+
+    assert.equal(fixture.calls.length, 0, 'invalid query inputs must not reach the catalogue database');
   } finally {
     await app.close();
   }

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { buildApp, type DatabaseProbe } from '../src/app.js';
+import type { SqlExecutor } from '../src/identity/repository.js';
 
 test('liveness is public, minimal, and includes a server request ID', async () => {
   const database: DatabaseProbe = { query: async () => ({ rows: [{ ready: 1 }] }) };
@@ -126,6 +127,43 @@ test('returns 405 with Allow for undeclared methods on health endpoints', async 
     });
     assert.equal(queryMethod.statusCode, 405);
     assert.equal(queryMethod.headers.allow, 'GET, HEAD');
+  } finally {
+    await app.close();
+  }
+});
+
+test('overlong route parameters return a safe URI_TOO_LONG envelope with request-ID parity', async () => {
+  const catalogDatabase = {
+    async query() {
+      return { rows: [], rowCount: 0 };
+    },
+  } as unknown as SqlExecutor;
+  const app = buildApp({ database: null, catalogDatabase, logLevel: 'silent' });
+  const overlongSlug = 'sensitive-' + 'x'.repeat(121);
+
+  try {
+    const suppliedId = await app.inject({
+      method: 'GET',
+      url: '/api/v1/casino/games/by-slug/' + overlongSlug,
+      headers: { 'x-request-id': 'q020-uri-too-long-01' },
+    });
+
+    assert.equal(suppliedId.statusCode, 414);
+    assert.deepEqual(suppliedId.json(), {
+      error: { code: 'URI_TOO_LONG', message: 'Request parameter is too long' },
+      requestId: 'q020-uri-too-long-01',
+    });
+    assert.equal(suppliedId.headers['x-request-id'], 'q020-uri-too-long-01');
+    assert.equal(suppliedId.body.includes(overlongSlug), false);
+
+    const generatedId = await app.inject({
+      method: 'GET',
+      url: '/api/v1/casino/games/by-slug/' + overlongSlug,
+    });
+    assert.equal(generatedId.statusCode, 414);
+    assert.match(String(generatedId.headers['x-request-id']), /^[0-9a-f-]{36}$/i);
+    assert.equal(generatedId.json().requestId, generatedId.headers['x-request-id']);
+    assert.equal(generatedId.body.includes(overlongSlug), false);
   } finally {
     await app.close();
   }

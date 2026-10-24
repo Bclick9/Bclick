@@ -2,13 +2,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { buildApp } from '../src/app.js';
+import { createCsrfToken, verifyCsrfToken } from '../src/identity/crypto.js';
 import type { IdentityConfig } from '../src/identity/config.js';
 import type { AuthSession, IdentityService } from '../src/identity/service.js';
 import type { SqlExecutor } from '../src/identity/repository.js';
 
 const ADMIN_ORIGIN = 'http://localhost:5174';
 const SESSION_COOKIE = '__Host-bclick_admin_session=admin-session';
-const CSRF_COOKIE = '__Host-bclick_admin_csrf=csrf-token-value-123456789';
+const CSRF_TOKEN = createCsrfToken('admin', 'session-id', 1, 'b'.repeat(64));
+const CSRF_COOKIE = '__Host-bclick_admin_csrf=' + CSRF_TOKEN;
 const ADMIN_ID = '8d01ab53-7f9c-4e67-b4e8-64c5a409a7a9';
 const PROVIDER_ID = '5a03f96c-a9cb-4f98-8a54-29af7a9f77c3';
 const GAME_ID = 'ebc75e97-68a5-40f8-8177-65db54ace749';
@@ -50,8 +52,8 @@ function fakeIdentity(permissions: string[] = [PERMISSION]) {
     async resolveSession(type: 'player' | 'admin', token: string | undefined) {
       return type === 'admin' && token === 'admin-session' ? session : null;
     },
-    verifyCsrfForSession(_session: AuthSession, token: string) {
-      return token === 'csrf-token-value-123456789';
+    verifyCsrfForSession(currentSession: AuthSession, token: string) {
+      return verifyCsrfToken(token, 'admin', currentSession.id, currentSession.version, config().csrfSigningKey);
     },
   } as unknown as IdentityService;
 }
@@ -60,7 +62,7 @@ function fakeDatabase() {
   const calls: Array<{ sql: string; values: unknown[] }> = [];
   const database = {
     async query(sql: string, values: unknown[] = []) {
-      calls.push({ sql, values });
+      calls.push({ sql, values: [...values] });
       if (sql.includes('casino.provider-settings.access-denied')) {
         return { rows: [{ id: 'audit-id' }], rowCount: 1 };
       }
@@ -90,6 +92,23 @@ function fakeDatabase() {
       }
       if (sql.includes('FROM public.casino_games g') && sql.includes('count(DISTINCT g.id)::text AS total')) {
         return { rows: [{ total: '1' }], rowCount: 1 };
+      }
+      if (sql.includes('FROM public.casino_games g') && sql.includes('AS "providerCode"')) {
+        return {
+          rows: [{
+            id: GAME_ID,
+            slug: 'hot-hot-fruit-habanero',
+            title: 'Hot Hot Fruit',
+            providerCode: 'habanero',
+            providerName: 'Habanero',
+            sourceAvailable: true,
+            gameAvailable: true,
+            enabled: true,
+            providerEnabled: true,
+            updatedAt: '2026-10-22T10:06:00.000Z',
+          }],
+          rowCount: 1,
+        };
       }
       if (sql.includes('WITH changed AS') && sql.includes('UPDATE public.casino_provider_tier_settings')) {
         assert.match(sql, /INSERT INTO public\.audit_events/);
@@ -127,13 +146,21 @@ function fakeDatabase() {
   return { database, calls };
 }
 
-function authHeaders(options: { csrf?: boolean; origin?: string } = {}) {
+function authHeaders(options: {
+  csrf?: boolean;
+  header?: boolean;
+  origin?: string;
+  cookieToken?: string;
+  headerToken?: string;
+} = {}) {
   const cookies = [SESSION_COOKIE];
-  if (options.csrf !== false) cookies.push(CSRF_COOKIE);
+  if (options.csrf !== false) cookies.push('__Host-bclick_admin_csrf=' + (options.cookieToken ?? CSRF_TOKEN));
   return {
     cookie: cookies.join('; '),
     ...(options.origin ? { origin: options.origin } : {}),
-    ...(options.csrf !== false ? { 'x-csrf-token': 'csrf-token-value-123456789' } : {}),
+    ...(options.csrf !== false && options.header !== false
+      ? { 'x-csrf-token': options.headerToken ?? options.cookieToken ?? CSRF_TOKEN }
+      : {}),
   };
 }
 
@@ -210,7 +237,43 @@ test('administrator without provider-settings permission is denied and the denia
   }
 });
 
-test('provider state changes require Origin, CSRF and MFA-backed admin session before mutation', async () => {
+test('provider mutation rejects missing/hostile Origin and missing, mismatched or unsigned CSRF before database effects', async () => {
+  const cases = [
+    {
+      name: 'missing Origin',
+      headers: authHeaders(),
+      code: 'ORIGIN_INVALID',
+      message: 'Request Origin is not allowed',
+    },
+    {
+      name: 'hostile Origin',
+      headers: authHeaders({ origin: 'https://attacker.example' }),
+      code: 'ORIGIN_INVALID',
+      message: 'Request Origin is not allowed',
+    },
+    {
+      name: 'missing CSRF header',
+      headers: authHeaders({ origin: ADMIN_ORIGIN, header: false }),
+      code: 'CSRF_INVALID',
+      message: 'CSRF validation failed',
+    },
+    {
+      name: 'mismatched CSRF cookie and header',
+      headers: authHeaders({ origin: ADMIN_ORIGIN, headerToken: 'mismatched-csrf-value-123456789' }),
+      code: 'CSRF_INVALID',
+      message: 'CSRF validation failed',
+    },
+    {
+      name: 'unsigned CSRF token',
+      headers: authHeaders({
+        origin: ADMIN_ORIGIN,
+        cookieToken: 'unsigned-csrf-token-123456789',
+        headerToken: 'unsigned-csrf-token-123456789',
+      }),
+      code: 'CSRF_INVALID',
+      message: 'CSRF validation failed',
+    },
+  ];
   const fixture = fakeDatabase();
   const app = buildApp({
     database: null,
@@ -219,15 +282,56 @@ test('provider state changes require Origin, CSRF and MFA-backed admin session b
     identityConfig: config(),
   });
   try {
+    for (const entry of cases) {
+      const requestId = 'q020-bb-provider-' + entry.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/v1/admin/bigbang/providers/habanero',
+        headers: { ...entry.headers, 'x-request-id': requestId },
+        payload: { enabled: false },
+      });
+      assert.equal(response.statusCode, 403, entry.name + ': ' + response.body);
+      assert.deepEqual(response.json().error, { code: entry.code, message: entry.message }, entry.name);
+      assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId'], entry.name);
+      assert.equal(response.json().requestId, requestId, entry.name);
+      assert.equal(response.headers['x-request-id'], requestId, entry.name);
+      assert.equal(response.headers['content-type']?.split(';')[0], 'application/json', entry.name);
+      assert.equal(fixture.calls.length, 0, entry.name + ': denied request must not query, mutate or audit-success');
+    }
+  } finally {
+    await app.close();
+  }
+});
+
+test('provider mutation denies insufficient RBAC with an audited 403 before any update', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(['admin.session.read']),
+    identityConfig: config(),
+  });
+  const requestId = 'q020-bb-provider-rbac-denied';
+  try {
     const response = await app.inject({
       method: 'PATCH',
       url: '/api/v1/admin/bigbang/providers/habanero',
-      headers: authHeaders({ origin: ADMIN_ORIGIN, csrf: false }),
+      headers: { ...authHeaders({ origin: ADMIN_ORIGIN }), 'x-request-id': requestId },
       payload: { enabled: false },
     });
-    assert.equal(response.statusCode, 403);
-    assert.equal(response.json().error.code, 'CSRF_INVALID');
-    assert.equal(fixture.calls.length, 0);
+    assert.equal(response.statusCode, 403, response.body);
+    assert.deepEqual(response.json().error, {
+      code: 'FORBIDDEN',
+      message: 'The administrator lacks the required provider-settings permission',
+    });
+    assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(fixture.calls.length, 1, 'RBAC denial must only append its denial audit');
+    assert.match(fixture.calls[0]!.sql, /casino\.provider-settings\.access-denied/);
+    assert.equal(fixture.calls[0]!.values[1], ADMIN_ID);
+    assert.equal(fixture.calls.some((call) => call.sql.includes('UPDATE public.casino_providers')), false);
   } finally {
     await app.close();
   }
@@ -242,14 +346,25 @@ test('provider disable is persisted with an atomic audit record', async () => {
     identityConfig: config(),
   });
   try {
+    const requestId = 'q020-bb-provider-disable-success';
     const response = await app.inject({
       method: 'PATCH',
       url: '/api/v1/admin/bigbang/providers/habanero',
-      headers: authHeaders({ origin: ADMIN_ORIGIN }),
+      headers: { ...authHeaders({ origin: ADMIN_ORIGIN }), 'x-request-id': requestId },
       payload: { enabled: false },
     });
     assert.equal(response.statusCode, 200, response.body);
-    assert.equal(response.json().data.enabled, false);
+    assert.deepEqual(Object.keys(response.json()).sort(), ['data', 'requestId']);
+    assert.deepEqual(response.json().data, {
+      id: PROVIDER_ID,
+      code: 'habanero',
+      name: 'Habanero',
+      enabled: false,
+      updatedAt: '2026-10-22T10:05:00.000Z',
+    });
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
     assert.equal(fixture.calls.length, 1);
     const call = fixture.calls[0]!;
     assert.match(call.sql, /UPDATE public\.casino_providers/);
@@ -261,7 +376,66 @@ test('provider disable is persisted with an atomic audit record', async () => {
   }
 });
 
-test('game disable is persisted with an atomic audit record', async () => {
+test('game mutation rejects hostile Origin and insufficient RBAC before mutation', async () => {
+  const originFixture = fakeDatabase();
+  const originApp = buildApp({
+    database: null,
+    catalogDatabase: originFixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+  });
+  const originRequestId = 'q020-bb-game-origin-denied';
+  try {
+    const response = await originApp.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/bigbang/games/' + GAME_ID,
+      headers: { ...authHeaders({ origin: 'https://attacker.example' }), 'x-request-id': originRequestId },
+      payload: { enabled: false },
+    });
+    assert.equal(response.statusCode, 403, response.body);
+    assert.deepEqual(response.json().error, { code: 'ORIGIN_INVALID', message: 'Request Origin is not allowed' });
+    assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
+    assert.equal(response.json().requestId, originRequestId);
+    assert.equal(response.headers['x-request-id'], originRequestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(originFixture.calls.length, 0, 'hostile Origin must not query, mutate or audit-success');
+  } finally {
+    await originApp.close();
+  }
+
+  const permissionFixture = fakeDatabase();
+  const permissionApp = buildApp({
+    database: null,
+    catalogDatabase: permissionFixture.database,
+    identity: fakeIdentity(['admin.session.read']),
+    identityConfig: config(),
+  });
+  const permissionRequestId = 'q020-bb-game-rbac-denied';
+  try {
+    const response = await permissionApp.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/bigbang/games/' + GAME_ID,
+      headers: { ...authHeaders({ origin: ADMIN_ORIGIN }), 'x-request-id': permissionRequestId },
+      payload: { enabled: false },
+    });
+    assert.equal(response.statusCode, 403, response.body);
+    assert.deepEqual(response.json().error, {
+      code: 'FORBIDDEN',
+      message: 'The administrator lacks the required provider-settings permission',
+    });
+    assert.deepEqual(Object.keys(response.json()).sort(), ['error', 'requestId']);
+    assert.equal(response.json().requestId, permissionRequestId);
+    assert.equal(response.headers['x-request-id'], permissionRequestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(permissionFixture.calls.length, 1, 'RBAC denial should only insert its denial audit');
+    assert.ok(permissionFixture.calls[0]!.sql.includes('casino.provider-settings.access-denied'));
+    assert.equal(permissionFixture.calls.some((call) => call.sql.includes('UPDATE public.casino_games')), false);
+  } finally {
+    await permissionApp.close();
+  }
+});
+
+test('game disable is persisted with an atomic audit record and exact response envelope', async () => {
   const fixture = fakeDatabase();
   const app = buildApp({
     database: null,
@@ -269,20 +443,31 @@ test('game disable is persisted with an atomic audit record', async () => {
     identity: fakeIdentity(),
     identityConfig: config(),
   });
+  const requestId = 'q020-bb-game-disable-success';
   try {
     const response = await app.inject({
       method: 'PATCH',
       url: '/api/v1/admin/bigbang/games/' + GAME_ID,
-      headers: authHeaders({ origin: ADMIN_ORIGIN }),
+      headers: { ...authHeaders({ origin: ADMIN_ORIGIN }), 'x-request-id': requestId },
       payload: { enabled: false },
     });
     assert.equal(response.statusCode, 200, response.body);
-    assert.equal(response.json().data.enabled, false);
+    assert.deepEqual(Object.keys(response.json()).sort(), ['data', 'requestId']);
+    assert.deepEqual(response.json().data, {
+      id: GAME_ID,
+      slug: 'hot-hot-fruit-habanero',
+      title: 'Hot Hot Fruit',
+      enabled: false,
+      updatedAt: '2026-10-22T10:06:00.000Z',
+    });
+    assert.equal(response.json().requestId, requestId);
+    assert.equal(response.headers['x-request-id'], requestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
     assert.equal(fixture.calls.length, 1);
     const call = fixture.calls[0]!;
-    assert.match(call.sql, /UPDATE public\.casino_games/);
+    assert.ok(call.sql.includes('UPDATE public.casino_games'));
     assert.match(call.sql, /source_mode='standard'/);
-    assert.match(call.sql, /INSERT INTO public\.audit_events/);
+    assert.ok(call.sql.includes('INSERT INTO public.audit_events'));
     assert.deepEqual(call.values.slice(0, 3), [GAME_ID, false, ADMIN_ID]);
     assert.equal(call.values[4], 'casino.game.disabled');
   } finally {
@@ -315,7 +500,60 @@ test('provider list exposes independent Standard and fail-closed Premium tier co
   }
 });
 
-test('Standard provider tier can be disabled with an audit event, but Premium tier stays unavailable', async () => {
+test('provider tier mutation matches OpenAPI success/error envelopes and keeps Premium fail-closed', async () => {
+  const fixture = fakeDatabase();
+  const app = buildApp({
+    database: null,
+    catalogDatabase: fixture.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+  });
+  try {
+    const standardRequestId = 'q020-bb-tier-standard-success';
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/bigbang/providers/habanero/tiers/standard',
+      headers: { ...authHeaders({ origin: ADMIN_ORIGIN }), 'x-request-id': standardRequestId },
+      payload: { enabled: false },
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.deepEqual(Object.keys(response.json()).sort(), ['data', 'requestId']);
+    assert.deepEqual(response.json().data, {
+      code: 'habanero', mode: 'standard', enabled: false, updatedAt: '2026-10-23T08:10:00.000Z',
+    });
+    assert.equal(response.json().requestId, standardRequestId);
+    assert.equal(response.headers['x-request-id'], standardRequestId);
+    assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
+    const tierMutation = fixture.calls.find((call) => call.sql.includes('UPDATE public.casino_provider_tier_settings'));
+    assert.ok(tierMutation);
+    assert.match(tierMutation.sql, /INSERT INTO public[.]audit_events/);
+    assert.deepEqual(tierMutation.values.slice(0, 4), ['habanero', 'standard', false, ADMIN_ID]);
+
+    const callsBeforePremium = fixture.calls.length;
+    const premiumRequestId = 'q020-bb-tier-premium-locked';
+    const premium = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/bigbang/providers/habanero/tiers/premium',
+      headers: { ...authHeaders({ origin: ADMIN_ORIGIN }), 'x-request-id': premiumRequestId },
+      payload: { enabled: true },
+    });
+    assert.equal(premium.statusCode, 409, premium.body);
+    assert.deepEqual(premium.json().error, {
+      code: 'PREMIUM_NOT_AVAILABLE',
+      message: 'Premium provider controls remain locked until authorized Premium catalogue sync and launch support are implemented',
+    });
+    assert.deepEqual(Object.keys(premium.json()).sort(), ['error', 'requestId']);
+    assert.equal(premium.json().requestId, premiumRequestId);
+    assert.equal(premium.headers['x-request-id'], premiumRequestId);
+    assert.equal(premium.headers['content-type']?.split(';')[0], 'application/json');
+    assert.equal(fixture.calls.length, callsBeforePremium);
+  } finally {
+    await app.close();
+  }
+});
+
+
+test('Q-020 admin BigBang games GET has direct success, permission-denial and schema-negative route evidence', async () => {
   const fixture = fakeDatabase();
   const app = buildApp({
     database: null,
@@ -325,31 +563,93 @@ test('Standard provider tier can be disabled with an audit event, but Premium ti
   });
   try {
     const response = await app.inject({
-      method: 'PATCH',
-      url: '/api/v1/admin/bigbang/providers/habanero/tiers/standard',
-      headers: authHeaders({ origin: ADMIN_ORIGIN }),
-      payload: { enabled: false },
+      method: 'GET',
+      url: '/api/v1/admin/bigbang/games?page=1&pageSize=25&providerCode=habanero&query=Hot',
+      headers: { cookie: SESSION_COOKIE, 'x-request-id': 'q020-admin-games-ok' },
     });
     assert.equal(response.statusCode, 200, response.body);
-    assert.deepEqual(response.json().data, {
-      code: 'habanero', mode: 'standard', enabled: false, updatedAt: '2026-10-23T08:10:00.000Z',
-    });
-    const tierMutation = fixture.calls.find((call) => call.sql.includes('UPDATE public.casino_provider_tier_settings'));
-    assert.ok(tierMutation);
-    assert.match(tierMutation.sql, /INSERT INTO public\.audit_events/);
-    assert.deepEqual(tierMutation.values.slice(0, 4), ['habanero', 'standard', false, ADMIN_ID]);
-
-    const callsBeforePremium = fixture.calls.length;
-    const premium = await app.inject({
-      method: 'PATCH',
-      url: '/api/v1/admin/bigbang/providers/habanero/tiers/premium',
-      headers: authHeaders({ origin: ADMIN_ORIGIN }),
-      payload: { enabled: true },
-    });
-    assert.equal(premium.statusCode, 409);
-    assert.equal(premium.json().error.code, 'PREMIUM_NOT_AVAILABLE');
-    assert.equal(fixture.calls.length, callsBeforePremium);
+    assert.equal(response.headers['x-request-id'], 'q020-admin-games-ok');
+    assert.equal(response.headers['cache-control'], 'no-store');
+    assert.deepEqual(response.json().data, [{
+      id: GAME_ID,
+      slug: 'hot-hot-fruit-habanero',
+      title: 'Hot Hot Fruit',
+      provider: { code: 'habanero', name: 'Habanero' },
+      sourceAvailable: true,
+      catalogAvailable: true,
+      enabled: true,
+      providerEnabled: true,
+      updatedAt: '2026-10-22T10:06:00.000Z',
+    }]);
+    assert.deepEqual(response.json().page, { page: 1, pageSize: 25, total: 1, nextPage: null });
+    assert.equal(fixture.calls.length, 2, 'the list endpoint should make only count and page queries');
+    assert.deepEqual(fixture.calls[0]!.values, ['habanero', '%Hot%']);
+    assert.match(fixture.calls[0]!.sql, /p\.code=\$1/);
+    assert.match(fixture.calls[0]!.sql, /g\.title ILIKE \$2/);
+    assert.deepEqual(fixture.calls[1]!.values, ['habanero', '%Hot%', 25, 0]);
+    assert.doesNotMatch(fixture.calls[1]!.sql, /Hot/);
   } finally {
     await app.close();
+  }
+
+  const missingSessionDb = fakeDatabase();
+  const missingSessionApp = buildApp({
+    database: null,
+    catalogDatabase: missingSessionDb.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+  });
+  try {
+    const denied = await missingSessionApp.inject({
+      method: 'GET',
+      url: '/api/v1/admin/bigbang/games',
+    });
+    assert.equal(denied.statusCode, 401);
+    assert.equal(denied.json().error.code, 'UNAUTHORIZED');
+    assert.equal(missingSessionDb.calls.length, 0, 'anonymous GET must not query game data');
+  } finally {
+    await missingSessionApp.close();
+  }
+
+  const insufficientPermissionDb = fakeDatabase();
+  const insufficientPermissionApp = buildApp({
+    database: null,
+    catalogDatabase: insufficientPermissionDb.database,
+    identity: fakeIdentity([]),
+    identityConfig: config(),
+  });
+  try {
+    const denied = await insufficientPermissionApp.inject({
+      method: 'GET',
+      url: '/api/v1/admin/bigbang/games',
+      headers: { cookie: SESSION_COOKIE },
+    });
+    assert.equal(denied.statusCode, 403);
+    assert.equal(denied.json().error.code, 'FORBIDDEN');
+    assert.ok(insufficientPermissionDb.calls.some((call) => call.sql.includes('casino.provider-settings.access-denied')));
+  } finally {
+    await insufficientPermissionApp.close();
+  }
+
+  const schemaDb = fakeDatabase();
+  const schemaApp = buildApp({
+    database: null,
+    catalogDatabase: schemaDb.database,
+    identity: fakeIdentity(),
+    identityConfig: config(),
+  });
+  try {
+    const invalid = await schemaApp.inject({
+      method: 'GET',
+      url: '/api/v1/admin/bigbang/games?pageSize=101',
+      headers: { cookie: SESSION_COOKIE, 'x-request-id': 'q020-admin-games-invalid' },
+    });
+    assert.equal(invalid.statusCode, 400);
+    assert.equal(invalid.json().error.code, 'VALIDATION_ERROR');
+    assert.equal(invalid.json().requestId, 'q020-admin-games-invalid');
+    assert.equal(invalid.headers['x-request-id'], 'q020-admin-games-invalid');
+    assert.equal(schemaDb.calls.length, 0, 'invalid paging must be rejected before DB access');
+  } finally {
+    await schemaApp.close();
   }
 });

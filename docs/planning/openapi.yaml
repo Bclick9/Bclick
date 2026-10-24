@@ -164,6 +164,7 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [email]
               properties: {email: {type: string, format: email, maxLength: 254}}
       responses:
@@ -184,6 +185,7 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [token, newPassword]
               properties:
                 token: {type: string, minLength: 32, maxLength: 512}
@@ -472,6 +474,7 @@ paths:
           headers:
             X-Request-Id:
               $ref: '#/components/headers/XRequestId'
+        '400': {$ref: '#/components/responses/ValidationError'}
       parameters:
         - $ref: '#/components/parameters/XRequestId'
         - name: cursor
@@ -481,7 +484,7 @@ paths:
             type:
               - string
               - 'null'
-            maxLength: 2048
+            maxLength: 512
         - name: page
           in: query
           required: false
@@ -543,6 +546,7 @@ paths:
           headers:
             Cache-Control: {schema: {type: string, const: no-store}}
             X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+        '400': {$ref: '#/components/responses/ValidationError'}
       operationId: getCasinoDisplayCategories
   /api/v1/casino/providers:
     get:
@@ -558,6 +562,7 @@ paths:
           headers:
             X-Request-Id:
               $ref: '#/components/headers/XRequestId'
+        '400': {$ref: '#/components/responses/ValidationError'}
       parameters:
         - $ref: '#/components/parameters/XRequestId'
         - name: cursor
@@ -567,7 +572,7 @@ paths:
             type:
               - string
               - 'null'
-            maxLength: 2048
+            maxLength: 512
         - name: page
           in: query
           required: false
@@ -590,11 +595,11 @@ paths:
       security: []
       summary: Search the local normalized catalogue; never call vendor for each card
       parameters:
-        - {name: category, in: query, description: Filter by provider/source category slug., schema: {type: string, maxLength: 80}}
-        - {name: displayCategory, in: query, description: Filter to currently visible games assigned to a Bclick-managed display category slug with matching game type., schema: {type: string, minLength: 1, maxLength: 80}}
+        - {name: category, in: query, description: Filter by provider/source category slug., schema: {type: string, minLength: 1, maxLength: 80, pattern: '^[^\u0000-\u001F\u007F]*$'}}
+        - {name: displayCategory, in: query, description: Filter to currently visible games assigned to a Bclick-managed display category slug with matching game type., schema: {type: string, minLength: 1, maxLength: 80, pattern: '^[^\u0000-\u001F\u007F]*$'}}
         - {name: type, in: query, description: Restrict the catalogue to the selected storefront game type., schema: {type: string, enum: [casino, live-casino, crash-games]}}
-        - {name: provider, in: query, schema: {type: string, maxLength: 80}}
-        - {name: query, in: query, schema: {type: string, maxLength: 100}}
+        - {name: provider, in: query, schema: {type: string, minLength: 1, maxLength: 80, pattern: '^[^\u0000-\u001F\u007F]*$'}}
+        - {name: query, in: query, schema: {type: string, maxLength: 100, pattern: '^[^\u0000-\u001F\u007F]*$'}}
         - {name: mode, in: query, schema: {type: string, enum: [demo, real]}}
         - {name: pageSize, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 24}}
         - {name: cursor, in: query, schema: {type: string, maxLength: 512}}
@@ -647,6 +652,7 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '404':
           $ref: '#/components/responses/NotFound'
+        '414': {$ref: '#/components/responses/UriTooLong'}
   /api/v1/casino/games/{gameId}:
     parameters:
       - name: gameId
@@ -666,6 +672,7 @@ paths:
           headers:
             X-Request-Id:
               $ref: '#/components/headers/XRequestId'
+        '400': {$ref: '#/components/responses/ValidationError'}
         '404': {$ref: '#/components/responses/NotFound'}
       parameters:
         - $ref: '#/components/parameters/XRequestId'
@@ -1505,14 +1512,16 @@ paths:
       responses:
         '200':
           description: Provider control updated and audited.
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
           content:
             application/json:
               schema: {$ref: '#/components/schemas/BigBangAdminProviderControlResponse'}
-        '400': {description: Invalid provider code or request body.}
+        '400': {$ref: '#/components/responses/ValidationError'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
-        '500': {description: Update or audit persistence failed; the mutation is not reported as successful.}
+        '500': {$ref: '#/components/responses/InternalError'}
       operationId: patchAdminBigBangProvider
   /api/v1/admin/bigbang/providers/{providerCode}/tiers/{mode}:
     parameters:
@@ -1534,6 +1543,8 @@ paths:
       responses:
         '200':
           description: Source-tier control updated and audited.
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
           content:
             application/json:
               schema:
@@ -1549,10 +1560,18 @@ paths:
                       enabled: {type: boolean}
                       updatedAt: {type: string, format: date-time}
                   requestId: {type: string}
+        '400': {$ref: '#/components/responses/ValidationError'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
-        '409': {description: Premium tier is not enabled for the current integration.}
+        '409':
+          description: Premium tier is not enabled for the current integration.
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '500': {$ref: '#/components/responses/InternalError'}
       operationId: patchAdminBigBangProviderTier
   /api/v1/admin/bigbang/games:
     get:
@@ -1601,14 +1620,16 @@ paths:
       responses:
         '200':
           description: Game control updated and audited.
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
           content:
             application/json:
               schema: {$ref: '#/components/schemas/BigBangAdminGameControlResponse'}
-        '400': {description: Invalid game ID or request body.}
+        '400': {$ref: '#/components/responses/ValidationError'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
-        '500': {description: Update or audit persistence failed; the mutation is not reported as successful.}
+        '500': {$ref: '#/components/responses/InternalError'}
       operationId: patchAdminBigBangGame
   /api/v1/admin/casino/display-categories:
     get:
@@ -1699,6 +1720,9 @@ paths:
       responses:
         '201':
           description: Icon stored and category metadata audited.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
           content:
             application/json:
               schema:
@@ -1717,13 +1741,29 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
-        '413': {description: Image exceeds the 5 MiB upload limit or is empty/too small.}
-        '415': {description: 'Unsupported image content type, invalid image bytes or content-type mismatch.'}
+        '413':
+          description: Image exceeds the 5 MiB upload limit or is empty/too small.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '415':
+          description: Unsupported image content type, invalid image bytes or content-type mismatch.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '500': {$ref: '#/components/responses/InternalError'}
       operationId: uploadAdminCasinoDisplayCategoryIcon
   /api/v1/assets/casino-display-categories/{categoryId}/{fileName}:
     parameters:
       - {name: categoryId, in: path, required: true, schema: {type: string, format: uuid}}
-      - {name: fileName, in: path, required: true, schema: {type: string, pattern: '^[0-9a-fA-F-]{36}\\.(png|jpg|webp)$'}}
+      - {name: fileName, in: path, required: true, schema: {type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\.(png|jpg|webp)$'}}
+      - $ref: '#/components/parameters/XRequestId'
     get:
       tags: [Casino]
       security: []
@@ -1738,8 +1778,13 @@ paths:
             image/webp: {schema: {type: string, format: binary}}
           headers:
             Cache-Control: {schema: {type: string}}
+            Content-Security-Policy: {schema: {type: string}}
             X-Content-Type-Options: {schema: {type: string}}
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+        '400': {$ref: '#/components/responses/ValidationError'}
         '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
       operationId: getCasinoDisplayCategoryIcon
   /api/v1/admin/casino/display-categories/{categoryId}:
     parameters:
@@ -2147,6 +2192,8 @@ paths:
       responses:
         '201':
           description: Image stored persistently and audit record written.
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
           content:
             application/json:
               schema:
@@ -2161,13 +2208,32 @@ paths:
                       customImageUrl: {type: string, format: uri-reference}
                       contentType: {type: string, enum: [image/png, image/jpeg, image/webp]}
                   requestId: {type: string}
-        '400': {description: Invalid UUID.}
+        '400': {$ref: '#/components/responses/ValidationError'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
-        '409': {description: Premium artwork edits are locked.}
-        '413': {description: Image exceeds the 5 MiB limit.}
-        '415': {description: Unsupported or invalid image bytes.}
+        '409':
+          description: Premium artwork edits are locked.
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '413':
+          description: Image is smaller than the supported minimum or exceeds the 5 MiB limit.
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '415':
+          description: Unsupported media type, invalid image bytes or Content-Type does not match the image signature.
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '500': {$ref: '#/components/responses/InternalError'}
       operationId: postAdminSkinGameImage
   /api/v1/assets/casino-games/{gameId}/{fileName}:
     get:
@@ -2176,7 +2242,7 @@ paths:
       description: Serves only the current custom image referenced by the catalogue record.
       parameters:
         - {name: gameId, in: path, required: true, schema: {type: string, format: uuid}}
-        - {name: fileName, in: path, required: true, schema: {type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\.(png|jpg|webp)$'}}
+        - {name: fileName, in: path, required: true, schema: {type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\\.(png|jpg|webp)$'}}
         - $ref: '#/components/parameters/XRequestId'
       responses:
         '200':
@@ -2187,9 +2253,14 @@ paths:
             image/webp: {schema: {type: string, format: binary}}
           headers:
             Cache-Control: {schema: {type: string, const: "public, max-age=31536000, immutable"}}
+            Content-Security-Policy: {schema: {type: string, const: "default-src 'none'; sandbox"}}
             X-Content-Type-Options: {schema: {type: string, const: nosniff}}
+            X-Request-Id: {$ref: '#/components/headers/XRequestId'}
+        '400': {$ref: '#/components/responses/ValidationError'}
         '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
       operationId: getCasinoGamePersistentAsset
+
   /api/v1/admin/providers/{providerCode}/catalog-sync:
     parameters:
       - name: providerCode
@@ -4407,9 +4478,7 @@ paths:
       summary: Read a CMS resource
       operationId: ReadACmsResource
       description: Requires cms.write or cms.publish as appropriate. Draft detail includes version and audit 
-        metadata. ETag is returned for subsequent If-Match writes. The generic resource path excludes 
-        skin-games; game ordering is handled by the dedicated /api/v1/admin/cms/skin-games/{gameId}/reorder 
-        route.
+        metadata. ETag is returned for subsequent If-Match writes. The generic resource path excludes skin-games; game ordering uses the persisted catalogue operations /api/v1/admin/casino/skin-games/reorder and /api/v1/admin/casino/skin-games/{gameId}/order-position.
       security:
         - adminSession: []
       parameters:
@@ -5130,63 +5199,6 @@ paths:
           description: Retriable failure only when allowed by the selected PSP webhook contract.
     description: Unversioned external callback endpoint. This path is intentionally outside /api/v1; 
       response/signature semantics must match the registered provider contract.
-  /api/v1/admin/cms/skin-games/{gameId}/reorder:
-    patch:
-      tags:
-        - Backoffice
-      security:
-        - adminSession: []
-      summary: Reorder a game within a CMS skin
-      operationId: reorderCmsSkinGame
-      description: Requires cms.write and an If-Match value for the current skin/order version. Changes 
-        presentation order only; it does not alter provider game IDs or availability.
-      parameters:
-        - name: gameId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/XRequestId'
-        - $ref: '#/components/parameters/CsrfToken'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-                - skinId
-                - position
-              properties:
-                skinId:
-                  type: string
-                  format: uuid
-                position:
-                  type: integer
-                  minimum: 0
-      responses:
-        '200':
-          description: Skin ordering updated; returns current ETag and audit metadata.
-          headers:
-            ETag:
-              $ref: '#/components/headers/ETag'
-            X-Request-Id:
-              $ref: '#/components/headers/XRequestId'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CmsResourceResponse'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '412':
-          description: ETag mismatch; re-fetch current order before retry.
-        '428':
-          description: If-Match is required.
   /csp-report:
     post:
       tags:
@@ -6537,21 +6549,46 @@ components:
   responses:
     ValidationError:
       description: Input rejected without financial side effects.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+    UriTooLong:
+      description: A path parameter exceeded the bounded router length. The response never reflects the request URL.
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorResponse'}
     Unauthorized:
       description: No valid session or credentials.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorResponse'}
     Forbidden:
       description: Authenticated but not authorized.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorResponse'}
     NotFound:
       description: Resource missing or inaccessible to this actor.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+    InternalError:
+      description: Internal operation failure. The response does not expose filesystem paths, dependency messages, or other implementation details.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorResponse'}

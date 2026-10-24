@@ -965,7 +965,10 @@ export interface paths {
     "/api/v1/assets/casino-display-categories/{categoryId}/{fileName}": {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
             path: {
                 categoryId: string;
                 fileName: string;
@@ -2051,7 +2054,7 @@ export interface paths {
         };
         /**
          * Read a CMS resource
-         * @description Requires cms.write or cms.publish as appropriate. Draft detail includes version and audit metadata. ETag is returned for subsequent If-Match writes. The generic resource path excludes skin-games; game ordering is handled by the dedicated /api/v1/admin/cms/skin-games/{gameId}/reorder route.
+         * @description Requires cms.write or cms.publish as appropriate. Draft detail includes version and audit metadata. ETag is returned for subsequent If-Match writes. The generic resource path excludes skin-games; game ordering uses the persisted catalogue operations /api/v1/admin/casino/skin-games/reorder and /api/v1/admin/casino/skin-games/{gameId}/order-position.
          */
         get: operations["ReadACmsResource"];
         put?: never;
@@ -2363,26 +2366,6 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/cms/skin-games/{gameId}/reorder": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Reorder a game within a CMS skin
-         * @description Requires cms.write and an If-Match value for the current skin/order version. Changes presentation order only; it does not alter provider game IDs or availability.
-         */
-        patch: operations["reorderCmsSkinGame"];
         trace?: never;
     };
     "/csp-report": {
@@ -5374,6 +5357,16 @@ export interface components {
         /** @description Input rejected without financial side effects. */
         ValidationError: {
             headers: {
+                "X-Request-Id": components["headers"]["XRequestId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description A path parameter exceeded the bounded router length. The response never reflects the request URL. */
+        UriTooLong: {
+            headers: {
                 [name: string]: unknown;
             };
             content: {
@@ -5383,6 +5376,7 @@ export interface components {
         /** @description No valid session or credentials. */
         Unauthorized: {
             headers: {
+                "X-Request-Id": components["headers"]["XRequestId"];
                 [name: string]: unknown;
             };
             content: {
@@ -5392,6 +5386,7 @@ export interface components {
         /** @description Authenticated but not authorized. */
         Forbidden: {
             headers: {
+                "X-Request-Id": components["headers"]["XRequestId"];
                 [name: string]: unknown;
             };
             content: {
@@ -5401,6 +5396,17 @@ export interface components {
         /** @description Resource missing or inaccessible to this actor. */
         NotFound: {
             headers: {
+                "X-Request-Id": components["headers"]["XRequestId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Internal operation failure. The response does not expose filesystem paths, dependency messages, or other implementation details. */
+        InternalError: {
+            headers: {
+                "X-Request-Id": components["headers"]["XRequestId"];
                 [name: string]: unknown;
             };
             content: {
@@ -6062,6 +6068,7 @@ export interface operations {
                     "application/json": components["schemas"]["CategoriesResponse"];
                 };
             };
+            400: components["responses"]["ValidationError"];
         };
     };
     getCasinoDisplayCategories: {
@@ -6105,6 +6112,7 @@ export interface operations {
                     };
                 };
             };
+            400: components["responses"]["ValidationError"];
         };
     };
     getCasinoProviders: {
@@ -6133,6 +6141,7 @@ export interface operations {
                     "application/json": components["schemas"]["ProvidersResponse"];
                 };
             };
+            400: components["responses"]["ValidationError"];
         };
     };
     getCasinoGames: {
@@ -6198,6 +6207,7 @@ export interface operations {
             };
             400: components["responses"]["ValidationError"];
             404: components["responses"]["NotFound"];
+            414: components["responses"]["UriTooLong"];
         };
     };
     getCasinoGamesByGameId: {
@@ -6224,6 +6234,7 @@ export interface operations {
                     "application/json": components["schemas"]["GameResponse"];
                 };
             };
+            400: components["responses"]["ValidationError"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7035,29 +7046,18 @@ export interface operations {
             /** @description Provider control updated and audited. */
             200: {
                 headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["BigBangAdminProviderControlResponse"];
                 };
             };
-            /** @description Invalid provider code or request body. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+            400: components["responses"]["ValidationError"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Update or audit persistence failed; the mutation is not reported as successful. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+            500: components["responses"]["InternalError"];
         };
     };
     patchAdminBigBangProviderTier: {
@@ -7084,6 +7084,7 @@ export interface operations {
             /** @description Source-tier control updated and audited. */
             200: {
                 headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -7100,16 +7101,21 @@ export interface operations {
                     };
                 };
             };
+            400: components["responses"]["ValidationError"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Premium tier is not enabled for the current integration. */
             409: {
                 headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
+            500: components["responses"]["InternalError"];
         };
     };
     getAdminBigBangGames: {
@@ -7174,29 +7180,18 @@ export interface operations {
             /** @description Game control updated and audited. */
             200: {
                 headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["BigBangAdminGameControlResponse"];
                 };
             };
-            /** @description Invalid game ID or request body. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+            400: components["responses"]["ValidationError"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Update or audit persistence failed; the mutation is not reported as successful. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+            500: components["responses"]["InternalError"];
         };
     };
     getAdminCasinoDisplayCategories: {
@@ -7319,6 +7314,7 @@ export interface operations {
             /** @description Icon stored and category metadata audited. */
             201: {
                 headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -7342,23 +7338,33 @@ export interface operations {
             /** @description Image exceeds the 5 MiB upload limit or is empty/too small. */
             413: {
                 headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
             /** @description Unsupported image content type, invalid image bytes or content-type mismatch. */
             415: {
                 headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
+            500: components["responses"]["InternalError"];
         };
     };
     getCasinoDisplayCategoryIcon: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
             path: {
                 categoryId: string;
                 fileName: string;
@@ -7371,7 +7377,9 @@ export interface operations {
             200: {
                 headers: {
                     "Cache-Control"?: string;
+                    "Content-Security-Policy"?: string;
                     "X-Content-Type-Options"?: string;
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -7380,7 +7388,9 @@ export interface operations {
                     "image/webp": string;
                 };
             };
+            400: components["responses"]["ValidationError"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     deleteAdminCasinoDisplayCategory: {
@@ -7907,6 +7917,7 @@ export interface operations {
             /** @description Image stored persistently and audit record written. */
             201: {
                 headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -7923,37 +7934,41 @@ export interface operations {
                     };
                 };
             };
-            /** @description Invalid UUID. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+            400: components["responses"]["ValidationError"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Premium artwork edits are locked. */
             409: {
                 headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
-            /** @description Image exceeds the 5 MiB limit. */
+            /** @description Image is smaller than the supported minimum or exceeds the 5 MiB limit. */
             413: {
                 headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
-            /** @description Unsupported or invalid image bytes. */
+            /** @description Unsupported media type, invalid image bytes or Content-Type does not match the image signature. */
             415: {
                 headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
+            500: components["responses"]["InternalError"];
         };
     };
     getCasinoGamePersistentAsset: {
@@ -7975,7 +7990,9 @@ export interface operations {
             200: {
                 headers: {
                     "Cache-Control"?: "public, max-age=31536000, immutable";
+                    "Content-Security-Policy"?: "default-src 'none'; sandbox";
                     "X-Content-Type-Options"?: "nosniff";
+                    "X-Request-Id": components["headers"]["XRequestId"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -7984,7 +8001,9 @@ export interface operations {
                     "image/webp": string;
                 };
             };
+            400: components["responses"]["ValidationError"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     postAdminProvidersByProviderCodeCatalogSync: {
@@ -11055,61 +11074,6 @@ export interface operations {
             };
             /** @description Retriable failure only when allowed by the selected PSP webhook contract. */
             "5XX": {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    reorderCmsSkinGame: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Current opaque ETag returned by the corresponding GET; used for optimistic concurrency. */
-                "If-Match": components["parameters"]["IfMatch"];
-                /** @description Optional untrusted client correlation ID. Preserve it only when it is 8-128 ASCII characters matching `^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`; invalid or absent IDs are replaced with a server-generated ID. This request accepts any string so malformed IDs do not imply a 4xx response. Diagnostic only; never part of provider signature calculation. */
-                "X-Request-Id"?: components["parameters"]["XRequestId"];
-                /** @description Required on every unsafe method authenticated with a player or admin cookie. Must match the CSRF cookie for that security context (`__Host-bclick_player_csrf` or `__Host-bclick_admin_csrf`) and be bound to the current server session. Enrollment endpoints use `__Host-bclick_admin_enrollment_csrf` bound to the short-lived enrollment challenge; never accept a token from another context. */
-                "X-CSRF-Token": components["parameters"]["CsrfToken"];
-            };
-            path: {
-                gameId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: uuid */
-                    skinId: string;
-                    position: number;
-                };
-            };
-        };
-        responses: {
-            /** @description Skin ordering updated; returns current ETag and audit metadata. */
-            200: {
-                headers: {
-                    ETag: components["headers"]["ETag"];
-                    "X-Request-Id": components["headers"]["XRequestId"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CmsResourceResponse"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            409: components["responses"]["Conflict"];
-            /** @description ETag mismatch; re-fetch current order before retry. */
-            412: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description If-Match is required. */
-            428: {
                 headers: {
                     [name: string]: unknown;
                 };

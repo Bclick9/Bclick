@@ -331,11 +331,15 @@ export function registerSkinGamesAdminRoutes(
       const {categoryId}=request.params as {categoryId:string};
       failureStage='validate_icon';
       if(!UUID.test(categoryId)) return sendError(reply,request,400,'VALIDATION_ERROR','Category ID must be a UUID');
+      const contentType=requestImageType(request);
+      if(contentType!=='image/png'&&contentType!=='image/jpeg'&&contentType!=='image/webp') {
+        return sendError(reply,request,415,'IMAGE_TYPE_INVALID','Upload a valid PNG, JPEG or WebP image whose bytes match its Content-Type');
+      }
       if(!Buffer.isBuffer(request.body)||request.body.length<16||request.body.length>MAX_IMAGE_BYTES) {
         return sendError(reply,request,413,'IMAGE_SIZE_INVALID','Category icon must be a supported image no larger than 5 MiB');
       }
       const info=imageInfo(request.body);
-      if(!info||requestImageType(request)!==info.contentType) {
+      if(!info||contentType!==info.contentType) {
         return sendError(reply,request,415,'IMAGE_TYPE_INVALID','Upload a valid PNG, JPEG or WebP image whose bytes match its Content-Type');
       }
 
@@ -1157,11 +1161,15 @@ export function registerSkinGamesAdminRoutes(
       const {gameId}=request.params as {gameId:string};
       failureStage = 'validate_image';
       if(!UUID.test(gameId)) return sendError(reply,request,400,'VALIDATION_ERROR','Game ID must be a canonical UUID');
+      const contentType=requestImageType(request);
+      if(contentType!=='image/png'&&contentType!=='image/jpeg'&&contentType!=='image/webp') {
+        return sendError(reply,request,415,'IMAGE_TYPE_INVALID','Upload a valid PNG, JPEG or WebP image whose bytes match its Content-Type');
+      }
       if(!Buffer.isBuffer(request.body) || request.body.length<16 || request.body.length>MAX_IMAGE_BYTES) {
         return sendError(reply,request,413,'IMAGE_SIZE_INVALID','Image must be a supported image no larger than 5 MiB');
       }
       const info=imageInfo(request.body);
-      if(!info || requestImageType(request)!==info.contentType) {
+      if(!info || contentType!==info.contentType) {
         return sendError(reply,request,415,'IMAGE_TYPE_INVALID','Upload a valid PNG, JPEG or WebP image whose bytes match its Content-Type');
       }
       failureStage = 'lookup_game';

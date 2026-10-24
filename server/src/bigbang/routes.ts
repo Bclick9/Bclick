@@ -203,7 +203,7 @@ interface CatalogPageOptions {
   readonly type?: CasinoDisplayType;
 }
 
-function readCatalogPage(request: FastifyRequest, reply: any): CatalogPageOptions | null {
+function readCatalogPage(request: FastifyRequest, reply: any, cursorMaxLength = 512): CatalogPageOptions | null {
   const query = request.query as Record<string, unknown>;
   const pageSize = query.pageSize === undefined ? 25 : Number(query.pageSize);
   const page = query.page === undefined ? 1 : Number(query.page);
@@ -216,7 +216,7 @@ function readCatalogPage(request: FastifyRequest, reply: any): CatalogPageOption
   }
   let offset = (page - 1) * pageSize;
   if (query.cursor !== undefined) {
-    if (typeof query.cursor !== 'string' || query.cursor.length > 2048) {
+    if (typeof query.cursor !== 'string' || query.cursor.length > cursorMaxLength) {
       errorResponse(reply, request, 400, 'VALIDATION_ERROR', 'Catalogue cursor is invalid');
       return null;
     }
@@ -263,19 +263,19 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
     type: 'object',
     additionalProperties: false,
     properties: {
-      cursor: { type: 'string', maxLength: 2048 },
+      cursor: { type: 'string', maxLength: 512 },
       page: { type: 'integer', minimum: 1, default: 1 },
       pageSize: { type: 'integer', minimum: 1, maximum: 100, default: 25 },
     },
   };
   const categoryPaginationSchema = {
     ...paginationSchema,
-    properties: { ...paginationSchema.properties, type: { type: 'string', enum: [...CASINO_DISPLAY_TYPES] } },
+    properties: { ...paginationSchema.properties, cursor: { type: 'string', maxLength: 2048 }, type: { type: 'string', enum: [...CASINO_DISPLAY_TYPES] } },
   };
 
   // These read-only endpoints query only the local normalized catalogue. They never contact BigBang.
   app.get('/api/v1/casino/categories', { schema: { querystring: categoryPaginationSchema } }, async (request, reply) => {
-    const options = readCatalogPage(request, reply);
+    const options = readCatalogPage(request, reply, 2048);
     if (!options) return;
     // Availability is an operator kill switch. Do not retain responses past a mutation.
     reply.header('Cache-Control', 'no-store');
@@ -417,11 +417,11 @@ export function registerCasinoCatalogRoutes(app: FastifyInstance, database: SqlE
     type: 'object',
     additionalProperties: false,
     properties: {
-      category: { type: 'string', minLength: 1, maxLength: 80 },
-      displayCategory: { type: 'string', minLength: 1, maxLength: 80 },
+      category: { type: 'string', minLength: 1, maxLength: 80, pattern: '^[^\\u0000-\\u001F\\u007F]*$' },
+      displayCategory: { type: 'string', minLength: 1, maxLength: 80, pattern: '^[^\\u0000-\\u001F\\u007F]*$' },
       type: { type: 'string', enum: [...CASINO_DISPLAY_TYPES] },
-      provider: { type: 'string', minLength: 1, maxLength: 80 },
-      query: { type: 'string', maxLength: 100 },
+      provider: { type: 'string', minLength: 1, maxLength: 80, pattern: '^[^\\u0000-\\u001F\\u007F]*$' },
+      query: { type: 'string', maxLength: 100, pattern: '^[^\\u0000-\\u001F\\u007F]*$' },
       mode: { type: 'string', enum: ['demo','real'] },
       pageSize: { type: 'integer', minimum: 1, maximum: 100, default: 24 },
       cursor: { type: 'string', maxLength: 512 },
