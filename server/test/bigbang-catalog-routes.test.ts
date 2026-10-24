@@ -361,7 +361,7 @@ test('Q-020 category list matches the documented response envelope, metadata and
     assert.equal(response.headers['cache-control'], 'no-store');
     assert.equal(fixture.calls.length, 3);
     assert.match(fixture.calls[0]!.sql, /count\(DISTINCT gc\.category_slug\)::text AS total/);
-    assert.match(fixture.calls[1]!.sql, /ORDER BY gc\\.category_slug/);
+    assert.match(fixture.calls[1]!.sql, /ORDER BY gc\.category_slug/);
     assert.deepEqual(fixture.calls[1]!.values, [25, 0]);
     assert.match(fixture.calls[2]!.sql, /casino_catalog_sync_runs/);
   } finally {
