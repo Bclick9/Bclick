@@ -89,8 +89,8 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - name: Install locked workspace
         run: pnpm install --frozen-lockfile
-      - name: Syntax-check deployed Q-013 runtime verifier
-        run: node --check scripts/verify-q013-runtime.mjs
+      - name: Self-test deployed Q-013 runtime verifier
+        run: node scripts/verify-q013-runtime.mjs --self-test
       - name: Verify ordered migrations against PostgreSQL
         env:
           DATABASE_URL: postgresql://bclick_ci:bclick_ci_password@127.0.0.1:5432/bclick_ci
