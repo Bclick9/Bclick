@@ -10,6 +10,7 @@ import { Pool } from 'pg';
 import {
   BREAK_GLASS_ACKNOWLEDGEMENT,
   BreakGlassOperationError,
+  assertBreakGlassDatabaseTarget,
   executeAdminMfaBreakGlassReset,
   parseBreakGlassRequest,
   type AdminMfaBreakGlassRequest,
@@ -19,6 +20,8 @@ function validRequest(targetEmail: string): AdminMfaBreakGlassRequest {
   return {
     targetEmail,
     confirmTargetEmail: targetEmail,
+    databaseTarget: 'db.example.test:5432/bclick_prod',
+    confirmDatabaseTarget: 'db.example.test:5432/bclick_prod',
     requesterIdentity: 'incident-commander@example.test',
     approverIdentity: 'independent-security-approver@example.test',
     incidentTicket: 'INC-2046',
@@ -31,6 +34,24 @@ function validRequest(targetEmail: string): AdminMfaBreakGlassRequest {
   };
 }
 
+
+testFn('break-glass matches typed database target to the connection URL and refuses a mismatch', () => {
+  const url = 'postgresql://operator:secret@db.example.test:5432/bclick_prod?sslmode=require';
+  assert.equal(assertBreakGlassDatabaseTarget(url, 'db.example.test:5432/bclick_prod'), 'bclick_prod');
+  assert.throws(
+    () => assertBreakGlassDatabaseTarget(url, 'other-db.example.test:5432/bclick_prod'),
+    { code: 'DATABASE_TARGET_MISMATCH' },
+  );
+  assert.throws(
+    () => assertBreakGlassDatabaseTarget(url, 'db.example.test:5432/other_db'),
+    { code: 'DATABASE_TARGET_MISMATCH' },
+  );
+  assert.throws(
+    () => assertBreakGlassDatabaseTarget('https://db.example.test/bclick_prod', 'db.example.test:443/bclick_prod'),
+    { code: 'INVALID_DATABASE_URL' },
+  );
+});
+
 testFn('break-glass command refuses development, missing attestations, and target self-approval', () => {
   const targetEmail = 'sole-admin@example.test';
   const request = validRequest(targetEmail);
@@ -40,6 +61,8 @@ testFn('break-glass command refuses development, missing attestations, and targe
     BCLICK_BREAK_GLASS_DEPLOYMENT_GATE_VERIFIED: 'YES',
     BCLICK_BREAK_GLASS_TARGET_EMAIL: targetEmail,
     BCLICK_BREAK_GLASS_CONFIRM_TARGET_EMAIL: targetEmail,
+    BCLICK_BREAK_GLASS_DATABASE_TARGET: request.databaseTarget,
+    BCLICK_BREAK_GLASS_CONFIRM_DATABASE_TARGET: request.confirmDatabaseTarget,
     BCLICK_BREAK_GLASS_REQUESTER_IDENTITY: request.requesterIdentity,
     BCLICK_BREAK_GLASS_APPROVER_IDENTITY: request.approverIdentity,
     BCLICK_BREAK_GLASS_INCIDENT_TICKET: request.incidentTicket,
