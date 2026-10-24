@@ -2180,7 +2180,7 @@ paths:
       tags: [Backoffice]
       security: [adminSession: []]
       summary: Upload persistent custom artwork for a canonical game UUID
-      description: Requires casino.provider-settings.manage, MFA, Origin and CSRF. PNG/JPEG/WebP are validated from bytes, limited to 5 MiB, assigned a server-generated filename and stored on the configured persistent upload volume. blob URLs are never stored. Media quarantine, malware scanning and storage isolation remain subject to Q-004 and are not implied by this API contract.
+      description: Requires casino.provider-settings.manage, MFA, Origin and CSRF. PNG/JPEG/WebP are validated from bytes, limited to 5 MiB, assigned a server-generated filename and stored on the configured persistent upload volume. blob URLs are never stored.
       parameters:
         - $ref: '#/components/parameters/CsrfToken'
       requestBody:
@@ -2239,14 +2239,14 @@ paths:
     get:
       tags: [Casino catalogue]
       summary: Read generated persistent game artwork
-      description: Serves only the current custom image referenced by the catalogue record. Malformed filenames are rejected before database access; inactive or missing files return a safe 404. Filesystem failures return a generic 500 without exposing storage paths.
+      description: Serves only the current custom image referenced by the catalogue record.
       parameters:
         - {name: gameId, in: path, required: true, schema: {type: string, format: uuid}}
         - {name: fileName, in: path, required: true, schema: {type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\\.(png|jpg|webp)$'}}
         - $ref: '#/components/parameters/XRequestId'
       responses:
         '200':
-          description: Validated image bytes. The server-generated asset URL identifies only the active custom image.
+          description: Validated image bytes.
           content:
             image/png: {schema: {type: string, format: binary}}
             image/jpeg: {schema: {type: string, format: binary}}
