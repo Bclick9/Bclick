@@ -1,6 +1,6 @@
 # Q-020 route-coverage follow-up — 2026-10-24
 
-**Status: Q-020 remains OPEN. PR #140 is not merged.** The provider-cursor contract mismatch and a Schemathesis-discovered control-character input failure have been corrected on this branch. Commit [`06b9045`](https://github.com/Bclick9/Bclick/commit/06b90459f1e0ee7e5c6e639903075fe0502495b2) passed API tests, OpenAPI/client checks, bounded Schemathesis, application build, Compose/Identity smoke, PowerShell parsing, and the disposable Migration 006 rehearsal. This record is a checkpoint, not a closure declaration.
+**Status: Q-020 remains OPEN. PR #140 is not merged.** The provider-cursor contract mismatch and a Schemathesis-discovered control-character input failure have been corrected, and an exact positive response-contract test was added for `GET /api/v1/casino/display-categories`. Current-head commit [`64df669`](https://github.com/Bclick9/Bclick/commit/64df669c4e5435e22cc6e02717321a2d464342b7) passed all required CI; details are below. This record is a checkpoint, not a closure declaration.
 
 ## Audited state and scope
 
@@ -43,13 +43,21 @@
 
 The earlier API run at `510f5b2` exposed a faulty test-fixture assumption (SQL parameter arrays were retained by reference). It was corrected by recording a copied array. The final `e9bc94e` API run is green; the earlier failed run is superseded by the successful run linked above.
 
-## Current-head CI evidence — commit `06b90459f1e0ee7e5c6e639903075fe0502495b2`
+## Previous code CI checkpoint — commit `06b90459f1e0ee7e5c6e639903075fe0502495b2` (superseded by the additional display-category test)
 
 - [API skeleton, tests, OpenAPI/client and bounded Schemathesis](https://github.com/Bclick9/Bclick/actions/runs/40080037726) — **passed**. The API job reports **97 tests, 97 passed, 0 failed**; Health baseline: **68/68** generated cases; bounded Q-020 Schemathesis: **464/464** generated cases across eight selected, implemented operations, including the previously failing Stateful phase.
 - [Application builds](https://github.com/Bclick9/Bclick/actions/runs/40080037731) — **passed**.
 - [Local Compose database/migrations/Identity smoke and Windows PowerShell 5.1 parse](https://github.com/Bclick9/Bclick/actions/runs/40080037724) — **passed**.
 - [Wallet Migration 006 disposable-PostgreSQL rehearsal](https://github.com/Bclick9/Bclick/actions/runs/40080037759) — **passed**; disposable CI only.
 - The preceding run at commit `9498685` exposed a reproducible `500` for a NUL-containing `displayCategory` filter. The aligned Fastify/OpenAPI patterns and four regression cases were then added on `06b9045`; all selected Schemathesis cases passed after the change.
+
+## Current-head CI evidence — commit `64df669c4e5435e22cc6e02717321a2d464342b7`
+
+- [API skeleton, tests, OpenAPI/client and bounded Schemathesis](https://github.com/Bclick9/Bclick/actions/runs/40080411978) — **passed**; **98/98 API tests**. Health baseline: **68/68** generated cases. Bounded Q-020 Schemathesis: **472/472** generated cases across eight selected implemented operations (8 capability cases, 8 fuzzing cases and 22 stateful checks), with no issues reported.
+- [Application builds](https://github.com/Bclick9/Bclick/actions/runs/40080411967) — **passed**.
+- [Local Compose database/migrations/Identity smoke and Windows PowerShell 5.1 parse](https://github.com/Bclick9/Bclick/actions/runs/40080411945) — **passed**.
+- [Wallet Migration 006 disposable-PostgreSQL rehearsal](https://github.com/Bclick9/Bclick/actions/runs/40080411984) — **passed**; this is a disposable CI database only.
+- This head includes the operation-specific positive response-contract test for `GET /api/v1/casino/display-categories`. The earlier `06b9045` evidence of 97 API tests and 464 generated Q-020 cases is superseded by this run.
 
 ## Route-crosswalk result
 
