@@ -80,7 +80,7 @@ jobs:
             ["server/migrations/1792512000000_identity_sessions.sql"]="e82d0af78853136a33321489847ab2b0ae1573d8"
             ["server/migrations/1792584000000_identity_domain_migration_001.sql"]="dde5b276dd1220dba5107d7989b6c1378ead101a"
             ["server/migrations/1792670400000_identity_sessions_split_002.sql"]="e215f7a03c74fa140f9c8b1c568e58f56a67a46c"
-            # M003-M013 are pinned only in this disposable CI inventory;
+            # M003-M017 are pinned only in this disposable CI inventory;
             # none is added to the guarded live-Neon migration inventory below.
             ["server/migrations/1792756800000_identity_player_credentials_003.sql"]="aa26b9a9888b1f244f14a32272fd7467cfc3876f"
             ["server/migrations/1792843200000_player_profile_details_004.sql"]="8b88f9a6ff10033e36b51918d6abb1c7df668abb"
