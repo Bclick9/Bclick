@@ -32,6 +32,12 @@ $env:BCLICK_Q013_EVIDENCE_PATH = "docs/evidence/q013-staging-2026-10-24-SHORTSHA
 node scripts/verify-q013-runtime.mjs
 ~~~
 
+To run the offline parser/redaction self-tests without contacting staging/production, use:
+
+~~~powershell
+node scripts/verify-q013-runtime.mjs --self-test
+~~~
+
 Choose a new, non-existing evidence filename because the probe refuses to overwrite existing files. Use the deployment system's recorded deployed commit SHA; the script cannot independently prove which commit a remote server is serving. Cross-check that SHA with the release/deployment record before accepting the evidence.
 
 The probe requests the storefront root, `/sports`, the API health route and private player session route. It captures only a small allowlist of security/cache headers. It does not record response bodies, cookies, Authorization, request bodies, query strings or fragments. CSP nonce values are redacted before evidence is written. It also tests:
