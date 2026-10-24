@@ -5710,7 +5710,7 @@ export interface operations {
             500: components["responses"]["NoStoreInternalError"];
         };
     };
-        postAuthLogout: {
+    postAuthLogout: {
         parameters: {
             query?: never;
             header: {
@@ -5763,7 +5763,7 @@ export interface operations {
             500: components["responses"]["NoStoreInternalError"];
         };
     };
-        postAuthPasswordResetRequest: {
+    postAuthPasswordResetRequest: {
         parameters: {
             query?: never;
             header?: {
@@ -6045,7 +6045,7 @@ export interface operations {
             500: components["responses"]["NoStoreInternalError"];
         };
     };
-        postWalletsFxQuotes: {
+    postWalletsFxQuotes: {
         parameters: {
             query?: never;
             header: {
@@ -6810,7 +6810,7 @@ export interface operations {
             500: components["responses"]["NoStoreInternalError"];
         };
     };
-        postAdminMedia: {
+    postAdminMedia: {
         parameters: {
             query?: never;
             header: {
