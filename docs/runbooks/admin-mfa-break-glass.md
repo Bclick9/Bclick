@@ -44,7 +44,7 @@ Run the command once. Its output contains only status, counts, a correlation/req
 
 ## Verification after execution
 
-1. Independently inspect the audit event by request ID and confirm its outcome, ticket and approver references. Ensure no secret or free-form incident narrative is present.
+1. Independently inspect the audit event by request ID and confirm its outcome, ticket and approver references. Verify that the non-secret `databaseTarget` host/port/database label matches the separately approved operations inventory. Never copy DATABASE_URL into audit metadata or incident notes. Ensure no other secret or free-form incident narrative is present.
 2. Verify that all previous admin sessions are revoked, pending challenges consumed, recovery codes consumed, and old/pending TOTP fields cleared.
 3. Sign in through the normal UI using the unchanged password. Confirm the login response is enrollment_required and no full admin session exists before fresh TOTP verification.
 4. Complete fresh TOTP enrollment, verify the full session endpoint succeeds only after verification, then generate new recovery codes and store them via the approved separate channel.
