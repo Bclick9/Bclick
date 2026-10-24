@@ -15,7 +15,7 @@ The direct live URL https://iframe.winhouse.bet/docs/agent.md was not readable b
 - The loader owns phone-visible height calculation. `data-height` is the desktop height; `data-bottom-gap` subtracts the customer's fixed bottom navigation on phones. A fixed customer navigation must be accounted for so the provider tabs and betslip remain reachable.
 - `data-embed=1` hides WinHouse's top bar and left rail.
 - The documented public JavaScript surface is `window.WinHouseEmbed = { frame, refit(), setLaunch(token), logout() }`.
-- The customer's CSP must allow the provider origin for `frame-src`; the current public guide also explicitly requires allowing the loader origin in `script-src` when CSP restricts scripts.
+- The current public guide explicitly calls out `frame-src https://iframe.winhouse.bet`. Separately, because `embed.js` is loaded as an external script from that origin, any storefront CSP that restricts scripts must permit that origin under the applicable `script-src` directive too. The guide's example is not a complete site CSP.
 - WinHouse's `frame-ancestors` policy is emitted by the provider book and is driven by its own Domain allow-list, with a documented exception for server-IP-locked keys. This is separate from Bclick's CSP and from Bclick's own `frame-src`.
 
 ## Material discrepancy between archived agent file and current guide
