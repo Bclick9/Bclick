@@ -1,6 +1,6 @@
 # Q-020 — Operation disposition matrix and route-level coverage checkpoint
 
-**Audit date:** 2026-10-23  
+**Audit date:** 2026-10-24 (follow-up evidence appended to the 2026-10-23 baseline)  
 **Base:** `main` at the current route inventory / PR #139 baseline.  
 **Status:** Work-in-progress evidence artifact; Q-020 remains OPEN. This matrix is intentionally not a security sign-off.
 
@@ -386,7 +386,7 @@ Guard-marker detection is intentionally conservative and may miss checks hidden 
 | `GET` | `/api/v1/casino/categories` | Invalid cursor returns 400 `VALIDATION_ERROR`, request-ID parity and no DB access. | **Partial** | A positive representative category-list result and documented success metadata/schema assertion. |
 | `GET` | `/api/v1/casino/display-categories` | Invalid `type` query returns 400 `VALIDATION_ERROR`, request-ID parity and no DB access. | **Partial** | Positive public display-category output and exact response-schema assertions. |
 | `GET` | `/api/v1/casino/providers` | Enabled Standard provider list 200/no-store; malformed cursor and a valid-encoding cursor exceeding the 512-character limit return 400 with safe validation envelope/request-ID parity before DB access. | **Partial** | Full success/error payload parity and other pagination boundaries; the >512 case specifically asserts schema-layer `Request validation failed`. |
-| `GET` | `/api/v1/casino/games` | List/search/category/provider/pagination cases; malformed cursor 400/no DB/request-ID parity; no provider network call. | **Partial** | Full OpenAPI response schema/status comparison and pagination boundary/error mapping. |
+| `GET` | `/api/v1/casino/games` | List/search/category/provider/pagination cases; malformed cursor 400/no DB/request-ID parity; NUL/control bytes in `category`, `displayCategory`, `provider` and `query` return 400 before DB access; request-ID parity; no provider network call. | **Partial** | Full OpenAPI response schema/status comparison and remaining pagination boundary/error mapping. |
 | `GET` | `/api/v1/casino/games/by-slug/{slug}` | Canonical slug success; malformed slug 400 before DB; unknown/retired alias 404; request URI bounds are covered globally. | **Substantial, not contract sign-off** | Formal OpenAPI response-body comparison for all 200/400/404/414 cases. |
 | `GET` | `/api/v1/casino/games/{gameId}` | Canonical UUID lookup returns the same canonical game and stored categories as slug lookup; the new Q-020 test asserts invalid UUID 400 before DB access and unknown UUID 404 with safe error body plus request-ID parity. | **Partial** | Compare full success/error response schema and headers with OpenAPI; sign-off remains open even though invalid UUID 400 and unknown UUID 404 now have direct runtime assertions. |
 | `GET` | `/api/v1/admin/bigbang/settings` | Settings 200/no-store; missing provider-settings permission returns 403 and denial audit; Premium unavailable. | **Partial** | Missing-session/Origin and response-envelope/request-ID assertions for all documented errors. |
@@ -418,6 +418,8 @@ Guard-marker detection is intentionally conservative and may miss checks hidden 
 
 
 ## 3. Evidence from this increment
+
+- **2026-10-24 current-head follow-up (`06b9045`):** Schemathesis had found a NUL in `displayCategory` producing an undocumented PostgreSQL-backed 500. Fastify and OpenAPI now reject ASCII control bytes U+0000–U+001F and U+007F in the four string filters on `GET /api/v1/casino/games`. Four negative query cases assert schema-level 400, request-ID parity and zero DB calls. Current code CI passed 97/97 API tests and 464/464 generated cases across the eight-operation Schemathesis subset; see `docs/notes/2026-10-24-Q020-route-coverage-followup.md` for linked run evidence.
 
 ### Completed in this branch
 - Added `server/test/identity-password-reset-contract.test.ts` with route-level positive and negative evidence for both `POST /api/v1/auth/password-reset/request` and `POST /api/v1/auth/password-reset/confirm`: success response, invalid-body rejection before service invocation, exact Origin rejection before service invocation, and `X-Request-Id` parity on responses.
