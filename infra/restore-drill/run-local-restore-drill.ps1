@@ -56,8 +56,20 @@ function Say([string]$Message) {
 }
 
 function Invoke-DockerCmd([string[]]$DockerArguments, [switch]$AllowFailure) {
-  $raw = & docker @DockerArguments 2>&1
-  $code = $LASTEXITCODE
+  # Docker can forward progress messages from commands such as pg_basebackup on stderr
+  # while the command is still healthy. Windows PowerShell may turn redirected native
+  # stderr into terminating errors when ErrorActionPreference is Stop, aborting the
+  # capture before the native process finishes. Temporarily allow capture here, then
+  # rely on the native exit code below for failure handling.
+  $previousErrorActionPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = 'Continue'
+    $raw = & docker @DockerArguments 2>&1
+    $code = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+
   $out = ($raw | ForEach-Object { [string]$_ }) -join [Environment]::NewLine
   if ($code -ne 0 -and -not $AllowFailure) {
     $out = $out -replace '(?i)postgres(?:ql)?://\S+', '[DATABASE_URL_REDACTED]'
@@ -65,7 +77,6 @@ function Invoke-DockerCmd([string[]]$DockerArguments, [switch]$AllowFailure) {
   }
   return $out.Trim()
 }
-
 function DbSql([string]$Container, [string]$Sql, [switch]$Quiet) {
   $a = @('exec', '--env', ("PGPASSWORD=" + $script:DbPassword), $Container, 'psql', '-X', '-v', 'ON_ERROR_STOP=1', '-U', $script:DbUser, '-d', $script:DbName)
   if ($Quiet) { $a += @('-q', '-t', '-A') }
