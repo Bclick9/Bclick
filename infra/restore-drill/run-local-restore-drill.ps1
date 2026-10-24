@@ -55,13 +55,13 @@ function Say([string]$Message) {
   Write-Host ('[{0:u}] {1}' -f (Get-Date).ToUniversalTime(), $Message)
 }
 
-function Docker([string[]]$Args, [switch]$AllowFailure) {
-  $raw = & docker @Args 2>&1
+function Docker([string[]]$DockerArguments, [switch]$AllowFailure) {
+  $raw = & docker @DockerArguments 2>&1
   $code = $LASTEXITCODE
   $out = ($raw | ForEach-Object { [string]$_ }) -join [Environment]::NewLine
   if ($code -ne 0 -and -not $AllowFailure) {
     $out = $out -replace '(?i)postgres(?:ql)?://\S+', '[DATABASE_URL_REDACTED]'
-    throw ("Docker command failed (exit {0}): {1}{2}{3}" -f $code, $Args[0], [Environment]::NewLine, $out)
+    throw ("Docker command failed (exit {0}): {1}{2}{3}" -f $code, $DockerArguments[0], [Environment]::NewLine, $out)
   }
   return $out.Trim()
 }
@@ -93,13 +93,16 @@ function Wait-Ready([string]$Container) {
   throw ("PostgreSQL did not become ready. Sanitized logs: " + $logs)
 }
 
-function Export-Volume([string]$Volume, [string]$Destination) {
+function Export-Volume([string]$Volume, [string]$Destination, [string]$Subdirectory = '.') {
   New-Item -ItemType Directory -Force -Path $Destination | Out-Null
+  $copyFrom = if ($Subdirectory -eq 'base') { '/source/base/.' } else { '/source/.' }
+  $sourceCheck = if ($Subdirectory -eq 'base') { 'test -d /source/base' } else { 'test -d /source' }
+  $exportScript = 'set -eu; ' + $sourceCheck + '; cp -a ' + $copyFrom + ' /out/; test -d /out'
   $null = Docker @(
     'run', '--rm', '--user', '0',
     '--mount', ("type=volume,source=" + $Volume + ",target=/source,readonly"),
     '--mount', ("type=bind,source=" + $Destination + ",target=/out"),
-    '--entrypoint', 'sh', $PostgresImage, '-ec', 'set -eu; cp -a /source/. /out/; test -d /out'
+    '--entrypoint', 'sh', $PostgresImage, '-ec', $exportScript
   )
 }
 
@@ -128,7 +131,7 @@ function Export-Artifacts {
   if ($script:Exported) { return }
   if ($script:CreatedContainers -contains $script:Source) {
     $null = & docker exec $script:Source sh -ec 'test -f /q011-backup/base/backup_manifest' 2>$null
-    if ($LASTEXITCODE -eq 0) { Export-Volume $script:BackupVol $script:BaseOut }
+    if ($LASTEXITCODE -eq 0) { Export-Volume $script:BackupVol $script:BaseOut 'base' }
     $null = & docker exec $script:Source sh -ec 'test -d /q011-wal' 2>$null
     if ($LASTEXITCODE -eq 0) { Export-Volume $script:WalVol $script:WalOut }
   }
