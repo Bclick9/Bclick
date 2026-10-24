@@ -456,7 +456,7 @@ test('provider tier mutation matches OpenAPI success/error envelopes and keeps P
     assert.equal(response.headers['content-type']?.split(';')[0], 'application/json');
     const tierMutation = fixture.calls.find((call) => call.sql.includes('UPDATE public.casino_provider_tier_settings'));
     assert.ok(tierMutation);
-    assert.match(tierMutation.sql, /INSERT INTO public\\.audit_events/);
+    assert.match(tierMutation.sql, /INSERT INTO public[.]audit_events/);
     assert.deepEqual(tierMutation.values.slice(0, 4), ['habanero', 'standard', false, ADMIN_ID]);
 
     const callsBeforePremium = fixture.calls.length;
