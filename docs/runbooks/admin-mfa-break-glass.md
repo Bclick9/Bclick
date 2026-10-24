@@ -17,6 +17,7 @@ If any mutation or the audit insert fails, the transaction rolls back. If the ta
 - An approver independent of the target has verified and approved the sole-administrator exception. The requester and approver must differ. A target administrator may request help but must never approve their own recovery.
 - The tool and runbook have an explicit recorded identity/security review. The deployment gate (Q-011 and the target-environment approval) is independently recorded as approved. A GitHub merge or green CI alone does not satisfy either review.
 - The operator has verified the target database through the approved operations inventory, is using a dedicated least-privilege break-glass database credential, and has an approved incident/backup procedure. Never print or paste DATABASE_URL.
+- The CLI requires the canonical target `lowercase-host:port/database_name` twice and compares it with the host, port and database encoded in DATABASE_URL before connecting. After connecting, it also checks `current_database()` before any mutation. This catches accidental target mismatches; it does not replace independent verification of the approved operations inventory.
 - The target email is independently confirmed. The command itself checks that the target is the only admin_users row.
 - A separate secure channel is arranged for recovery instructions. The CLI does not display a recovery code or new credential.
 
@@ -32,6 +33,7 @@ Set these variables only in the approved operator shell; do not include values i
 - BCLICK_BREAK_GLASS_APPROVAL_VERIFIED: YES, only after verifying independent out-of-band approval.
 - BCLICK_BREAK_GLASS_DEPLOYMENT_GATE_VERIFIED: YES, only after verifying Q-011 and target-environment authorization.
 - BCLICK_BREAK_GLASS_TARGET_EMAIL and BCLICK_BREAK_GLASS_CONFIRM_TARGET_EMAIL: the same exact administrator email.
+- BCLICK_BREAK_GLASS_DATABASE_TARGET and BCLICK_BREAK_GLASS_CONFIRM_DATABASE_TARGET: the same canonical `lowercase-host:port/database_name` identifier copied independently from the approved target inventory and verified to match DATABASE_URL; do not paste the URL itself.
 - BCLICK_BREAK_GLASS_REQUESTER_IDENTITY and BCLICK_BREAK_GLASS_APPROVER_IDENTITY: independently verified incident identities; requester and approver must differ and the target cannot approve their own recovery.
 - BCLICK_BREAK_GLASS_INCIDENT_TICKET: verified incident reference.
 - BCLICK_BREAK_GLASS_IDENTITY_APPROVAL_REF and BCLICK_BREAK_GLASS_DEPLOYMENT_APPROVAL_REF: references to the recorded identity/runbook review and deployment-gate approval.
