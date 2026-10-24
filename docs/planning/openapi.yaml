@@ -472,6 +472,7 @@ paths:
           headers:
             X-Request-Id:
               $ref: '#/components/headers/XRequestId'
+        '400': {$ref: '#/components/responses/ValidationError'}
       parameters:
         - $ref: '#/components/parameters/XRequestId'
         - name: cursor
@@ -502,7 +503,6 @@ paths:
           required: false
           description: Scope source categories to one Bclick storefront game type.
           schema: {type: string, enum: [casino, live-casino, crash-games]}
-        '400': {$ref: '#/components/responses/ValidationError'}
       operationId: getCasinoCategories
   /api/v1/casino/display-categories:
     get:
@@ -560,6 +560,7 @@ paths:
           headers:
             X-Request-Id:
               $ref: '#/components/headers/XRequestId'
+        '400': {$ref: '#/components/responses/ValidationError'}
       parameters:
         - $ref: '#/components/parameters/XRequestId'
         - name: cursor
@@ -585,7 +586,6 @@ paths:
             minimum: 1
             maximum: 100
             default: 25
-        '400': {$ref: '#/components/responses/ValidationError'}
       operationId: getCasinoProviders
   /api/v1/casino/games:
     get:
