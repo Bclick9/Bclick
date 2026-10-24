@@ -625,6 +625,14 @@ test('admin can upload a validated custom icon and serve only the active categor
 test('display-category icon upload rejects undersized, oversized and invalid image bytes with request-id and error-envelope parity', async () => {
   const cases = [
     {
+      name: 'unsupported text/plain Content-Type',
+      contentType: 'text/plain',
+      payload: Buffer.from('not-an-image'),
+      statusCode: 415,
+      code: 'IMAGE_TYPE_INVALID',
+      message: 'Upload a valid PNG, JPEG or WebP image whose bytes match its Content-Type',
+    },
+    {
       name: 'undersized payload',
       contentType: 'image/png',
       payload: Buffer.from('tiny'),
