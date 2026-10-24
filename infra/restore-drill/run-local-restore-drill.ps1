@@ -338,12 +338,18 @@ touch "__RESTORE_DIR__/recovery.signal"
 chown -R postgres:postgres /restore-root
 '@
   $prepare = $prepare.Replace('__RESTORE_DIR__', $restoreDir)
+  # Windows PowerShell 5.1 can split/mangle multiline shell arguments containing
+  # nested quote characters when invoking docker.exe. Encode the script as Base64
+  # so only a simple, whitespace-free payload crosses the Windows native-argument
+  # boundary; decode and execute it inside the disposable Linux helper container.
+  $prepareEncoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($prepare))
+  $prepareCommand = 'printf %s ' + $prepareEncoded + ' | base64 -d > /tmp/q011-restore-prepare.sh && sh /tmp/q011-restore-prepare.sh'
   $null = Invoke-DockerCmd @(
     'run', '--rm', '--user', '0',
     '--mount', ("type=volume,source=" + $script:BackupVol + ",target=/q011-backup,readonly"),
     '--mount', ("type=volume,source=" + $script:WalVol + ",target=/q011-wal,readonly"),
     '--mount', ("type=volume,source=" + $script:RestoreVol + ",target=/restore-root"),
-    '--entrypoint', 'sh', $PostgresImage, '-ec', $prepare
+    '--entrypoint', 'sh', $PostgresImage, '-ec', $prepareCommand
   )
   $null = Invoke-DockerCmd @(
     'run', '--detach', '--name', $script:Restore,
